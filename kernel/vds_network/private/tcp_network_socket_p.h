@@ -382,40 +382,49 @@ namespace vds {
           return;
         }
 
-        int len = send(
-            this->s_,
-            this->write_buffer_.data(),
-            this->write_buffer_.size(),
-            MSG_NOSIGNAL);
+        size_t offset = 0;
+        for(;;) {
+          int len = send(
+              this->s_,
+              this->write_buffer_.data() + offset,
+              this->write_buffer_.size() - offset,
+              MSG_NOSIGNAL);
 
-        if (len < 0) {
-          int error = errno;
-          if(EAGAIN == error){
+          if (len < 0) {
+            int error = errno;
+            if (EAGAIN == error) {
+              if (offset > 0) {
+                this->write_buffer_.remove(0, offset);
+              }
+
+              this->write_status_ = write_status_t::waiting_socket;
+              this->change_mask(EPOLLOUT);
+              return;
+            }
+
             this->write_status_ = write_status_t::waiting_socket;
-            this->change_mask(EPOLLOUT);
-            return;
+            auto result = std::move(this->write_result_);
+            lock.unlock();
+
+            result.error(
+                std::make_shared<std::system_error>(
+                    error,
+                    std::generic_category(),
+                    "Send"));
+          } else {
+            this->sp_.get<logger>()->trace("TCP", this->sp_, "Sent %d bytes", len);
+
+            if ((size_t) len != this->write_buffer_.size()) {
+              offset += (size_t) len;
+              continue;
+            }
+            this->write_status_ = write_status_t::continue_write;
+            auto result = std::move(this->write_result_);
+            lock.unlock();
+
+            result.done();
           }
-
-          this->write_status_ = write_status_t::waiting_socket;
-          auto result = std::move(this->write_result_);
-          lock.unlock();
-
-          result.error(
-              std::make_shared<std::system_error>(
-                  error,
-                  std::generic_category(),
-                  "Send"));
-        } else {
-          this->sp_.get<logger>()->trace("TCP", this->sp_, "Sent %d bytes", len);
-
-          if ((size_t) len != this->write_buffer_.size()) {
-            throw std::runtime_error("Invalid send TCP");
-          }
-          this->write_status_ = write_status_t::continue_write;
-          auto result = std::move(this->write_result_);
-          lock.unlock();
-
-          result.done();
+          return;
         }
       }
 

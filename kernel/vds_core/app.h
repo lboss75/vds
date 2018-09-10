@@ -53,7 +53,11 @@ namespace vds{
     
   protected:
     static app * the_app_;
-    
+
+#ifndef _WIN32
+    static barrier stop_barrier;
+#endif
+
   };
   
   template <typename app_impl>
@@ -481,8 +485,13 @@ namespace vds{
       auto pthis = static_cast<app_impl *>(this);
       pthis->start();
     }
-    
+
+    static void signalHandler( int /*signum*/ ) {
+      stop_barrier.set();
+    }
     void waiting_stop_signal() {
+      signal(SIGINT, signalHandler);
+      stop_barrier.wait();
     }
 
 #endif // _WIN32
