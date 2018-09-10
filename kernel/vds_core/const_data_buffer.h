@@ -141,6 +141,8 @@ namespace vds{
       this->size_ = 0;
     }
 
+    void remove(size_t start, size_t size);
+
   private:
     uint8_t * data_;
     size_t size_;

@@ -13,3 +13,9 @@ vds::const_data_buffer::const_data_buffer(resizable_data_buffer&& other)
   other.size_ = 0;
   other.allocated_size_ = 0;
 }
+
+void vds::const_data_buffer::remove(size_t start, size_t size) {
+  vds_assert(this->size_ > start + size);
+  this->size_ -= size;
+  memmove(this->data_ + start, this->data_ + start + size, this->size_ - start);
+}
