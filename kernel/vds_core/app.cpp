@@ -7,3 +7,6 @@ All rights reserved
 #include "app.h"
 
 vds::app * vds::app::the_app_ = nullptr;
+#ifndef _WIN32
+vds::barrier vds::app::stop_barrier;
+#endif
