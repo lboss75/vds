@@ -392,10 +392,13 @@ void vds::dht::network::udp_transport::continue_read(
                      }
                      std::shared_lock<std::shared_mutex> lock(this_->sessions_mutex_);
                      this_->sessions_.erase(address);
-                     lock.unlock();
-
-                     this_->continue_read(sp);
-                   });
+                     mt_service::async(sp, [sp, pthis]() {
+                       auto this_ = static_cast<udp_transport *>(pthis.get());
+                       if (!sp.get_shutdown_event().is_shuting_down()) {
+                         this_->continue_read(sp);
+                       }
+                     });
+            });
 
             return;
           }
