@@ -10,7 +10,8 @@ All rights reserved
 #include "mt_service.h"
 #include "test_config.h"
 #include <future>
-#include <experimental/coroutine>
+/*
+ *#include <experimental/coroutine>
 
 std::future<int> async_add(int a, int b)
 {
@@ -50,3 +51,4 @@ TEST(mt_tests, test_async) {
 
   GTEST_ASSERT_EQ(result, 5);
 }
+*/
