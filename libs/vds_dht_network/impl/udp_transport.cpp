@@ -129,12 +129,20 @@ vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_
 
   this->block_list_mutex_.lock();
   auto p = this->block_list_.find(address);
-  if (this->block_list_.end() != p && p->second < std::chrono::steady_clock::now()) {
+  if (this->block_list_.end() != p && (std::chrono::steady_clock::now() - p->second) < std::chrono::minutes(1)) {
     this->block_list_mutex_.unlock();
     return async_task<>::empty();
   }
-  this->block_list_[address] = std::chrono::steady_clock::now() + std::chrono::minutes(1);
+  this->block_list_[address] = std::chrono::steady_clock::now();
   this->block_list_mutex_.unlock();
+
+  const auto na = network_address::parse(this->server_.address().family(), address);
+  this->sessions_mutex_.lock();
+  if(this->sessions_.find(na) != this->sessions_.end()) {
+    this->sessions_mutex_.unlock();
+    return async_task<>::empty();
+  }
+  this->sessions_mutex_.unlock();
 
   resizable_data_buffer out_message;
   out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
@@ -150,7 +158,7 @@ vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_
   out_message += bs.move_data();
 
   return this->write_async(sp, udp_datagram(
-    network_address::parse(this->server_.address().family(), address),
+    na,
     out_message.move_data(),
     false));
 }
