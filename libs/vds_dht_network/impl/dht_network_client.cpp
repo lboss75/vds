@@ -483,7 +483,7 @@ void vds::dht::network::_client::get_route_statistics(route_statistic& result) {
 }
 
 void vds::dht::network::_client::get_session_statistics(session_statistic& session_statistic) {
-  //this->udp_transport_->get_session_statistics(session_statistic);
+  static_cast<udp_transport *>(this->udp_transport_.get())->get_session_statistics(session_statistic);
 }
 
 void vds::dht::network::_client::apply_message(
