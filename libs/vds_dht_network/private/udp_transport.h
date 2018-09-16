@@ -64,16 +64,20 @@ namespace vds {
 #endif//_WIN32
 #endif//_DEBUG
 
+        struct session_state {
+          std::mutex session_mutex_;
 
+          bool blocked_;
+          std::chrono::steady_clock::time_point update_time_;
+          std::shared_ptr<class dht_session> session_;
+          const_data_buffer session_key_;
+
+          session_state()
+          : blocked_(false) {
+          }
+        };
         mutable std::shared_mutex sessions_mutex_;
-        std::map<network_address, std::shared_ptr<class dht_session>> sessions_;
-
-        std::mutex block_list_mutex_;
-        std::map<std::string, std::chrono::steady_clock::time_point> block_list_;
-
-        void add_session(const service_provider& sp, const network_address& address,
-                         const std::shared_ptr<dht_session>& session);
-        std::shared_ptr<dht_session> get_session(const network_address& address) const;
+        std::map<network_address, session_state> sessions_;
 
         void continue_read(const service_provider& sp);
         void continue_send(const service_provider& sp);
