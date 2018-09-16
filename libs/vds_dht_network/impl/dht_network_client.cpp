@@ -393,6 +393,12 @@ void vds::dht::network::_client::on_new_session(
     partner_id);
 }
 
+void vds::dht::network::_client::remove_session(
+  const service_provider& sp,
+  const std::shared_ptr<dht_session>& session) {
+  this->route_.remove_session(sp, session);
+}
+
 vds::filename vds::dht::network::_client::save_data(
   const service_provider& sp,
   database_transaction& t,

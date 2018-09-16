@@ -57,6 +57,10 @@ namespace vds {
           const service_provider& sp,
           database_read_transaction& t,
           const const_data_buffer& partner_id);
+        
+        void remove_session(
+          const service_provider& sp,
+          const std::shared_ptr<dht_session>& session);
 
         static filename save_data(
           const service_provider& sp,
@@ -298,7 +302,8 @@ namespace vds {
 
         uint32_t update_route_table_counter_;
 
-        async_task<> update_route_table(const service_provider& sp);
+        async_task<> update_route_table(
+          const service_provider& sp);
         async_task<> process_update(
           const service_provider& sp,
           database_transaction& t);

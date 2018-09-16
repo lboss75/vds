@@ -227,6 +227,15 @@ namespace vds {
       }
 
       void get_statistics(route_statistic& result);
+      void remove_session(
+        const service_provider& sp,
+        const session_type & session) {
+
+        std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
+        for(auto p : this->buckets_){
+          p.second->remove_session(session);
+        }
+      }
 
     private:
       const_data_buffer current_node_id_;
@@ -264,6 +273,19 @@ namespace vds {
           }
 
           return false;
+        }
+
+        void remove_session(
+          const session_type & proxy_session) {
+          std::unique_lock<std::shared_mutex> ulock(this->nodes_mutex_);
+          for(auto p = this->nodes_.begin(); p != this->nodes_.end(); ){
+            if ((*p)->proxy_session_->address() == proxy_session->address()) {
+              p = this->nodes_.erase(p);
+            }
+            else {
+              ++p;
+            }
+          }
         }
 
         template <typename... timer_arg_types>

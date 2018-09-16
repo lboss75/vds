@@ -324,6 +324,7 @@ void vds::dht::network::udp_transport::continue_read(
         }
         case protocol_message_type_t::Failed: {
           session_info.blocked_ = true;
+          (*sp.get<client>())->remove_session(sp, session_info.session_);
           session_info.session_.reset();
           session_info.update_time_ = std::chrono::steady_clock::now();
           break;
@@ -343,6 +344,7 @@ void vds::dht::network::udp_transport::continue_read(
                            
                            session_info.session_mutex_.lock();
                            session_info.blocked_ = true;
+                           (*sp.get<client>())->remove_session(sp, session_info.session_);
                            session_info.session_.reset();
                            session_info.update_time_ = std::chrono::steady_clock::now();
                            session_info.session_mutex_.unlock();
@@ -371,12 +373,14 @@ void vds::dht::network::udp_transport::continue_read(
             }
             catch (...) {
               session_info.blocked_ = true;
+              (*sp.get<client>())->remove_session(sp, session_info.session_);
               session_info.session_.reset();
               session_info.update_time_ = std::chrono::steady_clock::now();
             }
           }
           else {
             session_info.blocked_ = true;
+            (*sp.get<client>())->remove_session(sp, session_info.session_);
             session_info.session_.reset();
             session_info.update_time_ = std::chrono::steady_clock::now();
 
