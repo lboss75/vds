@@ -19,7 +19,6 @@ namespace vds {
       static bool save(
         const service_provider &sp,
         class database_transaction &t,
-        const const_data_buffer & refer_id,
         const const_data_buffer & block_data);
 
     private:
@@ -27,6 +26,12 @@ namespace vds {
         database_transaction& t,
         const transaction_block& block,
         const std::string & account);
+
+      static bool process_block(
+        const service_provider &sp,
+        class database_transaction &t,
+        const const_data_buffer & block_data,
+        bool saved);
     };
   }
 }

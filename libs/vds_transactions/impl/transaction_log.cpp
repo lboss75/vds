@@ -18,16 +18,30 @@ All rights reserved
 #include "logger.h"
 #include "certificate_chain_dbo.h"
 #include "include/transaction_state_calculator.h"
+#include "transaction_source_not_found_error.h"
+#include "transaction_lack_of_funds.h"
 
 bool vds::transactions::transaction_log::save(
 	const service_provider & sp,
 	database_transaction & t,
-  const const_data_buffer & refer_id,
 	const const_data_buffer & block_data)
+{
+  return process_block(
+    sp,
+    t,
+    block_data,
+    false);
+}
+
+bool vds::transactions::transaction_log::process_block(
+  const service_provider & sp,
+  database_transaction & t,
+  const const_data_buffer & block_data,
+  bool saved)
 {
   transaction_block block(block_data);
 
-  if(block.exists(t)) {
+  if (!saved && block.exists(t)) {
     return false;
   }
 
@@ -48,6 +62,10 @@ bool vds::transactions::transaction_log::save(
         break;
       }
 
+      case orm::transaction_log_record_dbo::state_t::stored:
+        ancestors_exist = false;
+        break;
+
       case orm::transaction_log_record_dbo::state_t::processed:
         break;
 
@@ -62,6 +80,25 @@ bool vds::transactions::transaction_log::save(
   }
 
   if (!ancestors_exist) {
+    if (!saved) {
+      t.execute(
+        t1.insert(
+          t1.id = block.id(),
+          t1.data = block_data,
+          t1.state = orm::transaction_log_record_dbo::state_t::stored,
+          t1.order_no = block.order_no()));
+
+      for (const auto & ancestor : block.ancestors()) {
+        auto st = t.get_reader(t1.select(t1.state).where(t1.id == ancestor));
+        if (!st.execute()) {
+          t.execute(t4.insert_or_ignore(
+            t4.id = ancestor,
+            t4.follower_id = block.id()
+          ));
+        }
+      }
+    }
+
     return false;
   }
 
@@ -83,68 +120,135 @@ bool vds::transactions::transaction_log::save(
         "Invalid certificate %s for block %s",
         block.write_cert_id().c_str(),
         base64::from_bytes(block.id()).c_str());
+      if(saved) {
+        t.execute(t1.delete_if(
+          t1.id == block.id()));
+      }
       return false;
     }
   }
 
-  if(!block.validate(write_cert)){
+  if (!block.validate(write_cert)) {
     sp.get<logger>()->warning(
-        ThisModule,
-        sp,
-        "Invalid signature record %s",
-        base64::from_bytes(block.id()).c_str());
+      ThisModule,
+      sp,
+      "Invalid signature record %s",
+      base64::from_bytes(block.id()).c_str());
+    if (saved) {
+      t.execute(t1.delete_if(
+        t1.id == block.id()));
+    }
     return false;
-  }  
+  }
 
-  if(ancestor_invalid) {
-    t.execute(
-      t1.insert(
-        t1.id = block.id(),
-        t1.data = block_data,
-        t1.state = orm::transaction_log_record_dbo::state_t::invalid,
-        t1.order_no = block.order_no()));
+  if (ancestor_invalid) {
+    if (!saved) {
+      t.execute(
+        t1.insert(
+          t1.id = block.id(),
+          t1.data = block_data,
+          t1.state = orm::transaction_log_record_dbo::state_t::invalid,
+          t1.order_no = block.order_no()));
+    }
+    else {
+      t.execute(
+        t1.update(
+          t1.state = orm::transaction_log_record_dbo::state_t::invalid)
+      .where(t1.id == block.id()));
+    }
   }
   else {
     update_consensus(t, block, block.write_cert_id());
 
-    if(block.ancestors().empty()) {//Root
-        transaction_record_state state(block.id(), cert_control::get_root_certificate().subject());
+    if (block.ancestors().empty()) {//Root
+      transaction_record_state state(block.id(), cert_control::get_root_certificate().subject());
+      if (!saved) {
         t.execute(
-            t1.insert(
-                t1.id = block.id(),
-                t1.data = block_data,
-                t1.state = orm::transaction_log_record_dbo::state_t::leaf,
-                t1.order_no = block.order_no(),
-                t1.time_point = block.time_point(),
-                t1.state_data = state.serialize()));
+          t1.insert(
+            t1.id = block.id(),
+            t1.data = block_data,
+            t1.state = orm::transaction_log_record_dbo::state_t::leaf,
+            t1.order_no = block.order_no(),
+            t1.time_point = block.time_point(),
+            t1.state_data = state.serialize()));
+      }
+      else {
+        t.execute(
+          t1.update(
+            t1.state = orm::transaction_log_record_dbo::state_t::leaf,
+            t1.order_no = block.order_no(),
+            t1.time_point = block.time_point(),
+            t1.state_data = state.serialize())
+        .where(t1.id == block.id()));
+      }
     }
     else {
 
-      //try {
-      auto state = transaction_state_calculator::calculate(t, block.ancestors(), block.time_point(), block.order_no());
-      state.apply(block);
-      //}
-      //catch (const transactions::transaction_source_not_found_error & ex) {
-      //  //
-      //}
-      //catch (const transactions::transaction_lack_of_funds & ex) {
+      try {
+        auto state = transaction_state_calculator::calculate(t, block.ancestors(), block.time_point(), block.order_no());
+        state.apply(block);
 
-      //}
-
-      t.execute(
-          t1.insert(
+        if (!saved) {
+          t.execute(
+            t1.insert(
               t1.id = block.id(),
               t1.data = block_data,
               t1.state = orm::transaction_log_record_dbo::state_t::leaf,
               t1.order_no = block.order_no(),
               t1.time_point = block.time_point(),
               t1.state_data = state.serialize()));
-
-      for (const auto &p : remove_leaf) {
-        t.execute(
+        }
+        else {
+          t.execute(
             t1.update(
-                    t1.state = orm::transaction_log_record_dbo::state_t::processed)
-                .where(t1.id == p));
+              t1.state = orm::transaction_log_record_dbo::state_t::leaf,
+              t1.order_no = block.order_no(),
+              t1.time_point = block.time_point(),
+              t1.state_data = state.serialize())
+          .where(t1.id == block.id()));
+
+        }
+
+        for (const auto &p : remove_leaf) {
+          t.execute(
+            t1.update(
+              t1.state = orm::transaction_log_record_dbo::state_t::processed)
+            .where(t1.id == p));
+        }
+      }
+      catch (const transactions::transaction_source_not_found_error & ex) {
+        if (!saved) {
+          t.execute(
+            t1.insert(
+              t1.id = block.id(),
+              t1.data = block_data,
+              t1.state = orm::transaction_log_record_dbo::state_t::invalid,
+              t1.order_no = block.order_no(),
+              t1.time_point = block.time_point()));
+        }
+        else {
+          t.execute(
+            t1.update(
+              t1.state = orm::transaction_log_record_dbo::state_t::invalid)
+            .where(t1.id == block.id()));
+        }
+      }
+      catch (const transactions::transaction_lack_of_funds & ex) {
+        if (!saved) {
+          t.execute(
+            t1.insert(
+              t1.id = block.id(),
+              t1.data = block_data,
+              t1.state = orm::transaction_log_record_dbo::state_t::invalid,
+              t1.order_no = block.order_no(),
+              t1.time_point = block.time_point()));
+        }
+        else {
+          t.execute(
+            t1.update(
+              t1.state = orm::transaction_log_record_dbo::state_t::invalid)
+            .where(t1.id == block.id()));
+        }
       }
     }
 
@@ -152,8 +256,8 @@ bool vds::transactions::transaction_log::save(
       auto st = t.get_reader(t1.select(t1.state).where(t1.id == ancestor));
       if (!st.execute()) {
         t.execute(t4.insert_or_ignore(
-            t4.id = ancestor,
-            t4.follower_id = block.id()
+          t4.id = ancestor,
+          t4.follower_id = block.id()
         ));
       }
     }
@@ -164,7 +268,7 @@ bool vds::transactions::transaction_log::save(
   auto st = t.get_reader(t4.select(t4.follower_id).where(t4.id == block.id()));
   while (st.execute()) {
     const auto follower_id = t4.follower_id.get(st);
-    if(follower_id) {
+    if (follower_id) {
       followers.emplace(follower_id);
     }
   }
@@ -182,10 +286,7 @@ bool vds::transactions::transaction_log::save(
       throw std::runtime_error("Invalid data");
     }
 
-    t.execute(
-      t4.delete_if(
-        t4.id == block.id()
-        && t4.follower_id == p));
+    process_block(sp, t, t1.data.get(st), true);
   }
 
   return true;

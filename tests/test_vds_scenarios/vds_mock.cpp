@@ -322,6 +322,10 @@ bool vds_mock::dump_statistic(std::ostream & logfile, std::vector<vds::server_st
     std::map<std::string, std::string> columns;
 
     for(const auto & item : statistics[i].route_statistic_.items_){
+      if(item.pinged_ >= 8) {
+        continue;
+      }
+
       auto index = std::to_string(node_id2index.at(item.node_id_));
       auto p = columns.find(index);
       if(p == columns.end()){
