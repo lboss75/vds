@@ -107,6 +107,7 @@ namespace vds {
             this_->eof_ = true;
             this_->eof_stack_ = this_->sp_.full_name();
 
+            this_->continue_read_mutex_.lock();
             if (this_->continue_read_) {
               std::function<void(void)> f;
               this_->continue_read_.swap(f);
@@ -119,6 +120,7 @@ namespace vds {
               mt_service::async(this_->sp_, f);
   #endif
             }
+            this_->continue_read_mutex_.unlock();
 
             this_->in_mutex_.unlock();
             mt_service::async(this_->sp_, [done]() {
@@ -200,7 +202,10 @@ namespace vds {
       // to read    [...2...]       [...1...]
       // to write            [..2..]         [...1...]
 
+      std::mutex continue_write_mutex_;
       std::function<void(void)> continue_write_;
+
+      std::mutex continue_read_mutex_;
       std::function<void(void)> continue_read_;
 
       void continue_write(
@@ -218,11 +223,13 @@ namespace vds {
           std::copy(data, data + len, this->buffer_ + this->back_);
           this->back_ += len;
         
+          this->continue_read_mutex_.lock();
           if(this->continue_read_){
             std::function<void(void)> f;
             this->continue_read_.swap(f);
             mt_service::async(this->sp_, f);
           }
+          this->continue_read_mutex_.unlock();
 
           lock.unlock();
           mt_service::async(this->sp_, [done, len]() {
@@ -237,11 +244,13 @@ namespace vds {
           std::copy(data, data + len, this->buffer_ + this->second_);
           this->second_ += len;
         
+          this->continue_read_mutex_.lock();
           if(this->continue_read_){
             std::function<void(void)> f;
             this->continue_read_.swap(f);
             mt_service::async(this->sp_, f);
           }
+          this->continue_read_mutex_.unlock();
 
           lock.unlock();
           mt_service::async(this->sp_, [done, len]() {
@@ -249,6 +258,7 @@ namespace vds {
           });
         }
         else {
+          std::unique_lock<std::mutex> cw_lock(this->continue_write_mutex_);
           this->continue_write_ = [pthis = this->shared_from_this(), done, data, data_size](){
             static_cast<_continuous_buffer *>(pthis.get())->continue_write(done, data, data_size);
           };
@@ -292,12 +302,15 @@ namespace vds {
             this->back_ = this->second_;
             this->second_ = 0;
           }          
-          
+
+          this->continue_write_mutex_.lock();
           if(this->continue_write_){
             std::function<void(void)> f;
             this->continue_write_.swap(f);
             mt_service::async(this->sp_, f);
           }
+          this->continue_write_mutex_.unlock();
+
           vds_assert(0 != len);
           mt_service::async(this->sp_, [done, len]() {
             done(len);
@@ -312,6 +325,7 @@ namespace vds {
           });
         }
         else {
+          std::unique_lock<std::mutex> cr_lock(this->continue_read_mutex_);
           this->continue_read_ = [pthis = this->shared_from_this(), done, buffer, buffer_size](){
             static_cast<_continuous_buffer *>(pthis.get())->continue_read(done, buffer, buffer_size);
           };
