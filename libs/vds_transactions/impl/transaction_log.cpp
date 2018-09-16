@@ -86,7 +86,8 @@ bool vds::transactions::transaction_log::process_block(
           t1.id = block.id(),
           t1.data = block_data,
           t1.state = orm::transaction_log_record_dbo::state_t::stored,
-          t1.order_no = block.order_no()));
+          t1.order_no = block.order_no(),
+          t1.time_point = block.time_point()));
 
       for (const auto & ancestor : block.ancestors()) {
         auto st = t.get_reader(t1.select(t1.state).where(t1.id == ancestor));
@@ -148,7 +149,8 @@ bool vds::transactions::transaction_log::process_block(
           t1.id = block.id(),
           t1.data = block_data,
           t1.state = orm::transaction_log_record_dbo::state_t::invalid,
-          t1.order_no = block.order_no()));
+          t1.order_no = block.order_no(),
+          t1.time_point = block.time_point()));
     }
     else {
       t.execute(
