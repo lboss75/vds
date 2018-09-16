@@ -439,6 +439,8 @@ namespace vds {
           return result;
         }
 
+        std::shared_lock<std::shared_mutex> lock(p->second->nodes_mutex_);
+
         for (const auto & node : p->second->nodes_) {
           if (!node->is_good() || !filter(*node)) {
             continue;
