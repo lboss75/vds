@@ -14,6 +14,7 @@ namespace vds {
     class transaction_log_record_dbo : public database_table {
     public:
       enum class state_t : uint8_t {
+        stored,
         processed,
         leaf,
         invalid,

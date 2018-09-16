@@ -40,10 +40,6 @@ bool vds::transactions::transaction_log::save(
     auto st = t.get_reader(t1.select(t1.state).where(t1.id == ancestor));
     if (!st.execute()) {
       ancestors_exist = false;
-      t.execute(t4.insert_or_ignore(
-        t4.id = ancestor,
-        t4.follower_id = block.id()
-      ));
     }
     else {
       switch (static_cast<orm::transaction_log_record_dbo::state_t>(t1.state.get(st))) {
@@ -149,6 +145,16 @@ bool vds::transactions::transaction_log::save(
             t1.update(
                     t1.state = orm::transaction_log_record_dbo::state_t::processed)
                 .where(t1.id == p));
+      }
+    }
+
+    for (const auto & ancestor : block.ancestors()) {
+      auto st = t.get_reader(t1.select(t1.state).where(t1.id == ancestor));
+      if (!st.execute()) {
+        t.execute(t4.insert_or_ignore(
+            t4.id = ancestor,
+            t4.follower_id = block.id()
+        ));
       }
     }
   }
