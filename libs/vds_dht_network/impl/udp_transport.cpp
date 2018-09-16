@@ -405,6 +405,8 @@ void vds::dht::network::udp_transport::continue_read(
           break;
         }
         }
+        lock.unlock();
+
         this_->continue_read(sp);
       }
       else {
