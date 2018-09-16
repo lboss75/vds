@@ -333,7 +333,10 @@ void vds::dht::network::udp_transport::continue_read(
           if (session_info.session_) {
             try {
               auto scope = sp.create_scope("Process datagram");
-              session_info.session_->process_datagram(scope, pthis, const_data_buffer(datagram.data(), datagram.data_size()))
+              auto session = session_info.session_;
+              lock.unlock();
+              
+              session->process_datagram(scope, pthis, const_data_buffer(datagram.data(), datagram.data_size()))
                      .execute([pthis, sp, scope, datagram](
                        const std::shared_ptr<std::exception>& ex) {
                           auto this_ = static_cast<udp_transport *>(pthis.get());
