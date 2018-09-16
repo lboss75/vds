@@ -357,6 +357,14 @@ void vds::dht::network::udp_transport::continue_read(
                        const std::shared_ptr<std::exception>& ex) {
                           auto this_ = static_cast<udp_transport *>(pthis.get());
                          if (ex) {
+                           this_->block_list_mutex_.lock();
+                           this_->block_list_[datagram.address().to_string()] = std::chrono::steady_clock::now();
+                           this_->block_list_mutex_.unlock();
+
+                           this_->sessions_mutex_.lock();
+                           this_->sessions_.erase(datagram.address());
+                           this_->sessions_mutex_.unlock();
+
                            uint8_t out_message[] = { (uint8_t)protocol_message_type_t::Failed };
                            pthis->write_async(sp, udp_datagram(datagram.address(),
                              const_data_buffer(out_message, sizeof(out_message))))
@@ -367,8 +375,6 @@ void vds::dht::network::udp_transport::continue_read(
                                sp.get<logger>()->trace(ThisModule, sp, "%s at send failed to %s", ex->what(),
                                  datagram.address().to_string().c_str());
                              }
-                             std::shared_lock<std::shared_mutex> lock(this_->sessions_mutex_);
-                             this_->sessions_.erase(datagram.address());
                              this_->continue_read(sp);
                            });
                          }
