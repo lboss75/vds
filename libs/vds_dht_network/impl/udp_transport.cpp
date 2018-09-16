@@ -198,6 +198,7 @@ void vds::dht::network::udp_transport::continue_read(
             session_info.blocked_ = false;
           }
           else {
+            lock.unlock();
             this_->continue_read(sp);
             return;
           }
