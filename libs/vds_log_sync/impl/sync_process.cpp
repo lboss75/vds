@@ -107,8 +107,6 @@ vds::async_task<> vds::transaction_log::sync_process::apply_message(
   }
   auto result = async_task<>::empty();
   if (!requests.empty()) {
-
-    orm::transaction_log_unknown_record_dbo t3;
     for(const auto & p : requests){
       result = result.then([sp, message, target_node = message.source_node(), transaction_id = p]() {
         auto & client = *sp.get<vds::dht::network::client>();
