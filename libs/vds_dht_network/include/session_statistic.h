@@ -15,10 +15,18 @@ namespace vds {
 
     struct session_info {
       std::string address_;
+      bool blocked_;
+      bool not_started_;
 
       void serialize(std::shared_ptr<json_array>& items) const {
         auto result = std::make_shared<json_object>();
         result->add_property("address", this->address_);
+        if(this->blocked_) {
+          result->add_property("blocked", "true");
+        }
+        if(this->not_started_) {
+          result->add_property("not_started", "true");
+        }
         items->add(result);
       }
     };

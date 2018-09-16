@@ -245,6 +245,9 @@ void vds::db_model::migrate(
     t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
 									'server',\
 									'udp://46.21.68.42:8050')");
+    t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
+									'192.168.0.171',\
+									'udp://192.168.0.171:8050')");
     t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
 	}
 }

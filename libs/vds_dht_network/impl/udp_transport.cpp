@@ -165,10 +165,11 @@ void vds::dht::network::udp_transport::get_session_statistics(session_statistic&
 
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
   for (const auto& p : this->sessions_) {
-    const auto session = p.second.session_;
-    if (session) {
-      session_statistic.items_.push_back(session->get_statistic());
-    }
+    session_statistic.items_.push_back({
+      p.first.to_string(),
+      p.second.blocked_,
+      !p.second.session_
+    });
   }
 }
 

@@ -28,6 +28,7 @@ namespace vds {
     {
         return [pthis = this->shared_from_this(), expected_state, new_state](const async_result<> & result){
         std::unique_lock<std::mutex> lock(pthis->state_mutex_);
+        vds_assert(pthis->state_expectants_.end() == pthis->state_expectants_.find(expected_state));
         if(expected_state == pthis->state_){
           pthis->state_ = new_state;
           lock.unlock();
@@ -61,11 +62,11 @@ namespace vds {
     {
       return [pthis = this->shared_from_this(), expected_state](const async_result<> & result){
         std::unique_lock<std::mutex> lock(pthis->state_mutex_);
+        vds_assert(pthis->state_expectants_.end() == pthis->state_expectants_.find(expected_state));
         if(expected_state == pthis->state_){
           result.done();
         }
         else {
-          vds_assert(pthis->state_expectants_.end() == pthis->state_expectants_.find(expected_state));
           pthis->state_expectants_[expected_state] = std::make_tuple(expected_state, result);
         }
       };

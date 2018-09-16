@@ -49,12 +49,6 @@ void vds::dht::network::dht_session::ping_node(
     messages::dht_ping().serialize());
 }
 
-vds::session_statistic::session_info vds::dht::network::dht_session::get_statistic() const {
-  return session_statistic::session_info{
-    this->address().to_string()
-  };
-}
-
 vds::async_task<> vds::dht::network::dht_session::process_message(
   const service_provider& sp,
   const std::shared_ptr<iudp_transport>& transport,
