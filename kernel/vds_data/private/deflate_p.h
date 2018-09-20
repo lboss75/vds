@@ -92,21 +92,20 @@ namespace vds {
       }
     }
 
-    async_task<> write_async(
+    std::future<void> write_async(
       const uint8_t * input_data,
       size_t input_size)
     {
       if(0 == input_size){
         deflateEnd(&this->strm_);
-        return this->target_.write_async(input_data, input_size);
+        co_await this->target_.write_async(input_data, input_size);
+        co_return;
       }
       
       this->strm_.next_in = (Bytef *)input_data;
       this->strm_.avail_in = (uInt)input_size;
 
-      return [pthis = this->shared_from_this()](const async_result<> & result){
-        static_cast<_deflate_async_handler *>(pthis.get())->continue_write(result);
-      };
+      co_await this->continue_write();
     }
     
   private:
@@ -114,31 +113,24 @@ namespace vds {
     z_stream strm_;
     uint8_t buffer_[1024];
     
-    void continue_write(const async_result<> & result)
+    std::future<void> continue_write()
     {
-      if(0 != this->strm_.avail_out){
-        result.done();
-      }
-      else {
-        this->strm_.next_out = (Bytef *)this->buffer_;
-        this->strm_.avail_out = sizeof(this->buffer_);
-        auto error = ::deflate(&this->strm_, Z_FINISH);
-
-        if(Z_STREAM_ERROR == error){
-          result.error(std::make_shared<std::runtime_error>("deflate failed"));
-          return;
+      for (;;) {
+        if (0 != this->strm_.avail_out) {
+          co_return;
         }
+        else {
+          this->strm_.next_out = (Bytef *)this->buffer_;
+          this->strm_.avail_out = sizeof(this->buffer_);
+          auto error = ::deflate(&this->strm_, Z_FINISH);
 
-        auto written = sizeof(buffer_) - this->strm_.avail_out;
-        this->target_.write_async(buffer_, written)
-        .execute(
-          [pthis = this->shared_from_this(), result](const std::shared_ptr<std::exception> & ex){
-            if(!ex){
-              static_cast<_deflate_async_handler *>(pthis.get())->continue_write(result);
-            } else {
-              result.error(ex); 
-            };
-          });
+          if (Z_STREAM_ERROR == error) {
+            throw std::runtime_error("deflate failed");
+          }
+
+          auto written = sizeof(buffer_) - this->strm_.avail_out;
+          co_await this->target_.write_async(buffer_, written);
+        }
       }
     }
   };
