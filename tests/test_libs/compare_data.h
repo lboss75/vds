@@ -88,24 +88,24 @@ private:
     {
       if (0 == len) {
         if (0 != this->len_) {
-          return std::future<void>(std::make_shared<std::runtime_error>("Unexpected end of stream while comparing data"));
+          throw std::runtime_error("Unexpected end of stream while comparing data");
         }
 
-        return std::future<void>::empty();
+        return std::future<void>();
       }
 
       if (this->len_ < len) {
-        return std::future<void>(std::make_shared<std::runtime_error>("Unexpected data while comparing data"));
+        throw std::make_shared<std::runtime_error>("Unexpected data while comparing data");
       }
 
       if (0 != memcmp(this->data_, data, len)) {
-        return std::future<void>(std::make_shared<std::runtime_error>("Compare data error"));
+        throw std::runtime_error("Compare data error");
       }
 
       this->data_ += len;
       this->len_ -= len;
 
-      return std::future<void>::empty();
+      return std::future<void>();
     }
 
   private:
