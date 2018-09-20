@@ -23,82 +23,31 @@ static std::function<void(void)> step3_saved_done;
 static std::future<std::string> step3(
 	int v)
 {
-  std::promise<std::string> result;
-  auto f = result.get_future();
+  auto r = std::make_shared<std::promise<std::string>>();
+  auto f = r->get_future();
 
-  step3_saved_done = [r = std::move(result), v]() { r.set_value(std::to_string(v)); };
+  step3_saved_done = [r, v]() { r->set_value("result" + std::to_string(v)); };
 
   return f;
 }
 
 
-TEST(code_tests, test_std::future) {
-  auto t = step1(10).then([](const std::string & v) { return step2(v); });
-  
-  std::string test_result;
-  t.execute(
-    [&test_result](const std::shared_ptr<std::exception> & ex, const std::string & result){
-      if(!ex){
-        test_result = result;
-      }else {
-        FAIL() << ex->what();
-      }
-    });
-  
+std::future<std::string> async_future(int v) {
+  auto t = co_await step1(v);
+  auto r = co_await step2(t);
+  co_return r;
+}
+
+
+TEST(code_tests, async_future) {
+  auto test_result = async_future(10).get();
   ASSERT_EQ(test_result, "result10");
 }
 
-TEST(code_tests, test_std::future1) {
-  auto t = step1(10).then(
-    [](const std::string & v) {
-    return "result" + v;
-  });
-
-  std::string test_result;
-  t.execute(
-    [&test_result](const std::shared_ptr<std::exception> & ex, const std::string & result) {
-      if(!ex){
-      test_result = result;
-      }
-      else {
-        FAIL() << ex->what();
-      }
-    });
-
-  ASSERT_EQ(test_result, "result10");
-}
-
-static void test2(
-  vds::barrier & b,
-  std::string & test_result)
-{
-  auto t = step3(10).then(
-    [](const std::string & v) {
-    return "result" + v;
-  });
-
-  t.execute(
-    [&test_result, &b](const std::shared_ptr<std::exception> & ex, const std::string & result) {
-      if(!ex){
-      test_result = result;
-      }
-      else {
-        FAIL() << ex->what();
-      }
-      b.set();
-    });
-}
-
-TEST(code_tests, test_std::future2) {
-  vds::barrier b;
-  std::string test_result;
-  
-  test2(b, test_result);
+TEST(code_tests, async_future1) {
+  auto test_result = step3(10);
   
   step3_saved_done();
-  
-  b.wait();
-  ASSERT_EQ(test_result, "result10");
-  
-}
 
+  ASSERT_EQ(test_result.get(), "result10");
+}
