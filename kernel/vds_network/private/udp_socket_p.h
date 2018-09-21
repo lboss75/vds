@@ -110,12 +110,11 @@ namespace vds {
 #endif
     }
 
-    std::future<const udp_datagram &> read_async()
+    std::future<udp_datagram> read_async()
     {
 #ifdef _WIN32
 		if (!this->reader_) {
-			return std::future<const udp_datagram &>(std::make_shared<std::system_error>(
-				ECONNRESET, std::system_category(), "Socket is closed"));
+			throw std::system_error(ECONNRESET, std::system_category(), "Socket is closed");
 		}
 		return this->reader_->read_async();
 #else
@@ -166,45 +165,44 @@ namespace vds {
       {
       }
 
-      std::future<const udp_datagram &> read_async()
+      std::future<udp_datagram> read_async()
       {
         vds_assert(!this->result_);
-        return [pthis = this->shared_from_this()](const std::promise<const udp_datagram &> & result){
-          auto this_ = static_cast<_udp_receive *>(pthis.get());
-          vds_assert(result);
-          memset(&this_->overlapped_, 0, sizeof(this_->overlapped_));
-          this_->wsa_buf_.len = sizeof(this_->buffer_);
-          this_->wsa_buf_.buf = (CHAR *)this_->buffer_;
-          this_->result_ = std::move(result);
-          
-		  this_->sp_.get<logger>()->trace("UDP", this_->sp_, "WSARecvFrom %d", this_->s_);
 
-          DWORD flags = 0;
-          DWORD numberOfBytesRecvd;
-          if (NOERROR != WSARecvFrom(
-            this_->s_,
-            &this_->wsa_buf_,
-            1,
-            &numberOfBytesRecvd,
-            &flags,
-            this_->addr_,
-            this_->addr_.size_ptr(),
-            &this_->overlapped_,
-            NULL)) {
-            auto errorCode = WSAGetLastError();
-            if (WSA_IO_PENDING != errorCode) {
-              this_->result_.error(std::make_shared<std::system_error>(errorCode, std::system_category(), "WSARecvFrom failed"));
-            }
-			else {
-				this_->sp_.get<logger>()->trace("UDP", this_->sp_, "Read scheduled");
-			}
+        memset(&this->overlapped_, 0, sizeof(this->overlapped_));
+        this->wsa_buf_.len = sizeof(this->buffer_);
+        this->wsa_buf_.buf = (CHAR *)this->buffer_;
+        this->result_ = std::make_shared<std::promise<udp_datagram>>();
+
+        this->sp_.get<logger>()->trace("UDP", this->sp_, "WSARecvFrom %d", this->s_);
+
+        DWORD flags = 0;
+        DWORD numberOfBytesRecvd;
+        if (NOERROR != WSARecvFrom(
+          this->s_,
+          &this->wsa_buf_,
+          1,
+          &numberOfBytesRecvd,
+          &flags,
+          this->addr_,
+          this->addr_.size_ptr(),
+          &this->overlapped_,
+          NULL)) {
+          auto errorCode = WSAGetLastError();
+          if (WSA_IO_PENDING != errorCode) {
+            throw std::system_error(errorCode, std::system_category(), "WSARecvFrom failed");
           }
-		  else {
-			  auto errorCode = WSAGetLastError();
-			  this_->sp_.get<logger>()->trace("UDP", this_->sp_, "Direct readed %d, code %d", numberOfBytesRecvd, errorCode);
-			  //this_->process(numberOfBytesRecvd);
-		  }
-        };
+          else {
+            this->sp_.get<logger>()->trace("UDP", this->sp_, "Read scheduled");
+          }
+        }
+        else {
+          auto errorCode = WSAGetLastError();
+          this->sp_.get<logger>()->trace("UDP", this->sp_, "Direct readed %d, code %d", numberOfBytesRecvd, errorCode);
+          //this_->process(numberOfBytesRecvd);
+        }
+
+        return this->result_->get_future();
       }
 
 	  void prepare_to_stop(const service_provider & sp)
@@ -214,7 +212,7 @@ namespace vds {
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
-      std::promise<const udp_datagram &> result_;
+      std::shared_ptr<std::promise<udp_datagram>> result_;
 
       network_address addr_;
       uint8_t buffer_[64 * 1024];
@@ -224,12 +222,14 @@ namespace vds {
         vds_assert(this->result_);
         auto pthis = this->shared_from_this();
 		    this->sp_.get<logger>()->trace("UDP", this->sp_, "Readed %d", dwBytesTransfered);
-        this->result_.done(_udp_datagram::create(this->addr_, this->buffer_, (size_t)dwBytesTransfered));
+        this->result_->set_value(_udp_datagram::create(this->addr_, this->buffer_, (size_t)dwBytesTransfered));
       }
 
       void error(DWORD error_code) override
       {
-        this->result_.error(std::make_shared<std::system_error>(error_code, std::system_category(), "WSARecvFrom failed"));
+        this->result_->set_exception(
+          std::make_exception_ptr(
+            std::system_error(error_code, std::system_category(), "WSARecvFrom failed")));
       }
     };
 
@@ -298,7 +298,7 @@ namespace vds {
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
-      std::promise<> result_;
+      std::shared_ptr<std::promise<void>> result_;
 
       socklen_t addr_len_;
       udp_datagram buffer_;

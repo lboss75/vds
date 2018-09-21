@@ -198,7 +198,7 @@ void vds::_network_service::stop(const service_provider & sp)
 
 std::future<void> vds::_network_service::prepare_to_stop(const service_provider &sp)
 {
-  return std::future<void>::empty();
+  return std::future<void>();
   /*
   std::set<SOCKET_HANDLE> processed;
   

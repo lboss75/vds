@@ -238,28 +238,24 @@ namespace vds {
 
       std::future<void> write_async(const uint8_t * data, size_t len)
       {
-        return [pthis = this->shared_from_this(), data, len](const std::promise<> & result){
-          auto this_ = static_cast<_write_socket_task *>(pthis.get());
-          
-          this_->result_ = result;
-          this_->pthis_ = pthis;
-          auto ex = this_->schedule(data, len);
-          if (ex) {
-            result.error(ex);
-          }
-        };
+        this->result_ = std::make_shared<std::promise<void>>();
+        this->pthis_ = this->shared_from_this();
+        this->schedule(data, len);
+
+        return this->result_->get_future();
       }
 
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
-      std::promise<> result_;
+      std::shared_ptr<std::promise<void>> result_;
       std::shared_ptr<_socket_task> pthis_;
 
-      std::shared_ptr<std::exception> schedule(const void * data, size_t len)
+      void schedule(const void * data, size_t len)
       {
         if (0 == len) {
           shutdown(this->s_, SD_SEND);
+          this->result_->set_value();
         }
         else {
           memset(&this->overlapped_, 0, sizeof(this->overlapped_));
@@ -271,12 +267,10 @@ namespace vds {
             auto errorCode = WSAGetLastError();
             if (WSA_IO_PENDING != errorCode) {
               this->sp_.get<logger>()->trace("TCP", this->sp_, "WSASend error(%d)", errorCode);
-              return std::make_shared<std::system_error>(errorCode, std::system_category(), "WSASend failed");
+              throw std::system_error(errorCode, std::system_category(), "WSASend failed");
             }
           }
         }
-
-        return std::shared_ptr<std::exception>();
       }
       
       
@@ -289,20 +283,14 @@ namespace vds {
 
         try {
           if (this->wsa_buf_.len == dwBytesTransfered) {
-            this->result_.done();
+            this->result_->set_value();
           }
           else {
-            auto ex = this->schedule(this->wsa_buf_.buf + dwBytesTransfered, this->wsa_buf_.len - dwBytesTransfered);
-            if (ex) {
-              this->sp_.unhandled_exception(ex);
-            }
+            this->schedule(this->wsa_buf_.buf + dwBytesTransfered, this->wsa_buf_.len - dwBytesTransfered);
           }
         }
-        catch (const std::exception & ex) {
-          this->sp_.unhandled_exception(std::make_shared<std::exception>(ex));
-        }
         catch (...) {
-          this->sp_.unhandled_exception(std::make_shared<std::runtime_error>("Unexpected error"));
+          this->result_->set_exception(std::current_exception());
         }
       }
 

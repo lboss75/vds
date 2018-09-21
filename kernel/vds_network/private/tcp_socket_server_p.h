@@ -44,23 +44,22 @@ namespace vds {
       const std::function<void(tcp_network_socket s)> & new_connection)
     {
       imt_service::async_enabled_check(sp);
-      return [this, sp, address, new_connection]() {
         
 #ifdef _WIN32
         this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 
         if (INVALID_SOCKET == this->s_) {
-          auto error = WSAGetLastError();
+          const auto error = WSAGetLastError();
           throw std::system_error(error, std::system_category(), "create socket");
         }
 
         if (SOCKET_ERROR == ::bind(this->s_, address, address.size())) {
-          auto error = WSAGetLastError();
+          const auto error = WSAGetLastError();
           throw std::system_error(error, std::system_category(), "bind");
         }
 
         if (SOCKET_ERROR == ::listen(this->s_, SOMAXCONN)) {
-          auto error = WSAGetLastError();
+          const auto error = WSAGetLastError();
           throw std::system_error(error, std::system_category(), "listen socket");
         }
 
@@ -69,36 +68,36 @@ namespace vds {
         this->wait_accept_task_ = std::thread(
           [this, sp, new_connection]() {
 
-            HANDLE events[2];
-            events[0] = sp.get_shutdown_event().windows_handle();
-            events[1] = this->accept_event_.handle();
+          HANDLE events[2];
+          events[0] = sp.get_shutdown_event().windows_handle();
+          events[1] = this->accept_event_.handle();
 
-            for(;;){
-              auto result = WSAWaitForMultipleEvents(2, events, FALSE, INFINITE, FALSE);
-              if ((WAIT_OBJECT_0 + 1) != result) {
-                break;
-              }
-              WSANETWORKEVENTS WSAEvents;
-              WSAEnumNetworkEvents(
-                this->s_,
-                this->accept_event_.handle(),
-                &WSAEvents);
-              if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
-                && (0 == WSAEvents.iErrorCode[FD_ACCEPT_BIT])) {
-                //Process it
-                sockaddr_in client_address;
-                int client_address_length = sizeof(client_address);
+          for (;;) {
+            auto result = WSAWaitForMultipleEvents(2, events, FALSE, INFINITE, FALSE);
+            if ((WAIT_OBJECT_0 + 1) != result) {
+              break;
+            }
+            WSANETWORKEVENTS WSAEvents;
+            WSAEnumNetworkEvents(
+              this->s_,
+              this->accept_event_.handle(),
+              &WSAEvents);
+            if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
+              && (0 == WSAEvents.iErrorCode[FD_ACCEPT_BIT])) {
+              //Process it
+              sockaddr_in client_address;
+              int client_address_length = sizeof(client_address);
 
-                auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
-                if (INVALID_SOCKET != socket) {
-                  sp.get<logger>()->trace("TCP", sp, "Connection from %s", network_service::to_string(client_address).c_str());
-                  static_cast<_network_service *>(sp.get<inetwork_service>())->associate(socket);
-                  auto s = _tcp_network_socket::from_handle(socket);
-                  new_connection(std::move(s));
-                }
+              auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
+              if (INVALID_SOCKET != socket) {
+                sp.get<logger>()->trace("TCP", sp, "Connection from %s", network_service::to_string(client_address).c_str());
+                static_cast<_network_service *>(sp.get<inetwork_service>())->associate(socket);
+                auto s = _tcp_network_socket::from_handle(socket);
+                new_connection(std::move(s));
               }
             }
-          });
+          }
+        });
 #else
             this->s_ = socket(AF_INET, SOCK_STREAM, 0);
             if (this->s_ < 0) {
@@ -190,7 +189,7 @@ namespace vds {
                 }
               });
 #endif
-      };
+            return std::future<void>();
     }
     
     void stop(const service_provider & sp)
