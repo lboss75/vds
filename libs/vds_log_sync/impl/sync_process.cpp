@@ -105,20 +105,16 @@ vds::async_task<void> vds::transaction_log::sync_process::apply_message(
       requests.push_back(p);
     }
   }
-  auto result = vds::async_task<void>::empty();
   if (!requests.empty()) {
-
     orm::transaction_log_unknown_record_dbo t3;
-    for(const auto & p : requests){
-      result = result.then([sp, message, target_node = message.source_node(), transaction_id = p]() {
-        auto & client = *sp.get<vds::dht::network::client>();
-        client->send(
-          sp,
-          target_node,
-          dht::messages::transaction_log_request(
-            transaction_id,
-            client->current_node_id()));
-      });
+    for (const auto & p : requests) {
+      auto & client = *sp.get<vds::dht::network::client>();
+      co_await client->send(
+        sp,
+        message.source_node(),
+        dht::messages::transaction_log_request(
+          p,
+          client->current_node_id()));
     }
   }
   else {
@@ -130,7 +126,7 @@ vds::async_task<void> vds::transaction_log::sync_process::apply_message(
     std::list<const_data_buffer> current_state;
     while (st.execute()) {
       auto id = t2.id.get(st);
-      
+
       auto exist = false;
       for (auto & p : message.leafs()) {
         if (id == p) {
@@ -139,24 +135,20 @@ vds::async_task<void> vds::transaction_log::sync_process::apply_message(
         }
       }
 
-      if(!exist) {
+      if (!exist) {
         current_state.push_back(id);
       }
     }
 
-    if(!current_state.empty()) {
-      result = result.then([sp, message, current_state]() {
-        auto & client = *sp.get<vds::dht::network::client>();
-        client->send_neighbors(
-          sp,
-          dht::messages::transaction_log_state(
-            current_state,
-            client->current_node_id()));
-      });
+    if (!current_state.empty()) {
+      auto & client = *sp.get<vds::dht::network::client>();
+      co_await client->send_neighbors(
+        sp,
+        dht::messages::transaction_log_state(
+          current_state,
+          client->current_node_id()));
     }
   }
-
-  return result;
 }
 
 void vds::transaction_log::sync_process::apply_message(

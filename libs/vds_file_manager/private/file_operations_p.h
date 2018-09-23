@@ -62,7 +62,7 @@ namespace vds {
 //					file_manager::download_file_task::block_info & block,
 //					const std::shared_ptr<file_manager::download_file_task> & result);
 
-      void download_stream(
+      async_task<void> download_stream(
           const service_provider& sp,
           const std::shared_ptr<continuous_buffer<uint8_t>> & target_stream,
           const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);

@@ -46,13 +46,12 @@ vds::async_task<void> vds::_server::process_message(
   const message_info_t & message_info) {
 
   if(scope.get_shutdown_event().is_shuting_down()) {
-    return vds::async_task<void>::empty();
+    co_return;
   }
 
   auto sp = scope.create_scope(__FUNCTION__);
   switch(message_info.message_type()){
   case dht::network::message_type_t::transaction_log_state: {
-    auto result = std::make_shared<vds::async_task<void>>(vds::async_task<void>::empty());
     return sp.get<db_model>()->async_transaction(sp, [sp, message_info, result](database_transaction & t) {
       binary_deserializer s(message_info.message_data());
       dht::messages::transaction_log_state message(s);

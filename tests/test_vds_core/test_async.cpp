@@ -11,7 +11,7 @@ All rights reserved
 #include "test_config.h"
 #include <future>
 #include <experimental/coroutine>
-
+/*
 // Void futures
 template <typename... Args>
 struct std::experimental::coroutine_traits<std::future<void>, Args...> {
@@ -65,6 +65,7 @@ template <typename R> auto operator co_await(std::future<R> &&f) {
   };
   return Awaiter{static_cast<std::future<R>&&>(f)};
 }
+*/
 
 vds::async_task<int> async_add(int a, int b)
 {

@@ -42,6 +42,6 @@ void vds::file_manager_private::_file_manager_service::stop(const vds::service_p
 }
 
 vds::async_task<void> vds::file_manager_private::_file_manager_service::prepare_to_stop(const vds::service_provider &sp) {
-  return vds::async_task<void>::empty();
+  co_return;
 }
 
