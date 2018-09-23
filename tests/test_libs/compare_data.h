@@ -88,6 +88,7 @@ private:
     {
       if (0 == len) {
         if (0 != this->len_) {
+<<<<<<< HEAD
           return vds::async_task<void>(std::make_shared<std::runtime_error>("Unexpected end of stream while comparing data"));
         }
 
@@ -100,12 +101,30 @@ private:
 
       if (0 != memcmp(this->data_, data, len)) {
         return vds::async_task<void>(std::make_shared<std::runtime_error>("Compare data error"));
+=======
+          throw std::runtime_error("Unexpected end of stream while comparing data");
+        }
+
+        return std::future<void>();
+      }
+
+      if (this->len_ < len) {
+        throw std::make_shared<std::runtime_error>("Unexpected data while comparing data");
+      }
+
+      if (0 != memcmp(this->data_, data, len)) {
+        throw std::runtime_error("Compare data error");
+>>>>>>> ff78c01024632720d229efbec78a1748be3a1d2f
       }
 
       this->data_ += len;
       this->len_ -= len;
 
+<<<<<<< HEAD
       return vds::async_task<void>::empty();
+=======
+      return std::future<void>();
+>>>>>>> ff78c01024632720d229efbec78a1748be3a1d2f
     }
 
   private:
