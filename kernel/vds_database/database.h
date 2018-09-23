@@ -11,8 +11,8 @@ All rights reserved
 #include <mutex>
 
 #include "filename.h"
-
 #include "const_data_buffer.h"
+#include "async_task.h"
 
 namespace vds {
   class _database;
@@ -107,15 +107,15 @@ namespace vds {
     void open(const service_provider & sp, const filename & fn);
     void close();
 
-    std::future<void> async_transaction(
+    vds::async_task<void> async_transaction(
       const service_provider & sp,
       const std::function<bool(database_transaction & tr)> & callback);
 
-    std::future<void> async_read_transaction(
+    vds::async_task<void> async_read_transaction(
       const service_provider & sp,
       const std::function<void(database_read_transaction & tr)> & callback);
 
-    std::future<void> prepare_to_stop(const service_provider &sp);
+    vds::async_task<void> prepare_to_stop(const service_provider &sp);
 
   private:
     std::shared_ptr<_database> impl_;

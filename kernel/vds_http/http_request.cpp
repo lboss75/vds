@@ -65,25 +65,7 @@ vds::http_message vds::http_request::simple_request(
   headers.push_back("Content-Type: text/html; charset=utf-8");
   headers.push_back("Content-Length:" + std::to_string(body.length()));
 
-  http_message result(sp, headers);
-  auto buffer = std::make_shared<std::string>(body);
-
-  result.body()->write_async((const uint8_t *)buffer->c_str(), buffer->length())
-    .execute(
-    [buffer, result, sp](const std::shared_ptr<std::exception> & ex) {
-      if(!ex){
-        result.body()->write_async(nullptr, 0).execute(
-          [sp](const std::shared_ptr<std::exception> & ex) {
-            if(ex){
-              sp.unhandled_exception(ex);
-            }
-          });
-        } else {
-          sp.unhandled_exception(ex);
-        }
-      });
-
-  return result;
+  return http_message(headers, std::make_shared<buffer_input_stream_async>(const_data_buffer(body.c_str(), body.length())));
 }
 
 std::string vds::http_request::get_parameter(const std::string &name) const {

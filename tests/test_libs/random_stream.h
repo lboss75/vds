@@ -63,27 +63,32 @@ private:
         : target_(target) {
     }
 
-    std::future<void> write_async(const item_type *data, size_t len) override {
-      if (0 == len) {
-        return this->target_.write_async(data, len);
-      } else {
-        size_t n = (size_t) std::rand() % len;
-        if (n < 1) {
-          n = 1;
+    vds::async_task<void> write_async(const item_type *data, size_t len) override {
+      for (;;) {
+        if (0 == len) {
+          co_await this->target_.write_async(data, len);
+          break;
         }
-        if (len < n) {
-          n = len;
-        }
+        else {
+          size_t n = (size_t)std::rand() % len;
+          if (n < 1) {
+            n = 1;
+          }
+          if (len < n) {
+            n = len;
+          }
 
-        if (n == len) {
-          return this->target_.write_async(data, n);
-        }
+          if (n == len) {
+            co_await this->target_.write_async(data, n);
+            break;
+          }
+          else {
+            co_await this->target_.write_async(data, n);
 
-        return
-            this->target_.write_async(data, n)
-                .then([pthis = this->shared_from_this(), p = data + n, l = len - n]() {
-                  return pthis->write_async(p, l);
-                });
+            data += n;
+            len -= n;
+          }
+        }
       }
     }
 

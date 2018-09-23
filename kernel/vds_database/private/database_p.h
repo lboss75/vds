@@ -261,11 +261,11 @@ namespace vds {
       return sql_statement(new _sql_statement(this->db_, sql));
     }
 
-    std::future<void> async_read_transaction(
+    vds::async_task<void> async_read_transaction(
       const service_provider & sp,
       const std::function<void(database_read_transaction & tr)> & callback) {
 
-      auto r = std::make_shared<std::promise<void>>();
+      auto r = std::make_shared<vds::async_result<void>>();
       this->execute_queue_->schedule(sp, [pthis = this->shared_from_this(), r, callback]() {
         database_read_transaction tr(pthis);
         try {
@@ -282,10 +282,10 @@ namespace vds {
       return r->get_future();
     }
 
-    std::future<void> async_transaction(
+    vds::async_task<void> async_transaction(
       const service_provider & sp,
       const std::function<bool(database_transaction & tr)> & callback) {
-      auto r = std::make_shared<std::promise<void>>();
+      auto r = std::make_shared<vds::async_result<void>>();
 
       this->execute_queue_->schedule(sp, [pthis = this->shared_from_this(), r, callback]() {
         pthis->execute("BEGIN TRANSACTION");
@@ -315,8 +315,8 @@ namespace vds {
       return r->get_future();
     }
 
-    std::future<void> prepare_to_stop(const service_provider & sp){
-      return std::future<void>();
+    vds::async_task<void> prepare_to_stop(const service_provider & sp){
+      return vds::async_task<void>();
     }
 
 

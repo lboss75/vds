@@ -38,7 +38,7 @@ namespace vds {
       }
     }
 
-    std::future<void> start(
+    vds::async_task<void> start(
       const service_provider & sp,
       const network_address & address,
       const std::function<void(tcp_network_socket s)> & new_connection)
@@ -189,7 +189,7 @@ namespace vds {
                 }
               });
 #endif
-            return std::future<void>();
+            return vds::async_task<void>();
     }
     
     void stop(const service_provider & sp)

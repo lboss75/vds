@@ -16,11 +16,11 @@ namespace vds {
 
     class transaction_messages_walker {
     public:
-      virtual bool visit(const payment_transaction &message) {
+      virtual bool visit(const payment_transaction &/*message*/) {
         return true;
       }
 
-      virtual bool visit(const root_user_transaction &message) {
+      virtual bool visit(const root_user_transaction &/*message*/) {
         return true;
       }
 

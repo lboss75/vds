@@ -18,20 +18,20 @@ namespace vds {
   namespace file_manager_private {
     class _file_operations : public std::enable_shared_from_this<_file_operations> {
     public:
-			std::future<transactions::user_message_transaction::file_info_t> upload_file(
+			vds::async_task<transactions::user_message_transaction::file_info_t> upload_file(
 					const service_provider &sp,
           const std::shared_ptr<user_manager> & user_mng,
           const std::string & name,
           const std::string & mime_type,
 					const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
-	    std::future<file_manager::file_operations::download_result_t> download_file(
+	    vds::async_task<file_manager::file_operations::download_result_t> download_file(
 					const service_provider &sp,
           const std::shared_ptr<user_manager> & user_mng,
           const const_data_buffer & channel_id,
           const const_data_buffer & target_file);
 
-      std::future<void> create_message(
+      vds::async_task<void> create_message(
         const service_provider& sp,
         const std::shared_ptr<user_manager>& user_mng,
         const const_data_buffer& channel_id,
@@ -39,7 +39,7 @@ namespace vds {
         const std::list<transactions::user_message_transaction::file_info_t>& files);
 
 
-      //	    std::future<void> download_block(
+      //	    vds::async_task<void> download_block(
 //			const service_provider& sp,
 //			database_transaction& t,
 //      file_manager::download_file_task::block_info & block_id,
@@ -52,7 +52,7 @@ namespace vds {
         std::list<transactions::user_message_transaction::file_block_t> file_blocks;
       };
 
-      std::future<pack_file_result> pack_file(
+      vds::async_task<pack_file_result> pack_file(
           const service_provider &sp,
           const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) const;
 

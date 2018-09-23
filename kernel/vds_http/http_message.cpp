@@ -22,30 +22,25 @@ bool vds::http_message::get_header(const std::string& name, std::string& value) 
   return false;
 }
 
-void vds::http_message::ignore_empty_body() const {
-  this->body_->read_all().execute([](const std::shared_ptr<std::exception> & ex, const const_data_buffer & result) {
-    vds_assert(0 == result.size());
-  });
+vds::async_task<void> vds::http_message::ignore_empty_body(const service_provider &sp) const {
+  auto result = co_await this->body_->read_all(sp);
+  vds_assert(0 == result.size());
 }
 
-void vds::http_message::ignore_body() const {
+vds::async_task<void> vds::http_message::ignore_body(const service_provider &sp) const {
   auto buffer = std::make_shared<buffer_t>();
-  return ignore_body(this->body_, buffer)
-  .execute([buffer](const std::shared_ptr<std::exception> & ex) {
-    vds_assert(!ex);
-  });
+  co_await ignore_body(sp, this->body_, buffer);
 }
 
-std::future<void> vds::http_message::ignore_body(
-  const std::shared_ptr<continuous_buffer<uint8_t>> & body,
+vds::async_task<void> vds::http_message::ignore_body(
+  const service_provider &sp,
+  const std::shared_ptr<input_stream_async<uint8_t>> & body,
   const std::shared_ptr<buffer_t>& buffer) {
-  return body->read_async(buffer->data_, sizeof(buffer->data_))
-    .then([body, buffer](size_t readed) -> std::future<void> {
+
+  for(;;){
+    auto readed = co_await body->read_async(sp, buffer->data_, sizeof(buffer->data_));
     if (0 == readed) {
-      return std::future<void>::empty();
+      co_return;
     }
-    else {
-      return ignore_body(body, buffer);
-    }
-  });
+  }
 }

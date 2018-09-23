@@ -92,7 +92,7 @@ namespace vds {
           const messages::dht_find_node& message,
           const imessage_map::message_info_t& message_info);
 
-        std::future<void> apply_message(
+        vds::async_task<void> apply_message(
           const service_provider& sp,
           const messages::dht_find_node_response& message,
           const imessage_map::message_info_t& message_info);
@@ -206,14 +206,14 @@ namespace vds {
 
         //
         template <typename message_type>
-        void send(
+        async_task<void> send(
           const service_provider& sp,
           const const_data_buffer& node_id,
           const message_type& message) {
-          this->send(sp, node_id, message_type::message_id, message.serialize());
+          co_await this->send(sp, node_id, message_type::message_id, message.serialize());
         }
 
-        void send(
+        async_task<void> send(
           const service_provider& sp,
           const const_data_buffer& node_id,
           message_type_t message_id,
@@ -244,32 +244,32 @@ namespace vds {
         }
 
         template <typename message_type>
-        void send_neighbors(
+        async_task<void> send_neighbors(
           const service_provider& sp,
           const message_type& message) {
-          this->send_neighbors(sp, message_type::message_id, message.serialize());
+          co_await this->send_neighbors(sp, message_type::message_id, message.serialize());
         }
 
         void add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops);
 
-        std::future<void> restore(
+        vds::async_task<void> restore(
           const service_provider& sp,
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);
 
-        std::future<void> restore(
+        vds::async_task<void> restore(
           const service_provider& sp,
           const std::string& name,
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);
 
-        std::future<uint8_t> restore_async(
+        vds::async_task<uint8_t> restore_async(
           const service_provider& sp,
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result);
 
-        std::future<uint8_t> restore_async(
+        vds::async_task<uint8_t> restore_async(
           const service_provider& sp,
           const std::string& name,
           const std::shared_ptr<const_data_buffer>& result);
@@ -298,20 +298,20 @@ namespace vds {
 
         uint32_t update_route_table_counter_;
 
-        std::future<void> update_route_table(const service_provider& sp);
-        std::future<void> process_update(
+        vds::async_task<void> update_route_table(const service_provider& sp);
+        vds::async_task<void> process_update(
           const service_provider& sp,
           database_transaction& t);
 
 
-        void send_near(
+        async_task<void> send_near(
           const service_provider& sp,
           const const_data_buffer& node_id,
           size_t radius,
           message_type_t message_id,
           const const_data_buffer& message);
 
-        void send_near(
+        async_task<void> send_near(
           const service_provider& sp,
           const const_data_buffer& node_id,
           size_t radius,
@@ -319,7 +319,7 @@ namespace vds {
           const const_data_buffer& message,
           const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter);
 
-        void proxy_message(
+        async_task<void> proxy_message(
             const service_provider &sp,
             const const_data_buffer &node_id,
             message_type_t message_id,
@@ -327,7 +327,7 @@ namespace vds {
             const const_data_buffer &source_node,
             uint16_t hops);
 
-        void send_neighbors(
+        async_task<void> send_neighbors(
           const service_provider& sp,
           message_type_t message_id,
           const const_data_buffer& message);
@@ -336,7 +336,7 @@ namespace vds {
           const std::string& key,
           uint16_t replica);
 
-        std::future<void> update_wellknown_connection(
+        vds::async_task<void> update_wellknown_connection(
           const service_provider& sp,
           database_transaction& t);
 

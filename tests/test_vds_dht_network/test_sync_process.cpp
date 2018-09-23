@@ -158,14 +158,14 @@ TEST(test_vds_dht_network, test_sync_process) {
   GTEST_ASSERT_EQ(stage, 1);
 }
 
-std::future<void> transport_hab::write_async(
+vds::async_task<void> transport_hab::write_async(
   const vds::udp_datagram& datagram,
   const vds::const_data_buffer & source_node_id,
   const vds::network_address & source_address) {
   auto p = this->servers_.find(datagram.address());
   if(this->servers_.end() == p) {
     auto a = datagram.address().to_string();
-    return std::future<void>(std::make_shared<std::runtime_error>("Invalid address " + a));
+    return vds::async_task<void>(std::make_shared<std::runtime_error>("Invalid address " + a));
   }
   else {
     return p->second->process_datagram(datagram, source_node_id, source_address);
@@ -258,7 +258,7 @@ void test_server::add_sync_entry(const vds::const_data_buffer& object_id, const 
   this->server_.add_sync_entry(this->sp_, object_id, object_data);
 }
 
-std::future<void> test_server::process_datagram(
+vds::async_task<void> test_server::process_datagram(
   const vds::udp_datagram& datagram,
   const vds::const_data_buffer& source_node_id,
   const vds::network_address & source_address) {
@@ -282,7 +282,7 @@ void test_server::add_session(
   this->server_.add_session(this->sp_, session);
 }
 
-std::future<void> mock_server::process_datagram(
+vds::async_task<void> mock_server::process_datagram(
   const vds::service_provider& sp,
   const vds::udp_datagram& datagram,
   const vds::const_data_buffer& source_node_id,
@@ -344,7 +344,7 @@ const vds::network_address& mock_server::address() const {
       break;\
     }
 
-std::future<void> mock_server::process_message(
+vds::async_task<void> mock_server::process_message(
   const vds::service_provider& sp,
   const message_info_t& message_info) {
 
@@ -385,7 +385,7 @@ std::future<void> mock_server::process_message(
       throw std::runtime_error("Invalid command");
     }
   }
-  return std::future<void>::empty();
+  return vds::async_task<void>::empty();
 
 }
 
@@ -439,8 +439,8 @@ void mock_server::stop(const vds::service_provider& sp) {
   this->db_model_.stop(sp);
 }
 
-std::future<void> mock_server::prepare_to_stop(const vds::service_provider& sp) {
-  return std::future<void>::empty();
+vds::async_task<void> mock_server::prepare_to_stop(const vds::service_provider& sp) {
+  return vds::async_task<void>::empty();
 }
 
 void mock_transport::start(
@@ -456,16 +456,16 @@ void mock_transport::start(
 void mock_transport::stop(const vds::service_provider& sp) {
 }
 
-std::future<void> mock_transport::write_async(
+vds::async_task<void> mock_transport::write_async(
   const vds::service_provider& sp,
   const vds::udp_datagram& datagram) {
   return this->hab_->write_async(datagram, this->node_id_, this->owner_->address());
 }
 
-std::future<void> mock_transport::try_handshake(
+vds::async_task<void> mock_transport::try_handshake(
   const vds::service_provider& sp,
   const std::string & address) {
 
-  return std::future<void>::empty();
+  return vds::async_task<void>::empty();
 }
 

@@ -27,7 +27,7 @@ namespace vds {
     {
     }
     
-    std::future<http_message> process(
+    vds::async_task<http_message> process(
       const vds::service_provider & sp,
       const http_message & request)
     {

@@ -19,7 +19,7 @@ namespace vds {
     tcp_socket_server();
     ~tcp_socket_server();
 
-    std::future<void> start(
+    vds::async_task<void> start(
       const service_provider & sp,
       const network_address & address,
       const std::function<void(tcp_network_socket s)> & new_connection);

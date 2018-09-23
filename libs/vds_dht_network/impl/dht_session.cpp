@@ -34,14 +34,14 @@ vds::dht::network::dht_session::dht_session(
       session_key) {
 }
 
-void vds::dht::network::dht_session::ping_node(
+vds::async_task<void> vds::dht::network::dht_session::ping_node(
   const service_provider& sp,
   const const_data_buffer& node_id,
   const std::shared_ptr<iudp_transport>& transport) {
 
   //vds_assert(node_id != transport->this_node_id());
 
-  this->send_message(
+  co_await this->send_message(
     sp,
     transport,
     (uint8_t)messages::dht_ping::message_id,
@@ -55,7 +55,7 @@ vds::session_statistic::session_info vds::dht::network::dht_session::get_statist
   };
 }
 
-std::future<void> vds::dht::network::dht_session::process_message(
+vds::async_task<void> vds::dht::network::dht_session::process_message(
   const service_provider& sp,
   const std::shared_ptr<iudp_transport>& transport,
   uint8_t message_type,
@@ -74,7 +74,7 @@ std::future<void> vds::dht::network::dht_session::process_message(
   //    << std::to_string((message_type_t)message_type)
   //    << "\n";
   //}
-    sp.get<logger>()->trace(
+  sp.get<logger>()->trace(
     "dht_session",
     sp,
     "receive %d from %s to %s",
@@ -86,34 +86,34 @@ std::future<void> vds::dht::network::dht_session::process_message(
 
   if (target_node != this->this_node_id()) {
     if (hops == std::numeric_limits<uint16_t>::max()) {
-      return std::future<void>::empty();
+      co_return;
     }
 
-    return [sp, message_type, target_node, message, source_node, hops]() {
-      sp.get<logger>()->trace(
-        "dht_session",
-        sp,
-        "redirect %d from %s to %s",
-        message_type,
-        base64::from_bytes(source_node).c_str(),
-        base64::from_bytes(target_node).c_str());
+    sp.get<logger>()->trace(
+      "dht_session",
+      sp,
+      "redirect %d from %s to %s",
+      message_type,
+      base64::from_bytes(source_node).c_str(),
+      base64::from_bytes(target_node).c_str());
 
-      (*sp.get<client>())->proxy_message(
-        sp,
-        target_node,
-        (message_type_t)message_type,
-        message,
-        source_node,
-        hops + 1);
-    };
-  }
-  return sp.get<imessage_map>()->process_message(
-    sp,
-    imessage_map::message_info_t{
-      this->shared_from_this(),
-      static_cast<message_type_t>(message_type),
+    co_await (*sp.get<client>())->proxy_message(
+      sp,
+      target_node,
+      (message_type_t)message_type,
       message,
       source_node,
-      hops
+      hops + 1);
+  }
+  else {
+    co_await sp.get<imessage_map>()->process_message(
+      sp,
+      imessage_map::message_info_t{
+        this->shared_from_this(),
+        static_cast<message_type_t>(message_type),
+        message,
+        source_node,
+        hops
     });
+  }
 }

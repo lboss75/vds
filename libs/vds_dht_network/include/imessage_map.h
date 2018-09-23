@@ -57,7 +57,7 @@ namespace vds {
           uint16_t hops_;
         };
 
-        virtual std::future<void> process_message(
+        virtual vds::async_task<void> process_message(
           const service_provider& scope,
           const message_info_t& message_info) = 0;
 

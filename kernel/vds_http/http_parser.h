@@ -19,313 +19,252 @@ All rights reserved
 namespace vds {
 
   template<typename implementation_class>
-  class _http_parser_base : public _stream<uint8_t> {
+  class http_parser_base : public std::enable_shared_from_this<implementation_class> {
   public:
-    _http_parser_base(
-        const service_provider &sp,
-        const std::function<std::future<void>(const http_message &message)> &message_callback)
-        : sp_(sp),
-          message_callback_(message_callback),
-          message_state_(std::make_shared<state_machine<MessageStateEnum>>(MessageStateEnum::MESSAGE_STATE_NONE)),
-          state_(StateEnum::STATE_PARSE_HEADER) {
+    http_parser_base(
+      const std::function<vds::async_task<void>(const http_message &message)> &message_callback)
+      : message_callback_(message_callback) {
     }
 
-    void write(
-        const uint8_t *data,
-        size_t len) override {
-      if (0 == len) {
-        if (StateEnum::STATE_PARSE_SIZE == this->state_ && this->expect_100_) {
-          static_cast<implementation_class *>(this)->continue_read_data(this->sp_);
-          return;
+    async_task<void> process(
+      const service_provider & sp,
+      const std::shared_ptr<input_stream_async<uint8_t>> & input_stream) {
+
+      while (!this->eof_) {
+        auto len = co_await input_stream->read_async(sp, this->buffer_, sizeof(this > buffer_));
+        if (0 == len) {
+          this->oef_ = true;
+          break;
         }
-        auto pthis = this->shared_from_this();
-        logger::get(this->sp_)->debug("HTTP", this->sp_, "HTTP end");
 
-        logger::get(this->sp_)->trace("HTTP", this->sp_, "State: NONE -> MESSAGE_STARTED");
+        auto data = this->buffer_;
 
-        this->message_state_->change_state(
-                MessageStateEnum::MESSAGE_STATE_NONE,
-                MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED)
-        .then([pthis]() {
-          auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-          return this_->message_callback_(http_message());
-        })
-        .then([pthis]() {
-          auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-          logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> NONE");
-          return this_->message_state_->change_state(
-              MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-              MessageStateEnum::MESSAGE_STATE_NONE);
-        })
-        .then([pthis]() {
-          auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-          this_->message_state_->wait(MessageStateEnum::MESSAGE_STATE_NONE).wait();
-        })
-        .wait();
-      } else {
+        char *p = (char *)memchr((const char *)data, '\n', len);
+        if (nullptr == p) {
+          this->parse_buffer_ += std::string((const char *)data, len);
+          continue;
+        }
 
-        logger::get(this->sp_)->debug("HTTP", this->sp_, "HTTP Parse [%s]",
-                                       logger::escape_string(std::string((const char *) data, len)).c_str());
+        auto size = p - (const char *)data;
 
-        this->continue_push_data(data, len);
+        if (size > 0) {
+          if ('\r' == reinterpret_cast<const char *>(data)[size - 1]) {
+            this->parse_buffer_ += std::string((const char *)data, size - 1);
+          }
+          else {
+            this->parse_buffer_.append((const char *)data, size);
+          }
+        }
+
+        data += size + 1;
+        len -= size + 1;
+
+        if (0 == this->parse_buffer_.length()) {
+          if (this->headers_.empty()) {
+            throw std::logic_error("Invalid request");
+          }
+
+          std::string transfer_encoding;
+          const auto chunked_encoding = (current_message.get_header("Transfer-Encoding", transfer_encoding) &&
+            transfer_encoding == "chunked");
+
+          std::string expect_value;
+          const auto expect_100_ = (current_message.get_header("Expect", expect_value) &&
+            "100-continue" == expect_value);
+
+          size_t content_length;
+          std::string content_length_header;
+          if (this->headers_.get_header("Content-Length", content_length_header)) {
+            content_length = std::stoul(content_length_header);
+          }
+          else if (this->headers_.get_header("Transfer-Encoding", transfer_encoding)) {
+            content_length = (size_t)-1;
+          }
+          else {
+            content_length = 0;
+          }
+
+          auto reader = std::make_shared<http_body_reader>(
+            this->shared_from_this(),
+            data,
+            len,
+            content_length,
+            chunked_encoding,
+            expect_100);
+
+          http_message current_message(
+            this->sp_,
+            this->headers_,
+            reader);
+
+          this->headers_.clear();
+
+          co_await this->process_message(current_message);
+
+          this->eof_ = reader->get_rest_data(this->buffer_, sizeof(this->buffer_), len);
+        }
       }
+
+      co_await this->message_callback_(http_message());
     }
 
-    void reset() {
-      this->message_state_->wait(MessageStateEnum::MESSAGE_STATE_NONE).wait();
-      this->state_ = StateEnum::STATE_PARSE_HEADER;
+
+    async_task<void> continue_read_data(const service_provider &sp) {
     }
 
-    void continue_read_data(const service_provider &sp) {
-    }
-
-    void finish_message(const service_provider &sp) {
+    async_task<void> finish_message(const service_provider &sp) {
     }
 
   private:
-    service_provider sp_;
-    std::function<std::future<void>(const http_message &message)> message_callback_;
-
-    enum class MessageStateEnum {
-      MESSAGE_STATE_NONE,
-      MESSAGE_STATE_MESSAGE_STARTED,
-      MESSAGE_STATE_MESSAGE_BODY_FINISH,
-      MESSAGE_STATE_FAILED
-    };
-    std::shared_ptr<state_machine<MessageStateEnum>> message_state_;
+    std::function<vds::async_task<void>(const http_message &message)> message_callback_;
 
     std::string parse_buffer_;
     std::list<std::string> headers_;
-    http_message current_message_;
 
-    enum class StateEnum {
-      STATE_PARSE_HEADER,
-      STATE_PARSE_BODY,
-      STATE_PARSE_SIZE,
-      STATE_PARSE_FINISH_CHUNK
-    };
-    StateEnum state_;
+    uint8_t buffer_[1024];
+    size_t readed_;
 
-    size_t content_length_;
-    bool chunked_encoding_;
-    bool expect_100_;
 
-    void continue_push_data(const uint8_t *data, size_t len) {
-      auto pthis = this->shared_from_this();
-      while (0 < len) {
-        switch (this->state_) {
-          case StateEnum::STATE_PARSE_HEADER: {
-            char *p = (char *) memchr((const char *) data, '\n', len);
-            if (nullptr == p) {
-              this->parse_buffer_ += std::string((const char *) data, len);
-              return;
-            }
+    async_task<void> process_message(http_message current_message) {
+      co_await this->message_callback_(current_message);
 
-            auto size = p - (const char *) data;
+      co_await this->message_state_->change_state(
+        MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
+        MessageStateEnum::MESSAGE_STATE_NONE);
+    }
 
-            if (size > 0) {
-              if ('\r' == reinterpret_cast<const char *>(data)[size - 1]) {
-                this->parse_buffer_ += std::string((const char *) data, size - 1);
-              } else {
-                this->parse_buffer_.append((const char *) data, size);
-              }
-            }
+    class http_body_reader : public input_stream_async<uint8_t> {
+    public:
+      http_body_reader(
+        http_parser_base * owner,
+        const std::shared_ptr<input_stream_async<uint8_t>> & input_stream,
+        size_t content_length,
+        bool chunked_encoding,
+        bool expect_100)
+        : owner_(owner),
+        input_stream_(input_stream),
+        content_length_(content_length),
+        chunked_encoding_(chunked_encoding),
+        expect_100_(expect_100),
+        readed_(0),
+        processed_(0),
+        eof_(false),
+        state_(chunked_encoding ? StateEnum::STATE_PARSE_SIZE : StateEnum::STATE_PARSE_BODY) {
+      }
 
-            data += size + 1;
-            len -= size + 1;
 
-            if (0 == this->parse_buffer_.length()) {
-              if (this->headers_.empty()) {
-                throw std::logic_error("Invalid request");
-              }
+      virtual vds::async_task<size_t> read_async(
+        const service_provider &sp,
+        uint8_t * buffer,
+        size_t buffer_size) {
+        for (;;) {
 
-              http_message current_message(this->sp_, this->headers_);
 
-              std::string transfer_encoding;
-              this->chunked_encoding_ = (current_message.get_header("Transfer-Encoding", transfer_encoding) &&
-                                         transfer_encoding == "chunked");
-
-              std::string expect_value;
-              this->expect_100_ = (current_message.get_header("Expect", expect_value) &&
-                                   "100-continue" == expect_value);
-
-              logger::get(this->sp_)->trace("HTTP", this->sp_, "State: Node -> MESSAGE_STARTED");
-              this->message_state_->change_state(
-                  MessageStateEnum::MESSAGE_STATE_NONE,
-                  MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED).wait();
-
-              mt_service::async(this->sp_, [pthis, current_message]() {
-                auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                this_->message_callback_(current_message)
-                    .then([pthis]() {
-                      auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                      logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_BODY_FINISH -> None");
-                      return this_->message_state_->change_state(
-                          MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
-                          MessageStateEnum::MESSAGE_STATE_NONE);
-                    })
-                    .execute([sp = this_->sp_](const std::shared_ptr<std::exception> &ex) {
-                  if(ex) {
-                    sp.unhandled_exception(ex);
-                  }
-                });
-              });
-              this->current_message_ = current_message;
-              this->headers_.clear();
-
-              std::string content_length_header;
-              if (this->current_message_.get_header("Content-Length", content_length_header)) {
-                this->content_length_ = std::stoul(content_length_header);
-              } else if(current_message.get_header("Transfer-Encoding", transfer_encoding)) {
-                this->content_length_ = (size_t) -1;
+          switch (this->state_) {
+          case StateEnum::STATE_PARSE_BODY: {
+            if (0 == this->content_length_) {
+              if (this->chunked_encoding_) {
+                this->state_ = StateEnum::STATE_PARSE_FINISH_CHUNK;
+                this->parse_buffer_.clear();
               }
               else {
-                this->content_length_ = 0;
+                static_cast<implementation_class *>(this->owner_)->finish_message(sp);
+                co_return 0;
               }
-
-              if(0 == this->content_length_) {
-                this->current_message_.body()->write_async(nullptr, 0)
-                  .then([pthis]() {
-                    auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                    logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
-                    return this_->message_state_->change_state(
-                      MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-                      MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH);
-                  })
-                  .execute([sp = static_cast<_http_parser_base<implementation_class> *>(pthis.get())->sp_](const std::shared_ptr<std::exception> &ex) {
-                    if (ex) {
-                      sp.unhandled_exception(ex);
-                    }
-                  });
-                  static_cast<implementation_class *>(this)->finish_message(this->sp_);
-              }
-
-              if (this->expect_100_) {
-                static_cast<implementation_class *>(this)->continue_read_data(this->sp_);
-              }
-
-              if (0 < this->content_length_) {
-                if (this->chunked_encoding_) {
-                  this->state_ = StateEnum::STATE_PARSE_SIZE;
-                  this->parse_buffer_.clear();
-                } else {
-                  this->state_ = StateEnum::STATE_PARSE_BODY;
-                }
-              }
-            } else {
-              this->headers_.push_back(this->parse_buffer_);
-              this->parse_buffer_.clear();
             }
 
-            break;
-          }
-          case StateEnum::STATE_PARSE_BODY: {
-            auto size = len;
+            if (this->readed_ == this->processed_) {
+              this->processed_ = 0;
+              this->readed_ = co_await this->input_stream_->read_async(this->buffer_, sizeof(this->buffer_));
+              if (0 == this->readed_) {
+                this->eof_ = true;
+                co_return 0;
+              }
+            }
+
+            auto size = this->readed_ - this->processed_;
             if (size > this->content_length_) {
               size = this->content_length_;
             }
-
-            if (0 < size) {
-              this->content_length_ -= size;
-              this->current_message_.body()->write_async(data, size)
-                  .wait();
-
-              data += size;
-              len -= size;
-
-              if (0 == this->content_length_) {
-                if (this->chunked_encoding_) {
-                  this->state_ = StateEnum::STATE_PARSE_FINISH_CHUNK;
-                  this->parse_buffer_.clear();
-                } else {
-                  static_cast<implementation_class *>(this)->finish_message(this->sp_);
-                  this->state_ = StateEnum::STATE_PARSE_HEADER;
-                  this->current_message_.body()->write_async(nullptr, 0)
-                      .then([pthis]() {
-                            auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                              logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
-                              return this_->message_state_->change_state(
-                                  MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-                                  MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH);
-                          })
-                  .execute([sp = static_cast<_http_parser_base<implementation_class> *>(pthis.get())->sp_](const std::shared_ptr<std::exception> &ex) {
-                    if(ex) {
-                      sp.unhandled_exception(ex);
-                    }
-                  });
-                }
-              }
+            if (size > buffer_size) {
+              size = buffer_size;
             }
-            break;
+
+            this->content_length_ -= size;
+            memcpy(buffer, this->buffer_ + this->processed_, size);
+
+            this->processed_ += size;
+
+            co_return size;
           }
           case StateEnum::STATE_PARSE_SIZE: {
-            char *p = (char *) memchr((const char *) data, '\n', len);
-            if (nullptr == p) {
-              this->parse_buffer_ += std::string((const char *) data, len);
-              return;
-            }
-
-            auto size = p - (const char *) data;
-
-            if (size > 0) {
-              if ('\r' == reinterpret_cast<const char *>(data)[size - 1]) {
-                this->parse_buffer_ += std::string((const char *) data, size - 1);
-              } else {
-                this->parse_buffer_.append((const char *) data, size);
+            if (this->readed_ == this->processed_) {
+              this->processed_ = 0;
+              this->readed_ = co_await this->input_stream_->read_async(this->buffer_, sizeof(this->buffer_));
+              if (0 == this->readed_) {
+                this->eof_ = true;
+                co_return 0;
               }
             }
 
-            data += size + 1;
-            len -= size + 1;
+            char *p = (char *)memchr((const char *)this->buffer_ + this->processed_, '\n', this->readed_ - this->processed_);
+            if (nullptr == p) {
+              this->parse_buffer_ += std::string((const char *)this->buffer_ + this->processed_, this->readed_ - this->processed_);
+              continue;
+            }
+
+            auto size = p - (const char *)this->buffer_ - this->processed_;
+
+            if (size > 0) {
+              if ('\r' == reinterpret_cast<const char *>(this->buffer_ + this->processed_)[size - 1]) {
+                this->parse_buffer_ += std::string((const char *)(this->buffer_ + this->processed_), size - 1);
+              }
+              else {
+                this->parse_buffer_.append((const char *)(this->buffer_ + this->processed_), size);
+              }
+            }
+
+            this->processed_ += size + 1;
 
             this->content_length_ = 0;
             for (auto ch : this->parse_buffer_) {
               if ('0' <= ch && ch <= '9') {
                 this->content_length_ <<= 4;
                 this->content_length_ |= ch - '0';
-              } else if ('a' <= ch && ch <= 'f') {
+              }
+              else if ('a' <= ch && ch <= 'f') {
                 this->content_length_ <<= 4;
                 this->content_length_ |= ch - 'a' + 10;
-              } else if ('A' <= ch && ch <= 'F') {
+              }
+              else if ('A' <= ch && ch <= 'F') {
                 this->content_length_ <<= 4;
                 this->content_length_ |= ch - 'A' + 10;
-              } else {
+              }
+              else {
                 throw std::runtime_error("Invalid size " + this->parse_buffer_);
               }
             }
 
             if (0 < this->content_length_) {
               this->state_ = StateEnum::STATE_PARSE_BODY;
-            } else {
+            }
+            else {
               this->state_ = StateEnum::STATE_PARSE_HEADER;
-              this->current_message_.body()->write_async(nullptr, 0)
-                  .then(
-                      [pthis]() {
-                        auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                        logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
-                        return this_->message_state_->change_state(
-                            MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-                            MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH);
-                      })
-                .execute([sp = static_cast<_http_parser_base<implementation_class> *>(pthis.get())->sp_](const std::shared_ptr<std::exception> &ex) {
-                        if (ex) {
-                          sp.unhandled_exception(ex);
-                        }
-                      });
+              co_return 0;
             }
             break;
           }
           case StateEnum::STATE_PARSE_FINISH_CHUNK: {
-            if (data[0] == '\r' && this->parse_buffer_.empty()) {
+            if (this->buffer_[this->processed_] == '\r' && this->parse_buffer_.empty()) {
               this->parse_buffer_ += '\r';
-              ++data;
-              --len;
-            } else if (data[0] == '\n') {
-              ++data;
-              --len;
+              this->processed_++;
+            }
+            else if (this->buffer_[this->processed_] == '\n') {
+              this->processed_++;
               this->state_ = StateEnum::STATE_PARSE_SIZE;
-              static_cast<implementation_class *>(this)->continue_read_data(this->sp_);
-            } else {
+              co_await static_cast<implementation_class *>(this->owner_)->continue_read_data(sp);
+            }
+            else {
               throw std::runtime_error("Invalid data");
             }
 
@@ -334,31 +273,37 @@ namespace vds {
           default: {
             throw std::runtime_error("Invalid state");
           }
+          }
         }
       }
-    }
+    private:
+      enum class StateEnum {
+        STATE_PARSE_BODY,
+        STATE_PARSE_SIZE,
+        STATE_PARSE_FINISH_CHUNK,
+      };
+
+      http_parser_base * owner_;
+      std::shared_ptr<input_stream_async<uint8_t>> input_stream_;
+      size_t content_length_;
+      bool chunked_encoding_;
+      bool expect_100_;
+
+      uint8_t buffer_[1024];
+      size_t readed_;
+      size_t processed_;
+      bool eof_;
+
+      std::string parse_buffer_;
+      StateEnum state_;
+    };
   };
 
-  class _http_parser : public _http_parser_base<_http_parser> {
-  public:
-    _http_parser(
-        const service_provider &sp,
-        const std::function<std::future<void>(const http_message &message)> &message_callback)
-        : _http_parser_base<_http_parser>(sp, message_callback) {
-    }
-  };
-
-  class http_parser : public stream<uint8_t> {
+  class http_parser : public http_parser_base<http_parser> {
   public:
     http_parser(
-        const service_provider &sp,
-        const std::function<std::future<void>(const http_message &message)> &message_callback)
-        : stream<uint8_t>(new _http_parser(sp, message_callback)) {
-    }
-
-    void reset() const {
-      auto p = static_cast<_http_parser *>(this->impl_.get());
-      p->reset();
+      const std::function<vds::async_task<void>(const http_message &message)> &message_callback)
+      : http_parser_base<http_parser>(message_callback) {
     }
 
     static std::string url_unescape(const std::string & string);

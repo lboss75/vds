@@ -82,30 +82,30 @@ private:
     {
     }
 
-    std::future<void> write_async(
+    vds::async_task<void> write_async(
         const item_type * data,
         size_t len) override
     {
       if (0 == len) {
         if (0 != this->len_) {
-          return std::future<void>(std::make_shared<std::runtime_error>("Unexpected end of stream while comparing data"));
+          return vds::async_task<void>(std::make_shared<std::runtime_error>("Unexpected end of stream while comparing data"));
         }
 
-        return std::future<void>::empty();
+        return vds::async_task<void>::empty();
       }
 
       if (this->len_ < len) {
-        return std::future<void>(std::make_shared<std::runtime_error>("Unexpected data while comparing data"));
+        return vds::async_task<void>(std::make_shared<std::runtime_error>("Unexpected data while comparing data"));
       }
 
       if (0 != memcmp(this->data_, data, len)) {
-        return std::future<void>(std::make_shared<std::runtime_error>("Compare data error"));
+        return vds::async_task<void>(std::make_shared<std::runtime_error>("Compare data error"));
       }
 
       this->data_ += len;
       this->len_ -= len;
 
-      return std::future<void>::empty();
+      return vds::async_task<void>::empty();
     }
 
   private:

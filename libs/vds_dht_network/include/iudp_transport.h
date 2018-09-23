@@ -24,8 +24,8 @@ namespace vds {
 
         virtual void stop(const service_provider& sp) = 0;
 
-        virtual std::future<void> write_async(const service_provider& sp, const udp_datagram& datagram) = 0;
-        virtual std::future<void> try_handshake(const service_provider& sp, const std::string& address) = 0;
+        virtual vds::async_task<void> write_async(const service_provider& sp, const udp_datagram& datagram) = 0;
+        virtual vds::async_task<void> try_handshake(const service_provider& sp, const std::string& address) = 0;
       };
     }
   }

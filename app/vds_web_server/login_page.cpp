@@ -13,13 +13,13 @@ All rights reserved
 #include "register_request.h"
 #include "dht_object_id.h"
 
-std::future<vds::http_message> vds::login_page::register_request_post(
+vds::async_task<vds::http_message> vds::login_page::register_request_post(
   const service_provider& sp,
   const std::shared_ptr<_web_server>& owner,
   const http_message& message) {
   auto parser = std::make_shared<http::simple_form_parser>();
 
-  return parser->parse(sp, message).then([sp, owner, parser]() -> std::future<http_message> {
+  return parser->parse(sp, message).then([sp, owner, parser]() -> vds::async_task<http_message> {
     auto userName = parser->values().find("userName");
     auto userEmail = parser->values().find("userEmail");
     auto userPassword = parser->values().find("userPassword");
@@ -28,7 +28,7 @@ std::future<vds::http_message> vds::login_page::register_request_post(
       userName == parser->values().end()
       || userEmail == parser->values().end()
       || userPassword == parser->values().end()) {
-      return std::future<http_message>::result(
+      return vds::async_task<http_message>::result(
         http_response::redirect(sp, "/error/?code=InvalidRegister"));
     }
 

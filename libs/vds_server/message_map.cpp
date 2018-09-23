@@ -41,18 +41,18 @@
       break;\
     }
 
-std::future<void> vds::_server::process_message(
+vds::async_task<void> vds::_server::process_message(
   const service_provider& scope,
   const message_info_t & message_info) {
 
   if(scope.get_shutdown_event().is_shuting_down()) {
-    return std::future<void>::empty();
+    return vds::async_task<void>::empty();
   }
 
   auto sp = scope.create_scope(__FUNCTION__);
   switch(message_info.message_type()){
   case dht::network::message_type_t::transaction_log_state: {
-    auto result = std::make_shared<std::future<void>>(std::future<void>::empty());
+    auto result = std::make_shared<vds::async_task<void>>(vds::async_task<void>::empty());
     return sp.get<db_model>()->async_transaction(sp, [sp, message_info, result](database_transaction & t) {
       binary_deserializer s(message_info.message_data());
       dht::messages::transaction_log_state message(s);
@@ -112,7 +112,7 @@ std::future<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_find_node_response: {
       binary_deserializer s(message_info.message_data());
       dht::messages::dht_find_node_response message(s);
-      auto result = std::make_shared<std::future<void>>(std::future<void>::empty());
+      auto result = std::make_shared<vds::async_task<void>>(vds::async_task<void>::empty());
       *result = (*sp.get<dht::network::client>())->apply_message(
           sp.create_scope("messages::dht_find_node_response"),
           message,
@@ -147,7 +147,7 @@ std::future<void> vds::_server::process_message(
 
       binary_deserializer s(message_data);
       messages::sync_replica_request message(s);
-      auto result = std::make_shared<std::future<void>>(std::future<void>::empty());
+      auto result = std::make_shared<vds::async_task<void>>(vds::async_task<void>::empty());
       *result = (*sp.get<client>())->apply_message(
         sp.create_scope("messages::sync_replica_request"),
         this->shared_from_this(),
@@ -219,7 +219,7 @@ std::future<void> vds::_server::process_message(
       throw std::runtime_error("Invalid command");
     }
   }
-  return std::future<void>::empty();
+  return vds::async_task<void>::empty();
 }
 
 

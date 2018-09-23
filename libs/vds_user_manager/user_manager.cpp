@@ -34,7 +34,7 @@ vds::user_manager::login_state_t vds::user_manager::get_login_state() const {
   return this->impl_->get_login_state();
 }
 
-std::future<void> vds::user_manager::update(const service_provider& sp) {
+vds::async_task<void> vds::user_manager::update(const service_provider& sp) {
   return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this()](database_transaction & t) {
     pthis->impl_->update(sp, t);
     return true;
@@ -58,7 +58,7 @@ void vds::user_manager::load(
 	this->impl_->update(sp, t);
 }
 
-std::future<vds::user_channel> vds::user_manager::create_channel(const service_provider& sp,
+vds::async_task<vds::user_channel> vds::user_manager::create_channel(const service_provider& sp,
   const std::string& name) const {
   return this->impl_->create_channel(sp, name);
 }
@@ -116,7 +116,7 @@ void vds::user_manager::reset(
   }).wait();
 }
 
-//std::future<void> vds::user_manager::init_server(
+//vds::async_task<void> vds::user_manager::init_server(
 //	const service_provider & parent_sp,
 //	const std::string &root_user_name,
 //	const std::string & user_password,
@@ -223,10 +223,10 @@ void vds::user_manager::save_certificate(
   t.execute(t2.delete_if(t2.id == cert.subject()));
 }
 
-void vds::user_manager::save_certificate(const vds::service_provider &sp, const vds::certificate &cert) {
+vds::async_task<void> vds::user_manager::save_certificate(const vds::service_provider &sp, const vds::certificate &cert) {
   this->impl_->add_certificate(cert);
 
-  sp.get<db_model>()->async_transaction(sp, [cert](database_transaction & t)->bool{
+  co_await sp.get<db_model>()->async_transaction(sp, [cert](database_transaction & t)->bool{
 
     orm::certificate_chain_dbo t1;
     auto st = t.get_reader(t1.select(t1.id).where(t1.id == cert.subject()));
@@ -238,10 +238,6 @@ void vds::user_manager::save_certificate(const vds::service_provider &sp, const 
     }
 
     return true;
-  }).execute([sp](const std::shared_ptr<std::exception> & ex){
-    if(ex) {
-      sp.get<logger>()->warning(ThisModule, sp, "%s at saving certificate", ex->what());
-    }
   });
 }
 
@@ -253,13 +249,13 @@ const vds::asymmetric_private_key& vds::user_manager::get_current_user_private_k
   return this->impl_->get_current_user_private_key();
 }
 
-std::future<vds::const_data_buffer> vds::user_manager::create_register_request(
+vds::async_task<vds::const_data_buffer> vds::user_manager::create_register_request(
   const service_provider& sp,
   const std::string& userName,
   const std::string& user_email,
   const std::string& user_password) {
   auto result = std::make_shared<const_data_buffer>();
-  return sp.get<db_model>()->async_transaction(
+  co_await sp.get<db_model>()->async_transaction(
     sp,
     [sp, result, userName, user_email, user_password](database_transaction & t) {
 
@@ -290,10 +286,9 @@ std::future<vds::const_data_buffer> vds::user_manager::create_register_request(
         t1.create_time = std::chrono::system_clock::now()));
 
     return true;
-  })
-  .then([result]() {
-    return *result;
   });
+
+  co_return *result;
 }
 
 bool vds::user_manager::parse_join_request(const vds::service_provider &sp, const vds::const_data_buffer &data,
@@ -301,7 +296,7 @@ bool vds::user_manager::parse_join_request(const vds::service_provider &sp, cons
   return _user_manager::parse_join_request(sp, data, userName, userEmail);
 }
 
-std::future<bool> vds::user_manager::approve_join_request(
+vds::async_task<bool> vds::user_manager::approve_join_request(
   const service_provider& sp,
   const const_data_buffer& data) {
   return this->impl_->approve_join_request(sp, data);
@@ -467,7 +462,7 @@ vds::member_user vds::_user_manager::get_current_user() const {
   return member_user(this->user_cert_, this->user_private_key_);
 }
 
-std::future<bool> vds::_user_manager::approve_join_request(const service_provider& sp, const const_data_buffer& data) {
+vds::async_task<bool> vds::_user_manager::approve_join_request(const service_provider& sp, const const_data_buffer& data) {
   try {
     const_data_buffer user_public_key_der;
     std::string user_object_id;
@@ -496,9 +491,10 @@ std::future<bool> vds::_user_manager::approve_join_request(const service_provide
       signature,
       data.data(),
       data.size() - pos)) {
-      return std::future<bool>::result(false);
+      co_return false;
     }
-    return sp.get<db_model>()->async_transaction(sp,
+
+    co_await sp.get<db_model>()->async_transaction(sp,
       [
         pthis = this->shared_from_this(),
         sp,
@@ -554,12 +550,12 @@ std::future<bool> vds::_user_manager::approve_join_request(const service_provide
         user_private_key_der);
 
       return true;
-    }).then([sp]() -> bool {
-      return true;
     });
+
+    co_return true;
   }
   catch (...) {
-    return std::future<bool>::result(false);
+    co_return false;
   }
 }
 
@@ -604,11 +600,11 @@ bool vds::_user_manager::parse_join_request(
   }
 }
 
-std::future<vds::user_channel> vds::_user_manager::create_channel(
+vds::async_task<vds::user_channel> vds::_user_manager::create_channel(
   const service_provider& sp,
   const std::string& name) {
   auto result = std::make_shared<vds::user_channel>();
-  return sp.get<db_model>()->async_transaction(
+  co_await sp.get<db_model>()->async_transaction(
     sp,
     [pthis = this->shared_from_this(), sp, name, result](database_transaction & t)->bool {
 
@@ -629,11 +625,9 @@ std::future<vds::user_channel> vds::_user_manager::create_channel(
     pthis->update(sp, t);
 
     return true;
-  })
-      .then([result]() {
-    return *result;
   });
 
+  co_return  *result;
 }
 
 const std::string& vds::user_manager::user_name() const {

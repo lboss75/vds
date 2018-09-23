@@ -12,7 +12,7 @@ All rights reserved
 #include <future>
 
 
-std::future<int> async_add(int a, int b)
+vds::async_task<int> async_add(int a, int b)
 {
   auto fut = std::async([=]() {
     int c = a + b;
@@ -22,7 +22,7 @@ std::future<int> async_add(int a, int b)
   return fut;
 }
 
-std::future<int> async_fib(int n)
+vds::async_task<int> async_fib(int n)
 {
   if (n <= 2)
     co_return 1;

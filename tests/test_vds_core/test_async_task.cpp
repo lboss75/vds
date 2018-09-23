@@ -7,23 +7,23 @@ All rights reserved
 #include "stdafx.h"
 #include <future>
 
-static std::future<std::string> step1(
+static vds::async_task<std::string> step1(
   int v)
 {
   return std::async([v](){ return std::to_string(v); });
 }
 
-static std::future<std::string> step2(const std::string & v)
+static vds::async_task<std::string> step2(const std::string & v)
 {
 	return std::async([v]() { return "result" + v; });
 }
 
 static std::function<void(void)> step3_saved_done;
 
-static std::future<std::string> step3(
+static vds::async_task<std::string> step3(
 	int v)
 {
-  auto r = std::make_shared<std::promise<std::string>>();
+  auto r = std::make_shared<vds::async_result<std::string>>();
   auto f = r->get_future();
 
   step3_saved_done = [r, v]() { r->set_value("result" + std::to_string(v)); };
@@ -32,7 +32,7 @@ static std::future<std::string> step3(
 }
 
 
-std::future<std::string> async_future(int v) {
+vds::async_task<std::string> async_future(int v) {
   auto t = co_await step1(v);
   auto r = co_await step2(t);
   co_return r;

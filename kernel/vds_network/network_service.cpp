@@ -38,7 +38,7 @@ void vds::network_service::stop(const service_provider & sp)
   this->impl_->stop(sp);
 }
 
-std::future<void> vds::network_service::prepare_to_stop(const service_provider &sp)
+vds::async_task<void> vds::network_service::prepare_to_stop(const service_provider &sp)
 {
   return this->impl_->prepare_to_stop(sp);
 }
@@ -196,9 +196,9 @@ void vds::_network_service::stop(const service_provider & sp)
     }
 }
 
-std::future<void> vds::_network_service::prepare_to_stop(const service_provider &sp)
+vds::async_task<void> vds::_network_service::prepare_to_stop(const service_provider &sp)
 {
-  return std::future<void>();
+  return vds::async_task<void>();
   /*
   std::set<SOCKET_HANDLE> processed;
   

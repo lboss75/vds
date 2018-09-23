@@ -88,7 +88,7 @@ void vds::transaction_log::sync_process::query_unknown_records(const service_pro
 }
 
 
-std::future<void> vds::transaction_log::sync_process::apply_message(
+vds::async_task<void> vds::transaction_log::sync_process::apply_message(
   const service_provider& sp,
   database_transaction& t,
   const dht::messages::transaction_log_state& message,
@@ -105,7 +105,7 @@ std::future<void> vds::transaction_log::sync_process::apply_message(
       requests.push_back(p);
     }
   }
-  auto result = std::future<void>::empty();
+  auto result = vds::async_task<void>::empty();
   if (!requests.empty()) {
 
     orm::transaction_log_unknown_record_dbo t3;

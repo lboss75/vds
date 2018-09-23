@@ -31,14 +31,14 @@ namespace vds {
 
       file_operations();
 
-			std::future<transactions::user_message_transaction::file_info_t> upload_file(
+			vds::async_task<transactions::user_message_transaction::file_info_t> upload_file(
 				const service_provider &sp,
         const std::shared_ptr<user_manager> & user_mng,
         const std::string & name,
         const std::string & mime_type,
         const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
-      std::future<void> create_message(
+      vds::async_task<void> create_message(
         const service_provider& sp,
         const std::shared_ptr<user_manager>& user_mng,
         const const_data_buffer& channel_id,
@@ -46,7 +46,7 @@ namespace vds {
         const std::list<transactions::user_message_transaction::file_info_t>& files);
 
 
-			std::future<download_result_t> download_file(
+			vds::async_task<download_result_t> download_file(
 		    const service_provider &sp,
         const std::shared_ptr<user_manager> & user_mng,
         const const_data_buffer & channel_id,

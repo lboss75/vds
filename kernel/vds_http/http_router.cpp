@@ -13,7 +13,7 @@ vds::http_router::http_router()
 {
 }
 
-vds::http_message vds::http_router::route(
+vds::async_task<vds::http_message> vds::http_router::route(
   const service_provider & sp,
   const http_message & message,
   const std::string & local_path) const
@@ -22,14 +22,12 @@ vds::http_message vds::http_router::route(
 
     auto p = this->static_.find(local_path);
     if (this->static_.end() != p) {
-      message.ignore_empty_body();
-      return http_response::simple_text_response(sp, p->second);
+      co_await message.ignore_empty_body(sp);
+      co_return http_response::simple_text_response(p->second);
     }
 
     auto pf = this->files_.find(local_path);
     if (this->files_.end() != pf) {
-      http_response response(http_response::HTTP_OK, "OK");
-
       auto ext = pf->second.extension();
       std::string content_type;
       if (".js" == ext) {
@@ -48,14 +46,13 @@ vds::http_message vds::http_router::route(
         content_type = "text/html; charset=utf-8";
       }
 
-      message.ignore_empty_body();
-      return response.simple_text_response(sp, file::read_all_text(pf->second), content_type);
+      co_await message.ignore_empty_body(sp);
+      co_return http_response::simple_text_response(file::read_all_text(pf->second), content_type);
     }
 
     sp.get<logger>()->debug("HTTP", sp, "File not found: %s", local_path.c_str());
-    message.ignore_empty_body();
-    return http_response::simple_text_response(
-      sp,
+    co_await message.ignore_empty_body(sp);
+    co_return http_response::simple_text_response(
       std::string(),
       std::string(),
       http_response::HTTP_Not_Found,

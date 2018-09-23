@@ -39,23 +39,19 @@ namespace vds {
     }
 
     static http_message simple_text_response(
-      const service_provider & sp,
       const std::string & body,
       const std::string & content_type = "text/html; charset=utf-8",
       int result_code = HTTP_OK,
       const std::string & message = "OK");
 
     static http_message file_response(
-      const service_provider & sp,
-      const std::shared_ptr<continuous_buffer<uint8_t>> & body,
+      const filename & body_file,
+      const std::string & out_filename,
       const std::string & content_type,
-      const std::string & filename,
-      size_t body_size,
       int result_code = HTTP_OK,
       const std::string & message = "OK");
 
     static http_message file_response(
-      const service_provider & sp,
       const const_data_buffer & body,
       const std::string & filename,
       const std::string & content_type = "application/octet-stream",
@@ -63,15 +59,12 @@ namespace vds {
       const std::string & message = "OK");
 
     static http_message redirect(
-      const service_provider & sp,
       const std::string & location);
 
     static http_message status_response(
-        const service_provider & sp,
         int result_code,
         const std::string & message);
 
-    http_message create_message(const service_provider & sp) const;
   private:
     std::string protocol_;
     int code_;

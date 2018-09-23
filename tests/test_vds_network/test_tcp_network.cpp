@@ -64,34 +64,14 @@ TEST(network_tests, test_server)
 
   vds::imt_service::enable_async(sp);
 
-  std::shared_ptr<std::exception> error;
-  vds::barrier b;
   vds::tcp_socket_server server;
   server.start(
     sp,
     vds::network_address::any_ip4(8000),
     [sp](vds::tcp_network_socket s) {
     s.start(sp, echo_stream(s));
-  }).execute(
-    [&b, sp, &error](const std::shared_ptr<std::exception> & ex) {
-    if (!ex) {
-      sp.get<vds::logger>()->debug("TCP", sp, "Server has been started");
-      b.set();
-    }
-    else {
-      error = ex;
-      b.set();
-    }
-  });
+  }).get();
 
-  b.wait();
-
-  if (error) {
-    registrator.shutdown(sp);
-    GTEST_FAIL() << error->what();
-  }
-
-  b.reset();
 
   std::string answer;
   random_buffer data;
@@ -107,26 +87,9 @@ TEST(network_tests, test_server)
 
   auto rs = std::make_shared<random_stream_async<uint8_t>>(s);
 
-  rs->write_async(data.data(), data.size())
-    .then([rs, sp]() {
-    return rs->write_async(nullptr, 0);
-  }).execute([&b, sp, &error](const std::shared_ptr<std::exception> & ex) {
-    if (!ex) {
-      sp.get<vds::logger>()->debug("TCP", sp, "Request sent");
-      b.set();
-    }
-    else {
-      error = ex;
-      sp.get<vds::logger>()->debug("TCP", sp, "Request error");
-      b.set();
-    }
-  });
+  rs->write_async(data.data(), data.size()).get();
+  rs->write_async(nullptr, 0).get();
 
-  b.wait();
   //Wait
   registrator.shutdown(sp);
-
-  if (error) {
-    GTEST_FAIL() << error->what();
-  }
 }

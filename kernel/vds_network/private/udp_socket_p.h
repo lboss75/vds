@@ -110,7 +110,7 @@ namespace vds {
 #endif
     }
 
-    std::future<udp_datagram> read_async()
+    vds::async_task<udp_datagram> read_async()
     {
 #ifdef _WIN32
 		if (!this->reader_) {
@@ -125,7 +125,7 @@ namespace vds {
 #endif
     }
 
-    std::future<void> write_async(const udp_datagram & message)
+    vds::async_task<void> write_async(const udp_datagram & message)
     {
 #ifdef _WIN32
       return this->writter_->write_async(message);
@@ -165,14 +165,14 @@ namespace vds {
       {
       }
 
-      std::future<udp_datagram> read_async()
+      vds::async_task<udp_datagram> read_async()
       {
         vds_assert(!this->result_);
 
         memset(&this->overlapped_, 0, sizeof(this->overlapped_));
         this->wsa_buf_.len = sizeof(this->buffer_);
         this->wsa_buf_.buf = (CHAR *)this->buffer_;
-        this->result_ = std::make_shared<std::promise<udp_datagram>>();
+        this->result_ = std::make_shared<vds::async_result<udp_datagram>>();
 
         this->sp_.get<logger>()->trace("UDP", this->sp_, "WSARecvFrom %d", this->s_);
 
@@ -212,7 +212,7 @@ namespace vds {
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
-      std::shared_ptr<std::promise<udp_datagram>> result_;
+      std::shared_ptr<vds::async_result<udp_datagram>> result_;
 
       network_address addr_;
       uint8_t buffer_[64 * 1024];
@@ -243,53 +243,50 @@ namespace vds {
           s_(s) {
       }
 
-        std::future<void> write_async(const udp_datagram & data)
-        {
-          std::unique_lock<not_mutex> lock(this->not_mutex_);
-          vds_assert(!this->result_);
-          memset(&this->overlapped_, 0, sizeof(this->overlapped_));
-          this->buffer_ = data;
-          this->wsa_buf_.len = this->buffer_.data_size();
-          this->wsa_buf_.buf = (CHAR *)this->buffer_.data();
-          this->sp_.get<logger>()->trace(
-            "UDP",
-            this->sp_,
-            "write_async %s %d bytes",
-            this->buffer_->address().to_string().c_str(),
-            this->buffer_.data_size());
+      vds::async_task<void> write_async(const udp_datagram & data)
+      {
+        std::unique_lock<not_mutex> lock(this->not_mutex_);
+        vds_assert(!this->result_);
+        memset(&this->overlapped_, 0, sizeof(this->overlapped_));
+        this->buffer_ = data;
+        this->wsa_buf_.len = this->buffer_.data_size();
+        this->wsa_buf_.buf = (CHAR *)this->buffer_.data();
+        this->sp_.get<logger>()->trace(
+          "UDP",
+          this->sp_,
+          "write_async %s %d bytes",
+          this->buffer_->address().to_string().c_str(),
+          this->buffer_.data_size());
 
-          return[pthis = this->shared_from_this()](const std::promise<> & result){
-            auto this_ = static_cast<_udp_send *>(pthis.get());
-            std::unique_lock<not_mutex> lock(this_->not_mutex_);
-            vds_assert(!this_->result_);
-            this_->result_ = result;
-            lock.unlock();
+        this->result_ = std::make_shared<vds::async_result<void>>();
+        auto f = this->result_->get_future();
+        lock.unlock();
 
-			this_->sp_.get<logger>()->trace(
-        "UDP",
-        this_->sp_,
-        "WSASendTo %s %d bytes (%s)",
-        this_->buffer_->address().to_string().c_str(),
-        this_->buffer_.data_size(),
-        base64::from_bytes(static_cast<const sockaddr *>(this_->buffer_->address()), this_->buffer_->address().size()).c_str()
-      );
-			if (NOERROR != WSASendTo(
-        this_->s_,
-        &this_->wsa_buf_,
-        1,
-        NULL,
-        0,
-        this_->buffer_->address(),
-        this_->buffer_->address().size(),
-        &this_->overlapped_,
-        NULL)) {
-              auto errorCode = WSAGetLastError();
-              if (WSA_IO_PENDING != errorCode) {
-                this_->result_.error(std::make_shared<std::system_error>(errorCode, std::system_category(), "WSASend failed"));
-              }
-            }
-          };
+
+        this->sp_.get<logger>()->trace(
+          "UDP",
+          this->sp_,
+          "WSASendTo %s %d bytes (%s)",
+          this->buffer_->address().to_string().c_str(),
+          this->buffer_.data_size(),
+          base64::from_bytes(static_cast<const sockaddr *>(this->buffer_->address()), this->buffer_->address().size()).c_str()
+        );
+        if (NOERROR != WSASendTo(
+          this->s_,
+          &this->wsa_buf_,
+          1,
+          NULL,
+          0,
+          this->buffer_->address(),
+          this->buffer_->address().size(),
+          &this->overlapped_,
+          NULL)) {
+          auto errorCode = WSAGetLastError();
+          if (WSA_IO_PENDING != errorCode) {
+            this->result_->set_exception(std::make_exception_ptr(std::system_error(errorCode, std::system_category(), "WSASend failed")));
+          }
         }
+      }
 
 		void prepare_to_stop(const service_provider & sp)
 		{
@@ -298,7 +295,7 @@ namespace vds {
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
-      std::shared_ptr<std::promise<void>> result_;
+      std::shared_ptr<vds::async_result<void>> result_;
 
       socklen_t addr_len_;
       udp_datagram buffer_;
@@ -312,12 +309,11 @@ namespace vds {
         lock.unlock();
 
         if (this->wsa_buf_.len != (size_t)dwBytesTransfered) {
-          result.error(std::make_shared<std::runtime_error>("Invalid sent UDP data"));
+          result->set_exception(std::make_exception_ptr(std::runtime_error("Invalid sent UDP data")));
         }
         else {
-			this->sp_.get<logger>()->trace("UDP", this->sp_, "Sent %d bytes", dwBytesTransfered);
-			result.done();
-          
+          this->sp_.get<logger>()->trace("UDP", this->sp_, "Sent %d bytes", dwBytesTransfered);
+          result->set_value();
         }
       }
 
@@ -336,7 +332,7 @@ namespace vds {
         auto result = std::move(this->result_);
         lock.unlock();
 
-        result.error(std::make_shared<std::system_error>(error_code, std::system_category(), "WSASendTo failed"));
+        result->set_exception(std::make_exception_ptr(std::system_error(error_code, std::system_category(), "WSASendTo failed")));
       }
 	};
 
@@ -358,12 +354,12 @@ namespace vds {
       {
       }
 
-      std::future<const udp_datagram &> read_async() {
+      vds::async_task<const udp_datagram &> read_async() {
         std::lock_guard<std::mutex> lock(this->read_mutex_);
         switch (this->read_status_) {
           case read_status_t::bof:
             return [pthis = this->shared_from_this()](
-                const std::promise<const udp_datagram &> & result){
+                const vds::async_result<const udp_datagram &> & result){
               auto this_ = static_cast<_udp_handler *>(pthis.get());
               this_->read_result_ = result;
               this_->read_status_ = read_status_t::waiting_socket;
@@ -372,14 +368,14 @@ namespace vds {
 
           case read_status_t::continue_read:
             return [pthis = this->shared_from_this()](
-                const std::promise<const udp_datagram &> & result){
+                const vds::async_result<const udp_datagram &> & result){
               auto this_ = static_cast<_udp_handler *>(pthis.get());
               this_->read_result_ = result;
               this_->read_data();
             };
 
           case read_status_t::eof:
-            return std::future<const udp_datagram &>(
+            return vds::async_task<const udp_datagram &>(
                 std::make_shared<std::system_error>(ECONNRESET, std::system_category())
             );
 
@@ -388,13 +384,13 @@ namespace vds {
         }
       }
 
-      std::future<void> write_async(const udp_datagram & message) {
+      vds::async_task<void> write_async(const udp_datagram & message) {
         std::lock_guard<std::mutex> lock(this->write_mutex_);
         switch (this->write_status_) {
           case write_status_t::bof:
             this->write_message_ = message;
             return [pthis = this->shared_from_this()](
-                const std::promise<> & result){
+                const vds::async_result<> & result){
               auto this_ = static_cast<_udp_handler *>(pthis.get());
               this_->write_result_ = result;
               this_->write_status_ = write_status_t::waiting_socket;
@@ -403,14 +399,14 @@ namespace vds {
           case write_status_t::continue_write:
             this->write_message_ = message;
             return [pthis = this->shared_from_this()](
-                const std::promise<> & result){
+                const vds::async_result<> & result){
               auto this_ = static_cast<_udp_handler *>(pthis.get());
               this_->write_result_ = result;
               this_->write_data();
             };
 
           case write_status_t::eof:
-            return std::future<void>(
+            return vds::async_task<void>(
                 std::make_shared<std::system_error>(ECONNRESET, std::system_category())
             );
 
@@ -578,8 +574,8 @@ namespace vds {
 
     private:
       std::shared_ptr<_udp_socket> owner_;
-      std::promise<const udp_datagram &> read_result_;
-      std::promise<> write_result_;
+      vds::async_result<const udp_datagram &> read_result_;
+      vds::async_result<> write_result_;
 
       network_address addr_;
       uint8_t read_buffer_[64 * 1024];

@@ -11,7 +11,7 @@ namespace vds {
   namespace http {
     class simple_form_parser : public std::enable_shared_from_this<simple_form_parser> {
     public:
-      std::future<void> parse(
+      vds::async_task<void> parse(
         const service_provider& sp,
         const http_message& message);
 
@@ -26,11 +26,11 @@ namespace vds {
       public:
         form_parser(const std::shared_ptr<simple_form_parser> & owner);
 
-        std::future<void> read_part(
+        vds::async_task<void> read_part(
           const service_provider & sp,
           const http_message& part);
 
-        std::future<void> read_form_urlencoded(
+        vds::async_task<void> read_form_urlencoded(
           const service_provider& sp, 
           const http_message& message);
 
@@ -38,11 +38,12 @@ namespace vds {
         std::shared_ptr<simple_form_parser> owner_;
         uint8_t buffer_[1024];
 
-        std::future<void> read_string_body(
-          const std::shared_ptr<std::string>& buffer,
+        vds::async_task<std::string> read_string_body(
+          const service_provider & sp,
           const http_message& part);
 
-        std::future<void> skip_part(
+        vds::async_task<void> skip_part(
+          const service_provider & sp,
           const vds::http_message& part);
 
       };

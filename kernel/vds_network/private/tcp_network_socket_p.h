@@ -87,7 +87,7 @@ namespace vds {
 #endif//_WIN32
     }
 
-    std::future<void> write_async(const uint8_t * data, size_t size) override {
+    vds::async_task<void> write_async(const uint8_t * data, size_t size) override {
 #ifdef _WIN32
       return static_cast<_write_socket_task *>(this->socket_task_.get())->write_async(data, size);
 #else
@@ -236,9 +236,9 @@ namespace vds {
       {
       }
 
-      std::future<void> write_async(const uint8_t * data, size_t len)
+      vds::async_task<void> write_async(const uint8_t * data, size_t len)
       {
-        this->result_ = std::make_shared<std::promise<void>>();
+        this->result_ = std::make_shared<vds::async_result<void>>();
         this->pthis_ = this->shared_from_this();
         this->schedule(data, len);
 
@@ -248,7 +248,7 @@ namespace vds {
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
-      std::shared_ptr<std::promise<void>> result_;
+      std::shared_ptr<vds::async_result<void>> result_;
       std::shared_ptr<_socket_task> pthis_;
 
       void schedule(const void * data, size_t len)
@@ -326,14 +326,14 @@ namespace vds {
       }
 
 
-      std::future<void> write_async(const uint8_t * data, size_t size) {
+      vds::async_task<void> write_async(const uint8_t * data, size_t size) {
         std::lock_guard<std::mutex> lock(this->write_mutex_);
         switch (this->write_status_) {
           case write_status_t::bof:
             this->write_buffer_.resize(size);
             memcpy(this->write_buffer_.data(), data, size);
             return [pthis = this->shared_from_this()](
-                const std::promise<> & result){
+                const vds::async_result<> & result){
               auto this_ = static_cast<_socket_handler *>(pthis.get());
               this_->write_result_ = result;
               this_->write_status_ = write_status_t::waiting_socket;
@@ -344,14 +344,14 @@ namespace vds {
             this->write_buffer_.resize(size);
             memcpy(this->write_buffer_.data(), data, size);
             return [pthis = this->shared_from_this()](
-                const std::promise<> & result){
+                const vds::async_result<> & result){
               auto this_ = static_cast<_socket_handler *>(pthis.get());
               this_->write_result_ = result;
               this_->write_data();
             };
 
           case write_status_t::eof:
-            return std::future<void>(
+            return vds::async_task<void>(
                 std::make_shared<std::system_error>(ECONNRESET, std::system_category())
             );
 
@@ -443,7 +443,7 @@ namespace vds {
       std::shared_ptr<_stream_async<uint8_t>> owner_;
 
       const_data_buffer write_buffer_;
-      std::promise<> write_result_;
+      vds::async_result<> write_result_;
 
       stream<uint8_t> target_;
       uint8_t read_buffer_[1024];

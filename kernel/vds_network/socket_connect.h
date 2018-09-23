@@ -16,9 +16,9 @@ namespace vds {
     {
     }
 
-    std::future<network_socket &> connect(const std::string & address, uint16_t port)
+    vds::async_task<network_socket &> connect(const std::string & address, uint16_t port)
     {
-      return create_std::future([address, port](const std::function<void(const service_provider & sp, network_socket &)> & done, const error_handler & on_error, const service_provider & sp){
+      return create_vds::async_task([address, port](const std::function<void(const service_provider & sp, network_socket &)> & done, const error_handler & on_error, const service_provider & sp){
         network_socket s(
 #ifdef _WIN32
           WSASocket(PF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)

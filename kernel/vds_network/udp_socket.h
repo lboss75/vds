@@ -62,8 +62,8 @@ namespace vds {
     udp_socket &operator = (const udp_socket & original) = delete;
     udp_socket & operator = (udp_socket && original) = default;
 
-    std::future<const udp_datagram &> read_async() const;
-    std::future<void> write_async(const udp_datagram & message) const;
+    vds::async_task<udp_datagram> read_async() const;
+    vds::async_task<void> write_async(const udp_datagram & message) const;
 
     void stop();
 

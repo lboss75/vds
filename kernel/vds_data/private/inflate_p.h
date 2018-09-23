@@ -69,7 +69,7 @@ namespace vds {
       }
     }
 
-    std::future<void> write_async(
+    vds::async_task<void> write_async(
       const uint8_t * input_data,
       size_t input_size) override
     {
@@ -90,7 +90,7 @@ namespace vds {
     z_stream strm_;
     uint8_t buffer_[1024];
     
-    std::future<void> continue_write()
+    vds::async_task<void> continue_write()
     {
       for (;;) {
         if (0 != this->strm_.avail_out) {

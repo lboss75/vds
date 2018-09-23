@@ -8,7 +8,7 @@ vds::_upload_stream_task::_upload_stream_task()
 : total_hash_(hash::sha256()), total_size_(0), readed_(0) {
 }
 
-std::future<std::list<vds::transactions::user_message_transaction::file_block_t>> vds::_upload_stream_task::start(
+vds::async_task<std::list<vds::transactions::user_message_transaction::file_block_t>> vds::_upload_stream_task::start(
     const service_provider & sp,
     const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) {
 
@@ -19,13 +19,13 @@ std::future<std::list<vds::transactions::user_message_transaction::file_block_t>
 
 }
 
-std::future<void>
+vds::async_task<void>
 vds::_upload_stream_task::continue_read(
     const service_provider & sp,
     dht::network::client * network_client,
     const std::shared_ptr<vds::continuous_buffer<uint8_t>> &input_stream) {
   return input_stream->read_async(this->buffer_ + this->readed_, sizeof(this->buffer_) - this->readed_)
-      .then([pthis = this->shared_from_this(), sp, input_stream, network_client](size_t readed) -> std::future<void>{
+      .then([pthis = this->shared_from_this(), sp, input_stream, network_client](size_t readed) -> vds::async_task<void>{
         if(0 == readed){
           return pthis->process_data(sp, network_client).then([pthis]() {
             pthis->total_hash_.final();
@@ -46,12 +46,12 @@ vds::_upload_stream_task::continue_read(
       });
 }
 
-std::future<void> vds::_upload_stream_task::process_data(
+vds::async_task<void> vds::_upload_stream_task::process_data(
   const service_provider & sp,
   dht::network::client * network_client) {
 
   if(0 == this->readed_) {
-    return std::future<void>::empty();
+    return vds::async_task<void>::empty();
   }
   else {
     this->total_hash_.update(this->buffer_, this->readed_);
