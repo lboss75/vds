@@ -121,7 +121,8 @@ namespace vds {
       if(!this->handler_){
         throw std::system_error(ECONNRESET, std::system_category(), "Socket is closed");
       }
-      return this->handler_->read_async();
+
+      co_return co_await this->handler_->read_async();
 #endif
     }
 
@@ -130,7 +131,7 @@ namespace vds {
 #ifdef _WIN32
       return this->writter_->write_async(message);
 #else
-      return this->handler_->write_async(message);
+      co_return co_await this->handler_->write_async(message);
 #endif
     }
 
@@ -354,30 +355,24 @@ namespace vds {
       {
       }
 
-      vds::async_task<const udp_datagram &> read_async() {
+      vds::async_task<udp_datagram> read_async() {
         std::lock_guard<std::mutex> lock(this->read_mutex_);
         switch (this->read_status_) {
-          case read_status_t::bof:
-            return [pthis = this->shared_from_this()](
-                const vds::async_result<const udp_datagram &> & result){
-              auto this_ = static_cast<_udp_handler *>(pthis.get());
-              this_->read_result_ = result;
-              this_->read_status_ = read_status_t::waiting_socket;
-              this_->change_mask(EPOLLIN);
-            };
+          case read_status_t::bof:{
+              this->read_result_ = std::make_shared<vds::async_result<udp_datagram>>();
+              this->read_status_ = read_status_t::waiting_socket;
+              this->change_mask(EPOLLIN);
+              return this->read_result_->get_future();
+            }
 
-          case read_status_t::continue_read:
-            return [pthis = this->shared_from_this()](
-                const vds::async_result<const udp_datagram &> & result){
-              auto this_ = static_cast<_udp_handler *>(pthis.get());
-              this_->read_result_ = result;
-              this_->read_data();
-            };
+          case read_status_t::continue_read: {
+            this->read_result_ = std::make_shared<vds::async_result<udp_datagram>>();
+              this->read_data();
+            return this->read_result_->get_future();
+            }
 
           case read_status_t::eof:
-            return vds::async_task<const udp_datagram &>(
-                std::make_shared<std::system_error>(ECONNRESET, std::system_category())
-            );
+            throw std::system_error(ECONNRESET, std::system_category());
 
           default:
             throw  std::runtime_error("Invalid operator");
@@ -387,28 +382,22 @@ namespace vds {
       vds::async_task<void> write_async(const udp_datagram & message) {
         std::lock_guard<std::mutex> lock(this->write_mutex_);
         switch (this->write_status_) {
-          case write_status_t::bof:
+          case write_status_t::bof:{
             this->write_message_ = message;
-            return [pthis = this->shared_from_this()](
-                const vds::async_result<> & result){
-              auto this_ = static_cast<_udp_handler *>(pthis.get());
-              this_->write_result_ = result;
-              this_->write_status_ = write_status_t::waiting_socket;
-              this_->change_mask(EPOLLOUT);
-            };
-          case write_status_t::continue_write:
+              this->write_result_ = std::make_shared<vds::async_result<void>>();
+              this->write_status_ = write_status_t::waiting_socket;
+              this->change_mask(EPOLLOUT);
+              return this->write_result_->get_future();
+            }
+
+          case write_status_t::continue_write:{
             this->write_message_ = message;
-            return [pthis = this->shared_from_this()](
-                const vds::async_result<> & result){
-              auto this_ = static_cast<_udp_handler *>(pthis.get());
-              this_->write_result_ = result;
-              this_->write_data();
-            };
+            this->write_result_ = std::make_shared<vds::async_result<void>>();
+              this->write_data();
+            }
 
           case write_status_t::eof:
-            return vds::async_task<void>(
-                std::make_shared<std::system_error>(ECONNRESET, std::system_category())
-            );
+            throw std::system_error(ECONNRESET, std::system_category());
 
           default:
             throw  std::runtime_error("Invalid operator");
@@ -423,7 +412,7 @@ namespace vds {
           lock.unlock();
 
           if(result) {
-            result.error(std::make_shared<std::system_error>(ECONNRESET, std::system_category()));
+            result->set_exception(std::make_exception_ptr(std::system_error(ECONNRESET, std::system_category())));
           }
           return;
         }
@@ -453,7 +442,8 @@ namespace vds {
           auto result = std::move(this->read_result_);
           lock.unlock();
 
-          result.error(std::make_shared<std::system_error>(error, std::system_category(), "recvfrom"));
+          result->set_exception(
+              std::make_exception_ptr(std::system_error(error, std::system_category(), "recvfrom")));
         }
         else {
           this->sp_.get<logger>()->trace("UDP", this->sp_, "got %d bytes from %s", len,
@@ -462,7 +452,7 @@ namespace vds {
           auto result = std::move(this->read_result_);
           lock.unlock();
 
-          result.done(_udp_datagram::create(this->addr_, this->read_buffer_, len));
+          result->set_value(_udp_datagram::create(this->addr_, this->read_buffer_, len));
         }
       }
 
@@ -474,9 +464,9 @@ namespace vds {
           lock.unlock();
 
           if(result) {
-            result.error(
-                std::make_shared<std::system_error>(
-                    ECONNRESET, std::system_category()));
+            result->set_exception(
+                std::make_exception_ptr(std::system_error(
+                    ECONNRESET, std::system_category())));
           }
           return;
         }
@@ -512,14 +502,12 @@ namespace vds {
           lock.unlock();
 
           if (EMSGSIZE == error) {
-            result.error(
-                std::make_shared<udp_datagram_size_exception>());
+            result->set_exception(std::make_exception_ptr(udp_datagram_size_exception()));
           } else {
-            result.error(
-                std::make_shared<std::system_error>(
+            result->set_exception(std::make_exception_ptr(std::system_error(
                     error,
                     std::generic_category(),
-                    "Send to " + address));
+                    "Send to " + address)));
           }
         }
         else {
@@ -538,7 +526,7 @@ namespace vds {
           auto result = std::move(this->write_result_);
           lock.unlock();
 
-          result.done();
+          result->set_value();
         }
       }
 
@@ -548,11 +536,13 @@ namespace vds {
         std::unique_lock<std::mutex> lock2(this->read_mutex_);
 
         if(this->read_result_) {
-          this->read_result_.error(std::make_shared<std::system_error>(ECONNRESET, std::system_category()));
+          this->read_result_->set_exception(
+              std::make_exception_ptr(std::system_error(ECONNRESET, std::system_category())));
         }
 
         if(this->write_result_) {
-          this->write_result_.error(std::make_shared<std::system_error>(ECONNRESET, std::system_category()));
+          this->write_result_->set_exception(
+              std::make_exception_ptr(std::system_error(ECONNRESET, std::system_category())));
         }
 
         this->read_status_ = read_status_t::eof;
@@ -563,10 +553,12 @@ namespace vds {
         base_class::stop();
 
         if(this->read_result_){
-          this->read_result_.error(std::make_shared<vds_exceptions::shooting_down_exception>());
+          this->read_result_->set_exception(
+              std::make_exception_ptr(vds_exceptions::shooting_down_exception()));
         }
         if(this->write_result_){
-          this->write_result_.error(std::make_shared<vds_exceptions::shooting_down_exception>());
+          this->write_result_->set_exception(
+              std::make_exception_ptr(vds_exceptions::shooting_down_exception()));
         }
 
         this->owner_.reset();
@@ -574,8 +566,8 @@ namespace vds {
 
     private:
       std::shared_ptr<_udp_socket> owner_;
-      vds::async_result<const udp_datagram &> read_result_;
-      vds::async_result<> write_result_;
+      std::shared_ptr<vds::async_result<udp_datagram>> read_result_;
+      std::shared_ptr<vds::async_result<void>> write_result_;
 
       network_address addr_;
       uint8_t read_buffer_[64 * 1024];

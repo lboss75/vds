@@ -302,63 +302,55 @@ namespace vds {
 
 
 #else
-    class _socket_handler : public _socket_task_impl<_socket_handler>
-    {
+    class _socket_handler : public _socket_task_impl<_socket_handler> {
       using base_class = _socket_task_impl<_socket_handler>;
 
     public:
       _socket_handler(
-        const service_provider & sp,
-        const std::shared_ptr<_stream_async<uint8_t>> & owner,
-        const stream<uint8_t> & target)
-        : _socket_task_impl<_socket_handler>(sp, static_cast<_tcp_network_socket *>(owner.get())->s_),
-          owner_(owner),
-          target_(target)
-      {
+          const service_provider &sp,
+          const std::shared_ptr<_stream_async<uint8_t>> &owner,
+          const stream<uint8_t> &target)
+          : _socket_task_impl<_socket_handler>(sp, static_cast<_tcp_network_socket *>(owner.get())->s_),
+            owner_(owner),
+            target_(target) {
       }
 
-      ~_socket_handler(){
+      ~_socket_handler() {
       }
 
-      void start(){
+      void start() {
         base_class::start();
         this->change_mask(EPOLLIN);
       }
 
 
-      vds::async_task<void> write_async(const uint8_t * data, size_t size) {
+      vds::async_task<void> write_async(const uint8_t *data, size_t size) {
         std::lock_guard<std::mutex> lock(this->write_mutex_);
         switch (this->write_status_) {
-          case write_status_t::bof:
+          case write_status_t::bof: {
             this->write_buffer_.resize(size);
             memcpy(this->write_buffer_.data(), data, size);
-            return [pthis = this->shared_from_this()](
-                const vds::async_result<> & result){
-              auto this_ = static_cast<_socket_handler *>(pthis.get());
-              this_->write_result_ = result;
-              this_->write_status_ = write_status_t::waiting_socket;
-              this_->change_mask(EPOLLOUT);
-            };
 
-          case write_status_t::continue_write:
+            this->write_result_ = std::make_shared<vds::async_result<void>>();
+            this->write_status_ = write_status_t::waiting_socket;
+            this->change_mask(EPOLLOUT);
+            return this->write_result_->get_future();
+          }
+
+          case write_status_t::continue_write: {
             this->write_buffer_.resize(size);
             memcpy(this->write_buffer_.data(), data, size);
-            return [pthis = this->shared_from_this()](
-                const vds::async_result<> & result){
-              auto this_ = static_cast<_socket_handler *>(pthis.get());
-              this_->write_result_ = result;
-              this_->write_data();
-            };
+            this->write_result_ = std::make_shared<vds::async_result<void>>();
+            this->write_data();
+            return this->write_result_->get_future();
+          }
 
           case write_status_t::eof:
-            return vds::async_task<void>(
-                std::make_shared<std::system_error>(ECONNRESET, std::system_category())
-            );
+            throw std::system_error(ECONNRESET, std::system_category());
 
           default:
-            throw  std::runtime_error("Invalid operator");
+            throw std::runtime_error("Invalid operator");
         }
-
       }
 
       void write_data() {
@@ -388,11 +380,11 @@ namespace vds {
           auto result = std::move(this->write_result_);
           lock.unlock();
 
-          result.error(
-              std::make_shared<std::system_error>(
+          result->set_exception(std::make_exception_ptr(
+              std::system_error(
                   error,
                   std::generic_category(),
-                  "Send"));
+                  "Send")));
         } else {
           this->sp_.get<logger>()->trace("TCP", this->sp_, "Sent %d bytes", len);
 
@@ -403,7 +395,7 @@ namespace vds {
           auto result = std::move(this->write_result_);
           lock.unlock();
 
-          result.done();
+          result->set_value();
         }
       }
 
@@ -443,7 +435,7 @@ namespace vds {
       std::shared_ptr<_stream_async<uint8_t>> owner_;
 
       const_data_buffer write_buffer_;
-      vds::async_result<> write_result_;
+      std::shared_ptr<vds::async_result<void>> write_result_;
 
       stream<uint8_t> target_;
       uint8_t read_buffer_[1024];

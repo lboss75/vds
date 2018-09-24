@@ -112,7 +112,7 @@ namespace vds {
               f();
             });
 #else
-            mt_service::async(this_->sp_, f);
+            mt_service::async(this->sp_, f);
 #endif
           }
 
@@ -399,23 +399,18 @@ namespace vds {
     }
     
     static vds::async_task<void> _continue_copy(
-      const std::shared_ptr<_continue_copy_stream_async> & context)
-    {
-      return context->source_->read_async(
-        context->buffer_,
-        sizeof(context->buffer_) / sizeof(context->buffer_[0])).then(
-        [context](size_t readed){
-          return context->target_->write_async(context->buffer_, readed).
-            then([context, is_eof = (0 == readed)](){
-              if(is_eof){
-                return vds::async_task<void>::empty();
-              }
-              else {
-                return _continue_copy(context);
-              }              
-            });
+      const std::shared_ptr<_continue_copy_stream_async> & context) {
+      for (;;) {
+        size_t readed = co_await context->source_->read_async(
+            context->buffer_,
+            sizeof(context->buffer_) / sizeof(context->buffer_[0]));
+
+        co_await context->target_->write_async(context->buffer_, readed);
+
+        if (0 == readed) {
+          co_return;
         }
-      );    
+      }
     }
         
   private:
@@ -479,20 +474,19 @@ namespace vds {
     }
 
     static vds::async_task<void> _continue_copy(
-      const std::shared_ptr<_continue_copy_stream> & context)
-    {
-      return context->source_->read_async(
-        context->buffer_,
-        sizeof(context->buffer_) / sizeof(context->buffer_[0])).then(
-          [context](size_t readed) {
+      const std::shared_ptr<_continue_copy_stream> & context) {
+      for (;;) {
+        size_t readed = co_await
+        context->source_->read_async(
+            context->buffer_,
+            sizeof(context->buffer_) / sizeof(context->buffer_[0]));
+
+        co_await
         context->target_->write(context->buffer_, readed);
         if (0 == readed) {
-          return vds::async_task<void>::empty();
+          co_return;
         }
-        else {
-          return _continue_copy(context);
-        }
-      });
+      }
     }
 
   private:

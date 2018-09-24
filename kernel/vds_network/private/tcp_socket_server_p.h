@@ -122,7 +122,6 @@ namespace vds {
             if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
               auto error = errno;
               throw std::system_error(error, std::system_category());
-              return;
             }
             
             //bind to address
