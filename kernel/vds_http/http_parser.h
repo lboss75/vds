@@ -65,19 +65,19 @@ namespace vds {
           }
 
           std::string transfer_encoding;
-          const auto chunked_encoding = (current_message.get_header("Transfer-Encoding", transfer_encoding) &&
+          const auto chunked_encoding = (http_message::get_header(this->headers_, "Transfer-Encoding", transfer_encoding) &&
             transfer_encoding == "chunked");
 
           std::string expect_value;
-          const auto expect_100_ = (current_message.get_header("Expect", expect_value) &&
+          const auto expect_100 = (http_message::get_header(this->headers_, "Expect", expect_value) &&
             "100-continue" == expect_value);
 
           size_t content_length;
           std::string content_length_header;
-          if (this->headers_.get_header("Content-Length", content_length_header)) {
+          if (http_message::get_header(this->headers_, "Content-Length", content_length_header)) {
             content_length = std::stoul(content_length_header);
           }
-          else if (this->headers_.get_header("Transfer-Encoding", transfer_encoding)) {
+          else if (http_message::get_header(this->headers_, "Transfer-Encoding", transfer_encoding)) {
             content_length = (size_t)-1;
           }
           else {
@@ -123,15 +123,6 @@ namespace vds {
 
     uint8_t buffer_[1024];
     size_t readed_;
-
-
-    async_task<void> process_message(http_message current_message) {
-      co_await this->message_callback_(current_message);
-
-      co_await this->message_state_->change_state(
-        MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-        MessageStateEnum::MESSAGE_STATE_NONE);
-    }
 
     class http_body_reader : public input_stream_async<uint8_t> {
     public:

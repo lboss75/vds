@@ -30,7 +30,14 @@ namespace vds {
       return this->headers_;
     }
 
-    bool get_header(const std::string & name, std::string & value) const;
+    static bool get_header(
+        const std::list<std::string> & headers,
+        const std::string& name,
+        std::string& value);
+
+    bool get_header(const std::string & name, std::string & value) const{
+      return get_header(this->headers_, name, value);
+    }
     
     const std::shared_ptr<input_stream_async<uint8_t>> & body() const {
       return this->body_;

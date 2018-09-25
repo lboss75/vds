@@ -170,7 +170,7 @@ namespace vds {
         for (auto &presult : result_nodes) {
           for (auto & node : presult.second) {
             if (!co_await callback(node.second)) {
-              return;
+              co_return;
             }
           }
         }
@@ -191,7 +191,7 @@ namespace vds {
         for (auto &presult : result_nodes) {
           for (auto & node : presult.second) {
             if (!co_await callback(node.second)) {
-              return;
+              co_return;
             }
           }
         }

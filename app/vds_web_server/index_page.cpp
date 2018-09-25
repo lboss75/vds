@@ -21,7 +21,7 @@ vds::async_task<vds::http_message> vds::index_page::create_channel(const vds::se
   co_await parser->parse(sp, message);
   
   auto name = parser->values().find("channelName");
-  co_return api_controller::create_channel(sp, user_mng, name->second);
+  co_return co_await api_controller::create_channel(sp, user_mng, name->second);
 }
 
 class create_message_form : public vds::http::form_parser<create_message_form> {

@@ -82,7 +82,7 @@ vds::async_task<void> vds::_web_server::start(const service_provider& sp, const 
         if (request.headers().empty()) {
           session->stream_.reset();
           session->handler_.reset();
-          co_return;
+          co_return http_message();
         }
 
         std::string keep_alive_header;

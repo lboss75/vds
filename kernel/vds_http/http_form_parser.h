@@ -54,6 +54,7 @@ namespace vds {
         uint8_t buffer_[1024];
 
         vds::async_task<void> read_string_body(
+            const service_provider & sp,
           const std::shared_ptr<std::string>& buffer,
           const http_message& part);
 
@@ -102,91 +103,93 @@ namespace vds {
     template <typename implementation_class>
     vds::async_task<void> form_parser<implementation_class>::_form_parser::read_part(const service_provider& sp,
       const http_message& part) {
-      std::string content_disposition;
-      if (part.get_header("Content-Disposition", content_disposition)) {
-        std::list<std::string> items;
-        for (;;) {
-          auto p = content_disposition.find(';');
-          if (std::string::npos == p) {
-            vds::trim(content_disposition);
-            items.push_back(content_disposition);
-            break;
+      for(;;) {
+        std::string content_disposition;
+        if (part.get_header("Content-Disposition", content_disposition)) {
+          std::list<std::string> items;
+          for (;;) {
+            auto p = content_disposition.find(';');
+            if (std::string::npos == p) {
+              vds::trim(content_disposition);
+              items.push_back(content_disposition);
+              break;
+            } else {
+              items.push_back(vds::trim_copy(content_disposition.substr(0, p)));
+              content_disposition.erase(0, p + 1);
+            }
           }
-          else {
-            items.push_back(vds::trim_copy(content_disposition.substr(0, p)));
-            content_disposition.erase(0, p + 1);
-          }
-        }
 
-        if (!items.empty() && "form-data" == *items.begin()) {
-          std::map<std::string, std::string> values;
-          for (const auto & item : items) {
-            auto p = item.find('=');
-            if (std::string::npos != p) {
-              auto value = item.substr(p + 1);
-              if (!value.empty()
-                && value[0] == '\"'
-                && value[value.length() - 1] == '\"') {
-                value.erase(0, 1);
-                value.erase(value.length() - 1, 1);
+          if (!items.empty() && "form-data" == *items.begin()) {
+            std::map<std::string, std::string> values;
+            for (const auto &item : items) {
+              auto p = item.find('=');
+              if (std::string::npos != p) {
+                auto value = item.substr(p + 1);
+                if (!value.empty()
+                    && value[0] == '\"'
+                    && value[value.length() - 1] == '\"') {
+                  value.erase(0, 1);
+                  value.erase(value.length() - 1, 1);
+                }
+
+                values[item.substr(0, p)] = value;
+              }
+            }
+
+            auto pname = values.find("name");
+            if (values.end() != pname) {
+              auto name = pname->second;
+
+              auto fname = values.find("filename");
+              if (values.end() == fname) {
+                auto buffer = std::make_shared<std::string>();
+                co_await
+                this->read_string_body(sp, buffer, part);
+
+                static_cast<implementation_class *>(this->owner_.get())->on_field(simple_field_info{name, *buffer});
+                co_return;
               }
 
-              values[item.substr(0, p)] = value;
+              std::string content_type;
+              if (part.get_header("Content-Type", content_type)) {
+                const auto stream = std::make_shared<continuous_buffer<uint8_t>>(sp);
+                co_await
+                static_cast<implementation_class *>(this->owner_.get())->on_file(
+                    file_info{name, fname->second, content_type, stream});
+                co_await this->read_file(stream, part);
+                //if("application/x-zip-compressed" == content_type) {
+                //  auto stream = std::make_shared<continuous_buffer<uint8_t>>(sp);
+                //  auto buffer = std::make_shared<inflate_async>(*stream);
+                //  static_cast<implementation_class *>(this->owner_.get())->on_file(file_info{ name, fname->second, stream });
+                //  return this->read_file(buffer, part).then([stream](){});
+                //}
+              }
+              throw std::runtime_error("Not implemented");
             }
+            co_await this->skip_part(part);
+            co_return;
           }
+        }
 
-          auto pname = values.find("name");
-          if (values.end() != pname) {
-            auto name = pname->second;
-
-            auto fname = values.find("filename");
-            if (values.end() == fname) {
-              auto buffer = std::make_shared<std::string>();
-              return this->read_string_body(buffer, part).then([name, buffer, pthis = this->shared_from_this()]() {
-                static_cast<implementation_class *>(pthis->owner_.get())->on_field(simple_field_info{ name, *buffer });
-              });
-            }
-
-            std::string content_type;
-            if (part.get_header("Content-Type", content_type)) {
-              const auto stream = std::make_shared<continuous_buffer<uint8_t>>(sp);
-              return async_series(
-                static_cast<implementation_class *>(this->owner_.get())->on_file(file_info{ name, fname->second, content_type, stream }),
-                this->read_file(stream, part));
-              //if("application/x-zip-compressed" == content_type) {
-              //  auto stream = std::make_shared<continuous_buffer<uint8_t>>(sp);
-              //  auto buffer = std::make_shared<inflate_async>(*stream);
-              //  static_cast<implementation_class *>(this->owner_.get())->on_file(file_info{ name, fname->second, stream });
-              //  return this->read_file(buffer, part).then([stream](){});
-              //}
-            }
-            throw std::runtime_error("Not implemented");
-          }
-          return this->skip_part(part);
+        auto readed = co_await
+        part.body()->read_async(sp, this->buffer_, sizeof(this->buffer_));
+        if (0 == readed) {
+          co_return;
         }
       }
-
-      return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
-        .then([pthis = this->shared_from_this(), sp, part](size_t readed)->vds::async_task<void> {
-        if (0 == readed) {
-          return vds::async_task<void>::empty();
-        }
-
-        return pthis->read_part(sp, part);
-      });
     }
 
     template <typename implementation_class>
     vds::async_task<void> form_parser<implementation_class>::_form_parser::read_string_body(
+        const service_provider & sp,
       const std::shared_ptr<std::string>& buffer, const http_message& part) {
-      return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
-        .then([pthis = this->shared_from_this(), buffer, part](size_t readed)->vds::async_task<void> {
+      for(;;){
+        auto readed = co_await part.body()->read_async(sp, this->buffer_, sizeof(this->buffer_));
         if (0 == readed) {
-          return vds::async_task<void>::empty();
+          co_return;
         }
-        *buffer += std::string((const char *)pthis->buffer_, readed);
-        return pthis->read_string_body(buffer, part);
-      });
+        *buffer += std::string((const char *)this->buffer_, readed);
+      }
     }
 
     template <typename implementation_class>
@@ -207,14 +210,13 @@ namespace vds {
 
     template <typename implementation_class>
     vds::async_task<void> form_parser<implementation_class>::_form_parser::skip_part(const vds::http_message& part) {
-      return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
-        .then([pthis = this->shared_from_this(), part](size_t readed)->vds::async_task<void> {
+      for (;;) {
+        auto readed = co_await
+        part.body()->read_async(this->buffer_, sizeof(this->buffer_));
         if (0 == readed) {
-          return vds::async_task<void>::empty();
+          co_return;
         }
-
-        return pthis->skip_part(part);
-      });
+      }
     }
   }
 }

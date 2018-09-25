@@ -232,16 +232,19 @@ namespace vds {
 
           co_return len;
         }
-        else {
-          auto result = std::make_shared<async_result<size_t>>();
-          this->continue_write_ = [pthis = this->shared_from_this(), result, data, data_size](){
+
+        co_return co_await schedule_write(data, data_size);
+      }
+
+      async_task<size_t> schedule_write(const item_type *data, size_t data_size) {
+        auto result = std::make_shared<async_result<size_t>>();
+        continue_write_ = [pthis = this->shared_from_this(), result, data, data_size](){
             auto size = static_cast<_continuous_buffer *>(pthis.get())->continue_write(data, data_size).get();
             result->set_value(size);
           };
-          co_return co_await result->get_future();
-        }
+        return result->get_future();
       }
-      
+
       async_task<void> write_all(
         const item_type * data,
         size_t data_size)
@@ -295,20 +298,19 @@ namespace vds {
 
           co_return 0;
         }
-        else {
-          auto result = std::make_shared<async_result<size_t>>();
-          this->continue_read_ = [pthis = this->shared_from_this(), result, buffer, buffer_size](){
-            try {
-              auto size = static_cast<_continuous_buffer *>(pthis.get())->continue_read(buffer, buffer_size).get();
-              result->set_value(size);
-            }
-            catch(...) {
-              result->set_exception(std::current_exception());
-            }
-          };
 
-          co_return co_await result->get_future();
-        }
+        auto result = std::make_shared<async_result<size_t>>();
+        this->continue_read_ = [pthis = this->shared_from_this(), result, buffer, buffer_size](){
+          try {
+            auto size = static_cast<_continuous_buffer *>(pthis.get())->continue_read(buffer, buffer_size).get();
+            result->set_value(size);
+          }
+          catch(...) {
+            result->set_exception(std::current_exception());
+          }
+        };
+
+        co_return co_await result->get_future();
       }
     };
   };
