@@ -21,8 +21,7 @@ vds::tcp_network_socket::tcp_network_socket(
 
 vds::tcp_network_socket vds::tcp_network_socket::connect(
   const vds::service_provider& sp,
-  const network_address & address,
-  const stream<uint8_t> & input_handler)
+  const network_address & address)
 {
 
       auto s = std::make_unique<_tcp_network_socket>(
@@ -57,7 +56,6 @@ vds::tcp_network_socket vds::tcp_network_socket::connect(
 #endif
       
       tcp_network_socket sc(s.release());
-      sc.start(sp, input_handler);
       return sc;
 }
 
@@ -67,9 +65,8 @@ void vds::tcp_network_socket::close()
   static_cast<_tcp_network_socket *>(this->impl_.get())->close();
 }
 
-void vds::tcp_network_socket::start(
-    const vds::service_provider &sp,
-    const vds::stream<uint8_t> &input_handler) const {
-  static_cast<_tcp_network_socket *>(this->impl_.get())->start(sp, input_handler);
+std::shared_ptr<vds::input_stream_async<uint8_t>> vds::tcp_network_socket::start(
+    const vds::service_provider &sp) const {
+  return static_cast<_tcp_network_socket *>(this->impl_.get())->start(sp);
 }
 

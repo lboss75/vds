@@ -73,7 +73,7 @@ namespace vds {
       return tcp_network_socket(new _tcp_network_socket(handle));
     }
 
-    void start(const service_provider & sp, const stream<uint8_t> & target)
+    std::shared_ptr<vds::input_stream_async<uint8_t>> start(const service_provider & sp)
     {
       sp.get<logger>()->trace("TCP", sp, "socket start");
       
@@ -81,9 +81,9 @@ namespace vds {
       std::make_shared<_read_socket_task>(sp, this->shared_from_this(), target)->start();
       this->socket_task_ = std::make_shared<_write_socket_task>(sp, this->s_);
 #else
-      auto handler = std::make_shared<_socket_handler>(sp, this->shared_from_this(), target);
+      auto handler = std::make_shared<_socket_handler>(sp, this->shared_from_this());
       this->socket_task_ = handler;
-      handler->start();
+      return handler->start();
 #endif//_WIN32
     }
 
@@ -308,19 +308,19 @@ namespace vds {
     public:
       _socket_handler(
           const service_provider &sp,
-          const std::shared_ptr<_stream_async<uint8_t>> &owner,
-          const stream<uint8_t> &target)
+          const std::shared_ptr<_stream_async<uint8_t>> &owner)
           : _socket_task_impl<_socket_handler>(sp, static_cast<_tcp_network_socket *>(owner.get())->s_),
-            owner_(owner),
-            target_(target) {
+            owner_(owner) {
       }
 
       ~_socket_handler() {
       }
 
-      void start() {
+      std::shared_ptr<vds::input_stream_async<uint8_t>> start() {
         base_class::start();
+        this->reader_ = std::make_shared<socket_reader>(this);
         this->change_mask(EPOLLIN);
+        return this->reader_;
       }
 
 
@@ -400,35 +400,7 @@ namespace vds {
       }
 
       void read_data() {
-        for(;;) {
-          int len = read(
-              this->s_,
-              this->read_buffer_,
-              sizeof(this->read_buffer_));
-
-          if (len <= 0) {
-            int error = errno;
-            if (EAGAIN == error) {
-              this->read_status_ = read_status_t::waiting_socket;
-              this->change_mask(EPOLLIN);
-              break;
-            }
-            if(0 == error && 0 == len){
-              this->target_.write(nullptr, 0);
-              break;
-            }
-
-            this->sp_.get<logger>()->trace("TCP", this->sp_, "Read error %d", error);
-            throw std::system_error(
-                    error,
-                    std::generic_category(),
-                    "Read");
-          } else {
-            this->sp_.get<logger>()->trace("TCP", this->sp_, "Read %d bytes", len);
-            this->target_.write(this->read_buffer_, len);
-            this->sp_.get<logger>()->trace("TCP", this->sp_, "Processed %d bytes", len);
-          }
-        }
+        this->reader_->continue_read();
       }
 
     private:
@@ -437,9 +409,87 @@ namespace vds {
       const_data_buffer write_buffer_;
       std::shared_ptr<vds::async_result<void>> write_result_;
 
-      stream<uint8_t> target_;
-      uint8_t read_buffer_[1024];
+
+      class socket_reader : public input_stream_async<uint8_t>{
+      public:
+        socket_reader(_socket_handler * owner)
+            : owner_(owner){
+        }
+
+        async_task<size_t> read_async(
+            const service_provider &sp,
+            uint8_t * buffer,
+            size_t buffer_size) override {
+          int len = read(
+              this->owner_->s_,
+              buffer,
+              buffer_size);
+
+          if (len <= 0) {
+            int error = errno;
+            if (EAGAIN == error) {
+              this->owner_->read_status_ = read_status_t::waiting_socket;
+              this->owner_->change_mask(EPOLLIN);
+              this->buffer_ = buffer;
+              this->buffer_size_ = buffer_size;
+              this->result_ = std::make_shared<async_result<size_t>>();
+              co_return co_await this->result_->get_future();
+            }
+            if(0 == error && 0 == len){
+              co_return 0;
+            }
+
+            sp.get<logger>()->trace("TCP", sp, "Read error %d", error);
+            throw std::system_error(
+                error,
+                std::generic_category(),
+                "Read");
+          } else {
+            sp.get<logger>()->trace("TCP", sp, "Read %d bytes", len);
+            co_return len;
+          }
+        }
+
+        void continue_read(){
+          int len = read(
+              this->owner_->s_,
+              this->buffer_,
+              this->buffer_size_);
+
+          if (len <= 0) {
+            int error = errno;
+            if (EAGAIN == error) {
+              this->owner_->read_status_ = read_status_t::waiting_socket;
+              this->owner_->change_mask(EPOLLIN);
+              return;
+            }
+            if(0 == error && 0 == len){
+              this->result_->set_value(0);
+              this->result_.reset();
+              return;
+            }
+
+            this->result_->set_exception(std::make_exception_ptr(
+                std::system_error(
+                error,
+                std::generic_category(),
+                "Read")));
+          } else {
+            this->result_->set_value(len);
+          }
+        }
+
+
+      private:
+        _socket_handler * owner_;
+        std::shared_ptr<async_result<size_t>> result_;
+        uint8_t * buffer_;
+        size_t buffer_size_;
+      };
+
+      std::shared_ptr<socket_reader> reader_;
     };
+
 #endif//_WIN32
   };
 

@@ -70,7 +70,10 @@ struct session_data : public std::enable_shared_from_this<session_data> {
   }
 };
 
-vds::async_task<void> vds::_web_server::start(const service_provider& sp, const std::string & root_folder, uint16_t port) {
+vds::async_task<void> vds::_web_server::start(
+    const service_provider& sp,
+    const std::string & root_folder,
+    uint16_t port) {
   this->load_web("/", foldername(root_folder));
   co_await this->server_.start(sp, network_address::any_ip4(port), [sp, pthis = this->shared_from_this()](tcp_network_socket s) -> async_task<void>{
     auto session = std::make_shared<session_data>(std::move(s));
@@ -93,12 +96,12 @@ vds::async_task<void> vds::_web_server::start(const service_provider& sp, const 
         co_return http_response::status_response(http_response::HTTP_Internal_Server_Error, ex.what());
       }
     });
-    co_await session->s_.start(sp, *session->handler_);
+    co_await session->handler_->process(sp, session->s_.start(sp));
   });
 }
 
 vds::async_task<void> vds::_web_server::prepare_to_stop(const service_provider& sp) {
-  return vds::async_task<void>::empty();
+  co_return;
 }
 
 vds::async_task<vds::http_message> vds::_web_server::route(
@@ -112,11 +115,9 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     if (request.method() == "GET") {
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
-            http_response::status_response(
-                sp,
+        co_return http_response::status_response(
                 http_response::HTTP_Unauthorized,
-                "Unauthorized"));
+                "Unauthorized");
       }
 
       const auto result = api_controller::get_channels(
@@ -124,24 +125,20 @@ vds::async_task<vds::http_message> vds::_web_server::route(
           *user_mng,
           this->shared_from_this(),
           message);
-      return vds::async_task<vds::http_message>::result(
-        http_response::simple_text_response(
-          sp,
+      co_return http_response::simple_text_response(
           result->str(),
-          "application/json; charset=utf-8"));
+          "application/json; charset=utf-8");
     }
 
     if (request.method() == "POST") {
       auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
-            http_response::status_response(
-                sp,
+        co_return http_response::status_response(
                 http_response::HTTP_Unauthorized,
-                "Unauthorized"));
+                "Unauthorized");
       }
 
-      return index_page::create_channel(
+      co_return co_await index_page::create_channel(
           sp,
           user_mng,
           this->shared_from_this(),
@@ -153,7 +150,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     const auto login = request.get_parameter("login");
     const auto password = request.get_parameter("password");
 
-    return api_controller::get_login_state(
+    co_return co_await api_controller::get_login_state(
       sp,
       login,
       password,
@@ -183,28 +180,22 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     if (request.method() == "GET") {
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
-          http_response::status_response(
-            sp,
+        co_return http_response::status_response(
             http_response::HTTP_Unauthorized,
-            "Unauthorized"));
+            "Unauthorized");
       }
 
       const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
 
-      return api_controller::channel_feed(
+      auto result = co_await api_controller::channel_feed(
         sp,
         user_mng,
         this->shared_from_this(),
-        channel_id)
-        .then([sp](const std::shared_ptr<vds::json_value> & result) {
+        channel_id);
 
-        return vds::async_task<vds::http_message>::result(
-          http_response::simple_text_response(
-            sp,
+      co_return http_response::simple_text_response(
             result->str(),
-            "application/json; charset=utf-8"));
-      });
+            "application/json; charset=utf-8");
     }
   }
 
@@ -212,50 +203,38 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     if (request.method() == "GET") {
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
-            http_response::status_response(
-                sp,
-                http_response::HTTP_Unauthorized,
-                "Unauthorized"));
+        co_return http_response::status_response(
+            http_response::HTTP_Unauthorized,
+            "Unauthorized");
       }
 
-      return api_controller::user_devices(
+      auto result = co_await
+      api_controller::user_devices(
           sp,
           user_mng,
-          this->shared_from_this())
-          .then([sp](const std::shared_ptr<vds::json_value> & result) {
+          this->shared_from_this());
 
-            return vds::async_task<vds::http_message>::result(
-                http_response::simple_text_response(
-                    sp,
-                    result->str(),
-                    "application/json; charset=utf-8"));
-          });
+      co_return http_response::simple_text_response(
+          result->str(),
+          "application/json; charset=utf-8");
     }
     if (request.method() == "POST") {
       auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
-            http_response::status_response(
-                sp,
+        co_return http_response::status_response(
                 http_response::HTTP_Unauthorized,
-                "Unauthorized"));
+                "Unauthorized");
       }
 
-      http_request request(message);
       const auto device_name = request.get_parameter("name");
       const auto reserved_size = safe_cast<uint64_t>(std::atoll(request.get_parameter("size").c_str()));
       const auto local_path = request.get_parameter("path");
-      return api_controller::lock_device(sp, user_mng, this->shared_from_this(), device_name, local_path,
-                                         reserved_size)
-          .then([sp]() {
+      co_await api_controller::lock_device(sp, user_mng, this->shared_from_this(), device_name, local_path,
+                                         reserved_size);
 
-            return vds::async_task<vds::http_message>::result(
-                http_response::status_response(
-                    sp,
+      co_return http_response::status_response(
                     http_response::HTTP_OK,
-                    "OK"));
-          });
+                    "OK");
     }
   }
 
@@ -263,25 +242,19 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     if (request.method() == "GET") {
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
-            http_response::status_response(
-                sp,
+        co_return http_response::status_response(
                 http_response::HTTP_Unauthorized,
-                "Unauthorized"));
+                "Unauthorized");
       }
 
-      return api_controller::offer_device(
+      auto result = co_await api_controller::offer_device(
           sp,
           user_mng,
-          this->shared_from_this())
-          .then([sp](const std::shared_ptr<vds::json_value> &result) {
+          this->shared_from_this());
 
-            return vds::async_task<vds::http_message>::result(
-                http_response::simple_text_response(
-                    sp,
+            co_return http_response::simple_text_response(
                     result->str(),
-                    "application/json; charset=utf-8"));
-          });
+                    "application/json; charset=utf-8");
     }
   }
 
@@ -290,50 +263,39 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       message.ignore_empty_body();
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
-          http_response::status_response(
-            sp,
+        co_return http_response::status_response(
             http_response::HTTP_Unauthorized,
-            "Unauthorized"));
+            "Unauthorized");
       }
 
       const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
       const auto file_hash = base64::to_bytes(request.get_parameter("object_id"));
 
-      return api_controller::download_file(
+      auto result = co_await api_controller::download_file(
         sp,
         user_mng,
         this->shared_from_this(),
         channel_id,
-        file_hash)
-        .then([sp](
-          const std::string & content_type,
-          const std::string & filename,
-          size_t body_size,
-          const std::shared_ptr<vds::continuous_buffer<uint8_t>> & output_stream) {
+        file_hash);
 
-        return vds::async_task<vds::http_message>::result(
-          http_response::file_response(
+        co_return http_response::file_response(
             sp,
-            output_stream,
-            content_type,
-            filename,
-            body_size));
-      });
+            result.output_stream,
+            result.content_type,
+            result.filename,
+            result.body_size);
     }
   }
 
   if (request.url() == "/api/parse_join_request" && request.method() == "POST") {
     const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
-      return vds::async_task<vds::http_message>::result(
-        http_response::status_response(
-          sp,
+      co_return http_response::status_response(
           http_response::HTTP_Unauthorized,
-          "Unauthorized"));
+          "Unauthorized");
     }
 
-    return index_page::parse_join_request(
+    co_return index_page::parse_join_request(
       sp,
       user_mng,
       this->shared_from_this(),

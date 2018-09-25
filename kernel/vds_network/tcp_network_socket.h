@@ -19,12 +19,10 @@ namespace vds {
 
     static tcp_network_socket connect(
       const service_provider & sp,
-      const network_address & address,
-      const stream<uint8_t> & input_handler);
-    
-    void start(
-        const service_provider & sp,
-        const stream<uint8_t> & input_handler) const;
+      const network_address & address);
+
+    std::shared_ptr<vds::input_stream_async<uint8_t>> start(
+        const service_provider & sp) const;
 
     void close();
 
