@@ -12,11 +12,11 @@ namespace vds {
 
   class db_model {
   public:
-    vds::async_task<void> async_transaction(
+    async_task<void> async_transaction(
         const service_provider & sp,
         const std::function<void(class database_transaction & t)> & handler);
 
-		vds::async_task<void> async_read_transaction(
+		async_task<void> async_read_transaction(
 				const service_provider & sp,
 				const std::function<void(class database_read_transaction & t)> & handler);
 

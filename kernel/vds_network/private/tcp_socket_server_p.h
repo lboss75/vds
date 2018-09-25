@@ -41,7 +41,7 @@ namespace vds {
     vds::async_task<void> start(
       const service_provider & sp,
       const network_address & address,
-      const std::function<void(tcp_network_socket s)> & new_connection)
+      const std::function<async_task<void>(tcp_network_socket s)> & new_connection)
     {
       imt_service::async_enabled_check(sp);
         
@@ -93,7 +93,7 @@ namespace vds {
                 sp.get<logger>()->trace("TCP", sp, "Connection from %s", network_service::to_string(client_address).c_str());
                 static_cast<_network_service *>(sp.get<inetwork_service>())->associate(socket);
                 auto s = _tcp_network_socket::from_handle(socket);
-                new_connection(std::move(s));
+                new_connection(std::move(s)).get();
               }
             }
           }

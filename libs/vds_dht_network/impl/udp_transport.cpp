@@ -191,7 +191,7 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
           messages::dht_find_node_response({
           messages::dht_find_node_response::target_node(partner_node_id, datagram.address().to_string(), 0) }));
 
-        sp.get<imessage_map>()->on_new_session(
+        co_await sp.get<imessage_map>()->on_new_session(
           sp,
           partner_node_id);
       }

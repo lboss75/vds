@@ -57,7 +57,7 @@ namespace vds {
         const message_info_t & message_info) override;
 
 
-    void on_new_session(
+    async_task<void> on_new_session(
       const service_provider& sp,
       const const_data_buffer& partner_id) override;
 

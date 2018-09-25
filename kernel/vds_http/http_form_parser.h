@@ -84,7 +84,7 @@ namespace vds {
               return task->read_part(sp, part);
             });
 
-            return reader->process(sp, message);
+            co_return co_await reader->process(sp, message.body());
           }
           else {
             throw std::runtime_error("Invalid content type " + content_type);

@@ -12,6 +12,7 @@ All rights reserved
 #include "service_provider.h"
 #include "web_server_p.h"
 #include "user_channel.h"
+#include "file_operations.h"
 
 namespace vds {
   class api_controller {
@@ -40,11 +41,7 @@ namespace vds {
       const std::shared_ptr<_web_server>& owner,
       const const_data_buffer & channel_id);
 
-    static vds::async_task<
-      std::string /*content_type*/,
-      std::string /*filename*/,
-      size_t /*body_size*/,
-      std::shared_ptr<continuous_buffer<uint8_t>> /*output_stream*/>
+    static vds::async_task<file_manager::file_operations::download_result_t>
     download_file(
       const service_provider& sp,
       const std::shared_ptr<user_manager>& user_mng,

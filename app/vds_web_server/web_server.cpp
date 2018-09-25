@@ -70,9 +70,9 @@ struct session_data : public std::enable_shared_from_this<session_data> {
   }
 };
 
-void vds::_web_server::start(const service_provider& sp, const std::string & root_folder, uint16_t port) {
+vds::async_task<void> vds::_web_server::start(const service_provider& sp, const std::string & root_folder, uint16_t port) {
   this->load_web("/", foldername(root_folder));
-  this->server_.start(sp, network_address::any_ip4(port), [sp, pthis = this->shared_from_this()](tcp_network_socket s) {
+  co_await this->server_.start(sp, network_address::any_ip4(port), [sp, pthis = this->shared_from_this()](tcp_network_socket s) -> async_task<void>{
     auto session = std::make_shared<session_data>(std::move(s));
     session->handler_ = std::make_shared<http_pipeline>(
         sp,
@@ -82,22 +82,18 @@ void vds::_web_server::start(const service_provider& sp, const std::string & roo
         if (request.headers().empty()) {
           session->stream_.reset();
           session->handler_.reset();
-          return vds::async_task<http_message>::empty();
+          co_return;
         }
 
         std::string keep_alive_header;
         //bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
-        return pthis->middleware_.process(sp, request);
+        co_return co_await pthis->middleware_.process(sp, request);
       }
       catch (const std::exception & ex) {
-        return vds::async_task<http_message>::result(http_response::status_response(sp, http_response::HTTP_Internal_Server_Error, ex.what()));
+        co_return http_response::status_response(http_response::HTTP_Internal_Server_Error, ex.what());
       }
     });
-    session->s_.start(sp, *session->handler_);
-  }).execute([sp](const std::shared_ptr<std::exception> & ex) {
-    if(ex) {
-      sp.get<logger>()->trace(ThisModule, sp, "%s at web server", ex->what());
-    }
+    co_await session->s_.start(sp, *session->handler_);
   });
 }
 

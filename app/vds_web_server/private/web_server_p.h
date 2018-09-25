@@ -19,10 +19,10 @@ namespace vds {
     _web_server(const service_provider & sp);
     ~_web_server();
 
-    void start(const service_provider& sp, const std::string & root_folder, uint16_t port);
-    vds::async_task<void> prepare_to_stop(const service_provider &sp);
+    async_task<void> start(const service_provider& sp, const std::string & root_folder, uint16_t port);
+    async_task<void> prepare_to_stop(const service_provider &sp);
 
-    vds::async_task<http_message> route(
+    async_task<http_message> route(
       const service_provider & sp,
       const http_message & request);
 

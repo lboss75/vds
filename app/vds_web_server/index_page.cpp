@@ -18,10 +18,10 @@ vds::async_task<vds::http_message> vds::index_page::create_channel(const vds::se
 
   auto parser = std::make_shared<http::simple_form_parser>();
 
-  return parser->parse(sp, message).then([sp, user_mng, web_server, parser]() -> vds::async_task<http_message> {
-    auto name = parser->values().find("channelName");
-    return api_controller::create_channel(sp, user_mng, name->second);
-  });
+  co_await parser->parse(sp, message);
+  
+  auto name = parser->values().find("channelName");
+  co_return api_controller::create_channel(sp, user_mng, name->second);
 }
 
 class create_message_form : public vds::http::form_parser<create_message_form> {
@@ -47,14 +47,14 @@ public:
   }
 
   vds::async_task<void> on_file(const file_info & file) {
-    return this->sp_.get<vds::file_manager::file_operations>()->upload_file(
-        this->sp_,
-        this->user_mng_,
-        file.file_name,
-        file.mimetype,
-        file.stream).then([pthis = this->shared_from_this(), file](const vds::transactions::user_message_transaction::file_info_t & file_info) {
-      pthis->files_.push_back(file_info);
-    });
+    auto file_info = co_await this->sp_.get<vds::file_manager::file_operations>()->upload_file(
+      this->sp_,
+      this->user_mng_,
+      file.file_name,
+      file.mimetype,
+      file.stream);
+    
+    this->files_.push_back(file_info);
   }
 
   vds::async_task<void> complete() {
@@ -80,13 +80,10 @@ vds::async_task<vds::http_message> vds::index_page::create_message(const vds::se
 
   auto parser = std::make_shared<create_message_form>(sp, user_mng);
 
-  return parser->parse(sp, message).then([sp, user_mng, web_server, parser]() -> vds::async_task<http_message> {
-    return parser->complete().then([sp]() {
-      return http_response::redirect(
-        sp,
-        "/");
-    });
-  });
+  co_await parser->parse(sp, message);
+  co_await parser->complete();
+  
+  co_return http_response::redirect("/");
 }
 
 class parse_request_form : public vds::http::form_parser<parse_request_form> {
@@ -103,14 +100,13 @@ public:
 
   vds::async_task<void> on_file(const file_info & file) {
 
-    return file.stream->read_all()
-        .then([pthis = this->shared_from_this()](const vds::const_data_buffer & buffer){
-         pthis->successful_ = vds::user_manager::parse_join_request(
-        pthis->sp_,
+    auto buffer = co_await file.stream->read_all();
+
+    this->successful_ = vds::user_manager::parse_join_request(
+        this->sp_,
         buffer,
-         pthis->userName_,
-         pthis->userEmail_);
-    });
+        this->userName_,
+        this->userEmail_);
   }
 
   bool successful() const {
@@ -133,30 +129,28 @@ private:
 };
 
 vds::async_task<vds::http_message> vds::index_page::parse_join_request(
-    const vds::service_provider& sp,
-    const std::shared_ptr<user_manager>& user_mng,
-    const std::shared_ptr<_web_server>& web_server,
-    const http_message& message) {
+  const vds::service_provider& sp,
+  const std::shared_ptr<user_manager>& user_mng,
+  const std::shared_ptr<_web_server>& web_server,
+  const http_message& message) {
 
   auto parser = std::make_shared<parse_request_form>(sp);
 
-  return parser->parse(sp, message)
-      .then([sp, user_mng, web_server, parser]() -> vds::async_task<http_message> {
-    auto result = std::make_shared<json_object>();
-        if(parser->successful()) {
-          result->add_property("successful", "true");
-          result->add_property("name", parser->userName());
-          result->add_property("email", parser->userEmail());
-        }
-        else {
-          result->add_property("successful", "false");
-        }
-    return vds::async_task<vds::http_message>::result(
-        http_response::simple_text_response(
-            sp,
-            result->json_value::str(),
-            "application/json; charset=utf-8"));
-  });
+  co_await parser->parse(sp, message);
+
+  auto result = std::make_shared<json_object>();
+  if (parser->successful()) {
+    result->add_property("successful", "true");
+    result->add_property("name", parser->userName());
+    result->add_property("email", parser->userEmail());
+  }
+  else {
+    result->add_property("successful", "false");
+  }
+
+  co_return http_response::simple_text_response(
+    result->json_value::str(),
+    "application/json; charset=utf-8");
 }
 
 class approve_join_request_form : public vds::http::form_parser<approve_join_request_form> {
@@ -173,13 +167,9 @@ public:
   }
 
   vds::async_task<void> on_file(const file_info & file) {
-    auto pthis = this->shared_from_this();
-    return file.stream->read_all()
-      .then([pthis](const vds::const_data_buffer & buffer) {
-      return pthis->user_mng_->approve_join_request(pthis->sp_, buffer);
-    }).then([pthis](bool result) {
-      pthis->successful_ = result;
-    });
+    auto buffer = co_await file.stream->read_all();
+
+    this->successful_ = co_await this->user_mng_->approve_join_request(this->sp_, buffer);
   }
 
   bool successful() const {
@@ -199,10 +189,7 @@ vds::async_task<vds::http_message> vds::index_page::approve_join_request(const v
 
   auto parser = std::make_shared<approve_join_request_form>(sp, user_mng);
 
-  return parser->parse(sp, message)
-    .then([sp, user_mng, web_server, parser]() -> vds::async_task<http_message> {
+  co_await parser->parse(sp, message);
 
-    return vds::async_task<vds::http_message>::result(
-      http_response::redirect(sp, parser->successful() ? "/?message=approve_successful" : "/?message=approve_failed"));
-  });
+  co_return http_response::redirect(parser->successful() ? "/?message=approve_successful" : "/?message=approve_failed");
 }

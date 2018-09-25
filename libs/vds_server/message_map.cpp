@@ -28,7 +28,7 @@
 
 #define route_client(message_type)\
   case dht::network::message_type_t::message_type: {\
-      return sp.get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) {\
+      co_await sp.get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) {\
         binary_deserializer s(message_info.message_data());\
         dht::messages::message_type message(s);\
         (*sp.get<dht::network::client>())->apply_message(\
@@ -52,25 +52,19 @@ vds::async_task<void> vds::_server::process_message(
   auto sp = scope.create_scope(__FUNCTION__);
   switch(message_info.message_type()){
   case dht::network::message_type_t::transaction_log_state: {
-    return sp.get<db_model>()->async_transaction(sp, [sp, message_info, result](database_transaction & t) {
+    co_await sp.get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) -> async_task<void> {
       binary_deserializer s(message_info.message_data());
       dht::messages::transaction_log_state message(s);
-      *result = (*sp.get<server>())->apply_message(
+      co_await (*sp.get<server>())->apply_message(
           sp.create_scope("messages::transaction_log_state"),
           t,
           message,
           message_info);
-      return true;
-    }).then([sp, result]() {
-      mt_service::async(sp, [result]() {
-        result->execute([](const std::shared_ptr<std::exception> & ) {
-        });
-      });
     });
     break;
   }
   case dht::network::message_type_t::transaction_log_request: {
-    return sp.get<db_model>()->async_transaction(
+    co_await sp.get<db_model>()->async_transaction(
         sp,
         [sp, message_info](database_transaction & t) {
       binary_deserializer s(message_info.message_data());
@@ -80,12 +74,11 @@ vds::async_task<void> vds::_server::process_message(
           t,
           message,
           message_info);
-      return true;
     });
     break;
   }
   case dht::network::message_type_t::transaction_log_record: {
-    return sp.get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) {
+    co_await sp.get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) {
       binary_deserializer s(message_info.message_data());
       dht::messages::transaction_log_record message(s);
       (*sp.get<server>())->apply_message(
@@ -111,14 +104,10 @@ vds::async_task<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_find_node_response: {
       binary_deserializer s(message_info.message_data());
       dht::messages::dht_find_node_response message(s);
-      auto result = std::make_shared<vds::async_task<void>>(vds::async_task<void>::empty());
-      *result = (*sp.get<dht::network::client>())->apply_message(
+      co_await (*sp.get<dht::network::client>())->apply_message(
           sp.create_scope("messages::dht_find_node_response"),
           message,
           message_info);
-      mt_service::async(sp, [result]() mutable {
-        result->execute([](const std::shared_ptr<std::exception> & ) {});
-      });
       break;
     }
 
@@ -218,7 +207,6 @@ vds::async_task<void> vds::_server::process_message(
       throw std::runtime_error("Invalid command");
     }
   }
-  return vds::async_task<void>::empty();
 }
 
 

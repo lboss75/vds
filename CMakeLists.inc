@@ -1,7 +1,7 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 IF(MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 /await")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /await /std:c++17")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -W4")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -W4")
@@ -11,7 +11,7 @@ else()
   set(LIBCXXABI_ENABLE_SHARED OFF)
   set(LIBCXXABI_ENABLE_STATIC_ABI_LIBRARY ON)
 
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -fPIC -fcoroutines-ts -stdlib=libc++ -pthread")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -fcoroutines-ts -stdlib=libc++ -pthread")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -Wall -Werror=return-type -Werror=unused-value")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall -Werror=return-type")

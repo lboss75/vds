@@ -12,6 +12,7 @@ All rights reserved
 #include "channel_add_writer_transaction.h"
 #include "channel_create_transaction.h"
 #include "user_message_transaction.h"
+#include "func_utils.h"
 
 namespace vds {
   namespace transactions {
