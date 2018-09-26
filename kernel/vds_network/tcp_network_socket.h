@@ -28,9 +28,16 @@ namespace vds {
 
     class _tcp_network_socket * operator ->() const;
 
+    std::future<void> write_async(
+        const service_provider &sp,
+        const item_type *data,
+        size_t len) override;
+
   private:
     friend class _tcp_network_socket;
     tcp_network_socket(class _tcp_network_socket * impl);
+
+    _tcp_network_socket * impl_;
   };
 }
 
