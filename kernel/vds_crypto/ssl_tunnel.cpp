@@ -16,8 +16,8 @@
 //////////////////////////////////////////////////////////////////
 //vds::ssl_tunnel::ssl_tunnel(
 //  const service_provider & sp,
-//  const stream_async<uint8_t> & crypted_output,
-//  const stream_async<uint8_t> & decrypted_output,
+//  const stream_output_async<uint8_t> & crypted_output,
+//  const stream_output_async<uint8_t> & decrypted_output,
 //  bool is_client,
 //  const certificate * cert,
 //  const asymmetric_private_key * key)
@@ -34,12 +34,12 @@
 //  return this->impl_->is_client();
 //}
 //
-//vds::stream_async<uint8_t> & vds::ssl_tunnel::crypted_input()
+//vds::stream_output_async<uint8_t> & vds::ssl_tunnel::crypted_input()
 //{
 //  return this->impl_->crypted_input();
 //}
 //
-//vds::stream_async<uint8_t> & vds::ssl_tunnel::decrypted_input()
+//vds::stream_output_async<uint8_t> & vds::ssl_tunnel::decrypted_input()
 //{
 //  return this->impl_->decrypted_input();
 //}
@@ -62,8 +62,8 @@
 //////////////////////////////////////////////////////////////////
 //vds::_ssl_tunnel::_ssl_tunnel(
 //  const service_provider & sp,
-//  const stream_async<uint8_t> & crypted_output,
-//  const stream_async<uint8_t> & decrypted_output,
+//  const stream_output_async<uint8_t> & crypted_output,
+//  const stream_output_async<uint8_t> & decrypted_output,
 //  bool is_client,
 //  const certificate * cert,
 //  const asymmetric_private_key * key)

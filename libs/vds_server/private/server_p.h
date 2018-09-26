@@ -48,20 +48,20 @@ namespace vds {
     
     void start(const service_provider &);
     void stop(const service_provider &);
-    vds::async_task<void> prepare_to_stop(const service_provider &sp);
+    std::future<void> prepare_to_stop(const service_provider &sp);
 
-    vds::async_task<server_statistic> get_statistic(const vds::service_provider &sp);
+    std::future<server_statistic> get_statistic(const vds::service_provider &sp);
 
-    vds::async_task<void> process_message(
+    std::future<void> process_message(
         const service_provider& scope,
         const message_info_t & message_info) override;
 
 
-    async_task<void> on_new_session(
+    std::future<void> on_new_session(
       const service_provider& sp,
       const const_data_buffer& partner_id) override;
 
-      vds::async_task<void> apply_message(
+      std::future<void> apply_message(
       const service_provider & sp,
       database_transaction & t,
       const dht::messages::transaction_log_state & message,

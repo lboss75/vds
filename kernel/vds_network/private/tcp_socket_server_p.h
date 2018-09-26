@@ -38,10 +38,10 @@ namespace vds {
       }
     }
 
-    vds::async_task<void> start(
+    std::future<void> start(
       const service_provider & sp,
       const network_address & address,
-      const std::function<async_task<void>(tcp_network_socket s)> & new_connection)
+      const std::function<std::future<void>(tcp_network_socket s)> & new_connection)
     {
       imt_service::async_enabled_check(sp);
         
@@ -188,7 +188,7 @@ namespace vds {
                 }
               });
 #endif
-            return vds::async_task<void>();
+            return std::future<void>();
     }
     
     void stop(const service_provider & sp)

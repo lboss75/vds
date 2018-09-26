@@ -34,7 +34,7 @@ enum class message_log_action {
 
 class transport_hab : public std::enable_shared_from_this<transport_hab> {
 public:
-  vds::async_task<void> write_async(
+  std::future<void> write_async(
     const vds::udp_datagram& datagram,
     const vds::const_data_buffer & source_node_id,
     const vds::network_address & source_address);
@@ -70,8 +70,8 @@ public:
 
   void stop(const vds::service_provider& sp) override;
 
-  vds::async_task<void> write_async(const vds::service_provider& sp, const vds::udp_datagram& datagram) override;
-  vds::async_task<void> try_handshake(const vds::service_provider& sp, const std::string& address) override;
+  std::future<void> write_async(const vds::service_provider& sp, const vds::udp_datagram& datagram) override;
+  std::future<void> try_handshake(const vds::service_provider& sp, const std::string& address) override;
 
   const vds::const_data_buffer & node_id() const {
     return this->node_id_;
@@ -97,9 +97,9 @@ public:
   void register_services(vds::service_registrator &) override;
   void start(const vds::service_provider &) override;
   void stop(const vds::service_provider &) override;
-  vds::async_task<void> prepare_to_stop(const vds::service_provider &sp) override;
+  std::future<void> prepare_to_stop(const vds::service_provider &sp) override;
 
-  vds::async_task<void> process_datagram(
+  std::future<void> process_datagram(
     const vds::service_provider& sp,
     const vds::udp_datagram& datagram,
     const vds::const_data_buffer& source_node_id,
@@ -117,7 +117,7 @@ public:
     const vds::const_data_buffer& object_data);
 
 
-  vds::async_task<void> process_message(const vds::service_provider& scope, const message_info_t& message_info) override;
+  std::future<void> process_message(const vds::service_provider& scope, const message_info_t& message_info) override;
   void on_new_session(const vds::service_provider& sp, const vds::const_data_buffer& partner_id) override;
 private:
 
@@ -141,7 +141,7 @@ public:
     const vds::const_data_buffer& object_id,
     const vds::const_data_buffer& object_data);
 
-  vds::async_task<void> process_datagram(
+  std::future<void> process_datagram(
     const vds::udp_datagram& datagram,
     const vds::const_data_buffer& source_node_id,
     const vds::network_address & source_address);

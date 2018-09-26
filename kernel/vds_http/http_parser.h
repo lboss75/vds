@@ -22,13 +22,13 @@ namespace vds {
   class http_parser_base : public std::enable_shared_from_this<implementation_class> {
   public:
     http_parser_base(
-      const std::function<vds::async_task<void>(const http_message &message)> &message_callback)
+      const std::function<std::future<void>(const http_message &message)> &message_callback)
       : message_callback_(message_callback) {
     }
 
-    async_task<void> process(
+    std::future<void> process(
       const service_provider & sp,
-      const std::shared_ptr<input_stream_async<uint8_t>> & input_stream) {
+      const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
 
       while (!this->eof_) {
         auto len = co_await input_stream->read_async(sp, this->buffer_, sizeof(this > buffer_));
@@ -109,14 +109,14 @@ namespace vds {
     }
 
 
-    async_task<void> continue_read_data(const service_provider &sp) {
+    std::future<void> continue_read_data(const service_provider &sp) {
     }
 
-    async_task<void> finish_message(const service_provider &sp) {
+    std::future<void> finish_message(const service_provider &sp) {
     }
 
   private:
-    std::function<vds::async_task<void>(const http_message &message)> message_callback_;
+    std::function<std::future<void>(const http_message &message)> message_callback_;
 
     std::string parse_buffer_;
     std::list<std::string> headers_;
@@ -124,11 +124,11 @@ namespace vds {
     uint8_t buffer_[1024];
     size_t readed_;
 
-    class http_body_reader : public input_stream_async<uint8_t> {
+    class http_body_reader : public stream_input_async<uint8_t> {
     public:
       http_body_reader(
         http_parser_base * owner,
-        const std::shared_ptr<input_stream_async<uint8_t>> & input_stream,
+        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream,
         size_t content_length,
         bool chunked_encoding,
         bool expect_100)
@@ -144,7 +144,7 @@ namespace vds {
       }
 
 
-      virtual vds::async_task<size_t> read_async(
+      virtual std::future<size_t> read_async(
         const service_provider &sp,
         uint8_t * buffer,
         size_t buffer_size) {
@@ -275,7 +275,7 @@ namespace vds {
       };
 
       http_parser_base * owner_;
-      std::shared_ptr<input_stream_async<uint8_t>> input_stream_;
+      std::shared_ptr<stream_input_async<uint8_t>> input_stream_;
       size_t content_length_;
       bool chunked_encoding_;
       bool expect_100_;
@@ -293,7 +293,7 @@ namespace vds {
   class http_parser : public http_parser_base<http_parser> {
   public:
     http_parser(
-      const std::function<vds::async_task<void>(const http_message &message)> &message_callback)
+      const std::function<std::future<void>(const http_message &message)> &message_callback)
       : http_parser_base<http_parser>(message_callback) {
     }
 

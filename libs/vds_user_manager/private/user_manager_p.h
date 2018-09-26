@@ -67,7 +67,7 @@ namespace vds {
       return this->user_private_key_;
     }
 
-    vds::async_task<bool> approve_join_request(
+    std::future<bool> approve_join_request(
       const service_provider& sp,
       const const_data_buffer& data);
 
@@ -79,7 +79,7 @@ namespace vds {
         std::string & userName,
         std::string & userEmail);
 
-    vds::async_task<user_channel> create_channel(
+    std::future<user_channel> create_channel(
       const service_provider& sp,
       const std::string& name) ;
 

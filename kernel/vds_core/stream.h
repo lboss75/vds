@@ -12,55 +12,29 @@ All rights reserved
 
 namespace vds {
   template <typename item_type>
-  class _stream_async : public std::enable_shared_from_this<_stream_async<item_type>> {
+  class stream_output_async : public std::enable_shared_from_this<stream_output_async<item_type>> {
   public:
-    ~_stream_async() {}
-    virtual vds::async_task<void> write_async(
+
+    virtual ~stream_output_async() {}
+
+    virtual std::future<void> write_async(
+      const service_provider &sp,
         const item_type *data,
         size_t len) = 0;
   };
 
 
-  template <typename item_type>
-  class stream_async
-  {
-  public:
-    stream_async(const stream_async & origin)
-    : impl_(origin.impl_)
-    {
-    }
-
-    vds::async_task<void> write_async(
-        const item_type *data,
-        size_t len)
-    {
-      return  this->impl_->write_async(data, len);
-    }
-
-    operator bool () const {
-      return this->impl_.operator bool();
-    }
-
-  protected:
-
-    std::shared_ptr<_stream_async<item_type>> impl_;
-
-    stream_async(_stream_async<item_type> * impl)
-        : impl_(impl)
-    {
-    }
-  };
   ///////////////////////////////////////////////////////////
 
   template <typename item_type>
-  class input_stream_async : public std::enable_shared_from_this<input_stream_async<item_type>> {
+  class stream_input_async : public std::enable_shared_from_this<stream_input_async<item_type>> {
   public:
-    virtual vds::async_task<size_t> read_async(
+    virtual std::future<size_t> read_async(
       const service_provider &sp,
       item_type * buffer,
       size_t len) = 0;
 
-    vds::async_task<const_data_buffer> read_all(const service_provider &sp) {
+    std::future<const_data_buffer> read_all(const service_provider &sp) {
       auto result = std::make_shared<resizable_data_buffer>();
       for(;;) {
         result->resize_data(result->size() + 1024);
@@ -74,17 +48,19 @@ namespace vds {
     }
   };
 
-  class buffer_input_stream_async : public input_stream_async<uint8_t> {
+  ///////////////////////////////////////////////////////////
+
+  class buffer_stream_input_async : public stream_input_async<uint8_t> {
   public:
-    buffer_input_stream_async(const const_data_buffer & data)
+    buffer_stream_input_async(const const_data_buffer & data)
       : data_(data), readed_(0) {
     }
 
-    buffer_input_stream_async(const_data_buffer && data)
+    buffer_stream_input_async(const_data_buffer && data)
     : data_(std::move(data)), readed_(0) {      
     }
 
-    async_task<size_t> read_async(
+    std::future<size_t> read_async(
       const service_provider &sp,
       uint8_t * buffer,
       size_t len) override {
@@ -107,16 +83,16 @@ namespace vds {
     size_t readed_;
   };
 
-  class file_input_stream_async : public input_stream_async<uint8_t> {
+  class file_stream_input_async : public stream_input_async<uint8_t> {
   public:
-    file_input_stream_async(const filename & fn)
+    file_stream_input_async(const filename & fn)
       : f_(fn, file::file_mode::open_read),
     processed_(0),
     readed_(0),
     eof_(0) {
     }
 
-    async_task<size_t> read_async(
+    std::future<size_t> read_async(
       const service_provider &sp,
       uint8_t * buffer,
       size_t len) override {
@@ -152,68 +128,29 @@ namespace vds {
   };
 
   ///////////////////////////////////////////////////////////
-
-
-
-
-  template <typename item_type>
-  class _stream : public std::enable_shared_from_this<_stream<item_type>> {
-  public:
-    virtual ~_stream() {}
-
-    virtual void write(
-        const item_type *data,
-        size_t len) = 0;
-  };
-
-  template <typename item_type>
-  class stream
-  {
-  public:
-    void write(
-        const item_type *data,
-        size_t len){
-      this->impl_->write(data, len);
-    }
-
-  protected:
-    std::shared_ptr<_stream<item_type>> impl_;
-
-    stream(_stream<item_type> * impl)
-    : impl_(impl)
-    {
-    }
-  };
+   
   
   template <typename item_type>
-  class collect_data : public stream<item_type>
+  class collect_data : public stream_output_async<item_type>
   {
   public:
-    collect_data()
-    : stream<item_type>(new _collect_data())
-    {
+    collect_data() {
     }
 
-    const_data_buffer move_data() 
-    {
-      return static_cast<_collect_data *>(this->impl_.get())->move_data();
-    }
-
-  protected:
-    class _collect_data : public _stream<item_type> {
-    public:
-      void write(
-          const item_type *data,
-          size_t len) override {
+    std::future<void> write_async(
+      const service_provider &/*sp*/,
+      const item_type *data,
+      size_t len) override {
         this->data_.add(data, len);
+        co_return;
       }
 
       const_data_buffer move_data() {
         return this->data_.move_data();
       }
+
     private:
       resizable_data_buffer data_;
-    };
   };
 }
 

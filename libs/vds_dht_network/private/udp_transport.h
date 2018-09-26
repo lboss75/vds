@@ -36,8 +36,8 @@ namespace vds {
 
         void stop(const service_provider& sp) override;
 
-        async_task<void> write_async(const service_provider& sp, const udp_datagram& datagram);
-        async_task<void> try_handshake(const service_provider& sp, const std::string& address);
+        std::future<void> write_async(const service_provider& sp, const udp_datagram& datagram);
+        std::future<void> try_handshake(const service_provider& sp, const std::string& address);
 
         const const_data_buffer& this_node_id() const {
           return this->this_node_id_;
@@ -70,7 +70,7 @@ namespace vds {
                          const std::shared_ptr<dht_session>& session);
         std::shared_ptr<dht_session> get_session(const network_address& address) const;
 
-        async_task<void> continue_read(const service_provider& sp);
+        std::future<void> continue_read(const service_provider& sp);
       };
     }
   }

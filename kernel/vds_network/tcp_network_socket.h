@@ -12,7 +12,7 @@ All rights reserved
 
 namespace vds {
 
-  class tcp_network_socket : public stream_async<uint8_t>
+  class tcp_network_socket : public stream_output_async<uint8_t>
   {
   public:
     tcp_network_socket();
@@ -21,7 +21,7 @@ namespace vds {
       const service_provider & sp,
       const network_address & address);
 
-    std::shared_ptr<vds::input_stream_async<uint8_t>> start(
+    std::shared_ptr<vds::stream_input_async<uint8_t>> start(
         const service_provider & sp) const;
 
     void close();

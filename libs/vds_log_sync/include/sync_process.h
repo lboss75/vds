@@ -27,7 +27,7 @@ namespace vds {
         const service_provider & sp,
         database_transaction & t);
 
-      vds::async_task<void> apply_message(
+      std::future<void> apply_message(
         const service_provider & sp,
         database_transaction & t,
         const dht::messages::transaction_log_state & message,

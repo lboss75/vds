@@ -40,7 +40,7 @@ void vds::dht::network::udp_transport::stop(const service_provider& sp) {
   this->server_.stop(sp);
 }
 
-vds::async_task<void>
+std::future<void>
 vds::dht::network::udp_transport::write_async(const service_provider& sp, const udp_datagram& datagram) {
   //  std::unique_lock<std::debug_mutex> lock(this->write_mutex_);
   //  while(this->write_in_progress_) {
@@ -57,7 +57,7 @@ vds::dht::network::udp_transport::write_async(const service_provider& sp, const 
   co_await this->server_.socket().write_async(datagram);
 }
 
-vds::async_task<void> vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
+std::future<void> vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
                                                                   const std::string& address) {
 
   this->block_list_mutex_.lock();
@@ -123,7 +123,7 @@ std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport
   return p->second;
 }
 
-vds::async_task<void> vds::dht::network::udp_transport::continue_read(
+std::future<void> vds::dht::network::udp_transport::continue_read(
   const service_provider& sp) {
   for (;;) {
     udp_datagram datagram = co_await this->server_.socket().read_async();

@@ -43,7 +43,7 @@ void vds::web_server::stop(const service_provider& sp) {
   this->impl_.reset();
 }
 
-vds::async_task<void> vds::web_server::prepare_to_stop(const service_provider& sp) {
+std::future<void> vds::web_server::prepare_to_stop(const service_provider& sp) {
   return this->impl_->prepare_to_stop(sp);
 }
 
@@ -70,17 +70,17 @@ struct session_data : public std::enable_shared_from_this<session_data> {
   }
 };
 
-vds::async_task<void> vds::_web_server::start(
+std::future<void> vds::_web_server::start(
     const service_provider& sp,
     const std::string & root_folder,
     uint16_t port) {
   this->load_web("/", foldername(root_folder));
-  co_await this->server_.start(sp, network_address::any_ip4(port), [sp, pthis = this->shared_from_this()](tcp_network_socket s) -> async_task<void>{
+  co_await this->server_.start(sp, network_address::any_ip4(port), [sp, pthis = this->shared_from_this()](tcp_network_socket s) -> std::future<void>{
     auto session = std::make_shared<session_data>(std::move(s));
     session->handler_ = std::make_shared<http_pipeline>(
         sp,
         session->stream_,
-      [sp, pthis, session](const http_message & request) -> vds::async_task<http_message> {
+      [sp, pthis, session](const http_message & request) -> std::future<http_message> {
       try {
         if (request.headers().empty()) {
           session->stream_.reset();
@@ -100,11 +100,11 @@ vds::async_task<void> vds::_web_server::start(
   });
 }
 
-vds::async_task<void> vds::_web_server::prepare_to_stop(const service_provider& sp) {
+std::future<void> vds::_web_server::prepare_to_stop(const service_provider& sp) {
   co_return;
 }
 
-vds::async_task<vds::http_message> vds::_web_server::route(
+std::future<vds::http_message> vds::_web_server::route(
   const service_provider& sp,
   const http_message& message) {
 
@@ -304,7 +304,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   if (request.url() == "/approve_join_request" && request.method() == "POST") {
     auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::status_response(
           sp,
           http_response::HTTP_Unauthorized,
@@ -322,7 +322,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
       message.ignore_body();
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::status_response(
           sp,
           http_response::HTTP_Unauthorized,
@@ -337,7 +337,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   }
 
   if (request.url() == "/" && request.method() == "GET") {
-    return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/index"));
+    return std::future<vds::http_message>::result(this->router_.route(sp, message, "/index"));
   }
 
   if (request.url() == "/api/register_requests" && request.method() == "GET") {
@@ -345,7 +345,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     return api_controller::get_register_requests(sp, this->shared_from_this())
       .then([sp](const std::shared_ptr<vds::json_value> &result) {
 
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::simple_text_response(
           sp,
           result->str(),
@@ -360,7 +360,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       base64::to_bytes(request.get_parameter("id")))
       .then([sp](const std::shared_ptr<vds::json_value> &result) {
 
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::simple_text_response(
           sp,
           result->str(),
@@ -374,7 +374,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     return api_controller::get_register_request_body(sp, this->shared_from_this(), request_id)
       .then([sp](const const_data_buffer &result) {
 
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::file_response(
           sp,
           result,
@@ -402,7 +402,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
   }
 
-  return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, request.url()));
+  return std::future<vds::http_message>::result(this->router_.route(sp, message, request.url()));
 }
 
 void vds::_web_server::load_web(const std::string& path, const foldername & folder) {

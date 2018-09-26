@@ -21,13 +21,13 @@ namespace vds {
   class http_form_part_parser {
   public:
     http_form_part_parser(
-        const std::function<vds::async_task<void>(const http_message &message)> &message_callback)
+        const std::function<std::future<void>(const http_message &message)> &message_callback)
     : message_callback_(message_callback) {
     }
 
-    async_task<void> start(
+    std::future<void> start(
       const service_provider &sp,
-      const std::shared_ptr<input_stream_async<uint8_t>> & input_stream) {
+      const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
       for (;;) {
         auto len = co_await input_stream->read_async(sp, this->buffer_, sizeof(this->buffer_));
         if (0 == len) {
@@ -80,18 +80,18 @@ namespace vds {
 
 
   private:
-    std::function<vds::async_task<void>(const http_message &message)> message_callback_;
+    std::function<std::future<void>(const http_message &message)> message_callback_;
 
     uint8_t buffer_[1024];
     std::string parse_buffer_;
     std::list<std::string> headers_;
     http_message current_message_;
-    std::shared_ptr<input_stream_async<uint8_t>> current_message_body_;
+    std::shared_ptr<stream_input_async<uint8_t>> current_message_body_;
 
-    class message_body_reader : public input_stream_async<uint8_t> {
+    class message_body_reader : public stream_input_async<uint8_t> {
     public:
       message_body_reader(
-        const std::shared_ptr<input_stream_async<uint8_t>> & source,
+        const std::shared_ptr<stream_input_async<uint8_t>> & source,
         const uint8_t * data,
         size_t size)
       :source_(source), processed_(0), eof_(false){
@@ -105,7 +105,7 @@ namespace vds {
         
       }
 
-      vds::async_task<size_t> read_async(const service_provider& sp, uint8_t * buffer, size_t len) override {
+      std::future<size_t> read_async(const service_provider& sp, uint8_t * buffer, size_t len) override {
         vds_assert(!this->eof_);
 
         if (this->readed_ <= this->processed_) {
@@ -137,7 +137,7 @@ namespace vds {
       }
 
     private:
-      std::shared_ptr<input_stream_async<uint8_t>> source_;
+      std::shared_ptr<stream_input_async<uint8_t>> source_;
       uint8_t buffer_[1024];
       size_t processed_;
       size_t readed_;

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "db_model.h"
 
-vds::async_task<void> vds::db_model::async_transaction(const vds::service_provider &sp,
+std::future<void> vds::db_model::async_transaction(const vds::service_provider &sp,
                                                    const std::function<void(vds::database_transaction &)> &handler) {
   return this->db_.async_transaction(sp, [sp, handler](database_transaction & t)->bool{
       handler(t);
@@ -9,7 +9,7 @@ vds::async_task<void> vds::db_model::async_transaction(const vds::service_provid
   });
 }
 
-vds::async_task<void> vds::db_model::async_read_transaction(
+std::future<void> vds::db_model::async_read_transaction(
     const vds::service_provider &sp,
     const std::function<void(vds::database_read_transaction &)> &handler) {
   return this->db_.async_read_transaction(sp, handler);
@@ -219,6 +219,6 @@ void vds::db_model::migrate(
 	}
 }
 
-vds::async_task<void> vds::db_model::prepare_to_stop(const vds::service_provider &sp) {
+std::future<void> vds::db_model::prepare_to_stop(const vds::service_provider &sp) {
   return this->db_.prepare_to_stop(sp);
 }

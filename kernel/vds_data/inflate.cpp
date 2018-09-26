@@ -7,24 +7,26 @@ All rights reserved
 #include "inflate.h"
 #include "private/inflate_p.h"
 
-vds::inflate::inflate(stream<uint8_t> & target)
-: stream<uint8_t>(new _inflate_handler(target))
+vds::inflate::inflate(const std::shared_ptr<stream_output_async<uint8_t>> & target)
+: impl_(new _inflate_handler(target))
 {
 }
 
-vds::const_data_buffer vds::inflate::decompress(const void * data, size_t size)
-{
-	collect_data<uint8_t> result;
-	inflate inf(result);
-
-	inf.write((const uint8_t *)data, size);
-	inf.write(nullptr, 0);
-
-	return result.move_data();
+vds::inflate::~inflate() {
+  delete this->impl_;
 }
 
-//////////////////////////////////////////////////////
-vds::inflate_async::inflate_async(stream_async<uint8_t> & target)
-: stream_async<uint8_t>(new _inflate_async_handler(target))
+vds::const_data_buffer vds::inflate::decompress(
+  const service_provider & sp,
+  const void * data,
+  size_t size)
 {
+	auto result = std::make_shared<collect_data<uint8_t>>();
+  _inflate_handler inf(result);
+
+	inf.write_async(sp, (const uint8_t *)data, size).get();
+	inf.write_async(sp, nullptr, 0).get();
+
+	return result->move_data();
 }
+

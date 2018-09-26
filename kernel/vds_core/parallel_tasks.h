@@ -20,16 +20,16 @@ namespace vds {
       this->tasks_.push_back(std::forward<task_type>(task));
     }
 
-    vds::async_task<void> run()
+    std::future<void> run()
     {
-      return [this](const vds::async_result<> & result) {
+      return [this](const std::promise<> & result) {
           auto runner = new _async_series(result, this->tasks_.size());
           runner->run(std::move(this->tasks_));
         };
     }
 
   private:
-    std::list<vds::async_task<void>> tasks_;
+    std::list<std::future<void>> tasks_;
   };
 }
 

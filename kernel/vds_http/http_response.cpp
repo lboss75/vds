@@ -27,7 +27,7 @@ vds::http_message vds::http_response::simple_text_response(
   }
   headers.push_back("Content-Length:" + std::to_string(body.length()));
 
-  return http_message(headers, std::make_shared<buffer_input_stream_async>(const_data_buffer(body.c_str(), body.length())));
+  return http_message(headers, std::make_shared<buffer_stream_input_async>(const_data_buffer(body.c_str(), body.length())));
 }
 
 vds::http_message vds::http_response::redirect(const std::string& location) {
@@ -35,7 +35,7 @@ vds::http_message vds::http_response::redirect(const std::string& location) {
   headers.push_front("HTTP/1.0 302 Found");
   headers.push_back("Location:" + location);
 
-  return http_message(headers, std::make_shared<buffer_input_stream_async>(const_data_buffer()));
+  return http_message(headers, std::make_shared<buffer_stream_input_async>(const_data_buffer()));
 }
 
 vds::http_message vds::http_response::status_response(
@@ -45,7 +45,7 @@ vds::http_message vds::http_response::status_response(
   std::list<std::string> headers;
   headers.push_front("HTTP/1.0 " + std::to_string(result_code) + " " + message);
 
-  return http_message(headers, std::make_shared<buffer_input_stream_async>(const_data_buffer()));
+  return http_message(headers, std::make_shared<buffer_stream_input_async>(const_data_buffer()));
 }
 
 vds::http_message vds::http_response::file_response(
@@ -61,7 +61,7 @@ vds::http_message vds::http_response::file_response(
   headers.push_front("Content-Length:" + std::to_string(file::length(body_file)));
   headers.push_front("Content-Disposition:attachment; filename=\"" + out_filename + "\"");
   
-  return http_message(headers, std::make_shared<file_input_stream_async>(body_file));
+  return http_message(headers, std::make_shared<file_stream_input_async>(body_file));
 }
 
 vds::http_message vds::http_response::file_response(
@@ -76,7 +76,7 @@ vds::http_message vds::http_response::file_response(
   headers.push_front("Content-Type:" + content_type);
   headers.push_front("Content-Length:" + std::to_string(body.size()));
   headers.push_front("Content-Disposition:attachment; filename=\"" + filename + "\"");
-  return http_message(headers, std::make_shared<buffer_input_stream_async>(body));
+  return http_message(headers, std::make_shared<buffer_stream_input_async>(body));
 
 }
 

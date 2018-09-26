@@ -73,13 +73,13 @@ namespace vds {
       return tcp_network_socket(new _tcp_network_socket(handle));
     }
 
-    std::shared_ptr<vds::input_stream_async<uint8_t>> start(const service_provider & sp)
+    std::shared_ptr<vds::stream_input_async<uint8_t>> start(const service_provider & sp)
     {
       sp.get<logger>()->trace("TCP", sp, "socket start");
       
 #ifdef _WIN32
-      std::make_shared<_read_socket_task>(sp, this->shared_from_this(), target)->start();
       this->socket_task_ = std::make_shared<_write_socket_task>(sp, this->s_);
+      return std::make_shared<_read_socket_task>(sp, this->shared_from_this());
 #else
       auto handler = std::make_shared<_socket_handler>(sp, this->shared_from_this());
       this->socket_task_ = handler;
@@ -87,7 +87,7 @@ namespace vds {
 #endif//_WIN32
     }
 
-    vds::async_task<void> write_async(const uint8_t * data, size_t size) override {
+    std::future<void> write_async(const uint8_t * data, size_t size) override {
 #ifdef _WIN32
       return static_cast<_write_socket_task *>(this->socket_task_.get())->write_async(data, size);
 #else
@@ -128,18 +128,16 @@ namespace vds {
 #endif//_WIN32
 
 #ifdef _WIN32
-    class _read_socket_task : public _socket_task
+    class _read_socket_task : public _socket_task, public stream_input_async<uint8_t>
     {
     public:
       constexpr static size_t BUFFER_SIZE = 1024;
 
       _read_socket_task(
         const service_provider & sp,
-        const std::shared_ptr<_stream_async<uint8_t>> & owner,
-        const stream<uint8_t> & target)
+        const std::shared_ptr<_stream_async<uint8_t>> & owner)
         : owner_(owner),
-          sp_(sp),
-          target_(target)
+          sp_(sp)
       {
       }
 
@@ -148,13 +146,16 @@ namespace vds {
         this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv closed");
       }
 
-      void start()
-      {
-        memset(&this->overlapped_, 0, sizeof(this->overlapped_));
-        this->wsa_buf_.len = BUFFER_SIZE;
-        this->wsa_buf_.buf = (CHAR *)this->buffer_;
 
+      std::future<size_t> read_async(
+        const service_provider &sp,
+        uint8_t * buffer,
+        size_t len) override {
+        memset(&this->overlapped_, 0, sizeof(this->overlapped_));
+        this->wsa_buf_.len = len;
+        this->wsa_buf_.buf = (CHAR *)buffer;
         this->pthis_ = this->shared_from_this();
+        this->result_ = std::make_shared<std::promise<size_t>>();
 
         this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv");
         DWORD flags = 0;
@@ -173,23 +174,23 @@ namespace vds {
             this->pthis_.reset();
 
             if (WSAESHUTDOWN == errorCode || WSAECONNABORTED == errorCode) {
-              this->target_.write(nullptr, 0);
+              this->result_->set_value(0);
             }
             else {
-              this->sp_.unhandled_exception(std::make_unique<std::system_error>(errorCode, std::system_category(), "read from tcp socket"));
+              this->result_->set_exception(std::make_exception_ptr(std::system_error(errorCode, std::system_category(), "read from tcp socket")));
             }
-            return;
           }
         }
+
+        return this->result_->get_future();
       }
 
 
     private:
       service_provider sp_;
       std::shared_ptr<_stream_async<uint8_t>> owner_;
-      stream<uint8_t> target_;
-      uint8_t buffer_[BUFFER_SIZE];
       std::shared_ptr<_socket_task> pthis_;
+      std::shared_ptr<std::promise<size_t>> result_;
 
       void process(DWORD dwBytesTransfered) override
       {
@@ -198,12 +199,10 @@ namespace vds {
         this->pthis_.reset();
 
         if (0 == dwBytesTransfered) {
-          this->target_.write(nullptr, 0);
-          this->start();
+          this->result_->set_value(0);
         }
         else {
-          this->target_.write(this->buffer_, (size_t)dwBytesTransfered);
-          this->start();
+          this->result_->set_value((size_t)dwBytesTransfered);
         }
       }
 
@@ -214,12 +213,12 @@ namespace vds {
           this->process(0);
         }
         else {
-          this->sp_.unhandled_exception(std::make_shared<std::system_error>(error_code, std::system_category(), "read failed"));
+          this->result_->set_exception(std::make_exception_ptr(std::system_error(error_code, std::system_category(), "read failed")));
         }
       }
     };
 
-    class _write_socket_task : public _socket_task
+    class _write_socket_task : public _socket_task, public std::enable_shared_from_this<_write_socket_task>
     {
     public:
       constexpr static size_t BUFFER_SIZE = 1024;
@@ -236,9 +235,9 @@ namespace vds {
       {
       }
 
-      vds::async_task<void> write_async(const uint8_t * data, size_t len)
+      std::future<void> write_async(const uint8_t * data, size_t len)
       {
-        this->result_ = std::make_shared<vds::async_result<void>>();
+        this->result_ = std::make_shared<std::promise<void>>();
         this->pthis_ = this->shared_from_this();
         this->schedule(data, len);
 
@@ -248,7 +247,7 @@ namespace vds {
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
-      std::shared_ptr<vds::async_result<void>> result_;
+      std::shared_ptr<std::promise<void>> result_;
       std::shared_ptr<_socket_task> pthis_;
 
       void schedule(const void * data, size_t len)
@@ -316,7 +315,7 @@ namespace vds {
       ~_socket_handler() {
       }
 
-      std::shared_ptr<vds::input_stream_async<uint8_t>> start() {
+      std::shared_ptr<vds::stream_input_async<uint8_t>> start() {
         base_class::start();
         this->reader_ = std::make_shared<socket_reader>(this);
         this->change_mask(EPOLLIN);
@@ -324,14 +323,14 @@ namespace vds {
       }
 
 
-      vds::async_task<void> write_async(const uint8_t *data, size_t size) {
+      std::future<void> write_async(const uint8_t *data, size_t size) {
         std::lock_guard<std::mutex> lock(this->write_mutex_);
         switch (this->write_status_) {
           case write_status_t::bof: {
             this->write_buffer_.resize(size);
             memcpy(this->write_buffer_.data(), data, size);
 
-            this->write_result_ = std::make_shared<vds::async_result<void>>();
+            this->write_result_ = std::make_shared<std::promise<void>>();
             this->write_status_ = write_status_t::waiting_socket;
             this->change_mask(EPOLLOUT);
             return this->write_result_->get_future();
@@ -340,7 +339,7 @@ namespace vds {
           case write_status_t::continue_write: {
             this->write_buffer_.resize(size);
             memcpy(this->write_buffer_.data(), data, size);
-            this->write_result_ = std::make_shared<vds::async_result<void>>();
+            this->write_result_ = std::make_shared<std::promise<void>>();
             this->write_data();
             return this->write_result_->get_future();
           }
@@ -407,16 +406,16 @@ namespace vds {
       std::shared_ptr<_stream_async<uint8_t>> owner_;
 
       const_data_buffer write_buffer_;
-      std::shared_ptr<vds::async_result<void>> write_result_;
+      std::shared_ptr<std::promise<void>> write_result_;
 
 
-      class socket_reader : public input_stream_async<uint8_t>{
+      class socket_reader : public stream_input_async<uint8_t>{
       public:
         socket_reader(_socket_handler * owner)
             : owner_(owner){
         }
 
-        async_task<size_t> read_async(
+        std::future<size_t> read_async(
             const service_provider &sp,
             uint8_t * buffer,
             size_t buffer_size) override {
@@ -432,7 +431,7 @@ namespace vds {
               this->owner_->change_mask(EPOLLIN);
               this->buffer_ = buffer;
               this->buffer_size_ = buffer_size;
-              this->result_ = std::make_shared<async_result<size_t>>();
+              this->result_ = std::make_shared<std::promise<size_t>>();
               co_return co_await this->result_->get_future();
             }
             if(0 == error && 0 == len){
@@ -482,7 +481,7 @@ namespace vds {
 
       private:
         _socket_handler * owner_;
-        std::shared_ptr<async_result<size_t>> result_;
+        std::shared_ptr<std::promise<size_t>> result_;
         uint8_t * buffer_;
         size_t buffer_size_;
       };

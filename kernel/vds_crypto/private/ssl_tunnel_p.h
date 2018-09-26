@@ -16,8 +16,8 @@
 //  public:
 //    _ssl_tunnel(
 //      const service_provider & sp,
-//      const stream_async<uint8_t> & crypted_output,
-//      const stream_async<uint8_t> & decrypted_output,
+//      const stream_output_async<uint8_t> & crypted_output,
+//      const stream_output_async<uint8_t> & decrypted_output,
 //      bool is_client,
 //      const certificate * cert,
 //      const asymmetric_private_key * key);
@@ -30,8 +30,8 @@
 //
 //    certificate get_peer_certificate() const;
 //
-//    stream_async<uint8_t> & crypted_input()  { return this->crypted_input_; }
-//    stream_async<uint8_t> & decrypted_input() { return this->decrypted_input_; }
+//    stream_output_async<uint8_t> & crypted_input()  { return this->crypted_input_; }
+//    stream_output_async<uint8_t> & decrypted_input() { return this->decrypted_input_; }
 //
 //    void start(const service_provider & sp)
 //    {
@@ -73,10 +73,10 @@
 //    std::mutex state_mutex_;
 //
 //    continuous_buffer<uint8_t> crypted_input_;
-//    stream_async<uint8_t> crypted_output_;
+//    stream_output_async<uint8_t> crypted_output_;
 //
 //    continuous_buffer<uint8_t> decrypted_input_;
-//    stream_async<uint8_t> decrypted_output_;
+//    stream_output_async<uint8_t> decrypted_output_;
 //    
 //    bool failed_state_;
 //    std::function<void(const std::shared_ptr<std::exception> &)> error_handler_;

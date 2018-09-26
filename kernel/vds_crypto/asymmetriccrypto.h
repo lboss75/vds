@@ -52,8 +52,9 @@ namespace vds {
     static asymmetric_private_key parse(const std::string & value, const std::string & password = std::string());
     std::string str(const std::string & password = std::string()) const;
     
-    const_data_buffer der(const std::string &password) const;
+    const_data_buffer der(const service_provider & sp, const std::string &password) const;
     static asymmetric_private_key parse_der(
+      const service_provider & sp,
       const const_data_buffer & value,
       const std::string & password);
 
@@ -62,9 +63,6 @@ namespace vds {
 
     const_data_buffer decrypt(const const_data_buffer & data) const;
     const_data_buffer decrypt(const void * data, size_t size) const;
-
-    bool operator !() const { return !this->impl_; }
-    operator bool () const { return  nullptr != this->impl_.get(); }
 
   private:
     friend class _asymmetric_sign;
@@ -75,7 +73,7 @@ namespace vds {
     
     asymmetric_private_key(_asymmetric_private_key * impl);
     
-    std::shared_ptr<_asymmetric_private_key> impl_;
+    _asymmetric_private_key * impl_;
   };
 
   class _asymmetric_public_key;
@@ -105,31 +103,43 @@ namespace vds {
     friend class _certificate;
     friend class _asymmetric_public_key;
 
-    std::shared_ptr<_asymmetric_public_key> impl_;
+    _asymmetric_public_key * impl_;
   };
 
-  class asymmetric_sign : public stream<uint8_t>
+  class asymmetric_sign : public stream_output_async<uint8_t>
   {
   public:
     asymmetric_sign(
       const hash_info & hash_info,
       const asymmetric_private_key & key);
 
+    ~asymmetric_sign();
+
     const_data_buffer signature();
 
     static const_data_buffer signature(
+      const service_provider &sp,
       const hash_info & hash_info,
       const asymmetric_private_key & key,
       const const_data_buffer & data);
 
     static const_data_buffer signature(
+      const service_provider &sp,
       const hash_info & hash_info,
       const asymmetric_private_key & key,
       const void * data,
       size_t data_size);
+
+    std::future<void> write_async(
+      const service_provider &sp,
+      const uint8_t  *data,
+      size_t len) override;
+
+  private:
+    _asymmetric_sign * impl_;
   };
 
-  class asymmetric_sign_verify : public stream<uint8_t>
+  class asymmetric_sign_verify : public stream_output_async<uint8_t>
   {
   public:
     asymmetric_sign_verify(
@@ -137,10 +147,12 @@ namespace vds {
       const asymmetric_public_key & key,
       const const_data_buffer & sig);
 
+    ~asymmetric_sign_verify();
     
     bool result() const;
     
     static bool verify(
+      const service_provider &sp,
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & signature,
@@ -148,10 +160,19 @@ namespace vds {
       size_t data_size);
 
     static bool verify(
+      const service_provider &sp,
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & signature,
       const const_data_buffer & data);
+
+    std::future<void> write_async(
+      const service_provider &sp,
+      const uint8_t *data,
+      size_t len) override;
+
+  private:
+    _asymmetric_sign_verify * impl_;
   };
   
   
@@ -240,9 +261,6 @@ namespace vds {
 
     certificate & operator = (const certificate & original);
 
-    bool operator ! () const { return !this->impl_; }
-    explicit operator bool () const { return nullptr != this->impl_.get(); }
-
   private:
     friend class _certificate;
     friend class _ssl_tunnel;
@@ -250,7 +268,7 @@ namespace vds {
     
     certificate(_certificate * impl);
     
-    std::shared_ptr<_certificate> impl_;
+    _certificate * impl_;
   };
 
   class _certificate_store;

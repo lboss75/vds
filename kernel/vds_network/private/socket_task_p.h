@@ -13,7 +13,7 @@ All rights reserved
 namespace vds {
   class service_provider;
   
-  class _socket_task : public std::enable_shared_from_this<_socket_task>
+  class _socket_task
   {
   public:
     _socket_task();

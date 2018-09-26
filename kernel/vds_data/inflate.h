@@ -12,22 +12,23 @@ All rights reserved
 
 namespace vds {
   class _inflate_handler;
-  class _inflate_async_handler;
 
   //Decompress stream
-  class inflate : public stream<uint8_t>
+  class inflate : public stream_output_async<uint8_t>
   {
   public:
-    inflate(stream<uint8_t> & target);
+    inflate(const std::shared_ptr<stream_output_async<uint8_t>> & target);
+    ~inflate();
 
-	static const_data_buffer decompress(const void * data, size_t size);
+	  static const_data_buffer decompress(
+      const service_provider & sp,
+      const void * data,
+      size_t size);
+
+  private:
+    _inflate_handler * impl_;
   };
 
-  class inflate_async : public stream_async<uint8_t>
-  {
-  public:
-	  inflate_async(stream_async<uint8_t> & target);
-  };
 }
 
 #endif // __VDS_DATA_INFLATE_H_

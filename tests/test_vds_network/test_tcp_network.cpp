@@ -68,8 +68,18 @@ TEST(network_tests, test_server)
   server.start(
     sp,
     vds::network_address::any_ip4(8000),
-    [sp](vds::tcp_network_socket s) {
-    s.start(sp, echo_stream(s));
+    [sp](vds::tcp_network_socket s) -> std::future<void> {
+      auto e = std::make_shared<echo_stream>(s);
+      auto p = s.start(sp);
+      auto buffer = std::make_shared<uint8_t[1024]>();
+      for(;;) {
+        auto readed = co_await p->read_async(sp, *buffer, 1024);
+        if(0 == readed) {
+          break;
+        }
+
+        e->write(*buffer, readed);
+      }
   }).get();
 
 

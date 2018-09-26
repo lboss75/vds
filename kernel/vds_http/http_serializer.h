@@ -17,7 +17,7 @@ namespace vds {
   {
   public:
     http_async_serializer(
-      stream_async<uint8_t> & target)
+      stream_output_async<uint8_t> & target)
       : target_(target)
     {
     }
@@ -26,7 +26,7 @@ namespace vds {
     {
     }
 
-    vds::async_task<void> write_async(
+    std::future<void> write_async(
       const service_provider & sp,
       const http_message & message)
     {
@@ -54,7 +54,7 @@ namespace vds {
     }
 
   private:
-    stream_async<uint8_t> & target_;
+    stream_output_async<uint8_t> & target_;
     uint8_t output_buffer_[1024];
   };
 

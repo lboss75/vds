@@ -52,17 +52,17 @@ void vds::server::stop(const service_provider& sp)
   this->impl_->stop(sp);
 }
 
-vds::async_task<void> vds::server::start_network(const vds::service_provider &sp, uint16_t port) {
+std::future<void> vds::server::start_network(const vds::service_provider &sp, uint16_t port) {
   this->impl_->dht_network_service_->start(sp, this->impl_->udp_transport_, port);
   this->impl_->file_manager_->start(sp);
   co_return;
 }
 
-vds::async_task<void> vds::server::prepare_to_stop(const vds::service_provider &sp) {
+std::future<void> vds::server::prepare_to_stop(const vds::service_provider &sp) {
   return this->impl_->prepare_to_stop(sp);
 }
 
-vds::async_task<vds::server_statistic> vds::server::get_statistic(const vds::service_provider &sp) const {
+std::future<vds::server_statistic> vds::server::get_statistic(const vds::service_provider &sp) const {
   return this->impl_->get_statistic(sp);
 }
 
@@ -122,12 +122,12 @@ void vds::_server::stop(const service_provider& sp)
   this->db_model_.reset();
 }
 
-vds::async_task<void> vds::_server::prepare_to_stop(const vds::service_provider &sp) {
+std::future<void> vds::_server::prepare_to_stop(const vds::service_provider &sp) {
   co_await this->dht_network_service_->prepare_to_stop(sp);
   co_await this->db_model_->prepare_to_stop(sp);
 }
 
-vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::service_provider &sp) {
+std::future<vds::server_statistic> vds::_server::get_statistic(const vds::service_provider &sp) {
   auto result = std::make_shared<vds::server_statistic>();
   sp.get<dht::network::client>()->get_route_statistics(result->route_statistic_);
   sp.get<dht::network::client>()->get_session_statistics(result->session_statistic_);
@@ -265,7 +265,7 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
   co_return *result;
 }
 
-vds::async_task<void> vds::_server::apply_message(
+std::future<void> vds::_server::apply_message(
   const service_provider & sp,
   database_transaction & t,
   const dht::messages::transaction_log_state & message,
@@ -289,7 +289,7 @@ void vds::_server::apply_message(
   this->transaction_log_sync_process_->apply_message(sp, t, message, message_info);
 }
 
-vds::async_task<void> vds::_server::on_new_session(const service_provider& sp, const const_data_buffer& partner_id) {
+std::future<void> vds::_server::on_new_session(const service_provider& sp, const const_data_buffer& partner_id) {
   
   co_await sp.get<db_model>()->async_read_transaction(sp, [this, sp, partner_id](database_read_transaction & t) {
 

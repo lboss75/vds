@@ -13,7 +13,7 @@ vds::http_router::http_router()
 {
 }
 
-vds::async_task<vds::http_message> vds::http_router::route(
+std::future<vds::http_message> vds::http_router::route(
   const service_provider & sp,
   const http_message & message,
   const std::string & local_path) const

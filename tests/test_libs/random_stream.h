@@ -10,91 +10,44 @@ All rights reserved
 #include "stream.h"
 
 template<typename item_type>
-class random_stream : public vds::stream<item_type> {
+class random_stream : public vds::stream_output_async<item_type> {
 public:
-  random_stream(const vds::stream<item_type> &target)
-      : vds::stream<item_type>(new _random_stream(target)) {
+  random_stream(const std::shared_ptr<vds::stream_output_async<item_type>> &target)
+    : target_(target) {
   }
 
-private:
-  class _random_stream : public vds::_stream<item_type> {
-  public:
-    _random_stream(const vds::stream<item_type> &target)
-        : target_(target) {
-    }
-
-    void write(const item_type *data, size_t len) override {
+  std::future<void> write_async(const vds::service_provider & sp, const item_type *data, size_t len) override {
+    for (;;) {
       if (0 == len) {
-        this->target_.write(data, len);
-      } else {
-        while (0 < len) {
-          size_t n = (size_t) std::rand() % len;
-          if (n < 1) {
-            n = 1;
-          }
-          if (len < n) {
-            n = len;
-          }
+        co_await this->target_->write_async(sp, data, len);
+        co_return;
+      }
+      else {
+        size_t n = (size_t)std::rand() % len;
+        if (n < 1) {
+          n = 1;
+        }
+        if (len < n) {
+          n = len;
+        }
 
-          this->target_.write(data, len);
+        if (n == len) {
+          co_await this->target_->write_async(sp, data, n);
+          co_return;
+        }
+        else {
+          co_await this->target_->write_async(sp, data, n);
 
           data += n;
           len -= n;
         }
       }
     }
-
-  private:
-    vds::stream<item_type> target_;
-  };
-};
-
-template<typename item_type>
-class random_stream_async : public vds::stream_async<item_type> {
-public:
-  random_stream_async(vds::stream_async<item_type> &target)
-      : vds::stream_async<item_type>(new _random_stream_async(target)) {
   }
 
 private:
-  class _random_stream_async : public vds::_stream_async<item_type> {
-  public:
-    _random_stream_async(vds::stream_async<item_type> &target)
-        : target_(target) {
-    }
-
-    vds::async_task<void> write_async(const item_type *data, size_t len) override {
-      for (;;) {
-        if (0 == len) {
-          co_await this->target_.write_async(data, len);
-          break;
-        }
-        else {
-          size_t n = (size_t)std::rand() % len;
-          if (n < 1) {
-            n = 1;
-          }
-          if (len < n) {
-            n = len;
-          }
-
-          if (n == len) {
-            co_await this->target_.write_async(data, n);
-            break;
-          }
-          else {
-            co_await this->target_.write_async(data, n);
-
-            data += n;
-            len -= n;
-          }
-        }
-      }
-    }
-
-  private:
-    vds::stream_async<item_type> &target_;
-  };
+  std::shared_ptr<vds::stream_output_async<item_type>> target_;
 };
+
 
 #endif // __TEST_VDS_LIBS__RANDOM_READER_H_

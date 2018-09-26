@@ -110,7 +110,7 @@ namespace vds {
 #endif
     }
 
-    vds::async_task<udp_datagram> read_async()
+    std::future<udp_datagram> read_async()
     {
 #ifdef _WIN32
 		if (!this->reader_) {
@@ -126,7 +126,7 @@ namespace vds {
 #endif
     }
 
-    vds::async_task<void> write_async(const udp_datagram & message)
+    std::future<void> write_async(const udp_datagram & message)
     {
 #ifdef _WIN32
       return this->writter_->write_async(message);
@@ -155,7 +155,7 @@ namespace vds {
     }
 
 #ifdef _WIN32
-    class _udp_receive : public _socket_task
+    class _udp_receive : public _socket_task, public std::enable_shared_from_this<_udp_receive>
     {
     public:
       _udp_receive(
@@ -166,14 +166,14 @@ namespace vds {
       {
       }
 
-      vds::async_task<udp_datagram> read_async()
+      std::future<udp_datagram> read_async()
       {
         vds_assert(!this->result_);
 
         memset(&this->overlapped_, 0, sizeof(this->overlapped_));
         this->wsa_buf_.len = sizeof(this->buffer_);
         this->wsa_buf_.buf = (CHAR *)this->buffer_;
-        this->result_ = std::make_shared<vds::async_result<udp_datagram>>();
+        this->result_ = std::make_shared<std::promise<udp_datagram>>();
 
         this->sp_.get<logger>()->trace("UDP", this->sp_, "WSARecvFrom %d", this->s_);
 
@@ -213,7 +213,7 @@ namespace vds {
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
-      std::shared_ptr<vds::async_result<udp_datagram>> result_;
+      std::shared_ptr<std::promise<udp_datagram>> result_;
 
       network_address addr_;
       uint8_t buffer_[64 * 1024];
@@ -244,7 +244,7 @@ namespace vds {
           s_(s) {
       }
 
-      vds::async_task<void> write_async(const udp_datagram & data)
+      std::future<void> write_async(const udp_datagram & data)
       {
         std::unique_lock<not_mutex> lock(this->not_mutex_);
         vds_assert(!this->result_);
@@ -259,7 +259,7 @@ namespace vds {
           this->buffer_->address().to_string().c_str(),
           this->buffer_.data_size());
 
-        this->result_ = std::make_shared<vds::async_result<void>>();
+        this->result_ = std::make_shared<std::promise<void>>();
         auto f = this->result_->get_future();
         lock.unlock();
 
@@ -296,7 +296,7 @@ namespace vds {
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
-      std::shared_ptr<vds::async_result<void>> result_;
+      std::shared_ptr<std::promise<void>> result_;
 
       socklen_t addr_len_;
       udp_datagram buffer_;
@@ -355,18 +355,18 @@ namespace vds {
       {
       }
 
-      vds::async_task<udp_datagram> read_async() {
+      std::future<udp_datagram> read_async() {
         std::lock_guard<std::mutex> lock(this->read_mutex_);
         switch (this->read_status_) {
           case read_status_t::bof:{
-              this->read_result_ = std::make_shared<vds::async_result<udp_datagram>>();
+              this->read_result_ = std::make_shared<std::promise<udp_datagram>>();
               this->read_status_ = read_status_t::waiting_socket;
               this->change_mask(EPOLLIN);
               return this->read_result_->get_future();
             }
 
           case read_status_t::continue_read: {
-            this->read_result_ = std::make_shared<vds::async_result<udp_datagram>>();
+            this->read_result_ = std::make_shared<std::promise<udp_datagram>>();
               this->read_data();
             return this->read_result_->get_future();
             }
@@ -379,12 +379,12 @@ namespace vds {
         }
       }
 
-      vds::async_task<void> write_async(const udp_datagram & message) {
+      std::future<void> write_async(const udp_datagram & message) {
         std::lock_guard<std::mutex> lock(this->write_mutex_);
         switch (this->write_status_) {
           case write_status_t::bof:{
             this->write_message_ = message;
-              this->write_result_ = std::make_shared<vds::async_result<void>>();
+              this->write_result_ = std::make_shared<std::promise<void>>();
               this->write_status_ = write_status_t::waiting_socket;
               this->change_mask(EPOLLOUT);
               return this->write_result_->get_future();
@@ -392,7 +392,7 @@ namespace vds {
 
           case write_status_t::continue_write:{
             this->write_message_ = message;
-            this->write_result_ = std::make_shared<vds::async_result<void>>();
+            this->write_result_ = std::make_shared<std::promise<void>>();
               this->write_data();
             }
 
@@ -566,8 +566,8 @@ namespace vds {
 
     private:
       std::shared_ptr<_udp_socket> owner_;
-      std::shared_ptr<vds::async_result<udp_datagram>> read_result_;
-      std::shared_ptr<vds::async_result<void>> write_result_;
+      std::shared_ptr<std::promise<udp_datagram>> read_result_;
+      std::shared_ptr<std::promise<void>> write_result_;
 
       network_address addr_;
       uint8_t read_buffer_[64 * 1024];

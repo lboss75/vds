@@ -88,7 +88,7 @@ void vds::transaction_log::sync_process::query_unknown_records(const service_pro
 }
 
 
-vds::async_task<void> vds::transaction_log::sync_process::apply_message(
+std::future<void> vds::transaction_log::sync_process::apply_message(
   const service_provider& sp,
   database_transaction& t,
   const dht::messages::transaction_log_state& message,

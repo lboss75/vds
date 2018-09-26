@@ -65,7 +65,7 @@ vds::http_message vds::http_request::simple_request(
   headers.push_back("Content-Type: text/html; charset=utf-8");
   headers.push_back("Content-Length:" + std::to_string(body.length()));
 
-  return http_message(headers, std::make_shared<buffer_input_stream_async>(const_data_buffer(body.c_str(), body.length())));
+  return http_message(headers, std::make_shared<buffer_stream_input_async>(const_data_buffer(body.c_str(), body.length())));
 }
 
 std::string vds::http_request::get_parameter(const std::string &name) const {

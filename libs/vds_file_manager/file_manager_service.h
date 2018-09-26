@@ -25,7 +25,7 @@ namespace vds {
       void register_services(service_registrator &);
       void start(const service_provider &);
       void stop(const service_provider &);
-      vds::async_task<void> prepare_to_stop(const service_provider &sp);
+      std::future<void> prepare_to_stop(const service_provider &sp);
 
       operator bool() const {
         return nullptr != this->impl_;

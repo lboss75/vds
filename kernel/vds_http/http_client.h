@@ -15,22 +15,22 @@ namespace vds {
   class http_client
   {
   public:
-    typedef std::function<vds::async_task<void> (const std::shared_ptr<vds::http_message> & request)> handler_type;
+    typedef std::function<std::future<void> (const std::shared_ptr<vds::http_message> & request)> handler_type;
 
     http_client();
 
-    vds::async_task<void> start(
+    std::future<void> start(
       const vds::service_provider & sp,
       const handler_type & handler);
 
-    vds::async_task<void> send(
+    std::future<void> send(
       const vds::service_provider & sp,
       const std::shared_ptr<vds::http_message> & message);
 
   private:
     handler_type handler_;
 
-    vds::async_task<void> process_input_commands(
+    std::future<void> process_input_commands(
       const vds::service_provider & sp,
       const handler_type & handler);
   };

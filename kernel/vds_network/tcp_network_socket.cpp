@@ -9,13 +9,13 @@ All rights reserved
 #include "private/write_socket_task_p.h"
 
 vds::tcp_network_socket::tcp_network_socket()
-: stream_async<uint8_t>(new _tcp_network_socket())
+: stream_output_async<uint8_t>(new _tcp_network_socket())
 {
 }
 
 vds::tcp_network_socket::tcp_network_socket(
     _tcp_network_socket * impl)
-: stream_async<uint8_t>(impl)
+: stream_output_async<uint8_t>(impl)
 {
 }
 
@@ -65,7 +65,7 @@ void vds::tcp_network_socket::close()
   static_cast<_tcp_network_socket *>(this->impl_.get())->close();
 }
 
-std::shared_ptr<vds::input_stream_async<uint8_t>> vds::tcp_network_socket::start(
+std::shared_ptr<vds::stream_input_async<uint8_t>> vds::tcp_network_socket::start(
     const vds::service_provider &sp) const {
   return static_cast<_tcp_network_socket *>(this->impl_.get())->start(sp);
 }

@@ -26,8 +26,9 @@ namespace vds {
     static asymmetric_private_key parse(const std::string & value, const std::string & password = std::string());
     std::string str(const std::string & password = std::string()) const;
     
-    vds::const_data_buffer der(const std::string &password) const;
+    vds::const_data_buffer der(const service_provider & sp, const std::string &password) const;
     static asymmetric_private_key parse_der(
+      const service_provider & sp,
       const const_data_buffer & value,
 
       const std::string & password /*= std::string()*/);
@@ -142,7 +143,7 @@ namespace vds {
     EVP_PKEY * key_;
   };
 
-  class _asymmetric_sign : public _stream<uint8_t>
+  class _asymmetric_sign
   {
   public:
     _asymmetric_sign(
@@ -151,9 +152,10 @@ namespace vds {
     );
     ~_asymmetric_sign();
 
-    void write(
-      const uint8_t * data,
-      size_t len) override;
+    std::future<void> write_async(
+      const service_provider &sp,
+      const uint8_t *data,
+      size_t len);
 
     const const_data_buffer & signature() const {
       return this->sig_;
@@ -165,7 +167,7 @@ namespace vds {
     const_data_buffer sig_;
   };
 
-  class _asymmetric_sign_verify : public _stream<uint8_t>
+  class _asymmetric_sign_verify
   {
   public:
     _asymmetric_sign_verify(
@@ -175,8 +177,9 @@ namespace vds {
     
     ~_asymmetric_sign_verify();
 
-    void write(
-      const uint8_t * data,
+    std::future<void> write_async(
+      const service_provider &sp,
+      const uint8_t *data,
       size_t len);
 
     bool result() const { return this->result_; }

@@ -7,7 +7,7 @@ All rights reserved
 #include "http_simple_form_parser.h"
 #include "http_multipart_reader.h"
 
-vds::async_task<void> vds::http::simple_form_parser::parse(const service_provider& sp, const http_message& message) {
+std::future<void> vds::http::simple_form_parser::parse(const service_provider& sp, const http_message& message) {
   std::string content_type;
   if (message.get_header("Content-Type", content_type)) {
     static const char multipart_form_data[] = "multipart/form-data;";
@@ -19,7 +19,7 @@ vds::async_task<void> vds::http::simple_form_parser::parse(const service_provide
         boundary.erase(0, sizeof(boundary_prefix) - 1);
 
         auto task = std::make_shared<form_parser>(this->shared_from_this());
-        auto reader = std::make_shared<http_multipart_reader>("--" + boundary, [sp, task](const http_message& part)->vds::async_task<void> {
+        auto reader = std::make_shared<http_multipart_reader>("--" + boundary, [sp, task](const http_message& part)->std::future<void> {
           co_return co_await task->read_part(sp, part);
         });
 
@@ -45,7 +45,7 @@ vds::async_task<void> vds::http::simple_form_parser::parse(const service_provide
   }
 }
 
-vds::async_task<std::string> vds::http::simple_form_parser::form_parser::read_string_body(
+std::future<std::string> vds::http::simple_form_parser::form_parser::read_string_body(
   const service_provider & sp,
   const http_message& part) {
 
@@ -63,7 +63,7 @@ vds::http::simple_form_parser::form_parser::form_parser(const std::shared_ptr<si
 : owner_(owner) {
 }
 
-vds::async_task<void> vds::http::simple_form_parser::form_parser::read_part(const service_provider& sp,
+std::future<void> vds::http::simple_form_parser::form_parser::read_part(const service_provider& sp,
   const http_message& part) {
   for (;;) {
     std::string content_disposition;
@@ -117,7 +117,7 @@ vds::async_task<void> vds::http::simple_form_parser::form_parser::read_part(cons
   }
 }
 
-vds::async_task<void> vds::http::simple_form_parser::form_parser::read_form_urlencoded(const service_provider& sp,
+std::future<void> vds::http::simple_form_parser::form_parser::read_form_urlencoded(const service_provider& sp,
   const http_message& message) {
   auto buffer = co_await this->read_string_body(sp, message);
   auto items = split_string(buffer, '&', true);
@@ -138,7 +138,7 @@ vds::async_task<void> vds::http::simple_form_parser::form_parser::read_form_urle
   }
 }
 
-vds::async_task<void> vds::http::simple_form_parser::form_parser::skip_part(
+std::future<void> vds::http::simple_form_parser::form_parser::skip_part(
   const service_provider & sp,
   const vds::http_message& part) {
 

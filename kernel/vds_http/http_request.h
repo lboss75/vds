@@ -21,7 +21,7 @@ namespace vds {
         const std::string & method,
         const std::string & url,
         const std::string & agent = "HTTP/1.0",
-        const std::shared_ptr<input_stream_async<uint8_t>> & body = std::make_shared<buffer_input_stream_async>(const_data_buffer())
+        const std::shared_ptr<stream_input_async<uint8_t>> & body = std::make_shared<buffer_stream_input_async>(const_data_buffer())
       ): message_(headers, body), method_(method), url_(url), agent_(agent)
     {
       this->parse_parameters();
@@ -31,7 +31,7 @@ namespace vds {
       const std::string & method,
       const std::string & url,
       const std::string & agent = "HTTP/1.0",
-      const std::shared_ptr<input_stream_async<uint8_t>> & body = std::make_shared<buffer_input_stream_async>(const_data_buffer()))
+      const std::shared_ptr<stream_input_async<uint8_t>> & body = std::make_shared<buffer_stream_input_async>(const_data_buffer()))
     {
       std::list<std::string> headers;
       headers.push_back(method + " " + url + " " + agent);

@@ -16,7 +16,7 @@ namespace vds {
   public:
     http_router();
 
-    async_task<http_message> route(
+    std::future<http_message> route(
       const service_provider & sp,
       const http_message & request,
       const std::string & local_path) const;

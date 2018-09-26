@@ -67,7 +67,7 @@ template <typename R> auto operator co_await(std::future<R> &&f) {
 }
 */
 
-vds::async_task<int> async_add(int a, int b)
+std::future<int> async_add(int a, int b)
 {
   auto p = std::make_shared<vds::async_result<int>>();
 
@@ -79,7 +79,7 @@ vds::async_task<int> async_add(int a, int b)
   return p->get_future();
 }
 
-vds::async_task<int> async_fib(int n)
+std::future<int> async_fib(int n)
 {
   if (n <= 2)
     co_return 1;

@@ -18,13 +18,13 @@ namespace vds {
   public:
     http_multipart_reader(
       const std::string & boundary,
-      const std::function<vds::async_task<void>(const http_message &message)> & message_callback)
+      const std::function<std::future<void>(const http_message &message)> & message_callback)
       : boundary_(boundary), message_callback_(message_callback), readed_(0), is_first_(true), eof_(false) {
     }
 
-    vds::async_task<void> process(
+    std::future<void> process(
       const service_provider & sp,
-      const std::shared_ptr<input_stream_async<uint8_t>> & input_stream)
+      const std::shared_ptr<stream_input_async<uint8_t>> & input_stream)
     {
       while(!this->eof_) {
         auto parser = std::make_shared<http_form_part_parser>(this->message_callback_);
@@ -34,7 +34,7 @@ namespace vds {
 
   private:
     const std::string boundary_;
-    std::function<vds::async_task<void>(const http_message &message)> message_callback_;
+    std::function<std::future<void>(const http_message &message)> message_callback_;
 
     uint8_t buffer_[1024];
     size_t readed_;
@@ -42,14 +42,14 @@ namespace vds {
     bool is_first_;
     bool eof_;
 
-    class part_reader : public input_stream_async<uint8_t> {
+    class part_reader : public stream_input_async<uint8_t> {
     public:
       part_reader(http_multipart_reader * owner)
       : owner_(owner){
         
       }
 
-      async_task<size_t> read_async(const service_provider& sp, uint8_t * buffer, size_t len) override {
+      std::future<size_t> read_async(const service_provider& sp, uint8_t * buffer, size_t len) override {
         for (;;) {
           while (0 < this->owner_->readed_) {
             std::string value((const char *)this->owner_->buffer_, this->owner_->readed_);
@@ -162,7 +162,7 @@ namespace vds {
       }
     private:
       http_multipart_reader * owner_;
-      std::shared_ptr<input_stream_async<uint8_t>> input_stream_;
+      std::shared_ptr<stream_input_async<uint8_t>> input_stream_;
     };
   };
 }

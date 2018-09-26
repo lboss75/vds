@@ -34,7 +34,7 @@ namespace vds {
           const std::shared_ptr<iudp_transport> & udp_transport,
           const uint16_t port);
         void stop(const service_provider&);
-        vds::async_task<void> prepare_to_stop(const service_provider& sp);
+        std::future<void> prepare_to_stop(const service_provider& sp);
 
       private:
         client client_;

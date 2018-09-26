@@ -31,7 +31,7 @@
 //  std::shared_ptr<std::exception> err;
 //
 //  vds::async_series(
-//    vds::create_vds::async_task(
+//    vds::create_std::future(
 //      [&data, stream](
 //        const std::function<void(const vds::service_provider & sp)> & done,
 //        const vds::error_handler & error,
@@ -44,7 +44,7 @@
 //        });
 //      }
 //    ),
-//    vds::create_vds::async_task(
+//    vds::create_std::future(
 //      [&data, stream](
 //        const std::function<void(const vds::service_provider & sp)> & done,
 //        const vds::error_handler & error,

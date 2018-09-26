@@ -91,8 +91,8 @@ namespace vds {
     virtual void register_services(service_registrator &) = 0;
     virtual void start(const service_provider &) = 0;
     virtual void stop(const service_provider &) = 0;
-    virtual vds::async_task<void> prepare_to_stop(const service_provider &) {
-      return vds::async_task<void>();
+    virtual std::future<void> prepare_to_stop(const service_provider &) {
+      co_return;
     }
   };
   

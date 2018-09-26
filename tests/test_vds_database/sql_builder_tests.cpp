@@ -16,22 +16,22 @@ vds::mock_database::~mock_database()
 {
 }
 
-vds::async_task<void> vds::mock_database::async_transaction(
+std::future<void> vds::mock_database::async_transaction(
   const service_provider & /*sp*/,
   const std::function<bool (vds::mock_database_transaction & t)> & callback)
 {
   mock_database_transaction t{ std::shared_ptr<_database>() };
   callback(t);
-  return vds::async_task<void>();
+  return std::future<void>();
 }
 
-vds::async_task<void>  vds::mock_database::async_read_transaction(
+std::future<void>  vds::mock_database::async_read_transaction(
   const service_provider & /*sp*/,
   const std::function<void(vds::mock_database_read_transaction & t)> & callback)
 {
   mock_database_read_transaction t{ std::shared_ptr<_database>() };
   callback(t);
-  return vds::async_task<void>();
+  return std::future<void>();
 }
 
 vds::mock_sql_statement::mock_sql_statement(_sql_statement * )

@@ -14,7 +14,7 @@ namespace vds {
   class async_loop_token {
   public:
     async_loop_token(
-        const vds::async_result<value_type> & result,
+        const std::promise<value_type> & result,
         const std::function<void (const async_loop_token<value_type> & token)> & callback)
     : result_(result), callback_(callback){
     }
@@ -33,13 +33,13 @@ namespace vds {
     }
 
   private:
-    vds::async_result<value_type> result_;
+    std::promise<value_type> result_;
     std::function<void (const async_loop_token<value_type> & token)> callback_;
   };
 
   template <typename value_type>
-  inline vds::async_task<value_type> async_loop(const std::function<void (const async_loop_token<value_type> & token)> & callback){
-    return [callback](const vds::async_result<value_type> & result){
+  inline std::future<value_type> async_loop(const std::function<void (const async_loop_token<value_type> & token)> & callback){
+    return [callback](const std::promise<value_type> & result){
       async_loop_token token(result, callback);
       token.continue_loop();
     };

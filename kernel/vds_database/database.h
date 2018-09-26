@@ -107,15 +107,15 @@ namespace vds {
     void open(const service_provider & sp, const filename & fn);
     void close();
 
-    vds::async_task<void> async_transaction(
+    std::future<void> async_transaction(
       const service_provider & sp,
       const std::function<bool(database_transaction & tr)> & callback);
 
-    vds::async_task<void> async_read_transaction(
+    std::future<void> async_read_transaction(
       const service_provider & sp,
       const std::function<void(database_read_transaction & tr)> & callback);
 
-    vds::async_task<void> prepare_to_stop(const service_provider &sp);
+    std::future<void> prepare_to_stop(const service_provider &sp);
 
   private:
     std::shared_ptr<_database> impl_;

@@ -74,7 +74,7 @@ void vds::dht::network::service::stop(const service_provider& sp) {
   this->client_.stop(sp);
 }
 
-vds::async_task<void> vds::dht::network::service::prepare_to_stop(const service_provider& /*sp*/) {
+std::future<void> vds::dht::network::service::prepare_to_stop(const service_provider& /*sp*/) {
   co_return;
 }
 

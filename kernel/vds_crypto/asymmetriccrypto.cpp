@@ -55,16 +55,17 @@ std::string vds::asymmetric_private_key::str(const std::string & password/* = st
   return this->impl_->str(password);
 }
 
-vds::const_data_buffer vds::asymmetric_private_key::der(const std::string &password) const
+vds::const_data_buffer vds::asymmetric_private_key::der(const service_provider & sp, const std::string &password) const
 {
-  return this->impl_->der(password);
+  return this->impl_->der(sp, password);
 }
 
 vds::asymmetric_private_key vds::asymmetric_private_key::parse_der(
+  const service_provider & sp,
   const const_data_buffer & value,
   const std::string & password /*= std::string()*/)
 {
-  return _asymmetric_private_key::parse_der(value, password);
+  return _asymmetric_private_key::parse_der(sp, value, password);
 }
 
 
@@ -151,7 +152,7 @@ std::string vds::_asymmetric_private_key::str(const std::string & password/* = s
   return result;
 }
 
-vds::const_data_buffer vds::_asymmetric_private_key::der(const std::string &password) const
+vds::const_data_buffer vds::_asymmetric_private_key::der(const service_provider & sp, const std::string &password) const
 {
   auto len = i2d_PrivateKey(this->key_, NULL);
 
@@ -167,7 +168,7 @@ vds::const_data_buffer vds::_asymmetric_private_key::der(const std::string &pass
     std::vector<uint8_t> buffer;
 
     auto key = symmetric_key::from_password(password);
-    auto result = symmetric_encrypt::encrypt(key, buf, len);
+    auto result = symmetric_encrypt::encrypt(sp, key, buf, len);
     
     OPENSSL_free(buf);
     return result;
@@ -181,12 +182,14 @@ vds::const_data_buffer vds::_asymmetric_private_key::der(const std::string &pass
 }
 
 vds::asymmetric_private_key vds::_asymmetric_private_key::parse_der(
+  const service_provider & sp,
   const const_data_buffer & value,
   const std::string & password /*= std::string()*/)
 {
   if(!password.empty()){
     auto skey = symmetric_key::from_password(password);
     auto buffer = symmetric_decrypt::decrypt(
+      sp,
       skey,
       value.data(),
       value.size());
@@ -276,21 +279,27 @@ const vds::asymmetric_crypto_info & vds::asymmetric_crypto::rsa4096()
 vds::asymmetric_sign::asymmetric_sign(
   const hash_info & hash_info,
   const asymmetric_private_key & key)
-: stream<uint8_t>(new _asymmetric_sign(hash_info, key))
+: impl_(new _asymmetric_sign(hash_info, key))
 {
+}
+
+vds::asymmetric_sign::~asymmetric_sign() {
+  delete this->impl_;
 }
 
 vds::const_data_buffer vds::asymmetric_sign::signature()
 {
-  return static_cast<_asymmetric_sign *>(this->impl_.get())->signature();
+  return this->impl_->signature();
 }
 
 vds::const_data_buffer vds::asymmetric_sign::signature(
+  const service_provider &sp,
   const hash_info & hash_info,
   const asymmetric_private_key & key,
   const const_data_buffer & data)
 {
   return signature(
+    sp,
     hash_info,
     key,
     data.data(),
@@ -298,15 +307,20 @@ vds::const_data_buffer vds::asymmetric_sign::signature(
 }
 
 vds::const_data_buffer vds::asymmetric_sign::signature(
+  const service_provider &sp,
   const vds::hash_info& hash_info,
   const vds::asymmetric_private_key& key,
   const void* data,
   size_t data_size)
 {
   _asymmetric_sign s(hash_info, key);
-  s.write(reinterpret_cast<const uint8_t *>(data), data_size);
-  s.write(nullptr, 0);
+  s.write_async(sp, reinterpret_cast<const uint8_t *>(data), data_size).get();
+  s.write_async(sp, nullptr, 0).get();
   return s.signature();
+}
+
+std::future<void> vds::asymmetric_sign::write_async(const service_provider& sp, const uint8_t* data, size_t len) {
+  return this->impl_->write_async(sp, data, len);
 }
 
 
@@ -346,8 +360,10 @@ vds::_asymmetric_sign::~_asymmetric_sign()
   }
 }
 
-void vds::_asymmetric_sign::write(const uint8_t * data, size_t data_size)
-{
+std::future<void> vds::_asymmetric_sign::write_async(
+  const service_provider &/*sp*/,
+  const uint8_t * data,
+  size_t data_size) {
 	if (0 == data_size) {
 		size_t req = 0;
 		if (1 != EVP_DigestSignFinal(this->ctx_, NULL, &req) || req <= 0) {
@@ -372,6 +388,8 @@ void vds::_asymmetric_sign::write(const uint8_t * data, size_t data_size)
     const auto error = ERR_get_error();
     throw crypto_exception("EVP_DigestInit_ex", error);
   }
+
+  co_return;
 }
 
 ///////////////////////////////////////////////////////////////
@@ -379,16 +397,19 @@ vds::asymmetric_sign_verify::asymmetric_sign_verify(
   const hash_info & hash_info,
   const asymmetric_public_key & key,
   const const_data_buffer & sig)
-: stream<uint8_t>(new _asymmetric_sign_verify(hash_info, key, sig))
-{
+: impl_(new _asymmetric_sign_verify(hash_info, key, sig)) {
 }
 
-bool vds::asymmetric_sign_verify::result() const
-{
-  return static_cast<_asymmetric_sign_verify *>(this->impl_.get())->result();
+vds::asymmetric_sign_verify::~asymmetric_sign_verify() {
+  delete this->impl_;  
+}
+
+bool vds::asymmetric_sign_verify::result() const {
+  return this->impl_->result();
 }
 
 bool vds::asymmetric_sign_verify::verify(
+  const service_provider &sp,
     const vds::hash_info &hash_info,
     const vds::asymmetric_public_key &key,
     const const_data_buffer &signature,
@@ -396,18 +417,24 @@ bool vds::asymmetric_sign_verify::verify(
     size_t data_size)
 {
   _asymmetric_sign_verify s(hash_info, key, signature);
-  s.write(reinterpret_cast<const uint8_t *>(data), data_size);
-  s.write(nullptr, 0);
+  s.write_async(sp, reinterpret_cast<const uint8_t *>(data), data_size).get();
+  s.write_async(sp, nullptr, 0).get();
   return s.result();
 }
 
 bool vds::asymmetric_sign_verify::verify(
+  const service_provider &sp,
     const hash_info &hash_info,
     const asymmetric_public_key &key,
     const const_data_buffer &signature,
     const const_data_buffer &data)
 {
-  return verify(hash_info, key, signature, data.data(), data.size());
+  return verify(sp, hash_info, key, signature, data.data(), data.size());
+}
+
+std::future<void> vds::asymmetric_sign_verify::
+write_async(const service_provider& sp, const uint8_t* data, size_t len) {
+  return this->impl_->write_async(sp, data, len);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -447,10 +474,10 @@ vds::_asymmetric_sign_verify::~_asymmetric_sign_verify()
   }
 }
 
-void vds::_asymmetric_sign_verify::write(
-  const uint8_t * data,
-  size_t len)
-{
+std::future<void> vds::_asymmetric_sign_verify::write_async(
+  const service_provider &/*sp*/,
+  const uint8_t *data,
+  size_t len) {
 	if (0 == len) {
 		this->result_ = (1 == EVP_DigestVerifyFinal(
         this->ctx_,
@@ -461,6 +488,8 @@ void vds::_asymmetric_sign_verify::write(
     auto error = ERR_get_error();
     throw crypto_exception("EVP_DigestInit_ex", error);
   }
+
+  co_return;
 }
 //////////////////////////////////////////////////////////////////////
 vds::asymmetric_public_key::asymmetric_public_key(_asymmetric_public_key * impl)

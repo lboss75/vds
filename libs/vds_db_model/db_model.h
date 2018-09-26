@@ -12,17 +12,17 @@ namespace vds {
 
   class db_model {
   public:
-    async_task<void> async_transaction(
+    std::future<void> async_transaction(
         const service_provider & sp,
         const std::function<void(class database_transaction & t)> & handler);
 
-		async_task<void> async_read_transaction(
+		std::future<void> async_read_transaction(
 				const service_provider & sp,
 				const std::function<void(class database_read_transaction & t)> & handler);
 
 	void start(const service_provider & sp);
 	void stop(const service_provider & sp);
-	vds::async_task<void> prepare_to_stop(const vds::service_provider &sp);
+	std::future<void> prepare_to_stop(const vds::service_provider &sp);
 
   private:
     database db_;

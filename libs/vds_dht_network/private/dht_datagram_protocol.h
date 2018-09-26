@@ -44,7 +44,7 @@ namespace vds {
           this->mtu_ = value;
         }
 
-        async_task<void> send_message(
+        std::future<void> send_message(
             const service_provider& sp,
             const std::shared_ptr<transport_type>& s,
             uint8_t message_type,
@@ -71,7 +71,7 @@ namespace vds {
             message);
         }
 
-        async_task<void> proxy_message(
+        std::future<void> proxy_message(
           const service_provider& sp,
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
@@ -101,7 +101,7 @@ namespace vds {
             message);
         }
 
-        vds::async_task<void> process_datagram(
+        std::future<void> process_datagram(
           const service_provider& scope,
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
@@ -241,7 +241,7 @@ namespace vds {
         uint32_t next_sequence_number_;
 
 
-        async_task<void> send_message_async(
+        std::future<void> send_message_async(
           const service_provider& sp,
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
@@ -386,7 +386,7 @@ namespace vds {
           }
         }
 
-        vds::async_task<void> continue_process_messages(
+        std::future<void> continue_process_messages(
           const service_provider& sp,
           const std::shared_ptr<transport_type>& s,
           std::unique_lock<std::mutex>& locker

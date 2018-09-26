@@ -24,7 +24,7 @@ vds::file_manager::file_operations::file_operations()
   : impl_(new file_manager_private::_file_operations()) {
 }
 
-vds::async_task<vds::file_manager::file_operations::download_result_t>
+std::future<vds::file_manager::file_operations::download_result_t>
 vds::file_manager::file_operations::download_file(
   const service_provider& sp,
   const std::shared_ptr<user_manager> & user_mng,
@@ -33,7 +33,7 @@ vds::file_manager::file_operations::download_file(
   return this->impl_->download_file(sp, user_mng, channel_id, target_file);
 }
 
-vds::async_task<vds::transactions::user_message_transaction::file_info_t>
+std::future<vds::transactions::user_message_transaction::file_info_t>
 vds::file_manager::file_operations::upload_file(
   const service_provider& sp,
   const std::shared_ptr<user_manager>& user_mng,
@@ -43,7 +43,7 @@ vds::file_manager::file_operations::upload_file(
   return this->impl_->upload_file(sp, user_mng, name, mime_type, input_stream);
 }
 
-vds::async_task<void> vds::file_manager::file_operations::create_message(const service_provider& sp,
+std::future<void> vds::file_manager::file_operations::create_message(const service_provider& sp,
   const std::shared_ptr<user_manager>& user_mng, const const_data_buffer& channel_id, const std::string& message,
   const std::list<transactions::user_message_transaction::file_info_t>& files) {
   return this->impl_->create_message(sp, user_mng, channel_id, message, files);
@@ -51,7 +51,7 @@ vds::async_task<void> vds::file_manager::file_operations::create_message(const s
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-vds::async_task<vds::transactions::user_message_transaction::file_info_t> vds::file_manager_private::_file_operations::upload_file(
+std::future<vds::transactions::user_message_transaction::file_info_t> vds::file_manager_private::_file_operations::upload_file(
   const service_provider& paren_sp,
   const std::shared_ptr<user_manager>& user_mng,
   const std::string & name,
@@ -69,7 +69,7 @@ vds::async_task<vds::transactions::user_message_transaction::file_info_t> vds::f
         file_info.file_blocks };
 }
 
-vds::async_task<vds::file_manager::file_operations::download_result_t> vds::file_manager_private::_file_operations::download_file(
+std::future<vds::file_manager::file_operations::download_result_t> vds::file_manager_private::_file_operations::download_file(
   const service_provider& parent_sp,
   const std::shared_ptr<user_manager> & user_mng,
   const const_data_buffer & channel_id,
@@ -108,7 +108,7 @@ vds::async_task<vds::file_manager::file_operations::download_result_t> vds::file
   co_return *result;
 }
 
-vds::async_task<void> vds::file_manager_private::_file_operations::create_message(const service_provider& parent_sp,
+std::future<void> vds::file_manager_private::_file_operations::create_message(const service_provider& parent_sp,
   const std::shared_ptr<user_manager>& user_mng,
   const const_data_buffer& channel_id,
   const std::string& message,
@@ -155,7 +155,7 @@ struct buffer_data : public std::enable_shared_from_this<buffer_data> {
   uint8_t buffer[vds::dht::network::service::BLOCK_SIZE];
 };
 
-vds::async_task<vds::file_manager_private::_file_operations::pack_file_result>
+std::future<vds::file_manager_private::_file_operations::pack_file_result>
 vds::file_manager_private::_file_operations::pack_file(
   const service_provider& sp,
   const std::shared_ptr<continuous_buffer<uint8_t>>& input_stream) const {
@@ -165,7 +165,7 @@ vds::file_manager_private::_file_operations::pack_file(
   co_return pack_file_result{ task->result_hash(), task->total_size(), file_blocks };
 }
 
-vds::async_task<void> vds::file_manager_private::_file_operations::download_stream(
+std::future<void> vds::file_manager_private::_file_operations::download_stream(
   const vds::service_provider &sp,
   const std::shared_ptr<vds::continuous_buffer<uint8_t>> &target_stream,
   const std::list<vds::transactions::user_message_transaction::file_block_t> &file_blocks) {
