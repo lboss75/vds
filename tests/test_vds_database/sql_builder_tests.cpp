@@ -22,7 +22,7 @@ std::future<void> vds::mock_database::async_transaction(
 {
   mock_database_transaction t{ std::shared_ptr<_database>() };
   callback(t);
-  return std::future<void>();
+  co_return;
 }
 
 std::future<void>  vds::mock_database::async_read_transaction(
@@ -31,7 +31,7 @@ std::future<void>  vds::mock_database::async_read_transaction(
 {
   mock_database_read_transaction t{ std::shared_ptr<_database>() };
   callback(t);
-  return std::future<void>();
+  co_return;
 }
 
 vds::mock_sql_statement::mock_sql_statement(_sql_statement * )

@@ -41,3 +41,7 @@ vds::const_data_buffer vds::deflate::compress(
 {
   return compress(sp, data.data(), data.size());
 }
+
+std::future<void> vds::deflate::write_async(const vds::service_provider &sp, const uint8_t *data, size_t len) {
+  return this->impl_->write_async(sp, data, len);
+}

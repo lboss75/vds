@@ -29,6 +29,11 @@ namespace vds {
       const service_provider & sp,
       const const_data_buffer & data);
 
+    std::future<void> write_async(
+        const service_provider &sp,
+        const uint8_t *data,
+        size_t len) override;
+
   private:
     _deflate_handler * impl_;
   };
