@@ -12,26 +12,25 @@ All rights reserved
 
 namespace vds {
 
-  class tcp_network_socket : public stream_output_async<uint8_t>
+  class tcp_network_socket : public std::enable_shared_from_this<tcp_network_socket>
   {
   public:
     tcp_network_socket();
 
-    static tcp_network_socket connect(
+    static std::shared_ptr<tcp_network_socket> connect(
       const service_provider & sp,
       const network_address & address);
 
-    std::shared_ptr<vds::stream_input_async<uint8_t>> start(
-        const service_provider & sp) const;
+    std::tuple<
+      std::shared_ptr<vds::stream_input_async<uint8_t>>,
+      std::shared_ptr<vds::stream_output_async<uint8_t>>> start(
+        const service_provider & sp);
 
     void close();
 
-    class _tcp_network_socket * operator ->() const;
-
-    std::future<void> write_async(
-        const service_provider &sp,
-        const item_type *data,
-        size_t len) override;
+    class _tcp_network_socket * operator ->() const {
+      return this->impl_;
+    }
 
   private:
     friend class _tcp_network_socket;

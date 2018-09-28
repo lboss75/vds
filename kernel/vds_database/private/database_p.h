@@ -316,7 +316,7 @@ namespace vds {
     }
 
     std::future<void> prepare_to_stop(const service_provider & sp){
-      return std::future<void>();
+      co_return;
     }
 
 

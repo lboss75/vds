@@ -41,7 +41,7 @@ namespace vds {
     std::future<void> start(
       const service_provider & sp,
       const network_address & address,
-      const std::function<std::future<void>(tcp_network_socket s)> & new_connection)
+      const std::function<std::future<void>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection)
     {
       imt_service::async_enabled_check(sp);
         
@@ -71,7 +71,7 @@ namespace vds {
           HANDLE events[2];
           events[0] = sp.get_shutdown_event().windows_handle();
           events[1] = this->accept_event_.handle();
-
+          std::list<std::future<void>> connections;
           for (;;) {
             auto result = WSAWaitForMultipleEvents(2, events, FALSE, INFINITE, FALSE);
             if ((WAIT_OBJECT_0 + 1) != result) {
@@ -91,11 +91,14 @@ namespace vds {
               auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
               if (INVALID_SOCKET != socket) {
                 sp.get<logger>()->trace("TCP", sp, "Connection from %s", network_service::to_string(client_address).c_str());
-                static_cast<_network_service *>(sp.get<inetwork_service>())->associate(socket);
+                (*sp.get<network_service>())->associate(socket);
                 auto s = _tcp_network_socket::from_handle(socket);
-                new_connection(std::move(s)).get();
+                connections.push_back(std::move(new_connection(s)));
               }
             }
+          }
+          for(auto & f : connections) {
+            f.get();
           }
         });
 #else
@@ -188,7 +191,7 @@ namespace vds {
                 }
               });
 #endif
-            return std::future<void>();
+            co_return;
     }
     
     void stop(const service_provider & sp)

@@ -9,17 +9,16 @@ All rights reserved
 #include "private/write_socket_task_p.h"
 
 vds::tcp_network_socket::tcp_network_socket()
-: stream_output_async<uint8_t>(new _tcp_network_socket())
+: impl_(new _tcp_network_socket())
 {
 }
 
-vds::tcp_network_socket::tcp_network_socket(
-    _tcp_network_socket * impl)
-: stream_output_async<uint8_t>(impl)
+vds::tcp_network_socket::tcp_network_socket(_tcp_network_socket * impl)
+: impl_(impl)
 {
 }
 
-vds::tcp_network_socket vds::tcp_network_socket::connect(
+std::shared_ptr<vds::tcp_network_socket> vds::tcp_network_socket::connect(
   const vds::service_provider& sp,
   const network_address & address)
 {
@@ -44,7 +43,7 @@ vds::tcp_network_socket vds::tcp_network_socket::connect(
         }
       }
 
-      static_cast<_network_service *>(sp.get<inetwork_service>())->associate(s->handle());
+      (*sp.get<network_service>())->associate(s->handle());
 #else
       // Connect 
       if (0 > ::connect(s->handle(), address, address.size())) {
@@ -55,18 +54,20 @@ vds::tcp_network_socket vds::tcp_network_socket::connect(
       s->set_timeouts();
 #endif
       
-      tcp_network_socket sc(s.release());
-      return sc;
+      return std::shared_ptr<tcp_network_socket>(new tcp_network_socket(s.release()));
 }
 
 
 void vds::tcp_network_socket::close()
 {
-  static_cast<_tcp_network_socket *>(this->impl_.get())->close();
+  this->impl_->close();
 }
 
-std::shared_ptr<vds::stream_input_async<uint8_t>> vds::tcp_network_socket::start(
-    const vds::service_provider &sp) const {
-  return static_cast<_tcp_network_socket *>(this->impl_.get())->start(sp);
+std::tuple<
+  std::shared_ptr<vds::stream_input_async<uint8_t>>,
+  std::shared_ptr<vds::stream_output_async<uint8_t>>> vds::tcp_network_socket::start(
+    const vds::service_provider &sp) {
+  auto pthis = this->shared_from_this();
+  return {std::make_shared< _read_socket_task>(pthis), std::make_shared< _write_socket_task>(pthis) };
 }
 

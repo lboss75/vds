@@ -23,7 +23,7 @@ namespace vds {
     class network_service;
     class _socket_task;
 
-    class _network_service : public inetwork_service
+    class _network_service
     {
     public:
         _network_service();

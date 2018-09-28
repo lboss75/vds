@@ -11,11 +11,6 @@ All rights reserved
 namespace vds {
     class _network_service;
 
-    class inetwork_service {
-    public:
-
-    };
-
     class network_service : public iservice_factory
     {
     public:
@@ -31,7 +26,11 @@ namespace vds {
       static std::string to_string(const struct sockaddr & from, size_t from_len);
       static std::string to_string(const struct sockaddr_in & from);
       static std::string get_ip_address_string(const sockaddr_in & from);
-        
+      
+      _network_service * operator -> () const {
+        return this->impl_;
+      }
+
     private:
       _network_service * const impl_;
     };

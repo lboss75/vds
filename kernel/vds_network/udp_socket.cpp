@@ -101,7 +101,7 @@ vds::udp_socket vds::udp_socket::create(
       throw std::system_error(error, std::system_category(), "set IPV6_V6ONLY=0");
     }
   }
-  static_cast<_network_service *>(sp.get<inetwork_service>())->associate(s);
+  (*sp.get<network_service>())->associate(s);
 #else
   auto s = socket(af, SOCK_DGRAM, IPPROTO_UDP);
   if (0 > s) {

@@ -46,29 +46,26 @@ namespace vds {
               break;
             }
           }
-          return std::future<void>();
+          co_return;
         }
         else {
           vds_assert(this->state_expectants_.end() == this->state_expectants_.find(expected_state));
           std::promise<void> result;
           auto f = result.get_future();
           this->state_expectants_[expected_state] = std::make_tuple(new_state, std::move(result));
-          return f;
+          co_return co_await f;
         }
     }
 
     std::future<void> wait(state_enum_type expected_state)
     {
       std::unique_lock<std::mutex> lock(this->state_mutex_);
-      if(expected_state == this->state_){
-        return std::future<void>();
-      }
-      else {
+      if(expected_state != this->state_){
         vds_assert(this->state_expectants_.end() == this->state_expectants_.find(expected_state));
         std::promise<void> result;
         auto ret = result.get_future();
         this->state_expectants_[expected_state] = std::make_tuple(expected_state, std::move(result));
-        return ret;
+        co_return co_await ret;
       }
     }
 

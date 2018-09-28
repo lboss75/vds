@@ -25,7 +25,7 @@ vds::network_service::~network_service()
 
 void vds::network_service::register_services(service_registrator & registator)
 {
-    registator.add_service<inetwork_service>(this->impl_);
+    registator.add_service<network_service>(this);
 }
 
 void vds::network_service::start(const service_provider & sp)
@@ -198,7 +198,7 @@ void vds::_network_service::stop(const service_provider & sp)
 
 std::future<void> vds::_network_service::prepare_to_stop(const service_provider &sp)
 {
-  return std::future<void>();
+  co_return;
   /*
   std::set<SOCKET_HANDLE> processed;
   
