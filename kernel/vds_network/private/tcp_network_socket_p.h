@@ -230,11 +230,17 @@ namespace vds {
 
     std::future<void> write_async(const service_provider &/*sp*/, const uint8_t * data, size_t len) override
     {
-      this->result_ = std::make_shared<std::promise<void>>();
+      if (0 == len) {
+        shutdown((*this->owner_)->handle(), SD_SEND);
+        co_return;
+      }
+
+      auto r = std::make_shared<std::promise<void>>();
+      this->result_ = r;
       this->pthis_ = this->shared_from_this();
       this->schedule(data, len);
 
-      return this->result_->get_future();
+      co_return co_await r->get_future();
     }
 
   private:
@@ -244,20 +250,14 @@ namespace vds {
 
     void schedule(const void * data, size_t len)
     {
-      if (0 == len) {
-        shutdown((*this->owner_)->handle(), SD_SEND);
-        this->result_->set_value();
-      }
-      else {
-        memset(&this->overlapped_, 0, sizeof(this->overlapped_));
-        this->wsa_buf_.buf = (CHAR *)data;
-        this->wsa_buf_.len = (ULONG)len;
+      memset(&this->overlapped_, 0, sizeof(this->overlapped_));
+      this->wsa_buf_.buf = (CHAR *)data;
+      this->wsa_buf_.len = (ULONG)len;
 
-        if (NOERROR != WSASend((*this->owner_)->handle(), &this->wsa_buf_, 1, NULL, 0, &this->overlapped_, NULL)) {
-          auto errorCode = WSAGetLastError();
-          if (WSA_IO_PENDING != errorCode) {
-            throw std::system_error(errorCode, std::system_category(), "WSASend failed");
-          }
+      if (NOERROR != WSASend((*this->owner_)->handle(), &this->wsa_buf_, 1, NULL, 0, &this->overlapped_, NULL)) {
+        auto errorCode = WSAGetLastError();
+        if (WSA_IO_PENDING != errorCode) {
+          throw std::system_error(errorCode, std::system_category(), "WSASend failed");
         }
       }
     }
@@ -268,22 +268,19 @@ namespace vds {
       auto pthis = this->pthis_;
       this->pthis_.reset();
 
-      try {
-        if (this->wsa_buf_.len == dwBytesTransfered) {
-          this->result_->set_value();
-        }
-        else {
-          this->schedule(this->wsa_buf_.buf + dwBytesTransfered, this->wsa_buf_.len - dwBytesTransfered);
-        }
+      if (this->wsa_buf_.len == dwBytesTransfered) {
+        auto r = std::move(this->result_);
+        r->set_value();
       }
-      catch (...) {
-        this->result_->set_exception(std::current_exception());
+      else {
+        this->schedule(this->wsa_buf_.buf + dwBytesTransfered, this->wsa_buf_.len - dwBytesTransfered);
       }
     }
 
     void error(DWORD error_code) override
     {
-      this->result_->set_exception(std::make_exception_ptr(std::system_error(error_code, std::system_category(), "write failed")));
+      auto r = std::move(this->result_);
+      r->set_exception(std::make_exception_ptr(std::system_error(error_code, std::system_category(), "write failed")));
     }
   };
 

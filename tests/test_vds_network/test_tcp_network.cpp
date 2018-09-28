@@ -25,9 +25,10 @@ std::future<void> copy_stream(
   for (;;) {
     auto readed = co_await reader->read_async(sp, buffer.get(), 1024);
     if (0 == readed) {
+      co_await writer->write_async(sp, nullptr, 0);
       co_return;
     }
-    writer->write_async(sp, buffer.get(), readed);
+    co_await writer->write_async(sp, buffer.get(), readed);
   }
 }
 
