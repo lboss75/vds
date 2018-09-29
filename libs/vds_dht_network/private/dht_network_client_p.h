@@ -44,8 +44,8 @@ namespace vds {
         _client(
           const service_provider& sp,
           const std::shared_ptr<iudp_transport> & udp_transport,
-          const certificate & node_cert,
-          const asymmetric_private_key & node_key);
+          const std::shared_ptr<certificate> & node_cert,
+          const std::shared_ptr<asymmetric_private_key> & node_key);
 
         void start(const service_provider& sp);
         void stop(const service_provider& sp);

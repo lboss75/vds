@@ -41,8 +41,8 @@ namespace vds {
       const_data_buffer save(
           const service_provider &sp,
           class vds::database_transaction &t,
-          const certificate &write_cert,
-          const asymmetric_private_key &write_private_key);
+          const std::shared_ptr<certificate> &write_cert,
+          const std::shared_ptr<asymmetric_private_key> &write_private_key);
 
       private:
         friend class _user_channel;

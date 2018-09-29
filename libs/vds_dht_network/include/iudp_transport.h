@@ -18,8 +18,8 @@ namespace vds {
       public:
         virtual void start(
           const service_provider& sp,
-          const certificate & node_cert,
-          const asymmetric_private_key & node_key,
+          const std::shared_ptr<certificate> & node_cert,
+          const std::shared_ptr<asymmetric_private_key> & node_key,
           uint16_t port) = 0;
 
         virtual void stop(const service_provider& sp) = 0;

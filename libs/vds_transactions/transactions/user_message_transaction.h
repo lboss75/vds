@@ -31,34 +31,19 @@ namespace vds {
         std::list<file_block_t> file_blocks;
       };
 
-      user_message_transaction(
-				const std::string &message,
-				const std::list<file_info_t> & files,
-        const std::string &json_attributes)
-					: message_(message),
-						files_(files),
-            json_attributes_(json_attributes){
-			}
+			std::string message;
+      std::list<file_info_t> files;
+      std::string json_attributes;
 
-      user_message_transaction(binary_deserializer & s);
-      void serialize(binary_serializer & s) const;
-
-			const std::string & message() const {
-				return message_;
-			}
-
-      const std::list<file_info_t> & files() const {
-        return files_;
+      template <typename  visitor_type>
+      void visit(visitor_type & v) {
+        v(
+          message,
+          files,
+          json_attributes
+        );
       }
 
-      const std::string & json_attributes() const {
-        return json_attributes_;
-      }
-
-    private:
-			std::string message_;
-      std::list<file_info_t> files_;
-      std::string json_attributes_;
     };
 	}
 inline vds::binary_serializer & operator << (
@@ -88,21 +73,6 @@ inline vds::binary_deserializer & operator >> (
   s >> data.name >> data.mime_type >> data.size >> data.file_id >> data.file_blocks;
   return s;
 }
-}
-
-
-inline vds::transactions::user_message_transaction::user_message_transaction(vds::binary_deserializer & s){
-        s
-						>> this->message_
-						>> this->files_
-						>> this->json_attributes_;
-      }
-
-inline void vds::transactions::user_message_transaction::serialize(vds::binary_serializer & s) const {
-        s
-						<< this->message_
-            << this->files_
-            << this->json_attributes_;
 }
 
 #endif //__VDS_FILE_MANAGER_FILE_ADD_TRANSACTION_H_

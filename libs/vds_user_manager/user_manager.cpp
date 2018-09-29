@@ -45,7 +45,7 @@ void vds::user_manager::load(
   const service_provider & sp,
   database_transaction & t,
   const std::string &user_credentials_key,
-  const asymmetric_private_key & user_private_key)
+  const std::shared_ptr<asymmetric_private_key> & user_private_key)
 {
 	if (nullptr != this->impl_.get()) {
 		throw std::runtime_error("Logic error");
@@ -245,7 +245,7 @@ vds::member_user vds::user_manager::get_current_user() const {
   return this->impl_->get_current_user();
 }
 
-const vds::asymmetric_private_key& vds::user_manager::get_current_user_private_key() const {
+const std::shared_ptr<vds::asymmetric_private_key> & vds::user_manager::get_current_user_private_key() const {
   return this->impl_->get_current_user_private_key();
 }
 
@@ -305,7 +305,7 @@ std::future<bool> vds::user_manager::approve_join_request(
 /////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
 		const std::string & user_credentials_key,
-    const asymmetric_private_key & user_private_key)
+    const std::shared_ptr<asymmetric_private_key> & user_private_key)
 		: user_credentials_key_(user_credentials_key),
       user_private_key_(user_private_key),
       login_state_(user_manager::login_state_t::waiting)

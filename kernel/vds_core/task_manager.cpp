@@ -70,11 +70,8 @@ void vds::timer::execute(const vds::service_provider& sp)
       sp.get<logger>()->trace("tm", sp, "Task finished by shuting down");
     }
   }
-  catch (const std::exception & ex) {
-    sp.unhandled_exception(std::make_shared<std::runtime_error>(ex.what()));
-  }
   catch (...) {
-    sp.unhandled_exception(std::make_shared<std::runtime_error>("Unexpected error"));
+    sp.unhandled_exception(std::current_exception());
   }
 }
 

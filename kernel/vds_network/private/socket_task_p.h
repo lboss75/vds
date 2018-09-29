@@ -143,7 +143,7 @@ namespace vds {
         this->network_service_->remove_association(this->sp_, this->s_);
       }
       else {
-        this->network_service_->associate(this->sp_, this->s_, this->shared_from_this(), this->event_masks_);
+        this->network_service_->associate(this->sp_, this->s_, this, this->event_masks_);
       }
     }
   };

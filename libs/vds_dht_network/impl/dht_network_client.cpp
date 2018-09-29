@@ -29,8 +29,8 @@ bool vds::dht::network::client::is_debug = false;
 vds::dht::network::_client::_client(
   const service_provider& sp,
   const std::shared_ptr<iudp_transport> & udp_transport,
-  const certificate & node_cert,
-  const asymmetric_private_key & node_key)
+  const std::shared_ptr<certificate> & node_cert,
+  const std::shared_ptr<asymmetric_private_key> & node_key)
   : route_(node_cert.fingerprint(hash::sha256())),
     update_timer_("DHT Network"),
     update_route_table_counter_(0),
@@ -720,8 +720,8 @@ void vds::dht::network::_client::find_nodes(
 
 void vds::dht::network::client::start(
   const service_provider& sp,
-  const certificate & node_cert,
-  const asymmetric_private_key & node_key,
+  const std::shared_ptr<certificate> & node_cert,
+  const std::shared_ptr<asymmetric_private_key> & node_key,
   const std::shared_ptr<iudp_transport> & udp_transport) {
   this->impl_.reset(new _client(sp, udp_transport, node_cert, node_key));
   this->impl_->start(sp);

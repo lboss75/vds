@@ -446,7 +446,7 @@ std::future<void> mock_server::prepare_to_stop(const vds::service_provider& sp) 
 void mock_transport::start(
   const vds::service_provider& sp,
   const vds::certificate& node_cert,
-  const vds::asymmetric_private_key& node_key,
+  const std::shared_ptr<vds::asymmetric_private_key> & node_key,
   uint16_t port) {
 
   this->node_id_ = node_cert.fingerprint();

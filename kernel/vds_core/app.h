@@ -177,7 +177,7 @@ namespace vds{
       sp.set_property<unhandled_exception_handler>(
         service_provider::property_scope::any_scope,
         new vds::unhandled_exception_handler(
-          [this](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          [this](const vds::service_provider & sp, const std::exception_ptr & ex) {
         static_cast<app_impl *>(this)->on_exception(sp, ex);
       }));
     }
@@ -195,9 +195,9 @@ namespace vds{
       }
     }
 
-    void on_exception(const service_provider & sp, const std::shared_ptr<std::exception> & ex)
+    void on_exception(const service_provider & sp, const std::exception_ptr & ex)
     {
-      sp.get<logger>()->error("VDS", sp, "Fatal error %s", ex->what());
+      sp.get<logger>()->error("VDS", sp, "Fatal error");
       sp.get<logger>()->flush();
 
       exit(1);
@@ -500,9 +500,9 @@ namespace vds{
     {
     }
     
-    void on_exception(const service_provider & sp, const std::shared_ptr<std::exception> & ex)
+    void on_exception(const service_provider & sp, const std::exception_ptr & ex)
     {
-      std::cerr << ex->what() << "\n";
+      std::cerr << "Fatal error\n";
       
       app_base<app_impl>::on_exception(sp, ex);
     }

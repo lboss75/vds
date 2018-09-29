@@ -15,17 +15,17 @@ namespace vds {
   public:
     _user_manager(
         const std::string &user_credentials_key,
-        const asymmetric_private_key & user_private_key);
+        const std::shared_ptr<asymmetric_private_key> & user_private_key);
 
     const std::string & user_credentials_key() const {
       return this->user_credentials_key_;
     }
 
-    const certificate &user_cert() const {
+    const std::shared_ptr<certificate> &user_cert() const {
       return this->user_cert_;
     }
 
-    const asymmetric_private_key &user_private_key() const {
+    const std::shared_ptr<asymmetric_private_key> &user_private_key() const {
       return this->user_private_key_;
     }
 
@@ -60,10 +60,10 @@ namespace vds {
       return p->second;
     }
 
-    void add_certificate(const certificate &cert);
+    void add_certificate(const std::shared_ptr<certificate> &cert);
     member_user get_current_user() const;
 
-    const asymmetric_private_key & get_current_user_private_key() const {
+    const std::shared_ptr<asymmetric_private_key> & get_current_user_private_key() const {
       return this->user_private_key_;
     }
 

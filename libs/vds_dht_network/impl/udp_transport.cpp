@@ -18,8 +18,8 @@ vds::dht::network::udp_transport::udp_transport() {
 
 void vds::dht::network::udp_transport::start(
   const service_provider& sp,
-  const certificate & node_cert,
-  const asymmetric_private_key & node_key,
+  const std::shared_ptr<certificate> & node_cert,
+  const std::shared_ptr<asymmetric_private_key> & node_key,
   uint16_t port) {
 
   this->this_node_id_ = node_cert.fingerprint(hash::sha256());

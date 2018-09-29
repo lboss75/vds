@@ -14,7 +14,7 @@ namespace vds {
   class _asymmetric_public_key;
   class _asymmetric_sign_verify;
 
-  class _asymmetric_private_key : public std::enable_shared_from_this<_asymmetric_private_key>
+  class _asymmetric_private_key
   {
   public:
     _asymmetric_private_key(EVP_PKEY * key);
@@ -26,9 +26,8 @@ namespace vds {
     static asymmetric_private_key parse(const std::string & value, const std::string & password = std::string());
     std::string str(const std::string & password = std::string()) const;
     
-    vds::const_data_buffer der(const service_provider & sp, const std::string &password) const;
+    vds::const_data_buffer der(const std::string &password) const;
     static asymmetric_private_key parse_der(
-      const service_provider & sp,
       const const_data_buffer & value,
 
       const std::string & password /*= std::string()*/);
@@ -83,7 +82,7 @@ namespace vds {
     EVP_PKEY * key_;
   };
 
-  class _asymmetric_public_key : public std::enable_shared_from_this<_asymmetric_public_key>
+  class _asymmetric_public_key
   {
   public:
     _asymmetric_public_key(EVP_PKEY * key);
@@ -201,7 +200,7 @@ namespace vds {
   // openssl req -new -key user.key -out user.csr
   // openssl x509 -req -days 730 -in user.csr -CA cacert.crt -CAkey cakey.pem -CAcreateserial -out user.crt
   
-  class _certificate : public std::enable_shared_from_this<_certificate>
+  class _certificate
   {
   public:
     _certificate(certificate && original);

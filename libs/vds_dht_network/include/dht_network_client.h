@@ -29,8 +29,8 @@ namespace vds {
 
         void start(
           const service_provider& sp,
-          const certificate & node_cert,
-          const asymmetric_private_key & node_key,
+          const std::shared_ptr<certificate> & node_cert,
+          const std::shared_ptr<asymmetric_private_key> & node_key,
           const std::shared_ptr<iudp_transport> & udp_transport);
 
         void stop(const service_provider& sp);

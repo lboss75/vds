@@ -156,15 +156,14 @@ vds::symmetric_encrypt::~symmetric_encrypt() {
 }
 
 vds::const_data_buffer vds::symmetric_encrypt::encrypt(
-  const service_provider & sp,
   const vds::symmetric_key& key,
   const void * input_buffer,
   size_t input_buffer_size) {
   auto result = std::make_shared<collect_data<uint8_t>>();
 
   _symmetric_encrypt s(key, result);
-  s.write_async(sp, (const uint8_t *)input_buffer, input_buffer_size).get();
-  s.write_async(sp, nullptr, 0).get();
+  s.write_async(*(service_provider *)nullptr, (const uint8_t *)input_buffer, input_buffer_size).get();
+  s.write_async(*(service_provider *)nullptr, nullptr, 0).get();
 
   return result->move_data();
 }
@@ -198,16 +197,15 @@ vds::symmetric_decrypt::~symmetric_decrypt() {
 }
 
 vds::const_data_buffer vds::symmetric_decrypt::decrypt(
-  const service_provider & sp,
   const symmetric_key & key,
   const void * input_buffer,
   size_t input_buffer_size)
 {
   auto result = std::make_shared<collect_data<uint8_t>>();
-
+   
   _symmetric_decrypt s(key, result);
-  s.write_async(sp, (const uint8_t *)input_buffer, input_buffer_size).get();
-  s.write_async(sp, nullptr, 0).get();
+  s.write_async(*(service_provider *)nullptr, (const uint8_t *)input_buffer, input_buffer_size).get();
+  s.write_async(*(service_provider *)nullptr, nullptr, 0).get();
 
   return result->move_data();
 }

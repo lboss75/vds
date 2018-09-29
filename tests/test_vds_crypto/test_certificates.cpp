@@ -218,7 +218,7 @@ TEST(test_certificates, test_der)
       );
 
       ca_certificate_text = ca.der();
-      ca_private_key = ca_certificate_private_key.der(sp, der_password);
+      ca_private_key = ca_certificate_private_key.der(der_password);
     }
 
     //Generate sub certificate
@@ -226,7 +226,7 @@ TEST(test_certificates, test_der)
     vds::const_data_buffer sub_private_key;
     
     {
-      auto ca_certificate_private_key = vds::asymmetric_private_key::parse_der(sp, ca_private_key, der_password);
+      auto ca_certificate_private_key = vds::asymmetric_private_key::parse_der(ca_private_key, der_password);
       
       vds::certificate ca = vds::certificate::parse_der(ca_certificate_text);
 
@@ -249,13 +249,13 @@ TEST(test_certificates, test_der)
       );
 
       sub_certificate_text = sub_certificate.der();
-      sub_private_key = sub_certificate_private_key.der(sp, der_password);
+      sub_private_key = sub_certificate_private_key.der(der_password);
     }
     //Generate sub certificate
     vds::const_data_buffer caudal_certificate_text;
     std::string caudal_private_key;
     
-    auto sub_certificate_private_key = vds::asymmetric_private_key::parse_der(sp, sub_private_key, der_password);
+    auto sub_certificate_private_key = vds::asymmetric_private_key::parse_der(sub_private_key, der_password);
     {
       vds::certificate sub_certificate = vds::certificate::parse_der(sub_certificate_text);
 

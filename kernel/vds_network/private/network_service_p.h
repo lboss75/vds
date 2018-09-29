@@ -63,7 +63,6 @@ namespace vds {
         friend class _read_socket_task;
         friend class _write_socket_task;
         
-        std::map<SOCKET_HANDLE, std::shared_ptr<_socket_task>> tasks_;
         std::mutex tasks_mutex_;
         std::condition_variable tasks_cond_;
 
@@ -72,7 +71,8 @@ namespace vds {
         void thread_loop(const service_provider & provider);
         std::list<std::thread *> work_threads_;
 #else
-      int epoll_set_;
+        std::map<SOCKET_HANDLE, std::shared_ptr<_socket_task>> tasks_;
+        int epoll_set_;
       std::thread epoll_thread_;
 #endif//_WIN32
     };

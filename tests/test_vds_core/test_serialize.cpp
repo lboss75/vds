@@ -51,3 +51,27 @@ TEST(core_tests, test_serialize) {
     p->deserialize(ds);
   }
 }
+
+
+/////////////////////////////////////////////////////////////////////
+class message {
+public:
+
+  uint32_t field1;
+  std::string field2;
+
+  template <typename visitor_t>
+  void visit(visitor_t & v) {
+    v(field1, field2);
+  }
+};
+
+
+TEST(core_tests, test_message_serialize) {
+  auto data = vds::message_serialize<message>(10, "test");
+  vds::binary_deserializer d(data);
+  auto m1 = vds::message_deserialize<message>(d);
+
+  GTEST_ASSERT_EQ(m1.field1, 10);
+  GTEST_ASSERT_EQ(m1.field2, "test");
+}

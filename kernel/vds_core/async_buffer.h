@@ -35,18 +35,18 @@ namespace vds {
     std::future<void> write_value_async(const item_type & data)
     {
       auto p = std::make_shared<item_type>(data);
-      return this->write_async(p.get(), 1).then([p]() {});
+      co_await this->write_async(p.get(), 1);
     }
     
     std::future<size_t /*readed*/> read_async(item_type * buffer, size_t buffer_size)
     {
-      return static_cast<_continuous_buffer *>(this->impl_.get())->read_async(buffer, buffer_size);
+      co_return co_await this->impl_->read_async(buffer, buffer_size);
     }
 
     std::future<const_data_buffer> read_all()
     {
       auto buffer = std::make_shared<std::tuple<resizable_data_buffer, item_type [1024]>>();
-      return static_cast<_continuous_buffer *>(this->impl_.get())->read_all(buffer);
+      co_return co_await this->impl_->read_all(buffer);
     }
 
     void reset()

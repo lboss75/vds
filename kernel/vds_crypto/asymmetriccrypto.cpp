@@ -13,12 +13,14 @@ All rights reserved
 
 ///////////////////////////////////////////////////////////////////////
 vds::asymmetric_private_key::asymmetric_private_key()
+  : impl_(nullptr)
 {
 }
 
-vds::asymmetric_private_key::asymmetric_private_key(const asymmetric_private_key & original)
+vds::asymmetric_private_key::asymmetric_private_key(asymmetric_private_key && original)
   : impl_(original.impl_)
 {
+  original.impl_ = nullptr;
 }
 
 vds::asymmetric_private_key::asymmetric_private_key(
@@ -34,6 +36,7 @@ vds::asymmetric_private_key::asymmetric_private_key(_asymmetric_private_key * im
 
 vds::asymmetric_private_key::~asymmetric_private_key()
 {
+  delete this->impl_;
 }
 
 vds::asymmetric_private_key vds::asymmetric_private_key::generate(const asymmetric_crypto_info & info)
@@ -55,17 +58,16 @@ std::string vds::asymmetric_private_key::str(const std::string & password/* = st
   return this->impl_->str(password);
 }
 
-vds::const_data_buffer vds::asymmetric_private_key::der(const service_provider & sp, const std::string &password) const
+vds::const_data_buffer vds::asymmetric_private_key::der(const std::string &password) const
 {
-  return this->impl_->der(sp, password);
+  return this->impl_->der(password);
 }
 
 vds::asymmetric_private_key vds::asymmetric_private_key::parse_der(
-  const service_provider & sp,
   const const_data_buffer & value,
   const std::string & password /*= std::string()*/)
 {
-  return _asymmetric_private_key::parse_der(sp, value, password);
+  return _asymmetric_private_key::parse_der(value, password);
 }
 
 
@@ -82,6 +84,12 @@ void vds::asymmetric_private_key::save(const filename & filename, const std::str
 vds::const_data_buffer vds::asymmetric_private_key::decrypt(const void * data, size_t size) const
 {
   return this->impl_->decrypt(data, size);
+}
+
+vds::asymmetric_private_key& vds::asymmetric_private_key::operator=(asymmetric_private_key&& original) {
+  this->impl_ = original.impl_;
+  original.impl_ = nullptr;
+  return *this;
 }
 
 vds::const_data_buffer vds::asymmetric_private_key::decrypt(const const_data_buffer & data) const
@@ -152,7 +160,7 @@ std::string vds::_asymmetric_private_key::str(const std::string & password/* = s
   return result;
 }
 
-vds::const_data_buffer vds::_asymmetric_private_key::der(const service_provider & sp, const std::string &password) const
+vds::const_data_buffer vds::_asymmetric_private_key::der(const std::string &password) const
 {
   auto len = i2d_PrivateKey(this->key_, NULL);
 
@@ -168,7 +176,7 @@ vds::const_data_buffer vds::_asymmetric_private_key::der(const service_provider 
     std::vector<uint8_t> buffer;
 
     auto key = symmetric_key::from_password(password);
-    auto result = symmetric_encrypt::encrypt(sp, key, buf, len);
+    auto result = symmetric_encrypt::encrypt(key, buf, len);
     
     OPENSSL_free(buf);
     return result;
@@ -182,14 +190,12 @@ vds::const_data_buffer vds::_asymmetric_private_key::der(const service_provider 
 }
 
 vds::asymmetric_private_key vds::_asymmetric_private_key::parse_der(
-  const service_provider & sp,
   const const_data_buffer & value,
   const std::string & password /*= std::string()*/)
 {
   if(!password.empty()){
     auto skey = symmetric_key::from_password(password);
     auto buffer = symmetric_decrypt::decrypt(
-      sp,
       skey,
       value.data(),
       value.size());
@@ -293,13 +299,11 @@ vds::const_data_buffer vds::asymmetric_sign::signature()
 }
 
 vds::const_data_buffer vds::asymmetric_sign::signature(
-  const service_provider &sp,
   const hash_info & hash_info,
   const asymmetric_private_key & key,
   const const_data_buffer & data)
 {
   return signature(
-    sp,
     hash_info,
     key,
     data.data(),
@@ -307,15 +311,14 @@ vds::const_data_buffer vds::asymmetric_sign::signature(
 }
 
 vds::const_data_buffer vds::asymmetric_sign::signature(
-  const service_provider &sp,
   const vds::hash_info& hash_info,
-  const vds::asymmetric_private_key& key,
+  const vds::asymmetric_private_key & key,
   const void* data,
   size_t data_size)
 {
   _asymmetric_sign s(hash_info, key);
-  s.write_async(sp, reinterpret_cast<const uint8_t *>(data), data_size).get();
-  s.write_async(sp, nullptr, 0).get();
+  s.write_async(*(service_provider *)nullptr, reinterpret_cast<const uint8_t *>(data), data_size).get();
+  s.write_async(*(service_provider *)nullptr, nullptr, 0).get();
   return s.signature();
 }
 
@@ -682,13 +685,15 @@ vds::certificate::certificate(_certificate * impl)
 {
 }
 
-vds::certificate::certificate(const certificate & original)
+vds::certificate::certificate(certificate && original)
   : impl_(original.impl_)
 {
+  original.impl_ = nullptr;
 }
 
 vds::certificate::~certificate()
 {
+  delete this->impl_;
 }
 
 vds::certificate vds::certificate::parse(const std::string & value)
@@ -791,9 +796,10 @@ vds::certificate_extension vds::certificate::get_extension(int index) const
   return this->impl_->get_extension(index);
 }
 
-vds::certificate & vds::certificate::operator = (const certificate & original)
+vds::certificate & vds::certificate::operator = (certificate && original)
 {
   this->impl_ = original.impl_;
+  original.impl_ = nullptr;
   return *this;
 }
 

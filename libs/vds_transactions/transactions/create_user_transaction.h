@@ -21,9 +21,9 @@ namespace vds {
 
       create_user_transaction(
           const std::string & user_credentials_key,
-          const certificate &user_cert,
+          const std::shared_ptr<certificate> &user_cert,
           const std::string &user_name,
-          const certificate &parent_cert)
+          const std::shared_ptr<certificate> &parent_cert)
         : user_credentials_key_(user_credentials_key),
           user_cert_(user_cert),
           user_name_(user_name),
@@ -31,7 +31,7 @@ namespace vds {
       }
 
       const std::string & user_credentials_key() const { return this->user_credentials_key_; }
-      const certificate & user_cert() const { return this->user_cert_; }
+      const std::shared_ptr<certificate> & user_cert() const { return this->user_cert_; }
       const std::string & user_name() const { return this->user_name_; }
       const std::string & parent_cert() const { return this->parent_cert_; }
 

@@ -18,8 +18,8 @@ All rights reserved
 vds::const_data_buffer vds::transactions::transaction_block_builder::save(
   const service_provider &sp,
   class vds::database_transaction &t,
-  const certificate &write_cert,
-  const asymmetric_private_key &write_private_key) {
+  const std::shared_ptr<certificate> &write_cert,
+  const std::shared_ptr<asymmetric_private_key> &write_private_key) {
   vds_assert(0 != this->data_.size());
   binary_serializer block_data;
   block_data

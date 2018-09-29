@@ -37,7 +37,7 @@ namespace vds {
       const service_provider & sp,
       class database_transaction &t,
       const std::string &user_credentials_key,
-      const asymmetric_private_key & user_private_key);
+      const std::shared_ptr<asymmetric_private_key> & user_private_key);
 
     std::future<vds::user_channel> create_channel(
       const service_provider &sp,
@@ -100,10 +100,10 @@ namespace vds {
         const service_provider & sp,
         const std::list<certificate> &cert_chain);
 
-    void save_certificate(const service_provider &sp, database_transaction &t, const certificate &cert);
+    void save_certificate(const service_provider &sp, database_transaction &t, const std::shared_ptr<certificate> &cert);
 
     member_user get_current_user() const;
-    const asymmetric_private_key & get_current_user_private_key() const;
+    const std::shared_ptr<asymmetric_private_key> & get_current_user_private_key() const;
     const std::string & user_name() const;
 
     static std::future<const_data_buffer> create_register_request(
@@ -125,7 +125,7 @@ namespace vds {
   private:
     std::shared_ptr<_user_manager> impl_;
 
-    std::future<void> save_certificate(const service_provider &sp, const certificate &cert);
+    std::future<void> save_certificate(const service_provider &sp, const std::shared_ptr<certificate> &cert);
   };
 }
 

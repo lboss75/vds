@@ -12,8 +12,8 @@ namespace vds {
   public:
     device_info(
         const std::string &id,
-        const certificate &cert,
-        const asymmetric_private_key &cert_key,
+        const std::shared_ptr<certificate> &cert,
+        const std::shared_ptr<asymmetric_private_key> &cert_key,
         const std::string &name,
         uint64_t reserved_size,
         uint64_t free_size)
@@ -27,11 +27,11 @@ namespace vds {
       return id_;
     }
 
-    const certificate & cert() const {
+    const std::shared_ptr<certificate> & cert() const {
       return cert_;
     }
 
-    const asymmetric_private_key & cert_key() const {
+    const std::shared_ptr<asymmetric_private_key> & cert_key() const {
       return cert_key_;
     }
 

@@ -191,6 +191,129 @@ namespace vds {
     const uint8_t * data_;
     size_t len_;
   };
+  /////////////////////////////////////////////////////////////////////////
+  // Helpers
+  /////////////////////////////////////////////////////////////////////////
+  template <typename... field_init_types>
+  class _message_init_visitor;
+
+  template <typename field_init_type>
+  class _message_init_visitor<field_init_type> {
+  public:
+    _message_init_visitor(field_init_type && v)
+      : v_(std::forward<field_init_type>(v)) {
+    }
+
+    template <typename field_type>
+    void operator ()(field_type & field) {
+      field = this->v_;
+    }
+
+  private:
+    field_init_type v_;
+  };
+
+  template <typename first_field_init_type, typename... rest_fields_init_types>
+  class _message_init_visitor<first_field_init_type, rest_fields_init_types...> : public _message_init_visitor<rest_fields_init_types...> {
+    using base_class = _message_init_visitor<rest_fields_init_types...>;
+  public:
+    _message_init_visitor(first_field_init_type && v, rest_fields_init_types &&... values)
+      : base_class(std::forward<rest_fields_init_types>(values)...), v_(v) {
+    }
+
+    template <typename first_field_type, typename... rest_field_types>
+    void operator ()(first_field_type & first_field, rest_field_types &... rest_fields) {
+      first_field = this->v_;
+      base_class::operator()(rest_fields...);
+    }
+
+  private:
+    first_field_init_type v_;
+  };
+
+  /////////////////////////////////////////////////////////////////////
+  class _serialize_visitor {
+  public:
+    _serialize_visitor(vds::binary_serializer & b)
+      : b_(b) {
+
+    }
+
+    template <typename... field_types>
+    void operator ()(field_types & ... fields) {
+      serialize<field_types...>(fields...);
+    }
+
+  private:
+    vds::binary_serializer & b_;
+
+    template <typename field_type>
+    void serialize(field_type & field) {
+      this->b_ << field;
+    }
+
+    template <typename first_field_type, typename... rest_fields_types>
+    void serialize(first_field_type & first_field, rest_fields_types &... rest_fields) {
+      this->b_ << first_field;
+      serialize<rest_fields_types...>(rest_fields...);
+    }
+  };
+
+  class _deserialize_visitor {
+  public:
+    _deserialize_visitor(vds::binary_deserializer & b)
+      : b_(b) {
+    }
+
+    template <typename... field_types>
+    void operator ()(field_types &... fields) {
+      deserialize<field_types...>(fields...);
+    }
+
+  private:
+    vds::binary_deserializer & b_;
+
+    template <typename field_type>
+    void deserialize(field_type & field) {
+      this->b_ >> field;
+    }
+
+    template <typename first_field_type, typename... rest_fields_types>
+    void deserialize(first_field_type & first_field, rest_fields_types & ... rest_fields) {
+      this->b_ >> first_field;
+      deserialize<rest_fields_types...>(rest_fields...);
+    }
+  };
+
+  template<typename message_type, typename... init_field_types>
+  inline message_type message_create(init_field_types &&... init_field_values)
+  {
+    message_type message;
+    message.visit(_message_init_visitor<init_field_types...>(std::forward<init_field_types>(init_field_values)...));
+
+    return message;
+  }
+
+  template<typename message_type, typename... init_field_types>
+  inline const_data_buffer message_serialize(init_field_types &&... init_field_values)
+  {
+    message_type message;
+    message.visit(_message_init_visitor<init_field_types...>(std::forward<init_field_types>(init_field_values)...));
+
+    vds::binary_serializer b;
+    message.visit(_serialize_visitor(b));
+
+    return b.move_data();
+  }
+
+  template<typename message_type>
+  inline message_type message_deserialize(vds::binary_deserializer & d)
+  {
+    message_type message;
+    message.visit(_deserialize_visitor(d));
+    return message;
+  }
+
 }
 
 #endif // __VDS_CORE_BINARY_SERIALIZE_H_
