@@ -151,7 +151,6 @@ namespace vds {
     bool result() const;
     
     static bool verify(
-      const service_provider &sp,
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & signature,
@@ -159,7 +158,6 @@ namespace vds {
       size_t data_size);
 
     static bool verify(
-      const service_provider &sp,
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & signature,

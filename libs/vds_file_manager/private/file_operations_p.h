@@ -23,13 +23,14 @@ namespace vds {
           const std::shared_ptr<user_manager> & user_mng,
           const std::string & name,
           const std::string & mime_type,
-					const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
+					const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
 	    std::future<file_manager::file_operations::download_result_t> download_file(
 					const service_provider &sp,
           const std::shared_ptr<user_manager> & user_mng,
           const const_data_buffer & channel_id,
-          const const_data_buffer & target_file);
+          const const_data_buffer & target_file,
+          const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
       std::future<void> create_message(
         const service_provider& sp,
@@ -54,7 +55,7 @@ namespace vds {
 
       std::future<pack_file_result> pack_file(
           const service_provider &sp,
-          const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) const;
+          const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) const;
 
 //			void restore_chunk(
 //					const service_provider& sp,
@@ -64,7 +65,7 @@ namespace vds {
 
       std::future<void> download_stream(
           const service_provider& sp,
-          const std::shared_ptr<continuous_buffer<uint8_t>> & target_stream,
+          const std::shared_ptr<stream_output_async<uint8_t>> & target_stream,
           const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);
 		};
   }

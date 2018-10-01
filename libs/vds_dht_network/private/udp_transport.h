@@ -47,9 +47,12 @@ namespace vds {
 
       private:
         const_data_buffer this_node_id_;
-        certificate node_cert_;
-        asymmetric_private_key node_key_;
+        std::shared_ptr<certificate> node_cert_;
+        std::shared_ptr<asymmetric_private_key> node_key_;
         udp_server server_;
+
+        std::shared_ptr<vds::udp_datagram_reader> reader_;
+        std::shared_ptr<vds::udp_datagram_writer> writer_;
 
 #ifdef _DEBUG
 #ifndef _WIN32

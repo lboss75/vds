@@ -47,7 +47,8 @@ namespace vds {
       const std::shared_ptr<user_manager>& user_mng,
       const std::shared_ptr<_web_server>& owner,
       const const_data_buffer& channel_id,
-      const const_data_buffer& file_hash);
+      const const_data_buffer& file_hash,
+      const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
     static std::future<std::shared_ptr<vds::json_value>>
     user_devices(const service_provider &sp, const std::shared_ptr<user_manager> &user_mng,

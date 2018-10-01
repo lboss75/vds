@@ -70,15 +70,15 @@ bool vds::transactions::transaction_log::save(
   }
 
   const auto root_cert = cert_control::get_root_certificate();
-  certificate write_cert;
-  if (block.ancestors().empty() || block.write_cert_id() == root_cert.subject()) {
+  std::shared_ptr<certificate> write_cert;
+  if (block.ancestors().empty() || block.write_cert_id() == root_cert->subject()) {
     write_cert = root_cert;
   }
   else {
     orm::certificate_chain_dbo t2;
     auto st = t.get_reader(t2.select(t2.cert).where(t2.id == block.write_cert_id()));
     if (st.execute()) {
-      write_cert = certificate::parse_der(t2.cert.get(st));
+      write_cert = std::make_shared<certificate>(certificate::parse_der(t2.cert.get(st)));
     }
     else {
       sp.get<logger>()->warning(
@@ -91,7 +91,7 @@ bool vds::transactions::transaction_log::save(
     }
   }
 
-  if(!block.validate(write_cert)){
+  if(!block.validate(*write_cert)){
     sp.get<logger>()->warning(
         ThisModule,
         sp,
@@ -112,7 +112,7 @@ bool vds::transactions::transaction_log::save(
     update_consensus(t, block, block.write_cert_id());
 
     if(block.ancestors().empty()) {//Root
-        transaction_record_state state(block.id(), cert_control::get_root_certificate().subject());
+        transaction_record_state state(block.id(), cert_control::get_root_certificate()->subject());
         t.execute(
             t1.insert(
                 t1.id = block.id(),

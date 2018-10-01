@@ -26,13 +26,13 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
     << transaction_block::CURRENT_VERSION
     << static_cast<uint64_t>(std::chrono::system_clock::to_time_t(this->time_point_))
     << (this->ancestors_.empty() ? 1 : this->balance_.order_no())
-    << write_cert.subject()
+    << write_cert->subject()
     << this->ancestors_
     << this->data_.move_data();
 
   block_data << asymmetric_sign::signature(
     hash::sha256(),
-    write_private_key,
+    *write_private_key,
     block_data.get_buffer(),
     block_data.size());
 
@@ -44,7 +44,7 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
     transaction_block block(data);
     block.walk_messages(
       [this, id](const root_user_transaction & message)->bool{
-      this->balance_ = data_coin_balance(id, message.user_cert().subject());
+      this->balance_ = data_coin_balance(id, message.user_cert->subject());
       return true;
     });
 
@@ -82,17 +82,17 @@ vds::transactions::transaction_block_builder::transaction_block_builder(
 
 void vds::transactions::transaction_block_builder::add(const root_user_transaction& item) {
   this->data_ << (uint8_t)root_user_transaction::message_id;
-  item.serialize(this->data_);
+  const_cast<root_user_transaction &>(item).visit(_serialize_visitor(this->data_));
 }
 
 void vds::transactions::transaction_block_builder::add(const create_user_transaction& item) {
   this->data_ << (uint8_t)create_user_transaction::message_id;
-  item.serialize(this->data_);
+  const_cast<create_user_transaction &>(item).visit(_serialize_visitor(this->data_));
 }
 
 void vds::transactions::transaction_block_builder::add(const payment_transaction& item) {
   this->data_ << (uint8_t)payment_transaction::message_id;
-  item.serialize(this->data_);
+  const_cast<payment_transaction &>(item).visit(_serialize_visitor(this->data_));
 }
 
 void vds::transactions::transaction_block_builder::add(

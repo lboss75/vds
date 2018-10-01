@@ -31,7 +31,7 @@ vds::dht::network::_client::_client(
   const std::shared_ptr<iudp_transport> & udp_transport,
   const std::shared_ptr<certificate> & node_cert,
   const std::shared_ptr<asymmetric_private_key> & node_key)
-  : route_(node_cert.fingerprint(hash::sha256())),
+  : route_(node_cert->fingerprint(hash::sha256())),
     update_timer_("DHT Network"),
     update_route_table_counter_(0),
     udp_transport_(udp_transport){
@@ -766,7 +766,7 @@ vds::dht::network::client::chunk_info vds::dht::network::client::save(
     key_data2.data(),
     pack_block_iv);
 
-  auto zipped = deflate::compress(data);
+  auto zipped = deflate::compress(sp, data);
 
   auto crypted_data = symmetric_encrypt::encrypt(key2, zipped);
   return chunk_info
@@ -794,7 +794,7 @@ std::future<vds::const_data_buffer> vds::dht::network::client::restore(
     pack_block_iv);
 
   auto zipped = symmetric_decrypt::decrypt(key2, *result);
-  auto original_data = inflate::decompress(zipped.data(), zipped.size());
+  auto original_data = inflate::decompress(sp, zipped.data(), zipped.size());
 
   vds_assert(block_id.id == hash::signature(hash::sha256(), original_data));
 

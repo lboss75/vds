@@ -126,7 +126,7 @@ vds::member_user vds::_member_user::create_root_user(
   const std::string& root_password,
   const std::shared_ptr<vds::asymmetric_private_key> & root_private_key) {
 
-  const auto root_user_cert = std::make_shared<certificate>(cert_control::get_root_certificate());
+  const auto root_user_cert = cert_control::get_root_certificate();
 
   playback.add(
     message_create<transactions::root_user_transaction>(

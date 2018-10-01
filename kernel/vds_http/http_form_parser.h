@@ -24,13 +24,13 @@ namespace vds {
         std::string name;
         std::string file_name;
         std::string mimetype;
-        std::shared_ptr<continuous_buffer<uint8_t>> stream;
+        std::shared_ptr<stream_input_async<uint8_t>> stream;
       };
       //To override
-//      void on_field(const simple_field_info & field) {
+//      void on_field(const vds::service_provider & sp, const simple_field_info & field) {
 //      }
 //
-//      std::future<void> on_file(const file_info & file) {
+//      std::future<void> on_file(const vds::service_provider & sp, const file_info & file) {
 //      }
 
       std::future<void> parse(
@@ -83,7 +83,7 @@ namespace vds {
             boundary.erase(0, sizeof(boundary_prefix) - 1);
 
             auto task = std::make_shared<_form_parser>(this->shared_from_this());
-            auto reader = std::make_shared<http_multipart_reader>(sp, "--" + boundary, [sp, task](const http_message& part)->std::future<void> {
+            auto reader = std::make_shared<http_multipart_reader>("--" + boundary, [sp, task](const http_message& part)->std::future<void> {
               return task->read_part(sp, part);
             });
 
@@ -154,11 +154,11 @@ namespace vds {
 
               std::string content_type;
               if (part.get_header("Content-Type", content_type)) {
-                const auto stream = std::make_shared<continuous_buffer<uint8_t>>(sp);
                 co_await
                 static_cast<implementation_class *>(this->owner_.get())->on_file(
-                    file_info{name, fname->second, content_type, stream});
-                co_await this->read_file(sp, stream, part);
+                    sp,
+                    file_info{name, fname->second, content_type, part.body() });
+
                 //if("application/x-zip-compressed" == content_type) {
                 //  auto stream = std::make_shared<continuous_buffer<uint8_t>>(sp);
                 //  auto buffer = std::make_shared<inflate_async>(*stream);
@@ -168,7 +168,7 @@ namespace vds {
               }
               throw std::runtime_error("Not implemented");
             }
-            co_await this->skip_part(part);
+            co_await this->skip_part(sp, part);
             co_return;
           }
         }

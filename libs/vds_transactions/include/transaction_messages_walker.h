@@ -41,19 +41,19 @@ namespace vds {
 
           switch ((transaction_id) message_id) {
             case transactions::payment_transaction::message_id: {
-              if (!this->visit(payment_transaction(s))) {
+              if (!this->visit(message_deserialize<payment_transaction>(s))) {
                 return false;
               }
               break;
             }
             case transactions::root_user_transaction::message_id: {
-              if (!this->visit(root_user_transaction(s))) {
+              if (!this->visit(message_deserialize<root_user_transaction>(s))) {
                 return false;
               }
               break;
             }
             case transactions::create_user_transaction::message_id: {
-              if (!this->visit(create_user_transaction(s))) {
+              if (!this->visit(message_deserialize<create_user_transaction>(s))) {
                 return false;
               }
               break;

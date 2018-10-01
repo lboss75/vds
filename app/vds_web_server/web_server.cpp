@@ -60,13 +60,13 @@ vds::_web_server::~_web_server() {
 }
 
 struct session_data : public std::enable_shared_from_this<session_data> {
-  vds::tcp_network_socket s_;
+  std::shared_ptr<vds::stream_output_async<uint8_t>> target_;
   std::shared_ptr<vds::http_async_serializer> stream_;
   std::shared_ptr<vds::http_pipeline> handler_;
 
-  session_data(vds::tcp_network_socket && s)
-    : s_(std::move(s)),
-      stream_(std::make_shared<vds::http_async_serializer>(this->s_)) {
+  session_data(const std::shared_ptr<vds::stream_output_async<uint8_t>> & target)
+    : target_(target),
+      stream_(std::make_shared<vds::http_async_serializer>(target)) {
   }
 };
 
@@ -75,8 +75,10 @@ std::future<void> vds::_web_server::start(
     const std::string & root_folder,
     uint16_t port) {
   this->load_web("/", foldername(root_folder));
-  co_await this->server_.start(sp, network_address::any_ip4(port), [sp, pthis = this->shared_from_this()](tcp_network_socket s) -> std::future<void>{
-    auto session = std::make_shared<session_data>(std::move(s));
+  co_await this->server_.start(sp, network_address::any_ip4(port),
+    [sp, pthis = this->shared_from_this()](std::shared_ptr<tcp_network_socket> s) -> std::future<void>{
+    auto[reader, writer] = s->start(sp);
+    auto session = std::make_shared<session_data>(writer);
     session->handler_ = std::make_shared<http_pipeline>(
         sp,
         session->stream_,
@@ -96,7 +98,7 @@ std::future<void> vds::_web_server::start(
         co_return http_response::status_response(http_response::HTTP_Internal_Server_Error, ex.what());
       }
     });
-    co_await session->handler_->process(sp, session->s_.start(sp));
+    co_await session->handler_->process(sp, reader);
   });
 }
 
@@ -161,7 +163,7 @@ std::future<vds::http_message> vds::_web_server::route(
   if (request.url() == "/api/session" && request.method() == "GET") {
     const auto session_id = request.get_parameter("session");
 
-    return api_controller::get_session(
+    co_return co_await api_controller::get_session(
       sp,
       this->shared_from_this(),
       session_id);
@@ -170,7 +172,7 @@ std::future<vds::http_message> vds::_web_server::route(
   if (request.url() == "/api/logout" && request.method() == "POST") {
     const auto session_id = request.get_parameter("session");
 
-    return api_controller::logout(
+    co_return co_await api_controller::logout(
       sp,
       this->shared_from_this(),
       session_id);
@@ -260,7 +262,7 @@ std::future<vds::http_message> vds::_web_server::route(
 
   if (request.url() == "/api/download") {
     if (request.method() == "GET") {
-      message.ignore_empty_body();
+      co_await message.ignore_empty_body(sp);
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
         co_return http_response::status_response(
@@ -271,19 +273,21 @@ std::future<vds::http_message> vds::_web_server::route(
       const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
       const auto file_hash = base64::to_bytes(request.get_parameter("object_id"));
 
+      auto buffer = std::make_shared<continuous_buffer<uint8_t>>();
+
       auto result = co_await api_controller::download_file(
         sp,
         user_mng,
         this->shared_from_this(),
         channel_id,
-        file_hash);
+        file_hash,
+        std::make_shared<continuous_stream_output_async<uint8_t>>(buffer));
 
         co_return http_response::file_response(
-            sp,
-            result.output_stream,
-            result.content_type,
-            result.filename,
-            result.body_size);
+            std::make_shared<continuous_stream_input_async<uint8_t>>(buffer),
+            result.size,
+            result.mime_type,
+            result.name);
     }
   }
 
@@ -295,7 +299,7 @@ std::future<vds::http_message> vds::_web_server::route(
           "Unauthorized");
     }
 
-    co_return index_page::parse_join_request(
+    co_return co_await index_page::parse_join_request(
       sp,
       user_mng,
       this->shared_from_this(),
@@ -304,14 +308,12 @@ std::future<vds::http_message> vds::_web_server::route(
   if (request.url() == "/approve_join_request" && request.method() == "POST") {
     auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
-      return std::future<vds::http_message>::result(
-        http_response::status_response(
-          sp,
+      co_return http_response::status_response(
           http_response::HTTP_Unauthorized,
-          "Unauthorized"));
+          "Unauthorized");
     }
 
-    return index_page::approve_join_request(
+    co_return co_await index_page::approve_join_request(
       sp,
       user_mng,
       this->shared_from_this(),
@@ -321,15 +323,13 @@ std::future<vds::http_message> vds::_web_server::route(
   if(request.url() == "/upload" && request.method() == "POST") {
     auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
-      message.ignore_body();
-      return std::future<vds::http_message>::result(
-        http_response::status_response(
-          sp,
+      co_await message.ignore_body(sp);
+      co_return http_response::status_response(
           http_response::HTTP_Unauthorized,
-          "Unauthorized"));
+          "Unauthorized");
     }
 
-    return index_page::create_message(
+    co_return co_await index_page::create_message(
       sp,
       user_mng,
       this->shared_from_this(),
@@ -337,72 +337,58 @@ std::future<vds::http_message> vds::_web_server::route(
   }
 
   if (request.url() == "/" && request.method() == "GET") {
-    return std::future<vds::http_message>::result(this->router_.route(sp, message, "/index"));
+    co_return co_await this->router_.route(sp, message, "/index");
   }
 
   if (request.url() == "/api/register_requests" && request.method() == "GET") {
-    message.ignore_empty_body();
-    return api_controller::get_register_requests(sp, this->shared_from_this())
-      .then([sp](const std::shared_ptr<vds::json_value> &result) {
-
-      return std::future<vds::http_message>::result(
-        http_response::simple_text_response(
-          sp,
+    co_await message.ignore_empty_body(sp);
+    auto result = co_await api_controller::get_register_requests(sp, this->shared_from_this());
+    co_return http_response::simple_text_response(
           result->str(),
-          "application/json; charset=utf-8"));
-    });
+          "application/json; charset=utf-8");
+    
   }
   if (request.url() == "/api/register_request" && request.method() == "GET") {
-    message.ignore_empty_body();
-    return api_controller::get_register_request(
+    co_await message.ignore_empty_body(sp);
+    auto result = co_await api_controller::get_register_request(
       sp,
       this->shared_from_this(),
-      base64::to_bytes(request.get_parameter("id")))
-      .then([sp](const std::shared_ptr<vds::json_value> &result) {
+      base64::to_bytes(request.get_parameter("id")));
 
-      return std::future<vds::http_message>::result(
-        http_response::simple_text_response(
-          sp,
-          result->str(),
-          "application/json; charset=utf-8"));
-    });
+    co_return http_response::simple_text_response(
+      result->str(),
+      "application/json; charset=utf-8");
   }
+
   if (request.url() == "/api/download_register_request" && request.method() == "GET") {
     const auto request_id = base64::to_bytes(request.get_parameter("id"));
-    message.ignore_empty_body();
+    co_await message.ignore_empty_body(sp);
 
-    return api_controller::get_register_request_body(sp, this->shared_from_this(), request_id)
-      .then([sp](const const_data_buffer &result) {
-
-      return std::future<vds::http_message>::result(
-        http_response::file_response(
-          sp,
-          result,
-          "user_invite.bin"));
-    });
+    auto result = co_await api_controller::get_register_request_body(sp, this->shared_from_this(), request_id);
+    co_return http_response::file_response(
+        result,
+        "user_invite.bin");
   }
 
   if(request.url() == "/register_request" && request.method() == "POST") {
-    return login_page::register_request_post(sp, this->shared_from_this(), message);
+    co_return co_await login_page::register_request_post(sp, this->shared_from_this(), message);
   }
 
   if (request.url() == "/api/statistics") {
     if (request.method() == "GET") {
-      message.ignore_empty_body();
+      co_await message.ignore_empty_body(sp);
 
-      return api_controller::get_statistics(
+      auto result = co_await api_controller::get_statistics(
         sp,
         this->shared_from_this(),
-        message).then([sp](const std::shared_ptr<vds::json_value> & result) {
-        return http_response::simple_text_response(
-          sp,
+        message);
+        co_return http_response::simple_text_response(
           result->str(),
           "application/json; charset=utf-8");
-      });
     }
   }
 
-  return std::future<vds::http_message>::result(this->router_.route(sp, message, request.url()));
+  co_return co_await this->router_.route(sp, message, request.url());
 }
 
 void vds::_web_server::load_web(const std::string& path, const foldername & folder) {

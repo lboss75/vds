@@ -25,7 +25,7 @@ namespace vds {
 
     std::future<std::list<transactions::user_message_transaction::file_block_t>> start(
         const service_provider & sp,
-        const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
+        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
     const const_data_buffer & result_hash() const {
       return this->result_hash_;
@@ -48,7 +48,7 @@ namespace vds {
     std::future<void> continue_read(
         const service_provider & sp,
         dht::network::client * network_client,
-        const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
+        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
     std::future<void> process_data(
         const service_provider & sp,

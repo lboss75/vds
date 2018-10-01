@@ -75,7 +75,7 @@ void vds::user_manager::reset(
       sp,
       t,
       dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
-      private_info.root_private_key_.der(root_password));
+      private_info.root_private_key_->der(root_password));
 
     auto playback = transactions::transaction_block_builder::create_root_block();
 
@@ -90,13 +90,13 @@ void vds::user_manager::reset(
 
     //common news
     auto common_news_admin_certificate = cert_control::get_common_news_admin_certificate();
-    auto channel_id = common_news_admin_certificate.fingerprint(hash::sha256());
+    auto channel_id = common_news_admin_certificate->fingerprint(hash::sha256());
     sp.get<logger>()->info(ThisModule, sp, "Create channel %s(Common News)",
       base64::from_bytes(channel_id).c_str());
 
     root_user->personal_channel().add_log(
       playback,
-      transactions::channel_create_transaction(
+      message_create<transactions::channel_create_transaction>(
         channel_id,
         std::to_string(user_channel::channel_type_t::news_channel),
         "Common news",
@@ -167,15 +167,14 @@ void vds::user_manager::reset(
 //		return true;
 //	});
 //}
-
-vds::user_channel vds::user_manager::get_channel(
+std::shared_ptr<vds::user_channel> vds::user_manager::get_channel(
   const service_provider & sp,
   const const_data_buffer & channel_id) const
 {
   return this->impl_->get_channel(channel_id);
 }
 
-std::map<vds::const_data_buffer, vds::user_channel> vds::user_manager::get_channels() const {
+std::map<vds::const_data_buffer, std::shared_ptr<vds::user_channel>> vds::user_manager::get_channels() const {
   std::list<vds::user_channel> result;
 
   return this->impl_->channels();
@@ -183,15 +182,15 @@ std::map<vds::const_data_buffer, vds::user_channel> vds::user_manager::get_chann
 
 bool vds::user_manager::validate_and_save(
 		const service_provider & sp,
-		const std::list<vds::certificate> &cert_chain) {
+		const std::list<std::shared_ptr<vds::certificate>> &cert_chain) {
 
   certificate_store store;
   for (const auto & p : cert_chain) {
-    auto cert = this->impl_->get_certificate(p.subject());
+    auto cert = this->impl_->get_certificate(p->subject());
     if (!cert) {
       cert = p;
 
-      const auto result = store.verify(cert);
+      const auto result = store.verify(*cert);
       if (0 != result.error_code) {
         sp.get<logger>()->warning(ThisModule, sp, "Invalid certificate %s %s",
           result.error.c_str(),
@@ -200,7 +199,7 @@ bool vds::user_manager::validate_and_save(
       }
     }
 
-    store.add(cert);
+    store.add(*cert);
     this->save_certificate(sp, cert);
   }
 
@@ -223,18 +222,18 @@ void vds::user_manager::save_certificate(
   t.execute(t2.delete_if(t2.id == cert.subject()));
 }
 
-std::future<void> vds::user_manager::save_certificate(const vds::service_provider &sp, const vds::certificate &cert) {
+std::future<void> vds::user_manager::save_certificate(const vds::service_provider &sp, const std::shared_ptr<vds::certificate> &cert) {
   this->impl_->add_certificate(cert);
 
   co_await sp.get<db_model>()->async_transaction(sp, [cert](database_transaction & t)->bool{
 
     orm::certificate_chain_dbo t1;
-    auto st = t.get_reader(t1.select(t1.id).where(t1.id == cert.subject()));
+    auto st = t.get_reader(t1.select(t1.id).where(t1.id == cert->subject()));
     if(!st.execute()){
       t.execute(t1.insert(
-          t1.id = cert.subject(),
-          t1.cert = cert.der(),
-          t1.parent = cert.issuer()));
+          t1.id = cert->subject(),
+          t1.cert = cert->der(),
+          t1.parent = cert->issuer()));
     }
 
     return true;
@@ -347,40 +346,40 @@ void vds::_user_manager::update(
     transactions::transaction_block block(data);
 	  block.walk_messages(
       [this, sp](const transactions::root_user_transaction & message)->bool{
-        this->root_user_cert_ = message.user_cert();
-        this->root_user_name_ = message.user_name();
+        this->root_user_cert_ = message.user_cert;
+        this->root_user_name_ = message.user_name;
 
-        if (this->user_credentials_key_ == message.user_credentials_key()) {
-          this->user_cert_ = message.user_cert();
-          this->user_name_ = message.user_name();
+        if (this->user_credentials_key_ == message.user_credentials_key) {
+          this->user_cert_ = message.user_cert;
+          this->user_name_ = message.user_name;
           this->login_state_ = user_manager::login_state_t::login_sucessful;
 
           auto cp = _user_channel::import_personal_channel(
             sp,
             this->user_cert_,
             this->user_private_key_);
-          this->channels_[cp.id()] = cp;
+          this->channels_[cp->id()] = cp;
 
           cp = _user_channel::import_personal_channel(
             sp,
             this->user_cert_,
             this->user_private_key_);
-          this->channels_[cp.id()] = cp;
+          this->channels_[cp->id()] = cp;
         }
 
         return true;
       },
       [this, sp](const transactions::create_user_transaction & message)->bool {
-        if (this->user_credentials_key_ == message.user_credentials_key()) {
-          this->user_cert_ = message.user_cert();
-          this->user_name_ = message.user_name();
+        if (this->user_credentials_key_ == message.user_credentials_key) {
+          this->user_cert_ = message.user_cert;
+          this->user_name_ = message.user_name;
           this->login_state_ = user_manager::login_state_t::login_sucessful;
 
           auto cp = _user_channel::import_personal_channel(
             sp,
             this->user_cert_,
             this->user_private_key_);
-          this->channels_[cp.id()] = cp;
+          this->channels_[cp->id()] = cp;
         }
         return true;
       },
@@ -389,60 +388,60 @@ void vds::_user_manager::update(
         if (channel) {
           auto channel_read_key = channel->read_cert_private_key(message.channel_read_cert_subject());
           if (channel_read_key) {
-            message.walk_messages(channel_read_key,
+            message.walk_messages(*channel_read_key,
               [sp, this, channel_id = message.channel_id(), log](const transactions::channel_add_reader_transaction & message)->bool {
-              auto cp = user_channel(
-                message.id(),
-                string2channel_type(message.channel_type()),
-                message.name(),
-                message.read_cert(),
-                message.read_private_key(),
-                message.write_cert(),
-                asymmetric_private_key());
+              auto cp = std::make_shared<user_channel>(
+                message.id,
+                string2channel_type(message.channel_type),
+                message.name,
+                message.read_cert,
+                message.read_private_key,
+                message.write_cert,
+                std::shared_ptr<asymmetric_private_key>());
 
-              this->channels_[cp.id()] = cp;
+              this->channels_[cp->id()] = cp;
               log->debug(ThisModule, sp, "Got channel %s reader certificate",
-                base64::from_bytes(cp.id()).c_str());
+                base64::from_bytes(cp->id()).c_str());
 
               return true;
             },
               [sp, this, channel_id = message.channel_id(), log](const transactions::channel_add_writer_transaction & message)->bool {
-              auto cp = user_channel(
-                message.id(),
-                string2channel_type(message.channel_type()),
-                message.name(),
-                message.read_cert(),
-                message.read_private_key(),
-                message.write_cert(),
-                message.write_private_key());
+              auto cp = std::make_shared<user_channel>(
+                message.id,
+                string2channel_type(message.channel_type),
+                message.name,
+                message.read_cert,
+                message.read_private_key,
+                message.write_cert,
+                message.write_private_key);
 
-              this->channels_[cp.id()] = cp;
+              this->channels_[cp->id()] = cp;
 
               log->debug(ThisModule, sp, "Got channel %s write certificate",
-                base64::from_bytes(cp.id()).c_str());
+                base64::from_bytes(cp->id()).c_str());
 
               return true;
             },
               [sp, this, channel_id = message.channel_id(), log, &new_channels](const transactions::channel_create_transaction & message)->bool {
               if (new_channels.end() == new_channels.find(channel_id)) {
-                new_channels.emplace(message.channel_id());
+                new_channels.emplace(message.channel_id);
               }
-              auto cp = user_channel(
-                message.channel_id(),
-                string2channel_type(message.channel_type()),
-                message.name(),
-                message.read_cert(),
-                message.read_private_key(),
-                message.write_cert(),
-                message.write_private_key());
+              auto cp = std::make_shared<user_channel>(
+                message.channel_id,
+                string2channel_type(message.channel_type),
+                message.name,
+                message.read_cert,
+                message.read_private_key,
+                message.write_cert,
+                message.write_private_key);
 
-              this->channels_[cp.id()] = cp;
+              this->channels_[cp->id()] = cp;
 
               log->debug(ThisModule, sp, "New channel %s(%s), read certificate %s, write certificate %s",
-                base64::from_bytes(message.channel_id()).c_str(),
-                message.name().c_str(),
-                cp.read_cert().subject().c_str(),
-                cp.write_cert().subject().c_str());
+                base64::from_bytes(message.channel_id).c_str(),
+                message.name.c_str(),
+                cp->read_cert()->subject().c_str(),
+                cp->write_cert()->subject().c_str());
 
               return true;
             });
@@ -454,8 +453,8 @@ void vds::_user_manager::update(
 	}
 }
 
-void vds::_user_manager::add_certificate(const vds::certificate &cert) {
-	this->certificate_chain_[cert.subject()] = cert;
+void vds::_user_manager::add_certificate(const std::shared_ptr<vds::certificate> &cert) {
+	this->certificate_chain_[cert->subject()] = cert;
 }
 
 vds::member_user vds::_user_manager::get_current_user() const {
@@ -508,18 +507,19 @@ std::future<bool> vds::_user_manager::approve_join_request(const service_provide
       local_user_options.country = "RU";
       local_user_options.organization = "IVySoft";
       local_user_options.name = userName;
-      local_user_options.ca_certificate = &pthis->user_cert_;
-      local_user_options.ca_certificate_private_key = &pthis->user_private_key_;
+      local_user_options.ca_certificate = pthis->user_cert_.get();
+      local_user_options.ca_certificate_private_key = pthis->user_private_key_.get();
 
-      auto user_cert = certificate::create_new(user_public_key, asymmetric_private_key(), local_user_options);
+      auto user_cert = std::make_shared<certificate>(
+        certificate::create_new(user_public_key, asymmetric_private_key(), local_user_options));
 
       transactions::transaction_block_builder playback(sp, t);
       playback.add(
-        transactions::create_user_transaction(
+        message_create<transactions::create_user_transaction>(
           user_object_id,
           user_cert,
           userEmail,
-          pthis->user_cert_));
+          pthis->user_cert_->subject()));
 
       auto channel_id = dht::dht_object_id::generate_random_id();
 
@@ -533,7 +533,7 @@ std::future<bool> vds::_user_manager::approve_join_request(const service_provide
       channel->add_writer(
         playback,
         pthis->user_name_,
-        member_user(user_cert, asymmetric_private_key()),
+        member_user(user_cert, std::shared_ptr<asymmetric_private_key>()),
         member_user(pthis->user_cert_, pthis->user_private_key_));
 
       playback.save(

@@ -34,7 +34,7 @@ vds::api_controller::get_channels(
     const vds::http_message &message) {
   auto result = std::make_shared<json_array>();
   for(auto & channel : user_mng.get_channels()) {
-    result->add(channel_serialize(channel.second));
+    result->add(channel_serialize(*channel.second));
   }
 
   return std::static_pointer_cast<json_value>(result);
@@ -119,9 +119,9 @@ std::future<std::shared_ptr<vds::json_value>> vds::api_controller::channel_feed(
       t,
       [result](const transactions::user_message_transaction& message)-> bool {
       auto record = std::make_shared<json_object>();
-      record->add_property("message", message.message());
+      record->add_property("message", message.message);
       auto files = std::make_shared<json_array>();
-        for(const auto & file : message.files()) {
+        for(const auto & file : message.files) {
           auto item = std::make_shared<json_object>();
           item->add_property("object_id", base64::from_bytes(file.file_id));
           item->add_property("name", file.name);
@@ -145,9 +145,10 @@ vds::api_controller::download_file(
   const std::shared_ptr<user_manager>& user_mng,
   const std::shared_ptr<_web_server>& owner,
   const const_data_buffer& channel_id,
-  const const_data_buffer& file_hash) {
+  const const_data_buffer& file_hash,
+  const std::shared_ptr<stream_output_async<uint8_t>> & output_stream) {
 
-  co_return co_await sp.get<file_manager::file_operations>()->download_file(sp, user_mng, channel_id, file_hash);
+  co_return co_await sp.get<file_manager::file_operations>()->download_file(sp, user_mng, channel_id, file_hash, output_stream);
 }
 
 std::future<std::shared_ptr<vds::json_value>>
@@ -172,7 +173,7 @@ vds::api_controller::user_devices(
             t1.reserved_size,
             db_sum(t2.data_size).as(used_size))
         .left_join(t2, t2.local_path == t1.local_path && t2.node_id == t1.node_id)
-        .where(t1.owner_id == user_mng->get_current_user().user_certificate().subject())
+        .where(t1.owner_id == user_mng->get_current_user().user_certificate()->subject())
         .group_by(t1.name, t1.node_id, t1.local_path, t1.reserved_size));
     while(st.execute()){
       auto item = std::make_shared<json_object>();
@@ -261,7 +262,7 @@ vds::api_controller::lock_device(const vds::service_provider &sp, const std::sha
   }
   fl.create();
 
-  co_await sp.get<db_model>()->async_transaction(sp, [sp, user_mng, device_name, local_path, reserved_size](database_transaction & t) {
+  return sp.get<db_model>()->async_transaction(sp, [sp, user_mng, device_name, local_path, reserved_size](database_transaction & t) {
     auto client = sp.get<dht::network::client>();
     auto current_node = client->current_node_id();
 
@@ -270,7 +271,7 @@ vds::api_controller::lock_device(const vds::service_provider &sp, const std::sha
         t1.insert(
             t1.node_id = current_node,
             t1.local_path = local_path,
-            t1.owner_id = user_mng->get_current_user().user_certificate().subject(),
+            t1.owner_id = user_mng->get_current_user().user_certificate()->subject(),
             t1.name = device_name,
             t1.reserved_size = reserved_size * 1024 * 1024 * 1024));
   });

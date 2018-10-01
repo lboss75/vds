@@ -22,15 +22,19 @@ void vds::dht::network::udp_transport::start(
   const std::shared_ptr<asymmetric_private_key> & node_key,
   uint16_t port) {
 
-  this->this_node_id_ = node_cert.fingerprint(hash::sha256());
+  this->this_node_id_ = node_cert->fingerprint(hash::sha256());
   this->node_cert_ = node_cert;
   this->node_key_ = node_key;
 
   try {
-    this->server_.start(sp, network_address::any_ip6(port));
+    auto [reader, writer] = this->server_.start(sp, network_address::any_ip6(port));
+    this->reader_ = reader;
+    this->writer_ = writer;
   }
   catch (...) {
-    this->server_.start(sp, network_address::any_ip4(port));
+    auto[reader, writer] = this->server_.start(sp, network_address::any_ip4(port));
+    this->reader_ = reader;
+    this->writer_ = writer;
   }
 
   this->continue_read(sp.create_scope("vds::dht::network::udp_transport::continue_read"));
@@ -54,7 +58,7 @@ vds::dht::network::udp_transport::write_async(const service_provider& sp, const 
   //  this->owner_id_ = GetCurrentThreadId();
   //#endif
   //#endif//_DEBUG
-  co_await this->server_.socket().write_async(datagram);
+  co_await this->writer_->write_async(sp, datagram);
 }
 
 std::future<void> vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
@@ -78,7 +82,7 @@ std::future<void> vds::dht::network::udp_transport::try_handshake(const service_
   out_message.add(PROTOCOL_VERSION);
 
   binary_serializer bs;
-  bs << this->node_cert_.der();
+  bs << this->node_cert_->der();
 
   out_message += bs.move_data();
 
@@ -126,7 +130,7 @@ std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport
 std::future<void> vds::dht::network::udp_transport::continue_read(
   const service_provider& sp) {
   for (;;) {
-    udp_datagram datagram = co_await this->server_.socket().read_async();
+    udp_datagram datagram = co_await this->reader_->read_async(sp);
 
     if (sp.get_shutdown_event().is_shuting_down()) {
       co_return;
@@ -181,7 +185,7 @@ std::future<void> vds::dht::network::udp_transport::continue_read(
 
         binary_serializer bs;
         bs
-          << this->node_cert_.der()
+          << this->node_cert_->der()
           << partner_node_cert.public_key().encrypt(key);
 
         out_message += bs.move_data();
@@ -215,7 +219,7 @@ std::future<void> vds::dht::network::udp_transport::continue_read(
           >> key_buffer;
 
         auto cert = certificate::parse_der(cert_buffer);
-        auto key = this->node_key_.decrypt(key_buffer);
+        auto key = this->node_key_->decrypt(key_buffer);
 
         auto partner_id = cert.fingerprint(hash::sha256());
 

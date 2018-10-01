@@ -56,8 +56,8 @@ namespace vds {
     //  const std::string & device_name,
     //  int port);
 
-    user_channel get_channel(const service_provider & sp, const const_data_buffer &channel_id) const;
-    std::map<const_data_buffer, user_channel> get_channels() const;
+    std::shared_ptr<user_channel> get_channel(const service_provider & sp, const const_data_buffer &channel_id) const;
+    std::map<const_data_buffer, std::shared_ptr<user_channel>> get_channels() const;
 
     template <typename... handler_types>
     void walk_messages(
@@ -82,8 +82,8 @@ namespace vds {
           [this, sp, channel_id, &channel_handlers](const transactions::channel_message & message)->bool {
           if (channel_id == message.channel_id()) {
 
-            auto read_cert_key = this->get_channel(sp, channel_id).read_cert_private_key(message.channel_read_cert_subject());
-            const auto key_data = read_cert_key.decrypt(message.crypted_key());
+            auto read_cert_key = this->get_channel(sp, channel_id)->read_cert_private_key(message.channel_read_cert_subject());
+            const auto key_data = read_cert_key->decrypt(message.crypted_key());
             const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
             const auto data = symmetric_decrypt::decrypt(key, message.crypted_data());
 
@@ -98,9 +98,9 @@ namespace vds {
 
     bool validate_and_save(
         const service_provider & sp,
-        const std::list<certificate> &cert_chain);
+        const std::list<std::shared_ptr<certificate>> &cert_chain);
 
-    void save_certificate(const service_provider &sp, database_transaction &t, const std::shared_ptr<certificate> &cert);
+    void save_certificate(const service_provider &sp, database_transaction &t, const certificate &cert);
 
     member_user get_current_user() const;
     const std::shared_ptr<asymmetric_private_key> & get_current_user_private_key() const;

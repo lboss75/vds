@@ -17,8 +17,8 @@ namespace vds {
   public:
     http_pipeline(
       const service_provider &sp,
-      const std::function<std::future<http_message>(const http_message &message)> &message_callback,
-      const std::shared_ptr<http_async_serializer> & output_stream)
+      const std::shared_ptr<http_async_serializer> & output_stream,
+      const std::function<std::future<http_message>(const http_message &message)> &message_callback)
       : http_parser_base<http_pipeline>([sp, message_callback, this](
         const http_message &message)->std::future<void> {
       auto pthis = this->shared_from_this();

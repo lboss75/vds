@@ -412,7 +412,6 @@ bool vds::asymmetric_sign_verify::result() const {
 }
 
 bool vds::asymmetric_sign_verify::verify(
-  const service_provider &sp,
     const vds::hash_info &hash_info,
     const vds::asymmetric_public_key &key,
     const const_data_buffer &signature,
@@ -420,19 +419,18 @@ bool vds::asymmetric_sign_verify::verify(
     size_t data_size)
 {
   _asymmetric_sign_verify s(hash_info, key, signature);
-  s.write_async(sp, reinterpret_cast<const uint8_t *>(data), data_size).get();
-  s.write_async(sp, nullptr, 0).get();
+  s.write_async(*(service_provider *)nullptr, reinterpret_cast<const uint8_t *>(data), data_size).get();
+  s.write_async(*(service_provider *)nullptr, nullptr, 0).get();
   return s.result();
 }
 
 bool vds::asymmetric_sign_verify::verify(
-  const service_provider &sp,
     const hash_info &hash_info,
     const asymmetric_public_key &key,
     const const_data_buffer &signature,
     const const_data_buffer &data)
 {
-  return verify(sp, hash_info, key, signature, data.data(), data.size());
+  return verify(hash_info, key, signature, data.data(), data.size());
 }
 
 std::future<void> vds::asymmetric_sign_verify::

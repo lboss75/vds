@@ -27,9 +27,8 @@ std::future<vds::http_message> vds::index_page::create_channel(const vds::servic
 class create_message_form : public vds::http::form_parser<create_message_form> {
 public:
   create_message_form(
-    const vds::service_provider & sp,
     const std::shared_ptr<vds::user_manager>& user_mng)
-  : sp_(sp), user_mng_(user_mng) {
+  : user_mng_(user_mng) {
     
   }
 
@@ -46,9 +45,9 @@ public:
     }
   }
 
-  std::future<void> on_file(const file_info & file) {
-    auto file_info = co_await this->sp_.get<vds::file_manager::file_operations>()->upload_file(
-      this->sp_,
+  std::future<void> on_file(const vds::service_provider & sp, const file_info & file) {
+    auto file_info = co_await sp.get<vds::file_manager::file_operations>()->upload_file(
+      sp,
       this->user_mng_,
       file.file_name,
       file.mimetype,
@@ -57,9 +56,9 @@ public:
     this->files_.push_back(file_info);
   }
 
-  std::future<void> complete() {
-    return this->sp_.get<vds::file_manager::file_operations>()->create_message(
-      this->sp_,
+  std::future<void> complete(const vds::service_provider & sp) {
+    return sp.get<vds::file_manager::file_operations>()->create_message(
+      sp,
       this->user_mng_,
       this->channel_id_,
       this->message_,
@@ -67,7 +66,6 @@ public:
   }
 
 private:
-  vds::service_provider sp_;
   std::shared_ptr<vds::user_manager> user_mng_;
   vds::const_data_buffer channel_id_;
   std::list<vds::transactions::user_message_transaction::file_info_t> files_;
@@ -78,19 +76,18 @@ std::future<vds::http_message> vds::index_page::create_message(const vds::servic
   const std::shared_ptr<user_manager>& user_mng, const std::shared_ptr<_web_server>& web_server,
   const http_message& message) {
 
-  auto parser = std::make_shared<create_message_form>(sp, user_mng);
+  auto parser = std::make_shared<create_message_form>(user_mng);
 
   co_await parser->parse(sp, message);
-  co_await parser->complete();
+  co_await parser->complete(sp);
   
   co_return http_response::redirect("/");
 }
 
 class parse_request_form : public vds::http::form_parser<parse_request_form> {
 public:
-  parse_request_form(
-      const vds::service_provider & sp)
-      : sp_(sp), successful_(false) {
+  parse_request_form()
+      : successful_(false) {
 
   }
 
@@ -98,12 +95,12 @@ public:
     //Ignore throw std::runtime_error("Invalid field " + field.name);
   }
 
-  std::future<void> on_file(const file_info & file) {
+  std::future<void> on_file(const vds::service_provider & sp, const file_info & file) {
 
-    auto buffer = co_await file.stream->read_all();
+    auto buffer = co_await file.stream->read_all(sp);
 
     this->successful_ = vds::user_manager::parse_join_request(
-        this->sp_,
+        sp,
         buffer,
         this->userName_,
         this->userEmail_);
@@ -122,7 +119,6 @@ public:
   }
 
 private:
-  vds::service_provider sp_;
   bool successful_;
   std::string userName_;
   std::string userEmail_;
@@ -134,7 +130,7 @@ std::future<vds::http_message> vds::index_page::parse_join_request(
   const std::shared_ptr<_web_server>& web_server,
   const http_message& message) {
 
-  auto parser = std::make_shared<parse_request_form>(sp);
+  auto parser = std::make_shared<parse_request_form>();
 
   co_await parser->parse(sp, message);
 
@@ -156,9 +152,8 @@ std::future<vds::http_message> vds::index_page::parse_join_request(
 class approve_join_request_form : public vds::http::form_parser<approve_join_request_form> {
 public:
   approve_join_request_form(
-    const vds::service_provider & sp,
     const std::shared_ptr<vds::user_manager>& user_mng)
-    : sp_(sp), user_mng_(user_mng), successful_(false) {
+    : user_mng_(user_mng), successful_(false) {
 
   }
 
@@ -166,10 +161,10 @@ public:
     //Ignore
   }
 
-  std::future<void> on_file(const file_info & file) {
-    auto buffer = co_await file.stream->read_all();
+  std::future<void> on_file(const vds::service_provider & sp, const file_info & file) {
+    auto buffer = co_await file.stream->read_all(sp);
 
-    this->successful_ = co_await this->user_mng_->approve_join_request(this->sp_, buffer);
+    this->successful_ = co_await this->user_mng_->approve_join_request(sp, buffer);
   }
 
   bool successful() const {
@@ -177,7 +172,6 @@ public:
   }
 
 private:
-  vds::service_provider sp_;
   std::shared_ptr<vds::user_manager> user_mng_;
   bool successful_;
 };
@@ -187,7 +181,7 @@ std::future<vds::http_message> vds::index_page::approve_join_request(const vds::
   const std::shared_ptr<user_manager>& user_mng, const std::shared_ptr<_web_server>& web_server,
   const http_message& message) {
 
-  auto parser = std::make_shared<approve_join_request_form>(sp, user_mng);
+  auto parser = std::make_shared<approve_join_request_form>(user_mng);
 
   co_await parser->parse(sp, message);
 

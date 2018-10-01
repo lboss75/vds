@@ -25,7 +25,6 @@ namespace vds {
         std::string name;
         std::string mime_type;
         size_t size;
-        std::shared_ptr<continuous_buffer<uint8_t>> output_stream;
       };
 
 
@@ -36,7 +35,7 @@ namespace vds {
         const std::shared_ptr<user_manager> & user_mng,
         const std::string & name,
         const std::string & mime_type,
-        const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
+        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
       std::future<void> create_message(
         const service_provider& sp,
@@ -50,7 +49,8 @@ namespace vds {
 		    const service_provider &sp,
         const std::shared_ptr<user_manager> & user_mng,
         const const_data_buffer & channel_id,
-        const const_data_buffer & target_file);
+        const const_data_buffer & target_file,
+        const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
     protected:
       std::shared_ptr<file_manager_private::_file_operations> impl_;

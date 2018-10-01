@@ -10,7 +10,7 @@ vds::_upload_stream_task::_upload_stream_task()
 
 std::future<std::list<vds::transactions::user_message_transaction::file_block_t>> vds::_upload_stream_task::start(
     const service_provider & sp,
-    const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) {
+    const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
 
   auto network_client = sp.get<dht::network::client>();
   co_await this->continue_read(sp, network_client, input_stream);
@@ -21,9 +21,9 @@ std::future<void>
 vds::_upload_stream_task::continue_read(
   const service_provider & sp,
   dht::network::client * network_client,
-  const std::shared_ptr<vds::continuous_buffer<uint8_t>> &input_stream) {
+  const std::shared_ptr<vds::stream_input_async<uint8_t>> &input_stream) {
   for (;;) {
-    size_t readed = co_await input_stream->read_async(this->buffer_ + this->readed_, sizeof(this->buffer_) - this->readed_);
+    size_t readed = co_await input_stream->read_async(sp, this->buffer_ + this->readed_, sizeof(this->buffer_) - this->readed_);
 
     if (0 == readed) {
       co_await this->process_data(sp, network_client);

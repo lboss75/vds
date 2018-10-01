@@ -96,7 +96,6 @@ namespace vds {
       size_t input_buffer_size);
 
     static const_data_buffer encrypt(
-      const service_provider & sp,
       const symmetric_key & key,
         const const_data_buffer & input_buffer){
       return encrypt(key, input_buffer.data(), input_buffer.size());

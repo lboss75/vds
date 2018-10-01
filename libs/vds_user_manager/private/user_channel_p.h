@@ -91,7 +91,7 @@ namespace vds {
       return p->second;
     }
 
-    static user_channel import_personal_channel(
+    static std::shared_ptr <user_channel> import_personal_channel(
       const service_provider & sp,
       const std::shared_ptr<certificate> & user_cert,
       const std::shared_ptr<asymmetric_private_key> & user_private_key);
@@ -114,9 +114,9 @@ namespace vds {
           this->id_,
           this->read_cert()->subject(),
           writter.user_certificate()->subject(),
-          this->read_cert()->public_key()->encrypt(key.serialize()),
+          this->read_cert()->public_key().encrypt(key.serialize()),
           symmetric_encrypt::encrypt(key, s.get_buffer(), s.size()),
-          writter.private_key()));
+          *writter.private_key()));
     }
 
     template<typename item_type>

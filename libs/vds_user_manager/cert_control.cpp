@@ -358,9 +358,9 @@ vds::certificate vds::_cert_control::create_cert(
 //
 
 void vds::cert_control::private_info_t::genereate_all() {
-  this->root_private_key_ = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-  this->common_news_write_private_key_ = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-  this->common_news_admin_private_key_ = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+  this->root_private_key_ = std::make_shared<asymmetric_private_key>(asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+  this->common_news_write_private_key_ = std::make_shared<asymmetric_private_key>(asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+  this->common_news_admin_private_key_ = std::make_shared<asymmetric_private_key>(asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
 }
 
 static void save_certificate(char (&cert_storage)[1821], const vds::certificate & cert) {
@@ -382,7 +382,7 @@ void vds::cert_control::genereate_all(
 
   const auto root_user_cert = _cert_control::create_root(
     root_login,
-    private_info.root_private_key_);
+    *private_info.root_private_key_);
   save_certificate(root_certificate_, root_user_cert);
 
   //
@@ -392,21 +392,21 @@ void vds::cert_control::genereate_all(
     "Common News Read",
     common_news_read_private_key,
     root_user_cert,
-    private_info.root_private_key_);
+    *private_info.root_private_key_);
   save_certificate(common_news_read_certificate_, common_news_read_certificate);
 
   const auto common_news_write_certificate = _cert_control::create_cert(
     "Common News Write",
-    private_info.common_news_write_private_key_,
+    *private_info.common_news_write_private_key_,
     root_user_cert,
-    private_info.root_private_key_);
+    *private_info.root_private_key_);
   save_certificate(common_news_write_certificate_, common_news_write_certificate);
 
   const auto common_news_admin_certificate = _cert_control::create_cert(
     "Common News Admin",
-    private_info.common_news_admin_private_key_,
+    *private_info.common_news_admin_private_key_,
     root_user_cert,
-    private_info.root_private_key_);
+    *private_info.root_private_key_);
   save_certificate(common_news_admin_certificate_, common_news_admin_certificate);
 
   //
@@ -416,6 +416,6 @@ void vds::cert_control::genereate_all(
     "Common Storage",
     common_storage_private_key,
     root_user_cert,
-    private_info.root_private_key_);
+    *private_info.root_private_key_);
   save_certificate(common_storage_certificate_, common_storage_certificate);
 }
