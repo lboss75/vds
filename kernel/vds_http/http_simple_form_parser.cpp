@@ -133,7 +133,7 @@ std::future<void> vds::http::simple_form_parser::form_parser::read_form_urlencod
         value.erase(value.length() - 1, 1);
       }
 
-      this->owner_->values_[item.substr(0, p)] = http_parser::url_unescape(value);
+      this->owner_->values_[item.substr(0, p)] = url_encode::decode(value);
     }
   }
 }

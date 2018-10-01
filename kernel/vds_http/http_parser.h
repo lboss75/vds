@@ -8,6 +8,7 @@ All rights reserved
 
 #include <string>
 #include <list>
+#include <optional>
 #include <string.h>
 
 #include "func_utils.h"
@@ -18,10 +19,10 @@ All rights reserved
 
 namespace vds {
 
-  template<typename implementation_class>
-  class http_parser_base : public std::enable_shared_from_this<implementation_class> {
+  template <typename implementation_class>
+  class http_parser : public std::enable_shared_from_this<implementation_class>{
   public:
-    http_parser_base(
+    http_parser(
       const std::function<std::future<void>(const http_message &message)> &message_callback)
       : message_callback_(message_callback), eof_(false) {
     }
@@ -108,12 +109,16 @@ namespace vds {
       co_await this->message_callback_(http_message());
     }
 
+    
 
-    std::future<void> continue_read_data(const service_provider &sp) {
+    std::future<void> continue_read_data(const service_provider& sp) {
+      co_return;
     }
 
-    std::future<void> finish_message(const service_provider &sp) {
+    std::future<void> finish_message(const service_provider& sp) {
+      co_return;
     }
+    
 
   private:
     std::function<std::future<void>(const http_message &message)> message_callback_;
@@ -128,7 +133,7 @@ namespace vds {
     class http_body_reader : public stream_input_async<uint8_t> {
     public:
       http_body_reader(
-        const std::shared_ptr<http_parser_base> & owner,
+        const std::shared_ptr<http_parser> & owner,
         const std::shared_ptr<stream_input_async<uint8_t>> & input_stream,
         const uint8_t * data,
         size_t data_size,
@@ -150,54 +155,96 @@ namespace vds {
       }
 
 
-      std::future<size_t> read_async(
+      std::future<size_t> parse_body(
+        const service_provider& sp,
+        uint8_t* buffer,
+        size_t buffer_size) {
+        if (0 == this->content_length_) {
+          if (this->chunked_encoding_) {
+            this->state_ = StateEnum::STATE_PARSE_FINISH_CHUNK;
+            this->parse_buffer_.clear();
+          }
+          else {
+            co_await static_cast<implementation_class *>(this->owner_.get())->finish_message(sp);
+            co_return 0;
+          }
+        }
+
+        if (this->readed_ == this->processed_) {
+          this->processed_ = 0;
+          this->readed_ = co_await
+            this->input_stream_->read_async(sp, this->buffer_, sizeof(this->buffer_));
+          if (0 == this->readed_) {
+            this->eof_ = true;
+            co_return
+              0;
+          }
+        }
+
+        auto size = this->readed_ - this->processed_;
+        if (size > this->content_length_) {
+          size = this->content_length_;
+        }
+        if (size > buffer_size) {
+          size = buffer_size;
+        }
+
+        this->content_length_ -= size;
+        memcpy(buffer, this->buffer_ + this->processed_, size);
+
+        this->processed_ += size;
+
+        co_return size;
+      }
+
+      std::future<std::optional<size_t>> parse_size(
         const service_provider &sp,
         uint8_t * buffer,
+        size_t buffer_size) {
+
+        if (0 < this->content_length_) {
+          this->state_ = StateEnum::STATE_PARSE_BODY;
+          co_return std::optional<size_t>();
+        }
+        else {
+          this->state_ = StateEnum::STATE_PARSE_HEADER;
+          co_return 0;
+        }
+      }
+
+
+      std::future<void> parse_content_size() {
+        std::promise<void> result;
+
+        size_t pos;
+        this->content_length_ = std::stoul(this->parse_buffer_, &pos, 16);
+        if (pos < this->parse_buffer_.length()) {
+          result.set_exception(std::make_exception_ptr(std::runtime_error("Invalid size " + this->parse_buffer_)));
+        }
+        else {
+          result.set_value();
+        }
+
+        return result.get_future();
+      }
+
+      std::future<size_t> read_async(
+        const service_provider& sp,
+        uint8_t* buffer,
         size_t buffer_size) override {
         for (;;) {
 
 
           switch (this->state_) {
           case StateEnum::STATE_PARSE_BODY: {
-            if (0 == this->content_length_) {
-              if (this->chunked_encoding_) {
-                this->state_ = StateEnum::STATE_PARSE_FINISH_CHUNK;
-                this->parse_buffer_.clear();
-              }
-              else {
-                static_cast<implementation_class *>(this->owner_.get())->finish_message(sp);
-                co_return 0;
-              }
-            }
-
-            if (this->readed_ == this->processed_) {
-              this->processed_ = 0;
-              this->readed_ = co_await this->input_stream_->read_async(sp, this->buffer_, sizeof(this->buffer_));
-              if (0 == this->readed_) {
-                this->eof_ = true;
-                co_return 0;
-              }
-            }
-
-            auto size = this->readed_ - this->processed_;
-            if (size > this->content_length_) {
-              size = this->content_length_;
-            }
-            if (size > buffer_size) {
-              size = buffer_size;
-            }
-
-            this->content_length_ -= size;
-            memcpy(buffer, this->buffer_ + this->processed_, size);
-
-            this->processed_ += size;
-
-            co_return size;
+            co_return co_await
+              this->parse_body(sp, buffer, buffer_size);
           }
           case StateEnum::STATE_PARSE_SIZE: {
             if (this->readed_ == this->processed_) {
               this->processed_ = 0;
-              this->readed_ = co_await this->input_stream_->read_async(sp, this->buffer_, sizeof(this->buffer_));
+              this->readed_ = co_await
+                this->input_stream_->read_async(sp, this->buffer_, sizeof(this->buffer_));
               if (0 == this->readed_) {
                 this->eof_ = true;
                 co_return 0;
@@ -223,31 +270,13 @@ namespace vds {
 
             this->processed_ += size + 1;
 
-            this->content_length_ = 0;
-            for (auto ch : this->parse_buffer_) {
-              if ('0' <= ch && ch <= '9') {
-                this->content_length_ <<= 4;
-                this->content_length_ |= ch - '0';
-              }
-              else if ('a' <= ch && ch <= 'f') {
-                this->content_length_ <<= 4;
-                this->content_length_ |= ch - 'a' + 10;
-              }
-              else if ('A' <= ch && ch <= 'F') {
-                this->content_length_ <<= 4;
-                this->content_length_ |= ch - 'A' + 10;
-              }
-              else {
-                throw std::runtime_error("Invalid size " + this->parse_buffer_);
-              }
-            }
+            co_await this->parse_content_size();
 
-            if (0 < this->content_length_) {
-              this->state_ = StateEnum::STATE_PARSE_BODY;
-            }
-            else {
-              this->state_ = StateEnum::STATE_PARSE_HEADER;
-              co_return 0;
+            auto result = co_await
+              this->parse_size(sp, buffer, buffer_size);
+            if (result.has_value()) {
+              co_return
+                result.value();
             }
             break;
           }
@@ -274,13 +303,14 @@ namespace vds {
         }
       }
 
-      bool get_rest_data(uint8_t * buffer, size_t buffer_size, size_t & rest_len) {
+
+      bool get_rest_data(uint8_t* buffer, size_t buffer_size, size_t& rest_len) {
         rest_len = this->readed_ - this->processed_;
-        if(0 < rest_len) {
+        if (0 < rest_len) {
           vds_assert(rest_len <= buffer_size);
           memcpy(buffer, this->buffer_ + this->processed_, rest_len);
         }
-        return  this->eof_;
+        return this->eof_;
       }
 
     private:
@@ -291,7 +321,7 @@ namespace vds {
         STATE_PARSE_FINISH_CHUNK,
       };
 
-      std::shared_ptr<http_parser_base> owner_;
+      std::shared_ptr<http_parser> owner_;
       std::shared_ptr<stream_input_async<uint8_t>> input_stream_;
       size_t content_length_;
       bool chunked_encoding_;
@@ -305,17 +335,6 @@ namespace vds {
       std::string parse_buffer_;
       StateEnum state_;
     };
-  };
-
-  class http_parser : public http_parser_base<http_parser> {
-  public:
-    http_parser(
-      const std::function<std::future<void>(const http_message &message)> &message_callback)
-      : http_parser_base<http_parser>(message_callback) {
-    }
-
-    static std::string url_unescape(const std::string & string);
-    static std::string url_escape(const std::string & string);
   };
 }
 

@@ -54,17 +54,11 @@ namespace vds {
 
   class udp_datagram_reader : public std::enable_shared_from_this<udp_datagram_reader> {
   public:
-    udp_datagram_reader();
-    ~udp_datagram_reader();
-
     std::future<udp_datagram> read_async(const service_provider & sp);
   };
 
   class udp_datagram_writer : public std::enable_shared_from_this<udp_datagram_writer> {
   public:
-    udp_datagram_writer();
-    ~udp_datagram_writer();
-
     std::future<void> write_async(const service_provider & sp, const udp_datagram & message);
   };
 
