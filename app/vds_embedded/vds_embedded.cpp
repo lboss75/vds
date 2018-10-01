@@ -4,7 +4,7 @@
 #include "stdafx.h"
 #include "vds_embedded.h"
 
-void vds::vds_embedded::server_root(const std::string & login, const std::string & password) {
+void vds::vds_embedded::server_root(const std::string & /*login*/, const std::string & /*password*/) {
 
   this->last_error_.clear();
   try {
@@ -36,15 +36,8 @@ void vds::vds_embedded::server_root(const std::string & login, const std::string
     registrator.add(network_service);
     registrator.add(server);
 
-    std::shared_ptr<std::exception> error;
 
     auto sp = registrator.build("server::init_root");
-    sp.set_property<vds::unhandled_exception_handler>(
-        vds::service_provider::property_scope::any_scope,
-        new vds::unhandled_exception_handler(
-            [&error](const vds::service_provider &sp, const std::shared_ptr<std::exception> &ex) {
-              error = ex;
-            }));
     try {
       auto root_folders = new vds::persistence_values();
       root_folders->current_user_ = folder;
@@ -75,10 +68,6 @@ void vds::vds_embedded::server_root(const std::string & login, const std::string
     }
 
     registrator.shutdown(sp);
-
-    if (error) {
-      throw std::runtime_error(error->what());
-    }
   }
   catch(const std::exception & ex){
     this->last_error_ = ex.what();

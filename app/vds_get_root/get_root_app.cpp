@@ -65,9 +65,9 @@ void vds::get_root_app::main(const service_provider & sp)
 
     binary_serializer s;
     s
-      << private_info.root_private_key_.der(this->user_password_.value())
-      << private_info.common_news_write_private_key_.der(this->user_password_.value())
-      << private_info.common_news_admin_private_key_.der(this->user_password_.value())
+      << private_info.root_private_key_->der(this->user_password_.value())
+      << private_info.common_news_write_private_key_->der(this->user_password_.value())
+      << private_info.common_news_admin_private_key_->der(this->user_password_.value())
     ;
     file::write_all(filename("keys"), s.move_data());
   }

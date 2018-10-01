@@ -8,6 +8,7 @@ All rights reserved
 #include "network_service.h"
 #include "dht_network.h"
 #include "user_channel.h"
+#include "async_buffer.h"
 
 namespace vds {
   class user_manager;

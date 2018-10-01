@@ -44,7 +44,7 @@ public:
     this->source_node_ = source_node;
     this->hops_ = hops;
 
-    return std::future<void>::empty();
+    co_return;
   }
 
 
