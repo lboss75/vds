@@ -203,7 +203,7 @@ namespace vds {
         auto readed = co_await part.body()->read_async(sp, this->buffer_, sizeof(this->buffer_));
 
         if (0 == readed) {
-          co_await buffer->write_async(nullptr, 0);
+          co_await buffer->write_async(sp, nullptr, 0);
           co_return;
         }
 

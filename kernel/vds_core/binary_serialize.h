@@ -289,7 +289,9 @@ namespace vds {
   inline message_type message_create(init_field_types &&... init_field_values)
   {
     message_type message;
-    message.visit(_message_init_visitor<init_field_types...>(std::forward<init_field_types>(init_field_values)...));
+    _message_init_visitor<init_field_types...> v(
+        std::forward<init_field_types>(init_field_values)...);
+    message.visit(v);
 
     return message;
   }
@@ -298,12 +300,13 @@ namespace vds {
   inline const_data_buffer message_serialize(init_field_types &&... init_field_values)
   {
     message_type message;
-    message.visit(
-        _message_init_visitor<init_field_types...>(
-            std::forward<init_field_types>(init_field_values)...));
+    _message_init_visitor<init_field_types...> v(
+        std::forward<init_field_types>(init_field_values)...);
+    message.visit(v);
 
     vds::binary_serializer b;
-    message.visit(_serialize_visitor(b));
+    _serialize_visitor bs(b);
+    message.visit(bs);
 
     return b.move_data();
   }
@@ -312,7 +315,8 @@ namespace vds {
   inline message_type message_deserialize(vds::binary_deserializer & d)
   {
     message_type message;
-    message.visit(_deserialize_visitor(d));
+    _deserialize_visitor v(d);
+    message.visit(v);
     return message;
   }
 

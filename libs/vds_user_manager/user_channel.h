@@ -83,7 +83,8 @@ namespace vds {
       binary_serializer s;
       s
         << (uint8_t)item_type::message_id;
-      item.visit(_serialize_visitor(s));
+      _serialize_visitor v(s);
+      item.visit(v);
 
       this->add_to_log(log, s.get_buffer(), s.size());
     }
