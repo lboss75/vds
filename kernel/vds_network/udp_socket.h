@@ -75,7 +75,11 @@ namespace vds {
     udp_socket &operator = (const udp_socket & original) = delete;
     udp_socket & operator = (udp_socket && original);
 
-    std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>> start(const service_provider & sp);
+    std::tuple<
+        std::shared_ptr<udp_datagram_reader>,
+        std::shared_ptr<udp_datagram_writer>>
+          start(const service_provider & sp);
+
     void stop();
 
     _udp_socket * operator -> () const { return this->impl_; }

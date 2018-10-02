@@ -69,7 +69,7 @@ template <typename R> auto operator co_await(std::future<R> &&f) {
 
 std::future<int> async_add(int a, int b)
 {
-  auto p = std::make_shared<vds::async_result<int>>();
+  auto p = std::make_shared<std::promise<int>>();
 
   std::thread([a, b, p]() {
     int c = a + b;

@@ -82,17 +82,16 @@ vds::udp_socket::~udp_socket()
 }
 
 std::tuple<std::shared_ptr<vds::udp_datagram_reader>, std::shared_ptr<vds::udp_datagram_writer>>
-vds::udp_socket::start(const service_provider & /*sp*/)
+vds::udp_socket::start(const service_provider & sp)
 {
   return {
-    std::make_shared<_udp_receive>(this->shared_from_this()),
-    std::make_shared<_udp_send>(this->shared_from_this())
+    std::make_shared<_udp_receive>(sp, this->shared_from_this()),
+    std::make_shared<_udp_send>(sp, this->shared_from_this())
   };
 }
 
 void vds::udp_socket::stop()
 {
-  this->impl_->stop();
 }
 
 std::shared_ptr<vds::udp_socket> vds::udp_socket::create(
@@ -155,6 +154,27 @@ std::shared_ptr<vds::udp_socket> vds::udp_socket::create(
 #endif
   return std::shared_ptr<udp_socket>(new udp_socket(new _udp_socket(s)));
 }
+
+void vds::_udp_socket::process(uint32_t events) {
+  if (EPOLLOUT == (EPOLLOUT & events)) {
+    if (0 == (this->event_masks_ & EPOLLOUT)) {
+      throw std::runtime_error("Invalid state");
+    }
+    this->change_mask(0, EPOLLOUT);
+
+    this->write_task_.lock()->process();
+  }
+
+  if (EPOLLIN == (EPOLLIN & events)) {
+    if (0 == (this->event_masks_ & EPOLLIN)) {
+      throw std::runtime_error("Invalid state");
+    }
+    this->change_mask(0, EPOLLIN);
+
+    this->read_task_.lock()->process();
+  }
+}
+
 
 vds::udp_server::udp_server()
   : impl_(nullptr)

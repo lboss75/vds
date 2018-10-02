@@ -278,7 +278,6 @@ void vds::_network_service::thread_loop(const service_provider & sp)
 #else
 
 void vds::_network_service::associate(
-  const service_provider & sp,
   SOCKET_HANDLE s,
   const std::shared_ptr<_socket_task> & handler,
   uint32_t event_mask)
@@ -303,7 +302,6 @@ void vds::_network_service::associate(
 }
 
 void vds::_network_service::set_events(
-  const service_provider & sp,
   SOCKET_HANDLE s,
   uint32_t event_mask)
 {
@@ -320,7 +318,6 @@ void vds::_network_service::set_events(
 }
 
 void vds::_network_service::remove_association(
-  const service_provider & sp,
   SOCKET_HANDLE s)
 {
   struct epoll_event event_data;

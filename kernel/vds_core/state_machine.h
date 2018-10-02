@@ -53,7 +53,7 @@ namespace vds {
           std::promise<void> result;
           auto f = result.get_future();
           this->state_expectants_[expected_state] = std::make_tuple(new_state, std::move(result));
-          co_return co_await f;
+          co_return co_await std::move(f);
         }
     }
 
@@ -65,7 +65,7 @@ namespace vds {
         std::promise<void> result;
         auto ret = result.get_future();
         this->state_expectants_[expected_state] = std::make_tuple(expected_state, std::move(result));
-        co_return co_await ret;
+        co_return co_await std::move(ret);
       }
     }
 

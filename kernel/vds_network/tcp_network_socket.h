@@ -16,6 +16,7 @@ namespace vds {
   {
   public:
     tcp_network_socket();
+    ~tcp_network_socket();
 
     static std::shared_ptr<tcp_network_socket> connect(
       const service_provider & sp,
@@ -29,14 +30,22 @@ namespace vds {
     void close();
 
     class _tcp_network_socket * operator ->() const {
+#ifdef _WIN32
       return this->impl_;
+#else
+      return this->impl_.get();
+#endif
     }
 
   private:
     friend class _tcp_network_socket;
     tcp_network_socket(class _tcp_network_socket * impl);
 
+#ifdef _WIN32
     _tcp_network_socket * impl_;
+#else
+    std::shared_ptr<_tcp_network_socket> impl_;
+#endif
   };
 }
 

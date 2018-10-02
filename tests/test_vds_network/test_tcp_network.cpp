@@ -70,17 +70,17 @@ TEST(network_tests, test_server)
     vds::network_address::ip4("localhost", 8000));
 
   sp.get<vds::logger>()->debug("TCP", sp, "Connected");
-  auto[reader, writer] = s->start(sp);
+  auto [reader, writer] = s->start(sp);
 
-  std::thread t1([sp, writer, &data]() {
-    auto rs = std::make_shared<random_stream<uint8_t>>(writer);
+  std::thread t1([sp, w = writer, &data]() {
+    auto rs = std::make_shared<random_stream<uint8_t>>(w);
     rs->write_async(sp, data.data(), data.size()).get();
     rs->write_async(sp, nullptr, 0).get();
   });
 
-  std::thread t2([sp, reader, &data]() {
+  std::thread t2([sp, r = reader, &data]() {
     const auto cd = std::make_shared<compare_data_async<uint8_t>>(data.data(), data.size());
-    copy_stream(sp, reader, cd).get();
+    copy_stream(sp, r, cd).get();
   });
 
   t1.join();

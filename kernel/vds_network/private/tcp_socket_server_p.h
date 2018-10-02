@@ -19,7 +19,6 @@ namespace vds {
     _tcp_socket_server()
     : s_(INVALID_SOCKET)
 #ifndef _WIN32
-      , sp_(service_provider::empty())
       , is_shuting_down_(false)
 #endif
     {
@@ -154,11 +153,10 @@ namespace vds {
               throw std::system_error(error, std::system_category());
             }
 
-            this->sp_ = sp;
             this->new_connection_ = new_connection;
             
             this->wait_accept_task_ = std::thread(
-              [this](){
+              [this, sp](){
                 auto epollfd = epoll_create(1);
                 if (0 > epollfd) {
                   throw std::runtime_error("epoll_create failed");
@@ -174,7 +172,7 @@ namespace vds {
                   return;
                 }
                 
-                while(!this->is_shuting_down_ && !this->sp_.get_shutdown_event().is_shuting_down()) {
+                while(!this->is_shuting_down_ && !sp.get_shutdown_event().is_shuting_down()) {
                   auto result = epoll_wait(epollfd, &ev, 1, 1000);
                   if(result > 0){
                     sockaddr client_address;
@@ -183,8 +181,8 @@ namespace vds {
                     auto socket = accept(this->s_, &client_address, &client_address_length);
                     if (INVALID_SOCKET != socket) {
                       auto s = _tcp_network_socket::from_handle(socket);
-                      s->make_socket_non_blocking();
-                      s->set_timeouts();
+                      (*s)->make_socket_non_blocking();
+                      (*s)->set_timeouts();
                       this->new_connection_(s);
                     }
                   }
@@ -203,9 +201,7 @@ namespace vds {
     std::thread wait_accept_task_;
     bool is_shuting_down_;
 #ifndef _WIN32
-    std::function<void(const tcp_network_socket & s)> new_connection_;
-    service_provider sp_;
-
+    std::function<std::future<void>(const std::shared_ptr<tcp_network_socket> & s)> new_connection_;
 #else
     class windows_wsa_event
     {

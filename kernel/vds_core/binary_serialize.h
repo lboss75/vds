@@ -298,7 +298,9 @@ namespace vds {
   inline const_data_buffer message_serialize(init_field_types &&... init_field_values)
   {
     message_type message;
-    message.visit(_message_init_visitor<init_field_types...>(std::forward<init_field_types>(init_field_values)...));
+    message.visit(
+        _message_init_visitor<init_field_types...>(
+            std::forward<init_field_types>(init_field_values)...));
 
     vds::binary_serializer b;
     message.visit(_serialize_visitor(b));

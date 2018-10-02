@@ -41,16 +41,13 @@ namespace vds {
 
 #else
         void associate(
-          const service_provider & sp,
           SOCKET_HANDLE s,
           const std::shared_ptr<_socket_task> & handler,
           uint32_t event_mask);
         void set_events(
-          const service_provider & sp,
           SOCKET_HANDLE s,
           uint32_t event_mask);
         void remove_association(
-          const service_provider & sp,
           SOCKET_HANDLE s);
 #endif
         static std::string to_string(const sockaddr_in & from);

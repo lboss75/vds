@@ -59,7 +59,7 @@ namespace vds {
   };
 
 
-  class _udp_socket
+  class _udp_socket : public _socket_task
   {
   public:
     _udp_socket(SOCKET_HANDLE s)
@@ -77,53 +77,35 @@ namespace vds {
       return this->s_;
     }
 
-    void start(const vds::service_provider & sp)
-    {
-#ifdef _WIN32
-#else
-      auto handler = std::make_shared<_udp_handler>(sp, this->shared_from_this());
-      this->handler_ = handler;
-      handler->start();
-#endif
-    }
+#ifndef _WIN32
 
-    void prepare_to_stop(const service_provider & sp)
-    {
-#ifdef _WIN32
-#else
-      this->handler_->prepare_to_stop(sp);
-#endif// _WIN32
-    }
+    void process(uint32_t events) override;
 
-    void stop()
+    void change_mask(
+        _network_service * ns,
+        uint32_t set_events,
+        uint32_t clear_events = 0)
     {
-#ifdef _WIN32
-#else
-      this->handler_->stop();
-      this->handler_.reset();
-#endif
-    }
+      std::unique_lock<std::mutex> lock(this->event_masks_mutex_);
+      auto need_create = (EPOLLET == this->event_masks_);
+      this->event_masks_ |= set_events;
+      this->event_masks_ &= ~clear_events;
 
-    std::future<udp_datagram> read_async()
-    {
-#ifdef _WIN32
-#else
-      if (!this->handler_) {
-        throw std::system_error(ECONNRESET, std::system_category(), "Socket is closed");
+      if(!need_create && EPOLLET != this->event_masks_){
+        ns->set_events(this->s_, this->event_masks_);
       }
-
-      co_return co_await this->handler_->read_async();
-#endif
+      else if (EPOLLET == this->event_masks_){
+        ns->remove_association(this->s_);
+      }
+      else {
+        ns->associate(
+            this->s_,
+            this->shared_from_this(),
+            this->event_masks_);
+      }
     }
 
-    std::future<void> write_async(const udp_datagram & message)
-    {
-#ifdef _WIN32
-#else
-      co_return co_await this->handler_->write_async(message);
-#endif
-    }
-
+#endif//_WIN32
 
   private:
     SOCKET_HANDLE s_;
@@ -142,13 +124,24 @@ namespace vds {
       }
 #endif
     }
+
+#ifndef _WIN32
+    std::mutex event_masks_mutex_;
+    uint32_t event_masks_;
+
+    std::weak_ptr<class _udp_receive> read_task_;
+    std::weak_ptr<class _udp_send> write_task_;
+
+#endif
   };
 
 #ifdef _WIN32
   class _udp_receive : public _socket_task, public udp_datagram_reader
   {
   public:
-    _udp_receive(const std::shared_ptr<udp_socket> & s)
+    _udp_receive(
+        const service_provider & /*sp*/,
+        const std::shared_ptr<udp_socket> & s)
       : s_(s)
     {
     }
@@ -232,7 +225,9 @@ namespace vds {
   class _udp_send : public _socket_task, public udp_datagram_writer
   {
   public:
-    _udp_send(const std::shared_ptr<udp_socket> & s)
+    _udp_send(
+        const service_provider & /*sp*/,
+        const std::shared_ptr<udp_socket> & s)
       : s_(s) {
     }
 
@@ -323,177 +318,132 @@ namespace vds {
   };
 
 #else
-  class _udp_handler : public _socket_task_impl<_udp_handler>
+  class _udp_receive : public udp_datagram_reader
   {
-    using this_class = _udp_handler;
-    using base_class = _socket_task_impl<_udp_handler>;
   public:
-    _udp_handler(
-      const service_provider & sp,
-      const std::shared_ptr<_udp_socket> & owner)
-      : _socket_task_impl<_udp_handler>(sp, owner->s_),
-      owner_(owner)
+    _udp_receive(
+        const service_provider & sp,
+        const std::shared_ptr<udp_socket> & owner)
+      : ns_(sp.get<network_service>()->operator->()),
+        owner_(owner)
     {
     }
 
-    ~_udp_handler()
+    ~_udp_receive()
     {
     }
 
-    std::future<udp_datagram> read_async() {
-      std::lock_guard<std::mutex> lock(this->read_mutex_);
-      switch (this->read_status_) {
-      case read_status_t::bof: {
-        this->read_result_ = std::make_shared<std::promise<udp_datagram>>();
-        this->read_status_ = read_status_t::waiting_socket;
-        this->change_mask(EPOLLIN);
-        return this->read_result_->get_future();
-      }
-
-      case read_status_t::continue_read: {
-        this->read_result_ = std::make_shared<std::promise<udp_datagram>>();
-        this->read_data();
-        return this->read_result_->get_future();
-      }
-
-      case read_status_t::eof:
-        throw std::system_error(ECONNRESET, std::system_category());
-
-      default:
-        throw  std::runtime_error("Invalid operator");
-      }
-    }
-
-    std::future<void> write_async(const udp_datagram & message) {
-      std::lock_guard<std::mutex> lock(this->write_mutex_);
-      switch (this->write_status_) {
-      case write_status_t::bof: {
-        this->write_message_ = message;
-        this->write_result_ = std::make_shared<std::promise<void>>();
-        this->write_status_ = write_status_t::waiting_socket;
-        this->change_mask(EPOLLOUT);
-        return this->write_result_->get_future();
-      }
-
-      case write_status_t::continue_write: {
-        this->write_message_ = message;
-        this->write_result_ = std::make_shared<std::promise<void>>();
-        this->write_data();
-      }
-
-      case write_status_t::eof:
-        throw std::system_error(ECONNRESET, std::system_category());
-
-      default:
-        throw  std::runtime_error("Invalid operator");
-      }
-    }
-
-    void read_data() {
-      std::unique_lock<std::mutex> lock(this->read_mutex_);
-
-      if (read_status_t::eof == this->read_status_) {
-        auto result = std::move(this->read_result_);
-        lock.unlock();
-
-        if (result) {
-          result->set_exception(std::make_exception_ptr(std::system_error(ECONNRESET, std::system_category())));
-        }
-        return;
-      }
-
-      if (read_status_t::waiting_socket != this->read_status_
-        && read_status_t::continue_read != this->read_status_) {
-        throw std::runtime_error("Invalid operation");
-      }
-
+    std::future<udp_datagram> read_async(const service_provider & sp) {
       this->addr_.reset();
-      int len = recvfrom(this->s_,
-        this->read_buffer_,
-        sizeof(this->read_buffer_),
-        0,
-        this->addr_,
-        this->addr_.size_ptr());
+      int len = recvfrom((*this->owner_)->handle(),
+                         this->read_buffer_,
+                         sizeof(this->read_buffer_),
+                         0,
+                         this->addr_,
+                         this->addr_.size_ptr());
 
       if (len <= 0) {
         int error = errno;
         if (EAGAIN == error) {
-          this->read_status_ = read_status_t::waiting_socket;
-          this->change_mask(EPOLLIN);
-          return;
+          auto r = std::make_shared<std::promise<udp_datagram>>();
+          this->read_result_ = r;
+          (*this->owner_)->change_mask(this->ns_, EPOLLIN);
+          return r->get_future();
         }
 
-        this->read_status_ = read_status_t::continue_read;
-        auto result = std::move(this->read_result_);
-        lock.unlock();
-
-        result->set_exception(
-          std::make_exception_ptr(std::system_error(error, std::system_category(), "recvfrom")));
+        throw std::system_error(error, std::system_category(), "recvfrom");
       }
       else {
-        this->sp_.get<logger>()->trace("UDP", this->sp_, "got %d bytes from %s", len,
-          this->addr_.to_string().c_str());
-        this->read_status_ = read_status_t::continue_read;
-        auto result = std::move(this->read_result_);
-        lock.unlock();
-
-        result->set_value(_udp_datagram::create(this->addr_, this->read_buffer_, len));
+        auto r = std::make_shared<std::promise<udp_datagram>>();
+        r->set_value(_udp_datagram::create(this->addr_, this->read_buffer_, len));
+        return r->get_future();
       }
     }
 
-    void write_data() {
-      std::unique_lock<std::mutex> lock(this->write_mutex_);
 
-      if (write_status_t::eof == this->write_status_) {
-        auto result = std::move(this->write_result_);
-        lock.unlock();
+    void process() {
+      this->addr_.reset();
+      int len = recvfrom((*this->owner_)->handle(),
+                         this->read_buffer_,
+                         sizeof(this->read_buffer_),
+                         0,
+                         this->addr_,
+                         this->addr_.size_ptr());
 
-        if (result) {
-          result->set_exception(
-            std::make_exception_ptr(std::system_error(
-              ECONNRESET, std::system_category())));
+      if (len <= 0) {
+        int error = errno;
+        if (EAGAIN == error) {
+          (*this->owner_)->change_mask(this->ns_, EPOLLIN);
+          return;
         }
-        return;
-      }
 
-      if (write_status_t::waiting_socket != this->write_status_
-        && write_status_t::continue_write != this->write_status_) {
-        throw std::runtime_error("Invalid operation");
+        auto r = std::move(this->read_result_);
+        r->set_exception(
+            std::make_exception_ptr(
+                std::system_error(error, std::system_category(), "recvfrom")));
       }
+      else {
+        auto r = std::move(this->read_result_);
+        r->set_value(_udp_datagram::create(this->addr_, this->read_buffer_, len));
+      }
+    }
 
+
+  private:
+    _network_service * ns_;
+    std::shared_ptr<udp_socket> owner_;
+    std::shared_ptr<std::promise<udp_datagram>> read_result_;
+
+    network_address addr_;
+    uint8_t read_buffer_[64 * 1024];
+  };
+
+  class _udp_send : public udp_datagram_writer {
+  public:
+    _udp_send(
+        const service_provider & sp,
+        const std::shared_ptr<udp_socket> & owner)
+        : ns_(sp.get<network_service>()->operator->()),
+          owner_(owner) {
+
+    }
+
+    std::future<void> write_async(const service_provider & sp, const udp_datagram & message) {
+      this->write_message_ = message;
+      auto r = std::make_shared<std::promise<void>>();
+      this->write_result_ = r;
+      (*this->owner_)->change_mask(this->ns_, EPOLLOUT);
+      return r->get_future();
+    }
+
+    void process(){
       auto size = this->write_message_.data_size();
       int len = sendto(
-        this->s_,
-        this->write_message_.data(),
-        size,
-        0,
-        this->write_message_.address(),
-        this->write_message_.address().size());
-      this->sp_.get<logger>()->trace("UDP", this->sp_, "send %d bytes to %s",
-        size,
-        this->write_message_.address().to_string().c_str());
+          (*this->owner_)->handle(),
+          this->write_message_.data(),
+          size,
+          0,
+          this->write_message_.address(),
+          this->write_message_.address().size());
 
-      this->write_status_ = write_status_t::bof;
       if (len < 0) {
         int error = errno;
         if (EAGAIN == error) {
-          this->write_status_ = write_status_t::waiting_socket;
-          this->change_mask(EPOLLOUT);
+          (*this->owner_)->change_mask(this->ns_, EPOLLOUT);
           return;
         }
 
         auto result = std::move(this->write_result_);
         auto address = this->write_message_.address().to_string();
-        lock.unlock();
 
         if (EMSGSIZE == error) {
           result->set_exception(std::make_exception_ptr(udp_datagram_size_exception()));
         }
         else {
           result->set_exception(std::make_exception_ptr(std::system_error(
-            error,
-            std::generic_category(),
-            "Send to " + address)));
+              error,
+              std::generic_category(),
+              "Send to " + address)));
         }
       }
       else {
@@ -501,67 +451,17 @@ namespace vds {
           throw std::runtime_error("Invalid send UDP");
         }
 
-        this->sp_.get<logger>()->trace(
-          "UDP",
-          this->sp_,
-          "Sent %d bytes to %s",
-          len,
-          this->write_message_.address().to_string().c_str());
-
-        this->write_status_ = write_status_t::continue_write;
         auto result = std::move(this->write_result_);
-        lock.unlock();
-
         result->set_value();
       }
     }
 
-    void prepare_to_stop(const service_provider & sp)
-    {
-      std::unique_lock<std::mutex> lock1(this->write_mutex_);
-      std::unique_lock<std::mutex> lock2(this->read_mutex_);
-
-      if (this->read_result_) {
-        this->read_result_->set_exception(
-          std::make_exception_ptr(std::system_error(ECONNRESET, std::system_category())));
-      }
-
-      if (this->write_result_) {
-        this->write_result_->set_exception(
-          std::make_exception_ptr(std::system_error(ECONNRESET, std::system_category())));
-      }
-
-      this->read_status_ = read_status_t::eof;
-      this->write_status_ = write_status_t::eof;
-    }
-
-    void stop() {
-      base_class::stop();
-
-      if (this->read_result_) {
-        this->read_result_->set_exception(
-          std::make_exception_ptr(vds_exceptions::shooting_down_exception()));
-      }
-      if (this->write_result_) {
-        this->write_result_->set_exception(
-          std::make_exception_ptr(vds_exceptions::shooting_down_exception()));
-      }
-
-      this->owner_.reset();
-    }
-
   private:
-    std::shared_ptr<_udp_socket> owner_;
-    std::shared_ptr<std::promise<udp_datagram>> read_result_;
+    _network_service * ns_;
+    std::shared_ptr<udp_socket> owner_;
     std::shared_ptr<std::promise<void>> write_result_;
-
-    network_address addr_;
-    uint8_t read_buffer_[64 * 1024];
-
     udp_datagram write_message_;
   };
-
-  std::shared_ptr<_udp_handler> handler_;
 #endif//_WIN32
 
   class _udp_server
@@ -572,7 +472,7 @@ namespace vds {
     {
     }
 
-    std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>> & start(const service_provider & sp)
+    std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>> start(const service_provider & sp)
     {
       auto scope = sp.create_scope(("UDP server on " + this->address_.to_string()).c_str());
       imt_service::enable_async(scope);
@@ -593,7 +493,6 @@ namespace vds {
 
     void prepare_to_stop(const service_provider & sp)
     {
-      (*this->socket_)->prepare_to_stop(sp);
     }
 
     void stop(const service_provider & sp)
