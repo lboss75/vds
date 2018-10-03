@@ -115,11 +115,8 @@ namespace vds {
 
     template<typename U>
     void await_suspend(std::experimental::coroutine_handle<U> hndl) noexcept {
-      // FIXME: The same comment as unspecialised version.
-      // FIXME: Avoid code duplication so that there is no need for comments
-      // like the one above.
       std::async([this, hndl]() mutable {
-        this->_future.get();
+        this->_future.wait();
         hndl.resume();
       });
     }

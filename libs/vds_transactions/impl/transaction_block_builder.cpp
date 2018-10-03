@@ -82,17 +82,20 @@ vds::transactions::transaction_block_builder::transaction_block_builder(
 
 void vds::transactions::transaction_block_builder::add(const root_user_transaction& item) {
   this->data_ << (uint8_t)root_user_transaction::message_id;
-  const_cast<root_user_transaction &>(item).visit(_serialize_visitor(this->data_));
+  _serialize_visitor v(this->data_);
+  const_cast<root_user_transaction &>(item).visit(v);
 }
 
 void vds::transactions::transaction_block_builder::add(const create_user_transaction& item) {
   this->data_ << (uint8_t)create_user_transaction::message_id;
-  const_cast<create_user_transaction &>(item).visit(_serialize_visitor(this->data_));
+  _serialize_visitor v(this->data_);
+  const_cast<create_user_transaction &>(item).visit(v);
 }
 
 void vds::transactions::transaction_block_builder::add(const payment_transaction& item) {
   this->data_ << (uint8_t)payment_transaction::message_id;
-  const_cast<payment_transaction &>(item).visit(_serialize_visitor(this->data_));
+  _serialize_visitor v(this->data_);
+  const_cast<payment_transaction &>(item).visit(v);
 }
 
 void vds::transactions::transaction_block_builder::add(

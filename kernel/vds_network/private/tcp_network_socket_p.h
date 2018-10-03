@@ -364,10 +364,12 @@ namespace vds {
       auto r = std::make_shared<std::promise<void>>();
       this->result_ = r;
       (*this->owner_)->change_mask(this->ns_, EPOLLOUT);
-      co_return co_await r->get_future();
+      co_await r->get_future();
     }
 
     void process() {
+      (*this->owner_)->change_mask(this->ns_, 0, EPOLLOUT);
+
       for (;;) {
 
         int len = send(
@@ -397,6 +399,7 @@ namespace vds {
 
           auto r = std::move(this->result_);
           r->set_value();
+          return;
         }
       }
     }
@@ -438,8 +441,9 @@ namespace vds {
           (*this->owner_)->change_mask(this->ns_, EPOLLIN);
           this->buffer_ = buffer;
           this->buffer_size_ = buffer_size;
-          this->result_ = std::make_shared<std::promise<size_t>>();
-          co_return co_await this->result_->get_future();
+          auto r = std::make_shared<std::promise<size_t>>();
+          this->result_ = r;
+          co_return co_await r->get_future();
         }
         if (0 == error && 0 == len) {
           co_return 0;
@@ -458,6 +462,8 @@ namespace vds {
     }
 
     void process() {
+      (*this->owner_)->change_mask(this->ns_, 0, EPOLLIN);
+
       int len = read(
           (*this->owner_)->handle(),
           this->buffer_,
@@ -470,19 +476,21 @@ namespace vds {
           return;
         }
         if (0 == error && 0 == len) {
-          this->result_->set_value(0);
-          this->result_.reset();
+          auto r = std::move(this->result_);
+          r->set_value(0);
           return;
         }
 
-        this->result_->set_exception(std::make_exception_ptr(
+        auto r = std::move(this->result_);
+        r->set_exception(std::make_exception_ptr(
             std::system_error(
                 error,
                 std::generic_category(),
                 "Read")));
       }
       else {
-        this->result_->set_value(len);
+        auto r = std::move(this->result_);
+        r->set_value(len);
       }
     }
 
