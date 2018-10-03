@@ -155,6 +155,7 @@ std::shared_ptr<vds::udp_socket> vds::udp_socket::create(
   return std::shared_ptr<udp_socket>(new udp_socket(new _udp_socket(s)));
 }
 
+#ifndef _WIN32
 void vds::_udp_socket::process(uint32_t events) {
   if (EPOLLOUT == (EPOLLOUT & events)) {
     if (0 == (this->event_masks_ & EPOLLOUT)) {
@@ -174,7 +175,7 @@ void vds::_udp_socket::process(uint32_t events) {
     this->read_task_.lock()->process();
   }
 }
-
+#endif//_WIN32
 
 vds::udp_server::udp_server()
   : impl_(nullptr)

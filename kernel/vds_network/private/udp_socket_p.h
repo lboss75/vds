@@ -59,7 +59,10 @@ namespace vds {
   };
 
 
-  class _udp_socket : public _socket_task
+  class _udp_socket
+#ifndef _WIN32
+    : public _socket_task
+#endif//_WIN32
   {
   public:
     _udp_socket(SOCKET_HANDLE s)

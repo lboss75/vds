@@ -118,7 +118,7 @@ public:
 
 
   std::future<void> process_message(const vds::service_provider& scope, const message_info_t& message_info) override;
-  void on_new_session(const vds::service_provider& sp, const vds::const_data_buffer& partner_id) override;
+  std::future<void> on_new_session(const vds::service_provider& sp, const vds::const_data_buffer& partner_id) override;
 private:
 
   vds::db_model db_model_;

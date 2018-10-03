@@ -22,12 +22,18 @@ namespace vds {
   {
   public:
     _tcp_network_socket()
-      : s_(INVALID_SOCKET), event_masks_(EPOLLET)
+      : s_(INVALID_SOCKET)
+#ifndef _WIN32
+    , event_masks_(EPOLLET)
+#endif
     {
     }
 
     _tcp_network_socket(SOCKET_HANDLE s)
-      : s_(s), event_masks_(EPOLLET)
+      : s_(s)
+#ifndef _WIN32
+    , event_masks_(EPOLLET)
+#endif
     {
 #ifdef _WIN32
       if (INVALID_SOCKET == s) {

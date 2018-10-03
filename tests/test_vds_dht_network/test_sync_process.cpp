@@ -165,10 +165,10 @@ std::future<void> transport_hab::write_async(
   auto p = this->servers_.find(datagram.address());
   if(this->servers_.end() == p) {
     auto a = datagram.address().to_string();
-    return std::future<void>(std::make_shared<std::runtime_error>("Invalid address " + a));
+    throw std::runtime_error("Invalid address " + a);
   }
   else {
-    return p->second->process_datagram(datagram, source_node_id, source_address);
+    co_return co_await p->second->process_datagram(datagram, source_node_id, source_address);
   }
 }
 
@@ -309,7 +309,7 @@ const vds::network_address& mock_server::address() const {
 
 #define route_client(message_type)\
   case vds::dht::network::message_type_t::message_type: {\
-      return sp.get<vds::db_model>()->async_transaction(sp, [sp, message_info](vds::database_transaction & t) {\
+      co_return co_await sp.get<vds::db_model>()->async_transaction(sp, [sp, message_info](vds::database_transaction & t) {\
         vds::binary_deserializer s(message_info.message_data());\
         vds::dht::messages::message_type message(s);\
         (*sp.get<vds::dht::network::client>())->apply_message(\
@@ -326,10 +326,10 @@ const vds::network_address& mock_server::address() const {
   case vds::dht::network::message_type_t::message_type: {\
       vds::binary_deserializer s(message_info.message_data());\
       vds::dht::messages::message_type message(s);\
-      (*sp.get<vds::dht::network::client>())->apply_message(\
+      co_return co_await (*sp.get<vds::dht::network::client>())->apply_message(\
       sp.create_scope("messages::" #message_type),\
         message,\
-        message_info).wait();\
+        message_info);\
       break;\
     }
 
@@ -385,11 +385,11 @@ std::future<void> mock_server::process_message(
       throw std::runtime_error("Invalid command");
     }
   }
-  return std::future<void>::empty();
+  co_return;
 
 }
 
-void mock_server::on_new_session(const vds::service_provider& sp, const vds::const_data_buffer& partner_id) {
+std::future<void> mock_server::on_new_session(const vds::service_provider& sp, const vds::const_data_buffer& partner_id) {
   throw vds::vds_exceptions::invalid_operation();
 }
 
@@ -440,16 +440,16 @@ void mock_server::stop(const vds::service_provider& sp) {
 }
 
 std::future<void> mock_server::prepare_to_stop(const vds::service_provider& sp) {
-  return std::future<void>::empty();
+  co_return;
 }
 
 void mock_transport::start(
   const vds::service_provider& sp,
-  const vds::certificate& node_cert,
+  const std::shared_ptr<vds::certificate> & node_cert,
   const std::shared_ptr<vds::asymmetric_private_key> & node_key,
   uint16_t port) {
 
-  this->node_id_ = node_cert.fingerprint();
+  this->node_id_ = node_cert->fingerprint();
 
 }
 
@@ -466,6 +466,6 @@ std::future<void> mock_transport::try_handshake(
   const vds::service_provider& sp,
   const std::string & address) {
 
-  return std::future<void>::empty();
+  co_return;
 }
 

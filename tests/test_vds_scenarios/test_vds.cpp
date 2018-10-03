@@ -35,75 +35,39 @@ TEST(test_vds, test_initial)
 
     mock.allow_write_channel(3, channel.id());
 
-    vds::barrier b;
-    std::shared_ptr<std::exception> error;
     auto sp = mock.get_sp(3);
     vds::mt_service::enable_async(sp);
-    auto input_stream = std::make_shared<vds::continuous_buffer<uint8_t>>(sp);
-    input_stream->write_async(buffer.get(), len).then([input_stream](){
-      return input_stream->write_async(nullptr, 0);
-    }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
-      if(ex){
-        error = ex;
-      }
-      b.set();
+    auto input_stream = std::make_shared<vds::continuous_buffer<uint8_t>>();
+    vds::mt_service::async(sp, [sp, input_stream, &buffer, len] {
+      input_stream->write_async(sp, buffer.get(), len).get();
+      input_stream->write_async(sp, nullptr, 0).get();
     });
 
     std::cout << "Upload local file...\n";
-    auto file_hash = mock.upload_file(3, channel.id(), "test data", "application/octet-stream", input_stream);
-    b.wait();
-    b.reset();
-    ASSERT_TRUE(!error);
+    auto file_hash = mock.upload_file(
+      3,
+      channel.id(),
+      "test data",
+      "application/octet-stream",
+      std::make_shared<vds::continuous_stream_input_async<uint8_t>>(input_stream));
 
     std::cout << "Download local file...\n";
 
-    std::string result_mime;
-    size_t result_size;
-    std::shared_ptr<vds::stream<uint8_t>> result_data = std::make_shared<compare_data<uint8_t>>(buffer.get(), len);
+    auto result_data = std::make_shared<compare_data_async<uint8_t>>(buffer.get(), len);
 
-    mock.download_data(3, channel.id(), "test data", file_hash)
-        .then([sp, &result_mime, &result_size, &result_data](
-                    const std::string & content_type,
-                    size_t body_size,
-                    const std::shared_ptr<vds::continuous_buffer<uint8_t>> & output_stream){
-            result_mime = content_type;
-            result_size = body_size;
-            return vds::copy_stream(sp, output_stream, result_data);
-        }).wait();
+    auto result = mock.download_data(3, channel.id(), "test data", file_hash, result_data).get();
 
-    ASSERT_EQ(len, result_size);
+    ASSERT_EQ(len, result.size);
 
     mock.allow_read_channel(4, channel.id());
     //Waiting to sync logs
     mock.sync_wait();
     std::cout << "Download file...\n";
 
-    result_data = std::make_shared<compare_data<uint8_t>>(buffer.get(), len);
-    mock.download_data(4, channel.id(), "test data", file_hash)
-      .then([sp, &result_mime, &result_size, &result_data](
-        const std::string & content_type,
-        size_t body_size,
-        const std::shared_ptr<vds::continuous_buffer<uint8_t>> & output_stream) {
-      result_mime = content_type;
-      result_size = body_size;
-      return vds::copy_stream(sp, output_stream, result_data);
-    }).execute([&b, &error](const std::shared_ptr<std::exception> & ex) {
-      if (ex) {
-        error = ex;
-      }
-      b.set();
-    });
+    result_data = std::make_shared<compare_data_async<uint8_t>>(buffer.get(), len);
+    result = mock.download_data(4, channel.id(), "test data", file_hash, result_data).get();
 
-    while(!b.wait_for(std::chrono::seconds(5))) {
-      std::vector<vds::server_statistic> statistics;
-      std::ofstream logfile("test.log", std::ofstream::app);
-      mock.dump_statistic(logfile, statistics);
-      logfile.flush();
-      logfile.close();
-    }
-
-
-    ASSERT_EQ(len, result_size);
+    ASSERT_EQ(len, result.size);
 
     std::cout << "Done...\n";
     mock.stop();
