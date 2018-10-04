@@ -29,7 +29,7 @@ namespace vds {
     
     std::future<http_message> process(
       const vds::service_provider & sp,
-      const http_message & request)
+      const http_message request)
     {
       return this->router_.route(sp, request);
     }

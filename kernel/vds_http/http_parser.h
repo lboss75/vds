@@ -23,7 +23,7 @@ namespace vds {
   class http_parser : public std::enable_shared_from_this<implementation_class>{
   public:
     http_parser(
-      const std::function<std::future<void>(const http_message &message)> &message_callback)
+      const std::function<std::future<void>(const http_message message)> &message_callback)
       : message_callback_(message_callback), eof_(false) {
     }
 
@@ -40,69 +40,75 @@ namespace vds {
 
         auto data = this->buffer_;
 
-        char *p = (char *)memchr((const char *)data, '\n', len);
-        if (nullptr == p) {
-          this->parse_buffer_ += std::string((const char *)data, len);
-          continue;
-        }
+        while (len != 0) {
+          char *p = (char *)memchr((const char *)data, '\n', len);
+          if (nullptr == p) {
+            this->parse_buffer_ += std::string((const char *)data, len);
+            break;
+          }
 
-        auto size = p - (const char *)data;
+          auto size = p - (const char *)data;
 
-        if (size > 0) {
-          if ('\r' == reinterpret_cast<const char *>(data)[size - 1]) {
-            this->parse_buffer_ += std::string((const char *)data, size - 1);
+          if (size > 0) {
+            if ('\r' == reinterpret_cast<const char *>(data)[size - 1]) {
+              this->parse_buffer_ += std::string((const char *)data, size - 1);
+            }
+            else {
+              this->parse_buffer_.append((const char *)data, size);
+            }
+          }
+
+          data += size + 1;
+          len -= size + 1;
+
+          if (0 == this->parse_buffer_.length()) {
+            if (this->headers_.empty()) {
+              throw std::logic_error("Invalid request");
+            }
+
+            std::string transfer_encoding;
+            const auto chunked_encoding = (http_message::get_header(this->headers_, "Transfer-Encoding", transfer_encoding) &&
+              transfer_encoding == "chunked");
+
+            std::string expect_value;
+            const auto expect_100 = (http_message::get_header(this->headers_, "Expect", expect_value) &&
+              "100-continue" == expect_value);
+
+            size_t content_length;
+            std::string content_length_header;
+            if (http_message::get_header(this->headers_, "Content-Length", content_length_header)) {
+              content_length = std::stoul(content_length_header);
+            }
+            else if (http_message::get_header(this->headers_, "Transfer-Encoding", transfer_encoding)) {
+              content_length = (size_t)-1;
+            }
+            else {
+              content_length = 0;
+            }
+
+            auto reader = std::make_shared<http_body_reader>(
+              this->shared_from_this(),
+              input_stream,
+              data,
+              len,
+              content_length,
+              chunked_encoding,
+              expect_100);
+
+            http_message current_message(
+              this->headers_,
+              reader);
+
+            this->headers_.clear();
+
+            co_await this->message_callback_(current_message);
+
+            this->eof_ = reader->get_rest_data(this->buffer_, sizeof(this->buffer_), len);
           }
           else {
-            this->parse_buffer_.append((const char *)data, size);
+            this->headers_.push_back(this->parse_buffer_);
+            this->parse_buffer_.clear();
           }
-        }
-
-        data += size + 1;
-        len -= size + 1;
-
-        if (0 == this->parse_buffer_.length()) {
-          if (this->headers_.empty()) {
-            throw std::logic_error("Invalid request");
-          }
-
-          std::string transfer_encoding;
-          const auto chunked_encoding = (http_message::get_header(this->headers_, "Transfer-Encoding", transfer_encoding) &&
-            transfer_encoding == "chunked");
-
-          std::string expect_value;
-          const auto expect_100 = (http_message::get_header(this->headers_, "Expect", expect_value) &&
-            "100-continue" == expect_value);
-
-          size_t content_length;
-          std::string content_length_header;
-          if (http_message::get_header(this->headers_, "Content-Length", content_length_header)) {
-            content_length = std::stoul(content_length_header);
-          }
-          else if (http_message::get_header(this->headers_, "Transfer-Encoding", transfer_encoding)) {
-            content_length = (size_t)-1;
-          }
-          else {
-            content_length = 0;
-          }
-
-          auto reader = std::make_shared<http_body_reader>(
-            this->shared_from_this(),
-            input_stream,
-            data,
-            len,
-            content_length,
-            chunked_encoding,
-            expect_100);
-
-          http_message current_message(
-            this->headers_,
-            reader);
-
-          this->headers_.clear();
-
-          co_await this->message_callback_(current_message);
-
-          this->eof_ = reader->get_rest_data(this->buffer_, sizeof(this->buffer_), len);
         }
       }
 
@@ -121,7 +127,7 @@ namespace vds {
     
 
   private:
-    std::function<std::future<void>(const http_message &message)> message_callback_;
+    std::function<std::future<void>(const http_message message)> message_callback_;
     uint8_t buffer_[1024];
     size_t readed_;
     bool eof_;

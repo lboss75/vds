@@ -24,7 +24,7 @@ namespace vds {
 
     std::future<http_message> route(
       const service_provider & sp,
-      const http_message & request);
+      const http_message request);
 
     void add_auth_session(
         const std::string & id,

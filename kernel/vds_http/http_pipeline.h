@@ -18,9 +18,9 @@ namespace vds {
     http_pipeline(
       const service_provider &sp,
       const std::shared_ptr<http_async_serializer> & output_stream,
-      const std::function<std::future<http_message>(const http_message &message)> &message_callback)
+      const std::function<std::future<http_message>(const http_message message)> &message_callback)
       : http_parser([sp, message_callback, this](
-        const http_message &message)->std::future<void> {
+        const http_message message)->std::future<void> {
       auto pthis = this->shared_from_this();
       auto response = co_await message_callback(message);
       if (nullptr != response.body()) {
@@ -41,7 +41,7 @@ namespace vds {
     std::mutex messages_queue_mutex_;
     std::queue<vds::http_message> messages_queue_;
 
-    std::future<void> send(const vds::service_provider& sp, const vds::http_message& message);
+    std::future<void> send(const vds::service_provider& sp, const vds::http_message & message);
 
     std::future<void> continue_send(const vds::service_provider& sp);
   };
@@ -56,7 +56,7 @@ namespace vds {
     co_return;
   }
 
-  inline std::future<void> http_pipeline::send(const vds::service_provider& sp, const vds::http_message& message) {
+  inline std::future<void> http_pipeline::send(const vds::service_provider& sp, const vds::http_message & message) {
     vds_assert(message.body());
 
     std::unique_lock<std::mutex> lock(this->messages_queue_mutex_);
@@ -73,6 +73,7 @@ namespace vds {
   }
 
   inline std::future<void> http_pipeline::continue_send(const vds::service_provider& sp) {
+    auto pthis = this->shared_from_this();
     for (;;) {
       co_await
       this->output_stream_->write_async(

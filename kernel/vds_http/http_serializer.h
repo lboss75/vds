@@ -28,8 +28,10 @@ namespace vds {
 
     std::future<void> write_async(
       const service_provider & sp,
-      const http_message & message)
+      const http_message message)
     {
+      auto pthis = this->shared_from_this();
+
       vds_assert(message.body());
 
       std::stringstream stream;

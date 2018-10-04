@@ -82,7 +82,7 @@ std::future<void> vds::_web_server::start(
     session->handler_ = std::make_shared<http_pipeline>(
         sp,
         session->stream_,
-      [sp, pthis, session](const http_message & request) -> std::future<http_message> {
+      [sp, pthis, session](const http_message request) -> std::future<http_message> {
       try {
         if (request.headers().empty()) {
           session->stream_.reset();
@@ -108,10 +108,8 @@ std::future<void> vds::_web_server::prepare_to_stop(const service_provider& sp) 
 
 std::future<vds::http_message> vds::_web_server::route(
   const service_provider& sp,
-  const http_message& message) {
-
-
-
+  const http_message message) {
+   
   http_request request(message);
   if(request.url() == "/api/channels") {
     if (request.method() == "GET") {

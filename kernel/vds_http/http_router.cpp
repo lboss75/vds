@@ -15,8 +15,8 @@ vds::http_router::http_router()
 
 std::future<vds::http_message> vds::http_router::route(
   const service_provider & sp,
-  const http_message & message,
-  const std::string & local_path) const
+  const http_message message,
+  const std::string local_path) const
 {
     http_request request(message);
 
