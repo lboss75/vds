@@ -6,12 +6,3 @@ All rights reserved
 #include "stdafx.h"
 #include "private/socket_task_p.h"
 
-vds::_socket_task::_socket_task()
-{
-}
-
-vds::_socket_task::~_socket_task() {
-
-}
-
-

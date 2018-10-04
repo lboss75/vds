@@ -9,6 +9,7 @@ All rights reserved
 #include "async_buffer.h"
 #include "const_data_buffer.h"
 #include "network_address.h"
+#include "socket_base.h"
 
 namespace vds {
   class _udp_socket;
@@ -63,7 +64,12 @@ namespace vds {
   };
 
 
-  class udp_socket : public std::enable_shared_from_this<udp_socket>
+  class udp_socket
+#ifndef _WIN32
+    : public socket_base
+#else
+    : public std::enable_shared_from_this<udp_socket>
+#endif//_WIN32
   {
   public:
     udp_socket();
@@ -85,6 +91,10 @@ namespace vds {
     _udp_socket * operator -> () const { return this->impl_; }
 
     static std::shared_ptr<udp_socket> create(const service_provider & sp, sa_family_t af);
+
+#ifndef _WIN32
+    void process(uint32_t events) override;
+#endif
 
   private:
     friend class _udp_socket;

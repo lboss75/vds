@@ -143,7 +143,7 @@ void vds::_network_service::start(const service_provider & sp)
             lock.lock();
             auto p = this->tasks_.find(events[i].data.fd);
             if(this->tasks_.end() != p){
-              std::shared_ptr<_socket_task> handler = p->second;
+              auto handler = p->second;
               lock.unlock();
               
               handler->process(events[i].events);
@@ -279,7 +279,7 @@ void vds::_network_service::thread_loop(const service_provider & sp)
 
 void vds::_network_service::associate(
   SOCKET_HANDLE s,
-  const std::shared_ptr<_socket_task> & handler,
+  const std::shared_ptr<socket_base> & handler,
   uint32_t event_mask)
 {
   struct epoll_event event_data;

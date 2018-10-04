@@ -16,9 +16,6 @@ namespace vds {
   class _network_service;
 
   class _tcp_network_socket
-#ifndef _WIN32
-    : public _socket_task
-#endif
   {
   public:
     _tcp_network_socket()
@@ -128,9 +125,10 @@ namespace vds {
       //       setsockopt(this->handle(), SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(struct timeval));
     }
 
-    void process(uint32_t events) override;
+    void process(uint32_t events);
 
     void change_mask(
+        const std::shared_ptr<socket_base> & s,
         _network_service * ns,
         uint32_t set_events,
         uint32_t clear_events = 0)
@@ -149,7 +147,7 @@ namespace vds {
       else {
         ns->associate(
             this->s_,
-            this->shared_from_this(),
+            s,
             this->event_masks_);
       }
     }
@@ -340,13 +338,13 @@ namespace vds {
   public:
     _write_socket_task(
       const service_provider & sp,
-      const std::shared_ptr<tcp_network_socket> &owner)
+      const std::shared_ptr<socket_base> &owner)
       : ns_(sp.get<network_service>()->operator->()),
         owner_(owner) {
     }
 
     ~_write_socket_task() {
-      (*this->owner_)->change_mask(this->ns_, 0, EPOLLOUT);
+      (*this->owner())->change_mask(this->owner_, this->ns_, 0, EPOLLOUT);
     }
 
     std::future<void> write_async(
@@ -354,7 +352,7 @@ namespace vds {
         const uint8_t *data,
         size_t size) override {
       if(0 == size){
-        shutdown((*this->owner_)->handle(), SHUT_WR);
+        shutdown((*this->owner())->handle(), SHUT_WR);
         co_return;
       }
 
@@ -363,17 +361,17 @@ namespace vds {
 
       auto r = std::make_shared<std::promise<void>>();
       this->result_ = r;
-      (*this->owner_)->change_mask(this->ns_, EPOLLOUT);
+      (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLOUT);
       co_await r->get_future();
     }
 
     void process() {
-      (*this->owner_)->change_mask(this->ns_, 0, EPOLLOUT);
+      (*this->owner())->change_mask(this->owner_, this->ns_, 0, EPOLLOUT);
 
       for (;;) {
 
         int len = send(
-            (*this->owner_)->handle(),
+            (*this->owner())->handle(),
             this->buffer_,
             this->buffer_size_,
             MSG_NOSIGNAL);
@@ -381,7 +379,7 @@ namespace vds {
         if (len < 0) {
           int error = errno;
           if (EAGAIN == error) {
-            (*this->owner_)->change_mask(this->ns_, EPOLLOUT);
+            (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLOUT);
             return;
           }
 
@@ -406,10 +404,14 @@ namespace vds {
 
   private:
     _network_service * ns_;
-    std::shared_ptr<tcp_network_socket> owner_;
+    std::shared_ptr<socket_base> owner_;
     std::shared_ptr<std::promise<void>> result_;
     const uint8_t * buffer_;
     size_t buffer_size_;
+
+    tcp_network_socket * owner() const {
+      return static_cast<tcp_network_socket *>(this->owner_.get());
+    }
   };
 
   class _read_socket_task : public stream_input_async<uint8_t>
@@ -417,13 +419,13 @@ namespace vds {
   public:
     _read_socket_task(
         const service_provider & sp,
-        const std::shared_ptr<tcp_network_socket> &owner)
+        const std::shared_ptr<socket_base> &owner)
         : ns_(sp.get<network_service>()->operator->()),
           owner_(owner) {
     }
 
     ~_read_socket_task() {
-      (*this->owner_)->change_mask(this->ns_, 0, EPOLLIN);
+      (*this->owner())->change_mask(this->owner_, this->ns_, 0, EPOLLIN);
     }
 
     std::future<size_t> read_async(
@@ -431,14 +433,14 @@ namespace vds {
         uint8_t * buffer,
         size_t buffer_size) override {
       int len = read(
-          (*this->owner_)->handle(),
+          (*this->owner())->handle(),
           buffer,
           buffer_size);
 
       if (len <= 0) {
         int error = errno;
         if (EAGAIN == error) {
-          (*this->owner_)->change_mask(this->ns_, EPOLLIN);
+          (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLIN);
           this->buffer_ = buffer;
           this->buffer_size_ = buffer_size;
           auto r = std::make_shared<std::promise<size_t>>();
@@ -462,17 +464,17 @@ namespace vds {
     }
 
     void process() {
-      (*this->owner_)->change_mask(this->ns_, 0, EPOLLIN);
+      (*this->owner())->change_mask(this->owner_, this->ns_, 0, EPOLLIN);
 
       int len = read(
-          (*this->owner_)->handle(),
+          (*this->owner())->handle(),
           this->buffer_,
           this->buffer_size_);
 
       if (len <= 0) {
         int error = errno;
         if (EAGAIN == error) {
-          (*this->owner_)->change_mask(this->ns_, EPOLLIN);
+          (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLIN);
           return;
         }
         if (0 == error && 0 == len) {
@@ -497,10 +499,14 @@ namespace vds {
 
   private:
     _network_service * ns_;
-    std::shared_ptr<tcp_network_socket> owner_;
+    std::shared_ptr<socket_base> owner_;
     std::shared_ptr<std::promise<size_t>> result_;
     uint8_t * buffer_;
     size_t buffer_size_;
+
+    tcp_network_socket * owner() const {
+      return static_cast<tcp_network_socket *>(this->owner_.get());
+    }
   };
 
 #endif//_WIN32

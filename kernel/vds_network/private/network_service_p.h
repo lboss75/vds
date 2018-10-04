@@ -21,7 +21,7 @@ All rights reserved
 
 namespace vds {
     class network_service;
-    class _socket_task;
+    class socket_base;
 
     class _network_service
     {
@@ -34,7 +34,7 @@ namespace vds {
         void stop(const service_provider &);
         std::future<void> prepare_to_stop(const service_provider &);
         
-        void remove(_socket_task * socket);
+        void remove(socket_base * socket);
 
 #ifdef _WIN32
         void associate(SOCKET_HANDLE s);
@@ -42,7 +42,7 @@ namespace vds {
 #else
         void associate(
           SOCKET_HANDLE s,
-          const std::shared_ptr<_socket_task> & handler,
+          const std::shared_ptr<socket_base> & handler,
           uint32_t event_mask);
         void set_events(
           SOCKET_HANDLE s,
@@ -68,7 +68,7 @@ namespace vds {
         void thread_loop(const service_provider & provider);
         std::list<std::thread *> work_threads_;
 #else
-        std::map<SOCKET_HANDLE, std::shared_ptr<_socket_task>> tasks_;
+        std::map<SOCKET_HANDLE, std::shared_ptr<socket_base>> tasks_;
         int epoll_set_;
       std::thread epoll_thread_;
 #endif//_WIN32

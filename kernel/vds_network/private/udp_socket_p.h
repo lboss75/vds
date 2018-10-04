@@ -60,13 +60,10 @@ namespace vds {
 
 
   class _udp_socket
-#ifndef _WIN32
-    : public _socket_task
-#endif//_WIN32
   {
   public:
     _udp_socket(SOCKET_HANDLE s)
-      : s_(s)
+      : s_(s), event_masks_(EPOLLET)
     {
     }
 
@@ -81,10 +78,10 @@ namespace vds {
     }
 
 #ifndef _WIN32
-
-    void process(uint32_t events) override;
+    void process(uint32_t events);
 
     void change_mask(
+        const std::shared_ptr<socket_base> & owner,
         _network_service * ns,
         uint32_t set_events,
         uint32_t clear_events = 0)
@@ -103,7 +100,7 @@ namespace vds {
       else {
         ns->associate(
             this->s_,
-            this->shared_from_this(),
+            owner,
             this->event_masks_);
       }
     }
@@ -326,7 +323,7 @@ namespace vds {
   public:
     _udp_receive(
         const service_provider & sp,
-        const std::shared_ptr<udp_socket> & owner)
+        const std::shared_ptr<socket_base> & owner)
       : ns_(sp.get<network_service>()->operator->()),
         owner_(owner)
     {
@@ -338,7 +335,7 @@ namespace vds {
 
     std::future<udp_datagram> read_async(const service_provider & sp) {
       this->addr_.reset();
-      int len = recvfrom((*this->owner_)->handle(),
+      int len = recvfrom((*this->owner())->handle(),
                          this->read_buffer_,
                          sizeof(this->read_buffer_),
                          0,
@@ -350,7 +347,7 @@ namespace vds {
         if (EAGAIN == error) {
           auto r = std::make_shared<std::promise<udp_datagram>>();
           this->read_result_ = r;
-          (*this->owner_)->change_mask(this->ns_, EPOLLIN);
+          (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLIN);
           return r->get_future();
         }
 
@@ -365,8 +362,10 @@ namespace vds {
 
 
     void process() {
+      (*this->owner())->change_mask(this->owner_, this->ns_, 0, EPOLLIN);
+
       this->addr_.reset();
-      int len = recvfrom((*this->owner_)->handle(),
+      int len = recvfrom((*this->owner())->handle(),
                          this->read_buffer_,
                          sizeof(this->read_buffer_),
                          0,
@@ -376,7 +375,7 @@ namespace vds {
       if (len <= 0) {
         int error = errno;
         if (EAGAIN == error) {
-          (*this->owner_)->change_mask(this->ns_, EPOLLIN);
+          (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLIN);
           return;
         }
 
@@ -394,18 +393,22 @@ namespace vds {
 
   private:
     _network_service * ns_;
-    std::shared_ptr<udp_socket> owner_;
+    std::shared_ptr<socket_base> owner_;
     std::shared_ptr<std::promise<udp_datagram>> read_result_;
 
     network_address addr_;
     uint8_t read_buffer_[64 * 1024];
+
+    udp_socket * owner() const {
+      return static_cast<udp_socket *>(this->owner_.get());
+    }
   };
 
   class _udp_send : public udp_datagram_writer {
   public:
     _udp_send(
         const service_provider & sp,
-        const std::shared_ptr<udp_socket> & owner)
+        const std::shared_ptr<socket_base> & owner)
         : ns_(sp.get<network_service>()->operator->()),
           owner_(owner) {
 
@@ -415,14 +418,16 @@ namespace vds {
       this->write_message_ = message;
       auto r = std::make_shared<std::promise<void>>();
       this->write_result_ = r;
-      (*this->owner_)->change_mask(this->ns_, EPOLLOUT);
+      (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLOUT);
       return r->get_future();
     }
 
     void process(){
+      (*this->owner())->change_mask(this->owner_, this->ns_, 0, EPOLLOUT);
+
       auto size = this->write_message_.data_size();
       int len = sendto(
-          (*this->owner_)->handle(),
+          (*this->owner())->handle(),
           this->write_message_.data(),
           size,
           0,
@@ -432,7 +437,7 @@ namespace vds {
       if (len < 0) {
         int error = errno;
         if (EAGAIN == error) {
-          (*this->owner_)->change_mask(this->ns_, EPOLLOUT);
+          (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLOUT);
           return;
         }
 
@@ -461,9 +466,13 @@ namespace vds {
 
   private:
     _network_service * ns_;
-    std::shared_ptr<udp_socket> owner_;
+    std::shared_ptr<socket_base> owner_;
     std::shared_ptr<std::promise<void>> write_result_;
     udp_datagram write_message_;
+
+    udp_socket * owner() const {
+      return static_cast<udp_socket *>(this->owner_.get());
+    }
   };
 #endif//_WIN32
 

@@ -99,6 +99,10 @@ std::tuple<
 //event_masks_(EPOLLET) {
 //}
 
+void vds::tcp_network_socket::process(uint32_t events) {
+  this->impl_->process(events);
+}
+
 void vds::_tcp_network_socket::process(uint32_t events) {
   if(EPOLLOUT == (EPOLLOUT & events)){
     if(0 == (this->event_masks_ & EPOLLOUT)) {

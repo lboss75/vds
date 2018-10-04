@@ -9,10 +9,16 @@ All rights reserved
 
 #include "async_buffer.h"
 #include "network_address.h"
+#include "socket_base.h"
 
 namespace vds {
 
-  class tcp_network_socket : public std::enable_shared_from_this<tcp_network_socket>
+  class tcp_network_socket
+#ifdef _WIN32
+      : public std::enable_shared_from_this<tcp_network_socket>
+#else
+      : public socket_base
+#endif//_WIN32
   {
   public:
     tcp_network_socket();
@@ -30,22 +36,18 @@ namespace vds {
     void close();
 
     class _tcp_network_socket * operator ->() const {
-#ifdef _WIN32
       return this->impl_;
-#else
-      return this->impl_.get();
-#endif
     }
+
+#ifndef _WIN32
+    void process(uint32_t events) override;
+#endif
 
   private:
     friend class _tcp_network_socket;
     tcp_network_socket(class _tcp_network_socket * impl);
 
-#ifdef _WIN32
     _tcp_network_socket * impl_;
-#else
-    std::shared_ptr<_tcp_network_socket> impl_;
-#endif
   };
 }
 
