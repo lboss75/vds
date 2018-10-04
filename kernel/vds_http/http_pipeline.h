@@ -25,7 +25,6 @@ namespace vds {
       auto response = co_await message_callback(message);
       if (nullptr != response.body()) {
         this->send(sp, response);
-
       }
     }),
       output_stream_(output_stream) {
@@ -41,22 +40,22 @@ namespace vds {
     std::mutex messages_queue_mutex_;
     std::queue<vds::http_message> messages_queue_;
 
-    std::future<void> send(const vds::service_provider& sp, const vds::http_message & message);
+    void send(const vds::service_provider& sp, const vds::http_message & message);
 
     std::future<void> continue_send(const vds::service_provider& sp);
   };
 
   inline std::future<void> http_pipeline::continue_read_data(const service_provider& sp) {
     auto continue_message = http_response::status_response(100, "Continue");
-    co_await
     this->send(sp, continue_message);
+    co_return;
   }
 
   inline std::future<void> http_pipeline::finish_message(const service_provider& sp) {
     co_return;
   }
 
-  inline std::future<void> http_pipeline::send(const vds::service_provider& sp, const vds::http_message & message) {
+  inline void http_pipeline::send(const vds::service_provider& sp, const vds::http_message & message) {
     vds_assert(message.body());
 
     std::unique_lock<std::mutex> lock(this->messages_queue_mutex_);
@@ -67,8 +66,9 @@ namespace vds {
       this->messages_queue_.emplace(message);
       lock.unlock();
 
-      co_await
-      this->continue_send(sp);
+      std::thread([sp, this]() {
+        this->continue_send(sp);
+      }).detach();
     }
   }
 

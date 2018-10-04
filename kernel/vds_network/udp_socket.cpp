@@ -166,7 +166,10 @@ void vds::_udp_socket::process(uint32_t events) {
       throw std::runtime_error("Invalid state");
     }
 
-    this->write_task_.lock()->process();
+    auto w = this->write_task_.lock();
+    if(w) {
+      w->process();
+    }
   }
 
   if (EPOLLIN == (EPOLLIN & events)) {
@@ -174,7 +177,10 @@ void vds::_udp_socket::process(uint32_t events) {
       throw std::runtime_error("Invalid state");
     }
 
-    this->read_task_.lock()->process();
+    auto r = this->read_task_.lock();
+    if(r){
+      r->process();
+    }
   }
 }
 #endif//_WIN32

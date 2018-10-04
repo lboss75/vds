@@ -37,7 +37,9 @@ void vds::dht::network::udp_transport::start(
     this->writer_ = writer;
   }
 
-  this->continue_read(sp.create_scope("vds::dht::network::udp_transport::continue_read"));
+  std::thread([sp, this]() {
+    this->continue_read(sp.create_scope("vds::dht::network::udp_transport::continue_read")).get();
+  }).detach();
 }
 
 void vds::dht::network::udp_transport::stop(const service_provider& sp) {

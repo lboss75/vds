@@ -67,7 +67,7 @@ void vds::dht::network::service::start(
         node_key,
         udp_transport);
     return true;
-  }).wait();
+  });
 }
 
 void vds::dht::network::service::stop(const service_provider& sp) {

@@ -344,7 +344,6 @@ namespace vds {
     }
 
     ~_write_socket_task() {
-      (*this->owner())->change_mask(this->owner_, this->ns_, 0, EPOLLOUT);
     }
 
     std::future<void> write_async(
@@ -425,7 +424,6 @@ namespace vds {
     }
 
     ~_read_socket_task() {
-      (*this->owner())->change_mask(this->owner_, this->ns_, 0, EPOLLIN);
     }
 
     std::future<size_t> read_async(
