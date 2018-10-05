@@ -44,17 +44,18 @@ namespace vds {
       const const_data_buffer & id,
       channel_type_t channel_type,
       const std::string & name,
-      const vds::certificate & read_cert,
-      const asymmetric_private_key & read_private_key,
-      const vds::certificate & write_cert,
-      const asymmetric_private_key & write_private_key);
+      const std::shared_ptr<certificate> & read_cert,
+      const std::shared_ptr<asymmetric_private_key> & read_private_key,
+      const std::shared_ptr<certificate> & write_cert,
+      const std::shared_ptr<asymmetric_private_key> & write_private_key);
 
+    ~user_channel();
 
     const const_data_buffer &id() const;
     channel_type_t channel_type() const;
     const std::string & name() const;
-    const vds::certificate & read_cert() const;
-    const vds::certificate & write_cert() const;
+    const std::shared_ptr<certificate> & read_cert() const;
+    const std::shared_ptr<certificate> & write_cert() const;
 
     void add_reader(
       transactions::transaction_block_builder& playback,
@@ -68,19 +69,11 @@ namespace vds {
       const member_user& member_user,
       const vds::member_user& owner_user) const;
 
-    bool operator !() const {
-      return nullptr == this->impl_.get();
-    }
-
-    operator bool () const {
-      return nullptr != this->impl_.get();
-    }
-
     class _user_channel * operator -> () const {
-      return this->impl_.get();
+      return this->impl_;
     }
 
-    asymmetric_private_key read_cert_private_key(const std::string& cert_subject);
+    std::shared_ptr<asymmetric_private_key> read_cert_private_key(const std::string& cert_subject);
 
     template<typename item_type>
     void add_log(
@@ -90,13 +83,14 @@ namespace vds {
       binary_serializer s;
       s
         << (uint8_t)item_type::message_id;
-      item.serialize(s);
+      _serialize_visitor v(s);
+      item.visit(v);
 
       this->add_to_log(log, s.get_buffer(), s.size());
     }
 
   private:
-    std::shared_ptr<class _user_channel> impl_;
+    class _user_channel * impl_;
 
     void add_to_log(
       transactions::transaction_block_builder & log,

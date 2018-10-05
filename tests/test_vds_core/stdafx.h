@@ -16,7 +16,7 @@ All rights reserved
 #include <list>
 
 #include "gtest/gtest.h"
-#include "async_task.h"
+
 #include "logger.h"
 #include "barrier.h"
 

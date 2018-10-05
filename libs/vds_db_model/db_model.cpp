@@ -1,48 +1,18 @@
 #include "stdafx.h"
 #include "db_model.h"
 
-vds::async_task<> vds::db_model::async_transaction(const vds::service_provider &sp,
+std::future<void> vds::db_model::async_transaction(const vds::service_provider &sp,
                                                    const std::function<void(vds::database_transaction &)> &handler) {
-  return [this, sp, handler](const async_result<> & result){
-    this->db_.async_transaction(sp, [sp, handler, result](database_transaction & t)->bool{
-      try {
-        handler(t);
-      }
-      catch (const std::exception & ex){
-        mt_service::async(sp, [result, error = std::make_shared<std::runtime_error>(ex.what())]() {
-          result.error(error);
-        });
-        return false;
-      }
-
-      mt_service::async(sp, [result]() {
-        result.done();
-      });
+  return this->db_.async_transaction(sp, [sp, handler](database_transaction & t)->bool{
+      handler(t);
       return true;
-    });
-  };
+  });
 }
 
-vds::async_task<> vds::db_model::async_read_transaction(
+std::future<void> vds::db_model::async_read_transaction(
     const vds::service_provider &sp,
     const std::function<void(vds::database_read_transaction &)> &handler) {
-  return [this, sp, handler](const async_result<> & result){
-    this->db_.async_read_transaction(sp, [sp, handler, result](database_read_transaction & t){
-      try {
-        handler(t);
-      }
-      catch (const std::exception & ex) {
-        mt_service::async(sp, [result, error = std::make_shared<std::runtime_error>(ex.what())]() {
-          result.error(error);
-        });
-        return;
-      }
-
-      mt_service::async(sp, [result]() {
-        result.done();
-      });
-    });
-  };
+  return this->db_.async_read_transaction(sp, handler);
 }
 
 void vds::db_model::start(const service_provider & scope)
@@ -252,6 +222,6 @@ void vds::db_model::migrate(
 	}
 }
 
-vds::async_task<> vds::db_model::prepare_to_stop(const vds::service_provider &sp) {
+std::future<void> vds::db_model::prepare_to_stop(const vds::service_provider &sp) {
   return this->db_.prepare_to_stop(sp);
 }

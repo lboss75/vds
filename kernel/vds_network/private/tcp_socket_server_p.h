@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "async_task.h"
+
 #include "mt_service.h"
 #include "network_types_p.h"
 #include "network_service_p.h"
@@ -19,7 +19,6 @@ namespace vds {
     _tcp_socket_server()
     : s_(INVALID_SOCKET)
 #ifndef _WIN32
-      , sp_(service_provider::empty())
       , is_shuting_down_(false)
 #endif
     {
@@ -38,29 +37,28 @@ namespace vds {
       }
     }
 
-    async_task<> start(
+    std::future<void> start(
       const service_provider & sp,
       const network_address & address,
-      const std::function<void(tcp_network_socket s)> & new_connection)
+      const std::function<std::future<void>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection)
     {
       imt_service::async_enabled_check(sp);
-      return [this, sp, address, new_connection]() {
         
 #ifdef _WIN32
         this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 
         if (INVALID_SOCKET == this->s_) {
-          auto error = WSAGetLastError();
+          const auto error = WSAGetLastError();
           throw std::system_error(error, std::system_category(), "create socket");
         }
 
         if (SOCKET_ERROR == ::bind(this->s_, address, address.size())) {
-          auto error = WSAGetLastError();
+          const auto error = WSAGetLastError();
           throw std::system_error(error, std::system_category(), "bind");
         }
 
         if (SOCKET_ERROR == ::listen(this->s_, SOMAXCONN)) {
-          auto error = WSAGetLastError();
+          const auto error = WSAGetLastError();
           throw std::system_error(error, std::system_category(), "listen socket");
         }
 
@@ -69,36 +67,39 @@ namespace vds {
         this->wait_accept_task_ = std::thread(
           [this, sp, new_connection]() {
 
-            HANDLE events[2];
-            events[0] = sp.get_shutdown_event().windows_handle();
-            events[1] = this->accept_event_.handle();
+          HANDLE events[2];
+          events[0] = sp.get_shutdown_event().windows_handle();
+          events[1] = this->accept_event_.handle();
+          std::list<std::future<void>> connections;
+          for (;;) {
+            auto result = WSAWaitForMultipleEvents(2, events, FALSE, INFINITE, FALSE);
+            if ((WAIT_OBJECT_0 + 1) != result) {
+              break;
+            }
+            WSANETWORKEVENTS WSAEvents;
+            WSAEnumNetworkEvents(
+              this->s_,
+              this->accept_event_.handle(),
+              &WSAEvents);
+            if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
+              && (0 == WSAEvents.iErrorCode[FD_ACCEPT_BIT])) {
+              //Process it
+              sockaddr_in client_address;
+              int client_address_length = sizeof(client_address);
 
-            for(;;){
-              auto result = WSAWaitForMultipleEvents(2, events, FALSE, INFINITE, FALSE);
-              if ((WAIT_OBJECT_0 + 1) != result) {
-                break;
-              }
-              WSANETWORKEVENTS WSAEvents;
-              WSAEnumNetworkEvents(
-                this->s_,
-                this->accept_event_.handle(),
-                &WSAEvents);
-              if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
-                && (0 == WSAEvents.iErrorCode[FD_ACCEPT_BIT])) {
-                //Process it
-                sockaddr_in client_address;
-                int client_address_length = sizeof(client_address);
-
-                auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
-                if (INVALID_SOCKET != socket) {
-                  sp.get<logger>()->trace("TCP", sp, "Connection from %s", network_service::to_string(client_address).c_str());
-                  static_cast<_network_service *>(sp.get<inetwork_service>())->associate(socket);
-                  auto s = _tcp_network_socket::from_handle(socket);
-                  new_connection(std::move(s));
-                }
+              auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
+              if (INVALID_SOCKET != socket) {
+                sp.get<logger>()->trace("TCP", sp, "Connection from %s", network_service::to_string(client_address).c_str());
+                (*sp.get<network_service>())->associate(socket);
+                auto s = _tcp_network_socket::from_handle(socket);
+                connections.push_back(std::move(new_connection(s)));
               }
             }
-          });
+          }
+          for(auto & f : connections) {
+            f.get();
+          }
+        });
 #else
             this->s_ = socket(AF_INET, SOCK_STREAM, 0);
             if (this->s_ < 0) {
@@ -123,7 +124,6 @@ namespace vds {
             if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
               auto error = errno;
               throw std::system_error(error, std::system_category());
-              return;
             }
             
             //bind to address
@@ -153,11 +153,10 @@ namespace vds {
               throw std::system_error(error, std::system_category());
             }
 
-            this->sp_ = sp;
             this->new_connection_ = new_connection;
             
             this->wait_accept_task_ = std::thread(
-              [this](){
+              [this, sp](){
                 auto epollfd = epoll_create(1);
                 if (0 > epollfd) {
                   throw std::runtime_error("epoll_create failed");
@@ -173,7 +172,7 @@ namespace vds {
                   return;
                 }
                 
-                while(!this->is_shuting_down_ && !this->sp_.get_shutdown_event().is_shuting_down()) {
+                while(!this->is_shuting_down_ && !sp.get_shutdown_event().is_shuting_down()) {
                   auto result = epoll_wait(epollfd, &ev, 1, 1000);
                   if(result > 0){
                     sockaddr client_address;
@@ -182,15 +181,15 @@ namespace vds {
                     auto socket = accept(this->s_, &client_address, &client_address_length);
                     if (INVALID_SOCKET != socket) {
                       auto s = _tcp_network_socket::from_handle(socket);
-                      s->make_socket_non_blocking();
-                      s->set_timeouts();
+                      (*s)->make_socket_non_blocking();
+                      (*s)->set_timeouts();
                       this->new_connection_(s);
                     }
                   }
                 }
               });
 #endif
-      };
+            co_return;
     }
     
     void stop(const service_provider & sp)
@@ -202,9 +201,7 @@ namespace vds {
     std::thread wait_accept_task_;
     bool is_shuting_down_;
 #ifndef _WIN32
-    std::function<void(const tcp_network_socket & s)> new_connection_;
-    service_provider sp_;
-
+    std::function<std::future<void>(const std::shared_ptr<tcp_network_socket> & s)> new_connection_;
 #else
     class windows_wsa_event
     {

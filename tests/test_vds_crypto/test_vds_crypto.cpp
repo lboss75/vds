@@ -80,24 +80,24 @@ TEST(test_vds_crypto, test_sign)
 
     auto key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
 
-    vds::asymmetric_sign s(vds::hash::sha256(), key);
-    s.write(buffer.get(), len);
-    s.write(nullptr, 0);
+    auto s = std::make_shared<vds::asymmetric_sign>(vds::hash::sha256(), key);
+    s->write_async(sp, buffer.get(), len).get();
+    s->write_async(sp, nullptr, 0).get();
     
-    auto sign = s.signature();
+    auto sign = s->signature();
     vds::asymmetric_public_key pkey(key);
 
     
-    vds::asymmetric_sign_verify v(vds::hash::sha256(), pkey, sign);
-    v.write(buffer.get(), len);
-    v.write(nullptr, 0);
-    GTEST_ASSERT_EQ(v.result(), true);
+    auto v = std::make_shared<vds::asymmetric_sign_verify>(vds::hash::sha256(), pkey, sign);
+    v->write_async(sp, buffer.get(), len).get();
+    v->write_async(sp, nullptr, 0).get();
+    GTEST_ASSERT_EQ(v->result(), true);
     
-    vds::asymmetric_sign_verify sv(vds::hash::sha256(), pkey, sign);
-    random_stream<uint8_t> rs(sv);
-    rs.write(buffer.get(), len);
-    rs.write(nullptr, 0);
-    GTEST_ASSERT_EQ(sv.result(), true);
+    auto sv = std::make_shared<vds::asymmetric_sign_verify>(vds::hash::sha256(), pkey, sign);
+    auto rs = std::make_shared<random_stream<uint8_t>>(sv);
+    rs->write_async(sp, buffer.get(), len).get();
+    rs->write_async(sp, nullptr, 0).get();
+    GTEST_ASSERT_EQ(sv->result(), true);
 
     size_t index;
     do
@@ -108,11 +108,11 @@ TEST(test_vds_crypto, test_sign)
 
     const_cast<unsigned char *>(buffer.get())[index]++;
 
-    vds::asymmetric_sign_verify sv1(vds::hash::sha256(), pkey, sign);
-    random_stream<uint8_t> rs1(sv1);
-    rs1.write(buffer.get(), len);
-    rs1.write(nullptr, 0);
-    GTEST_ASSERT_EQ(sv1.result(), false);
+    auto sv1 = std::make_shared<vds::asymmetric_sign_verify>(vds::hash::sha256(), pkey, sign);
+    auto rs1 = std::make_shared<random_stream<uint8_t>>(sv1);
+    rs1->write_async(sp, buffer.get(), len).get();
+    rs1->write_async(sp, nullptr, 0).get();
+    GTEST_ASSERT_EQ(sv1->result(), false);
 
   } catch(const std::exception & ex){
     try { registrator.shutdown(sp); } catch (...){}

@@ -18,11 +18,11 @@ namespace vds {
   {
   public:
     member_user(
-      const certificate &user_cert,
-      const asymmetric_private_key & private_key);
+      const std::shared_ptr<certificate> &user_cert,
+      const std::shared_ptr<asymmetric_private_key> & private_key);
 
-    const certificate & user_certificate() const;
-    const asymmetric_private_key & private_key() const;
+    const std::shared_ptr<certificate> & user_certificate() const;
+    const std::shared_ptr<asymmetric_private_key> & private_key() const;
 
     //member_user create_user(
     //    const vds::asymmetric_private_key &owner_user_private_key,
@@ -35,11 +35,11 @@ namespace vds {
       const std::string &name);
 
     _member_user * operator -> () const {
-      return this->impl_.get();
+      return this->impl_;
     }
 
   private:
-    std::shared_ptr<_member_user> impl_;
+    _member_user * impl_;
 
     member_user(_member_user * impl);
   };

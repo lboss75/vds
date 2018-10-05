@@ -146,22 +146,26 @@ vds::_symmetric_key::~_symmetric_key()
 ///////////////////////////////////////////////////
 vds::symmetric_encrypt::symmetric_encrypt(
   const vds::symmetric_key& key,
-  const stream<uint8_t> & target)
-: stream<uint8_t>(new _symmetric_encrypt(key, target))
+  const std::shared_ptr<stream_output_async<uint8_t>> & target)
+: impl_(new _symmetric_encrypt(key, target))
 {
+}
+
+vds::symmetric_encrypt::~symmetric_encrypt() {
+  delete this->impl_;
 }
 
 vds::const_data_buffer vds::symmetric_encrypt::encrypt(
   const vds::symmetric_key& key,
   const void * input_buffer,
   size_t input_buffer_size) {
-  collect_data<uint8_t> result;
+  auto result = std::make_shared<collect_data<uint8_t>>();
 
-  symmetric_encrypt s(key, result);
-  s.write((const uint8_t *)input_buffer, input_buffer_size);
-  s.write(nullptr, 0);
+  _symmetric_encrypt s(key, result);
+  s.write_async(*(service_provider *)nullptr, (const uint8_t *)input_buffer, input_buffer_size).get();
+  s.write_async(*(service_provider *)nullptr, nullptr, 0).get();
 
-  return result.move_data();
+  return result->move_data();
 }
 
 
@@ -183,9 +187,13 @@ size_t vds::_symmetric_crypto_info::iv_size() const
 
 vds::symmetric_decrypt::symmetric_decrypt(
   const symmetric_key & key,
-  const stream<uint8_t> & target)
-  : stream<uint8_t>(new _symmetric_decrypt(key, target))
+  const std::shared_ptr<stream_output_async<uint8_t>> & target)
+  : impl_(new _symmetric_decrypt(key, target))
 {
+}
+
+vds::symmetric_decrypt::~symmetric_decrypt() {
+  delete this->impl_; 
 }
 
 vds::const_data_buffer vds::symmetric_decrypt::decrypt(
@@ -193,11 +201,11 @@ vds::const_data_buffer vds::symmetric_decrypt::decrypt(
   const void * input_buffer,
   size_t input_buffer_size)
 {
-  collect_data<uint8_t> result;
+  auto result = std::make_shared<collect_data<uint8_t>>();
+   
+  _symmetric_decrypt s(key, result);
+  s.write_async(*(service_provider *)nullptr, (const uint8_t *)input_buffer, input_buffer_size).get();
+  s.write_async(*(service_provider *)nullptr, nullptr, 0).get();
 
-  symmetric_decrypt s(key, result);
-  s.write((const uint8_t *)input_buffer, input_buffer_size);
-  s.write(nullptr, 0);
-
-  return result.move_data();
+  return result->move_data();
 }

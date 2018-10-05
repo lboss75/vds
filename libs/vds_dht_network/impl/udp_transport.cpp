@@ -13,35 +13,40 @@ All rights reserved
 #include "dht_network_client_p.h"
 #include "messages/dht_find_node_response.h"
 
-vds::dht::network::udp_transport::udp_transport()
-: write_in_progress_(false) {
+vds::dht::network::udp_transport::udp_transport() {
 }
 
 void vds::dht::network::udp_transport::start(
   const service_provider& sp,
-  const certificate & node_cert,
-  const asymmetric_private_key & node_key,
+  const std::shared_ptr<certificate> & node_cert,
+  const std::shared_ptr<asymmetric_private_key> & node_key,
   uint16_t port) {
 
-  this->this_node_id_ = node_cert.fingerprint(hash::sha256());
+  this->this_node_id_ = node_cert->fingerprint(hash::sha256());
   this->node_cert_ = node_cert;
   this->node_key_ = node_key;
 
   try {
-    this->server_.start(sp, network_address::any_ip6(port));
+    auto [reader, writer] = this->server_.start(sp, network_address::any_ip6(port));
+    this->reader_ = reader;
+    this->writer_ = writer;
   }
   catch (...) {
-    this->server_.start(sp, network_address::any_ip4(port));
+    auto[reader, writer] = this->server_.start(sp, network_address::any_ip4(port));
+    this->reader_ = reader;
+    this->writer_ = writer;
   }
 
-  this->continue_read(sp.create_scope("vds::dht::network::udp_transport::continue_read"));
+  std::thread([sp, this]() {
+    this->continue_read(sp.create_scope("vds::dht::network::udp_transport::continue_read")).get();
+  }).detach();
 }
 
 void vds::dht::network::udp_transport::stop(const service_provider& sp) {
   this->server_.stop(sp);
 }
 
-vds::async_task<>
+std::future<void>
 vds::dht::network::udp_transport::write_async(const service_provider& sp, const udp_datagram& datagram) {
   //  std::unique_lock<std::debug_mutex> lock(this->write_mutex_);
   //  while(this->write_in_progress_) {
@@ -55,92 +60,20 @@ vds::dht::network::udp_transport::write_async(const service_provider& sp, const 
   //  this->owner_id_ = GetCurrentThreadId();
   //#endif
   //#endif//_DEBUG
-
-  return [sp, pthis = this->shared_from_this(), datagram](const async_result<>& result) {
-    auto this_ = static_cast<udp_transport *>(pthis.get());
-    std::unique_lock<std::debug_mutex> lock(this_->write_mutex_);
-    bool need_send = this_->send_queue_.empty();
-    this_->send_queue_.push_back(std::make_tuple(datagram, std::move(result)));
-
-    if (need_send) {
-      sp.get<logger>()->trace(
-        ThisModule,
-        sp,
-        "started send");
-      this_->continue_send(sp);
-    }
-  };
+  co_await this->writer_->write_async(sp, datagram);
 }
 
-void
-vds::dht::network::udp_transport::continue_send(const service_provider& sp) {
-
-  this->server_.socket().write_async(std::get<0>(this->send_queue_.front()))
-      .execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception>& ex) {
-        auto this_ = static_cast<udp_transport *>(pthis.get());
-        sp.get<logger>()->trace(
-          ThisModule,
-          sp,
-          "udp_transport socket sent");
-        mt_service::async(sp, [sp, ex, pthis]() {
-          auto this_ = static_cast<udp_transport *>(pthis.get());
-          sp.get<logger>()->trace(
-            ThisModule,
-            sp,
-            "udp_transport sent");
-
-          std::unique_lock<std::debug_mutex> lock(this_->write_mutex_);
-          auto p = this_->send_queue_.begin();
-          auto datagram = std::move(std::get<0>(*p));
-          auto result = std::move(std::get<1>(*p));
-          this_->send_queue_.pop_front();
-          if (!this_->send_queue_.empty()) {
-            this_->continue_send(sp);
-          }
-          else {
-            sp.get<logger>()->trace(
-              ThisModule,
-              sp,
-              "stopped send");
-          }
-          lock.unlock();
-
-          if (ex) {
-            sp.get<logger>()->error(
-              ThisModule,
-              sp,
-              "%s at write UDP datagram %d bytes to %s",
-              ex->what(),
-              datagram.data_size(),
-              datagram.address().to_string().c_str());
-
-            result.error(ex);
-          }
-          else {
-            result.done();
-          }
-        });
-      });
-}
-
-
-vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
+std::future<void> vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
                                                                   const std::string& address) {
 
-  const auto na = network_address::parse(this->server_.address().family(), address);
-  this->sessions_mutex_.lock();
-  auto & session_info = this->sessions_[na];
-  this->sessions_mutex_.unlock();
-
-  std::unique_lock<std::mutex> lock(session_info.session_mutex_);
-  if (session_info.blocked_) {
-    if ((std::chrono::steady_clock::now() - session_info.update_time_) > std::chrono::minutes(1)) {
-      session_info.blocked_ = false;
-    }
-    else {
-      return async_task<>::empty();
-    }
+  this->block_list_mutex_.lock();
+  auto p = this->block_list_.find(address);
+  if (this->block_list_.end() != p && p->second < std::chrono::steady_clock::now()) {
+    this->block_list_mutex_.unlock();
+    co_return;
   }
+  this->block_list_[address] = std::chrono::steady_clock::now() + std::chrono::minutes(1);
+  this->block_list_mutex_.unlock();
 
   resizable_data_buffer out_message;
   out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
@@ -151,12 +84,12 @@ vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_
   out_message.add(PROTOCOL_VERSION);
 
   binary_serializer bs;
-  bs << this->node_cert_.der();
+  bs << this->node_cert_->der();
 
   out_message += bs.move_data();
 
-  return this->write_async(sp, udp_datagram(
-    na,
+  co_await this->write_async(sp, udp_datagram(
+    network_address::parse(this->server_.address().family(), address),
     out_message.move_data(),
     false));
 }
@@ -165,276 +98,210 @@ void vds::dht::network::udp_transport::get_session_statistics(session_statistic&
 
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
   for (const auto& p : this->sessions_) {
-    session_statistic.items_.push_back({
-      p.first.to_string(),
-      p.second.blocked_,
-      !p.second.session_
-    });
+    const auto session = p.second;
+    session_statistic.items_.push_back(session->get_statistic());
   }
 }
 
-void vds::dht::network::udp_transport::continue_read(
-  const service_provider& sp) {
-  if (!this->server_) {
-    return;
+void vds::dht::network::udp_transport::add_session(
+  const service_provider& sp,
+  const network_address& address,
+  const std::shared_ptr<dht_session>& session) {
+
+  sp.get<logger>()->trace(ThisModule, sp, "Add session %s", address.to_string().c_str());
+
+  std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  this->sessions_[address] = session;
+  lock.unlock();
+
+  (*sp.get<client>())->add_session(sp, session, 0);
+}
+
+std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport::get_session(
+  const network_address& address) const {
+
+  std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  auto p = this->sessions_.find(address);
+  if (this->sessions_.end() == p) {
+    return std::shared_ptr<dht_session>();
   }
-  this->server_.socket().read_async().execute([sp, pthis = this->shared_from_this()](
-    const std::shared_ptr<std::exception>& ex,
-    const udp_datagram& datagram) {
-    auto this_ = static_cast<udp_transport *>(pthis.get());
 
-      if (sp.get_shutdown_event().is_shuting_down()) {
-        return;
-      }
+  return p->second;
+}
 
-      if (!ex && 0 != datagram.data_size()) {
-        this_->sessions_mutex_.lock();
-        auto & session_info = this_->sessions_[datagram.address()];
-        this_->sessions_mutex_.unlock();
+std::future<void> vds::dht::network::udp_transport::continue_read(
+  const service_provider& sp) {
+  for (;;) {
+    udp_datagram datagram = co_await this->reader_->read_async(sp);
 
-        std::unique_lock<std::mutex> lock(session_info.session_mutex_);
-        if (session_info.blocked_) {
-          if ((std::chrono::steady_clock::now() - session_info.update_time_) > std::chrono::minutes(1)) {
-            session_info.blocked_ = false;
-          }
-          else {
-            lock.unlock();
-            this_->continue_read(sp);
-            return;
-          }
-        }
+    if (sp.get_shutdown_event().is_shuting_down()) {
+      co_return;
+    }
 
-        switch ((protocol_message_type_t)datagram.data()[0]) {
-        case protocol_message_type_t::HandshakeBroadcast:
-        case protocol_message_type_t::Handshake: {
-          
-          if (
-              (uint8_t)(MAGIC_LABEL >> 24) == datagram.data()[1]
-              && (uint8_t)(MAGIC_LABEL >> 16) == datagram.data()[2]
-              && (uint8_t)(MAGIC_LABEL >> 8) == datagram.data()[3]
-              && (uint8_t)(MAGIC_LABEL) == datagram.data()[4]
-              && PROTOCOL_VERSION == datagram.data()[5]) {
-            binary_deserializer bd(datagram.data() + 6, datagram.data_size() - 6);
-            const_data_buffer partner_node_cert_der;
-            bd >> partner_node_cert_der;
-            auto partner_node_cert = certificate::parse_der(partner_node_cert_der);
-            auto partner_node_id = partner_node_cert.fingerprint(hash::sha256());
-            if (partner_node_id == this_->this_node_id_) {
-              break;
-            }
+    switch ((protocol_message_type_t)datagram.data()[0]) {
+    case protocol_message_type_t::HandshakeBroadcast:
+    case protocol_message_type_t::Handshake: {
 
-            if (!session_info.session_key_ || (std::chrono::steady_clock::now() - session_info.update_time_) > std::chrono::minutes(10)) {
-              session_info.update_time_ = std::chrono::steady_clock::now();
-              session_info.session_key_.resize(32);
-              crypto_service::rand_bytes(session_info.session_key_.data(), session_info.session_key_.size());
-            }
-
-            session_info.session_ = std::make_shared<dht_session>(
-                datagram.address(),
-                this_->this_node_id_,
-                partner_node_id,
-                session_info.session_key_);
-
-            sp.get<logger>()->debug(ThisModule, sp, "Add session %s", datagram.address().to_string().c_str());
-            (*sp.get<client>())->add_session(sp, session_info.session_, 0);
-
-            resizable_data_buffer out_message;
-            out_message.add(static_cast<uint8_t>(protocol_message_type_t::Welcome));
-            out_message.add(MAGIC_LABEL >> 24);
-            out_message.add(MAGIC_LABEL >> 16);
-            out_message.add(MAGIC_LABEL >> 8);
-            out_message.add(MAGIC_LABEL);
-
-            binary_serializer bs;
-            bs
-                << this_->node_cert_.der()
-                << partner_node_cert.public_key().encrypt(session_info.session_key_);
-
-            out_message += bs.move_data();
-            pthis->write_async(sp, udp_datagram(datagram.address(), out_message.move_data(), false))
-                 .execute([
-                     pthis,
-                     sp,
-                     scope = sp.create_scope("Send Welcome"),
-                     partner_node_id,
-                     address = datagram.address().to_string()](const std::shared_ptr<std::exception>& ex) {
-                       auto this_ = static_cast<udp_transport *>(pthis.get());
-                     if (ex) {
-                       sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(),
-                                               address.c_str());
-                     }
-                     (*sp.get<client>())->send_neighbors(
-                       sp,
-                       messages::dht_find_node_response({
-                       messages::dht_find_node_response::target_node(partner_node_id, address, 0) }));
-
-                     sp.get<imessage_map>()->on_new_session(
-                       sp,
-                       partner_node_id);
-
-                     this_->continue_read(sp);
-                   });
-
-            return;
-          }
-          else {
-            throw std::runtime_error("Invalid protocol");
-          }
-          break;
-        }
-        case protocol_message_type_t::Welcome: {
-          if (datagram.data_size() > 5
-            && (uint8_t)(MAGIC_LABEL >> 24) == datagram.data()[1]
-            && (uint8_t)(MAGIC_LABEL >> 16) == datagram.data()[2]
-            && (uint8_t)(MAGIC_LABEL >> 8) == datagram.data()[3]
-            && (uint8_t)(MAGIC_LABEL) == datagram.data()[4]) {
-
-            const_data_buffer cert_buffer;
-            const_data_buffer key_buffer;
-            binary_deserializer bd(datagram.data() + 5, datagram.data_size() - 5);
-            bd
-              >> cert_buffer
-              >> key_buffer;
-
-            auto cert = certificate::parse_der(cert_buffer);
-            auto key = this_->node_key_.decrypt(key_buffer);
-
-            auto partner_id = cert.fingerprint(hash::sha256());
-
-            //TODO: validate cert
-
-            session_info.session_ = std::make_shared<dht_session>(
-                datagram.address(),
-                this_->this_node_id_,
-                partner_id,
-                key);
-
-            sp.get<logger>()->debug(ThisModule, sp, "Add session %s", datagram.address().to_string().c_str());
-            (*sp.get<client>())->add_session(sp, session_info.session_, 0);
-
-            sp.get<imessage_map>()->on_new_session(
-              sp,
-              partner_id);
-          }
-          else {
-            throw std::runtime_error("Invalid protocol");
-          }
-
-          break;
-        }
-        case protocol_message_type_t::Failed: {
-          session_info.blocked_ = true;
-          (*sp.get<client>())->remove_session(sp, session_info.session_);
-          session_info.session_.reset();
-          session_info.update_time_ = std::chrono::steady_clock::now();
-          break;
-        }
-        default: {
-          if (session_info.session_) {
-            try {
-              auto scope = sp.create_scope("Process datagram");
-              auto session = session_info.session_;
-              lock.unlock();
-              
-              session->process_datagram(scope, pthis, const_data_buffer(datagram.data(), datagram.data_size()))
-                     .execute([pthis, sp, scope, datagram](
-                       const std::shared_ptr<std::exception>& ex) {
-                          auto this_ = static_cast<udp_transport *>(pthis.get());
-                         if (ex) {
-                           this_->sessions_mutex_.lock();
-                           auto & session_info = this_->sessions_[datagram.address()];
-                           this_->sessions_mutex_.unlock();
-                           
-                           session_info.session_mutex_.lock();
-                           session_info.blocked_ = true;
-                           (*sp.get<client>())->remove_session(sp, session_info.session_);
-                           session_info.session_.reset();
-                           session_info.update_time_ = std::chrono::steady_clock::now();
-                           session_info.session_mutex_.unlock();
-
-                           uint8_t out_message[] = { (uint8_t)protocol_message_type_t::Failed };
-                           pthis->write_async(sp, udp_datagram(datagram.address(),
-                             const_data_buffer(out_message, sizeof(out_message))))
-                             .execute([pthis, sp, datagram](
-                               const std::shared_ptr<std::exception>& ex) {
-                             auto this_ = static_cast<udp_transport *>(pthis.get());
-                             if (ex) {
-                               sp.get<logger>()->trace(ThisModule, sp, "%s at send failed to %s", ex->what(),
-                                 datagram.address().to_string().c_str());
-                             }
-                             this_->continue_read(sp);
-                           });
-                         }
-                         else {
-                           mt_service::async(sp, [sp, pthis]() {
-                             auto this_ = static_cast<udp_transport *>(pthis.get());
-                             this_->continue_read(sp);
-                           });
-                         }
-                       });
-              return;
-            }
-            catch (...) {
-              session_info.blocked_ = true;
-              (*sp.get<client>())->remove_session(sp, session_info.session_);
-              session_info.session_.reset();
-              session_info.update_time_ = std::chrono::steady_clock::now();
-            }
-          }
-          else {
-            session_info.blocked_ = true;
-            (*sp.get<client>())->remove_session(sp, session_info.session_);
-            session_info.session_.reset();
-            session_info.update_time_ = std::chrono::steady_clock::now();
-
-            uint8_t out_message[] = {(uint8_t)protocol_message_type_t::Failed};
-            auto scope = sp.create_scope("Send Failed");
-            pthis->write_async(scope, udp_datagram(datagram.address(),
-                                                   const_data_buffer(out_message, sizeof(out_message))))
-                 .execute([pthis, sp, scope, address = datagram.address()](
-                   const std::shared_ptr<std::exception>& ex) {
-                    auto this_ = static_cast<udp_transport *>(pthis.get());
-                     if (ex) {
-                       sp.get<logger>()->trace(ThisModule, sp, "%s at send failed to %s", ex->what(),
-                                               address.to_string().c_str());
-                     }
-
-                     mt_service::async(sp, [sp, pthis]() {
-                       auto this_ = static_cast<udp_transport *>(pthis.get());
-                       if (!sp.get_shutdown_event().is_shuting_down()) {
-                         this_->continue_read(sp);
-                       }
-                     });
-            });
-
-            return;
-          }
-          break;
-        }
-        }
+      std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+      if (this->sessions_.end() != this->sessions_.find(datagram.address())) {
         lock.unlock();
 
-        this_->continue_read(sp);
+        continue;
+      }
+      lock.unlock();
+
+      if (
+        (uint8_t)(MAGIC_LABEL >> 24) == datagram.data()[1]
+        && (uint8_t)(MAGIC_LABEL >> 16) == datagram.data()[2]
+        && (uint8_t)(MAGIC_LABEL >> 8) == datagram.data()[3]
+        && (uint8_t)(MAGIC_LABEL) == datagram.data()[4]
+        && PROTOCOL_VERSION == datagram.data()[5]) {
+        binary_deserializer bd(datagram.data() + 6, datagram.data_size() - 6);
+        const_data_buffer partner_node_cert_der;
+        bd >> partner_node_cert_der;
+        auto partner_node_cert = certificate::parse_der(partner_node_cert_der);
+        auto partner_node_id = partner_node_cert.fingerprint(hash::sha256());
+        if (partner_node_id == this->this_node_id_) {
+          break;
+        }
+
+        const_data_buffer key;
+        key.resize(32);
+        crypto_service::rand_bytes(key.data(), key.size());
+
+        this->add_session(
+          sp,
+          datagram.address(),
+          std::make_shared<dht_session>(
+            datagram.address(),
+            this->this_node_id_,
+            partner_node_id,
+            key));
+
+        resizable_data_buffer out_message;
+        out_message.add(static_cast<uint8_t>(protocol_message_type_t::Welcome));
+        out_message.add(MAGIC_LABEL >> 24);
+        out_message.add(MAGIC_LABEL >> 16);
+        out_message.add(MAGIC_LABEL >> 8);
+        out_message.add(MAGIC_LABEL);
+
+        binary_serializer bs;
+        bs
+          << this->node_cert_->der()
+          << partner_node_cert.public_key().encrypt(key);
+
+        out_message += bs.move_data();
+        co_await this->write_async(sp, udp_datagram(datagram.address(), out_message.move_data(), false));
+        co_await (*sp.get<client>())->send_neighbors(
+          sp,
+          messages::dht_find_node_response({
+          messages::dht_find_node_response::target_node(partner_node_id, datagram.address().to_string(), 0) }));
+
+        co_await sp.get<imessage_map>()->on_new_session(
+          sp,
+          partner_node_id);
       }
       else {
-        if (ex) {
-          sp.get<logger>()->trace(ThisModule, sp, "Error %s", ex->what());
-
-          //auto sys_error = std::dynamic_pointer_cast<std::system_error>(ex);
-          //if(sys_error && sys_error->code().value() == ERROR_PORT_UNREACHABLE) {
-          //  return;          
-          //}
-        }
-        if (0 == datagram.data_size()) {
-          sp.get<logger>()->trace(ThisModule, sp, "0 == datagram.data_size()");
-        }
-        mt_service::async(sp, [sp, pthis]() {
-          auto this_ = static_cast<udp_transport *>(pthis.get());
-          if (!sp.get_shutdown_event().is_shuting_down()) {
-            this_->continue_read(sp);
-          }
-        });
+        throw std::runtime_error("Invalid protocol");
       }
-    });
+      break;
+    }
+    case protocol_message_type_t::Welcome: {
+      if (datagram.data_size() > 5
+        && (uint8_t)(MAGIC_LABEL >> 24) == datagram.data()[1]
+        && (uint8_t)(MAGIC_LABEL >> 16) == datagram.data()[2]
+        && (uint8_t)(MAGIC_LABEL >> 8) == datagram.data()[3]
+        && (uint8_t)(MAGIC_LABEL) == datagram.data()[4]) {
+
+        const_data_buffer cert_buffer;
+        const_data_buffer key_buffer;
+        binary_deserializer bd(datagram.data() + 5, datagram.data_size() - 5);
+        bd
+          >> cert_buffer
+          >> key_buffer;
+
+        auto cert = certificate::parse_der(cert_buffer);
+        auto key = this->node_key_->decrypt(key_buffer);
+
+        auto partner_id = cert.fingerprint(hash::sha256());
+
+        //TODO: validate cert
+
+        this->add_session(
+          sp,
+          datagram.address(),
+          std::make_shared<dht_session>(
+            datagram.address(),
+            this->this_node_id_,
+            partner_id,
+            key));
+
+        sp.get<imessage_map>()->on_new_session(
+          sp,
+          partner_id);
+      }
+      else {
+        throw std::runtime_error("Invalid protocol");
+      }
+
+      break;
+    }
+    case protocol_message_type_t::Failed: {
+      auto session = this->get_session(datagram.address());
+      if (session) {
+        std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+        this->sessions_.erase(datagram.address());
+      }
+
+      break;
+    }
+    default: {
+      auto session = this->get_session(datagram.address());
+      if (session) {
+        try {
+          auto scope = sp.create_scope("Process datagram");
+          bool failed = false;
+          try {
+            co_await session->process_datagram(
+              scope,
+              this->shared_from_this(),
+              const_data_buffer(datagram.data(), datagram.data_size()));
+          }
+          catch (const std::exception & /*ex*/) {
+            failed = true;
+          }
+
+          if(failed) {
+            uint8_t out_message[] = { (uint8_t)protocol_message_type_t::Failed };
+            co_await this->write_async(sp, udp_datagram(datagram.address(),
+              const_data_buffer(out_message, sizeof(out_message))));
+
+            std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+            this->sessions_.erase(datagram.address());
+          }
+        }
+        catch (...) {
+          std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+          this->sessions_.erase(datagram.address());
+        }
+      }
+      else {
+        uint8_t out_message[] = { (uint8_t)protocol_message_type_t::Failed };
+        auto scope = sp.create_scope("Send Failed");
+        try {
+          co_await this->write_async(scope, udp_datagram(datagram.address(),
+            const_data_buffer(out_message, sizeof(out_message))));
+        }
+        catch (...) {
+          std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+          this->sessions_.erase(datagram.address());
+          this->continue_read(sp);
+        }
+
+      }
+      break;
+    }
+    }
+  }
 }
 

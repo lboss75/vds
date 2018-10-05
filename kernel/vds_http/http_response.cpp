@@ -13,137 +13,87 @@ vds::http_response::http_response(
 {
 }
 
-vds::http_message vds::http_response::create_message(const service_provider & sp) const
-{
-  std::list<std::string> headers(this->headers_);
-
-  std::stringstream stream;
-  stream << this->protocol_ << " " << this->code_ << " " << this->comment_;
-  headers.push_front(stream.str());
-
-  return http_message(sp, headers);
-}
 
 vds::http_message vds::http_response::simple_text_response(
-  const service_provider & sp,
   const std::string & body,
   const std::string & content_type /*= "text/html; charset=utf-8"*/,
   int result_code /*= HTTP_OK*/,
   const std::string & message /*= "OK"*/)
 {
-  http_response response(result_code, message);
+  std::list<std::string> headers;
+  headers.push_front("HTTP/1.0 " + std::to_string(result_code) + " " + message);
   if (!content_type.empty()) {
-    response.add_header("Content-Type", content_type);
+    headers.push_back("Content-Type:" + content_type);
   }
-  response.add_header("Content-Length", std::to_string(body.length()));
-  auto result = response.create_message(sp);
-  if (!body.empty()) {
-    auto buffer = std::make_shared<std::string>(body);
-    result.body()->write_async((const uint8_t *)buffer->c_str(), buffer->length())
-      .execute(
-        [sp, result, buffer](const std::shared_ptr<std::exception> & ex) {
-      if (!ex) {
-        result.body()->write_async(nullptr, 0).execute(
-          [sp](const std::shared_ptr<std::exception> & ex) {
-          if (ex) {
-            sp.unhandled_exception(ex);
-          }
-        });
-      }
-      else {
-        sp.unhandled_exception(ex);
-      }
-    });
-  }
-  else {
-    result.body()->write_async(nullptr, 0).execute(
-      [sp](const std::shared_ptr<std::exception> & ex) {
-      if (ex) {
-        sp.unhandled_exception(ex);
-      }
-    });
-  }
-  return result;
+  headers.push_back("Content-Length:" + std::to_string(body.length()));
+
+  return http_message(headers, std::make_shared<buffer_stream_input_async>(const_data_buffer(body.c_str(), body.length())));
 }
 
-vds::http_message vds::http_response::redirect(const service_provider& sp, const std::string& location) {
-  http_response response(302, "Found");
-  response.add_header("Location", location);
-  auto result = response.create_message(sp);
-  result.body()->write_async(nullptr, 0).execute(
-    [sp](const std::shared_ptr<std::exception> & ex) {
-    if (ex) {
-      sp.unhandled_exception(ex);
-    }
-  });
+vds::http_message vds::http_response::redirect(const std::string& location) {
+  std::list<std::string> headers;
+  headers.push_front("HTTP/1.0 302 Found");
+  headers.push_back("Location:" + location);
 
-  return result;
+  return http_message(headers, std::make_shared<buffer_stream_input_async>(const_data_buffer()));
 }
 
 vds::http_message vds::http_response::status_response(
-    const service_provider & sp,
     int result_code,
     const std::string & message)
 {
-  http_response response(result_code, message);
-  auto result = response.create_message(sp);
+  std::list<std::string> headers;
+  headers.push_front("HTTP/1.0 " + std::to_string(result_code) + " " + message);
 
-  result.body()->write_async(nullptr, 0).execute(
-      [sp](const std::shared_ptr<std::exception> & ex) {
-        if (ex) {
-          sp.unhandled_exception(ex);
-        }
-      });
-
-  return result;
+  return http_message(headers, std::make_shared<buffer_stream_input_async>(const_data_buffer()));
 }
 
 vds::http_message vds::http_response::file_response(
-    const service_provider & sp,
-    const std::shared_ptr<continuous_buffer<uint8_t>> & body,
-    const std::string & content_type,
-    const std::string & filename,
-    size_t body_size,
-    int result_code /*= HTTP_OK*/,
+  const filename & body_file,
+  const std::string & out_filename,
+  const std::string & content_type,
+  int result_code /*= HTTP_OK*/,
     const std::string & message /*= "OK"*/){
 
-  http_response response(result_code, message);
-  response.add_header("Content-Type", content_type);
-  response.add_header("Content-Length", std::to_string(body_size));
-  response.add_header("Content-Disposition", "attachment; filename=\"" + filename + "\"");
-  auto result = response.create_message(sp);
-  copy_stream(sp, body, result.body()).execute([](const std::shared_ptr<std::exception> & ex) {
-  });
-
-  return result;
+  std::list<std::string> headers;
+  headers.push_front("HTTP/1.0 " + std::to_string(result_code) + " " + message);
+  headers.push_front("Content-Type:" + content_type);
+  headers.push_front("Content-Length:" + std::to_string(file::length(body_file)));
+  headers.push_front("Content-Disposition:attachment; filename=\"" + out_filename + "\"");
+  
+  return http_message(headers, std::make_shared<file_stream_input_async>(body_file));
 }
 
-vds::http_message vds::http_response::file_response(const service_provider& sp, const const_data_buffer& body,
-  const std::string& filename, const std::string& content_type, int result_code, const std::string& message) {
+vds::http_message vds::http_response::file_response(
+  const std::shared_ptr<stream_input_async<uint8_t>>& body,
+  size_t body_size,
+  const std::string & filename,
+  const std::string & content_type,
+  int result_code,
+  const std::string & message)
+{
+  std::list<std::string> headers;
+  headers.push_front("HTTP/1.0 " + std::to_string(result_code) + " " + message);
+  headers.push_front("Content-Type:" + content_type);
+  headers.push_front("Content-Length:" + std::to_string(body_size));
+  headers.push_front("Content-Disposition:attachment; filename=\"" + filename + "\"");
 
-  http_response response(result_code, message);
-  response.add_header("Content-Type", content_type);
-  response.add_header("Content-Length", std::to_string(body.size()));
-  response.add_header("Content-Disposition", "attachment; filename=\"" + filename + "\"");
-  auto result = response.create_message(sp);
-  auto buffer = std::make_shared<const_data_buffer>(body);
-  result.body()->write_async(buffer->data(), buffer->size())
-    .execute(
-      [sp, result, buffer](const std::shared_ptr<std::exception> & ex) {
-    if (!ex) {
-      result.body()->write_async(nullptr, 0).execute(
-        [sp](const std::shared_ptr<std::exception> & ex) {
-        if (ex) {
-          sp.unhandled_exception(ex);
-        }
-      });
-    }
-    else {
-      sp.unhandled_exception(ex);
-    }
-  });
+  return http_message(headers, body);
+}
 
-  return result;
+vds::http_message vds::http_response::file_response(
+  const const_data_buffer& body,
+  const std::string& filename,
+  const std::string& content_type,
+  int result_code,
+  const std::string& message) {
 
+  return file_response(
+    std::make_shared<buffer_stream_input_async>(body),
+    body.size(),
+    filename,
+    content_type,
+    result_code,
+    message);
 }
 

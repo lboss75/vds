@@ -40,7 +40,11 @@ namespace vds {
           << this->crypted_key_
           << this->crypted_data_;
 
-        this->signature_ = asymmetric_sign::signature(hash::sha256(), write_key, s.get_buffer(), s.size());
+        this->signature_ = asymmetric_sign::signature(
+          hash::sha256(),
+          write_key,
+          s.get_buffer(),
+          s.size());
       }
 
       channel_message(binary_deserializer & s){

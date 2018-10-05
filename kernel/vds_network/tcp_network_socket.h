@@ -6,33 +6,48 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <memory>
-#include "async_task.h"
+
 #include "async_buffer.h"
 #include "network_address.h"
+#include "socket_base.h"
 
 namespace vds {
 
-  class tcp_network_socket : public stream_async<uint8_t>
+  class tcp_network_socket
+#ifdef _WIN32
+      : public std::enable_shared_from_this<tcp_network_socket>
+#else
+      : public socket_base
+#endif//_WIN32
   {
   public:
     tcp_network_socket();
+    ~tcp_network_socket();
 
-    static tcp_network_socket connect(
+    static std::shared_ptr<tcp_network_socket> connect(
       const service_provider & sp,
-      const network_address & address,
-      const stream<uint8_t> & input_handler);
-    
-    void start(
-        const service_provider & sp,
-        const stream<uint8_t> & input_handler) const;
+      const network_address & address);
+
+    std::tuple<
+      std::shared_ptr<vds::stream_input_async<uint8_t>>,
+      std::shared_ptr<vds::stream_output_async<uint8_t>>> start(
+        const service_provider & sp);
 
     void close();
 
-    class _tcp_network_socket * operator ->() const;
+    class _tcp_network_socket * operator ->() const {
+      return this->impl_;
+    }
+
+#ifndef _WIN32
+    void process(uint32_t events) override;
+#endif
 
   private:
     friend class _tcp_network_socket;
     tcp_network_socket(class _tcp_network_socket * impl);
+
+    _tcp_network_socket * impl_;
   };
 }
 

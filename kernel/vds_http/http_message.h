@@ -20,9 +20,9 @@ namespace vds {
     }
 
     http_message(
-        const service_provider & sp,
-        const std::list<std::string> & headers)
-    : headers_(headers), body_(std::make_shared<continuous_buffer<uint8_t>>(sp))
+        const std::list<std::string> & headers,
+        const std::shared_ptr<stream_input_async<uint8_t>> & body)
+    : headers_(headers), body_(body)
     {
     }
 
@@ -30,9 +30,16 @@ namespace vds {
       return this->headers_;
     }
 
-    bool get_header(const std::string & name, std::string & value) const;
+    static bool get_header(
+        const std::list<std::string> & headers,
+        const std::string& name,
+        std::string& value);
+
+    bool get_header(const std::string & name, std::string & value) const{
+      return get_header(this->headers_, name, value);
+    }
     
-    const std::shared_ptr<continuous_buffer<uint8_t>> & body() const {
+    const std::shared_ptr<stream_input_async<uint8_t>> & body() const {
       return this->body_;
     }
 
@@ -40,18 +47,19 @@ namespace vds {
       return this->body_.get() != nullptr;
     }
 
-    void ignore_empty_body() const;
-    void ignore_body() const;
+    std::future<void> ignore_empty_body(const service_provider &sp) const;
+    std::future<void> ignore_body(const service_provider &sp) const;
 
   private:
     std::list<std::string> headers_;
-    std::shared_ptr<continuous_buffer<uint8_t>> body_;
+    std::shared_ptr<stream_input_async<uint8_t>> body_;
 
     struct buffer_t {
       uint8_t data_[1024];
     };
-    static async_task<> ignore_body(
-      const std::shared_ptr<continuous_buffer<uint8_t>> & body,
+    static std::future<void> ignore_body(
+      const service_provider &sp,
+      const std::shared_ptr<stream_input_async<uint8_t>> & body,
       const std::shared_ptr<buffer_t> & buffer);
 
   };

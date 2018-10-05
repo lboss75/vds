@@ -16,39 +16,18 @@ namespace vds {
     public:
       static const transaction_id message_id = transaction_id::payment_transaction;
 
-      payment_transaction(
-        const const_data_buffer& source_transaction,
-        const std::string& target_user,
-        const uint64_t value)
-        : source_transaction_(source_transaction),
-          target_user_(target_user),
-          value_(value) {
+      const_data_buffer source_transaction;
+      std::string target_user;
+      uint64_t value;
+
+      template <typename visitor_t>
+      void visit(visitor_t & v) {
+        v(
+          source_transaction,
+          target_user,
+          value);
       }
 
-      payment_transaction(binary_deserializer & s){
-        s >> this->source_transaction_ >> this->target_user_ >> this->value_;
-      }
-
-      void serialize(binary_serializer & s) const {
-        s << this->source_transaction_ << this->target_user_ << this->value_;
-      }
-
-      const const_data_buffer & source_transaction() const {
-        return this->source_transaction_;
-      }
-
-      const std::string &target_user() const {
-        return this->target_user_;
-      }
-
-      uint64_t value() const {
-        return this->value_;
-      }
-
-    private:
-      const_data_buffer source_transaction_;
-      std::string target_user_;
-      uint64_t value_;
     };
   }
 }

@@ -15,40 +15,41 @@ namespace vds {
 
   class cert_control {
   public:
-    static certificate get_root_certificate() {
-      return certificate::parse_der(base64::to_bytes(root_certificate_));
+    static std::shared_ptr<certificate> get_root_certificate() {
+      return std::make_shared<certificate>(certificate::parse_der(base64::to_bytes(root_certificate_)));
     }
 
     //common news read certificate
-    static certificate get_common_news_read_certificate() {
-      return certificate::parse_der(base64::to_bytes(common_news_read_certificate_));
+    static std::shared_ptr<certificate> get_common_news_read_certificate() {
+      return std::make_shared<certificate>(certificate::parse_der(base64::to_bytes(common_news_read_certificate_)));
     }
 
-    static asymmetric_private_key get_common_news_read_private_key() {
-      return asymmetric_private_key::parse_der(base64::to_bytes(common_news_read_private_key_), std::string());
+    static std::shared_ptr<asymmetric_private_key> get_common_news_read_private_key() {
+      return std::make_shared<asymmetric_private_key>(asymmetric_private_key::parse_der(base64::to_bytes(common_news_read_private_key_), std::string()));
     }
 
-    static certificate get_common_news_write_certificate() {
-      return certificate::parse_der(base64::to_bytes(common_news_write_certificate_));
+    static std::shared_ptr<certificate> get_common_news_write_certificate() {
+      return std::make_shared<certificate>(certificate::parse_der(base64::to_bytes(common_news_write_certificate_)));
     }
 
-    static certificate get_common_news_admin_certificate() {
-      return certificate::parse_der(base64::to_bytes(common_news_admin_certificate_));
+    static std::shared_ptr<certificate> get_common_news_admin_certificate() {
+      return std::make_shared<certificate>(certificate::parse_der(base64::to_bytes(common_news_admin_certificate_)));
     }
     //common storage
-    static certificate get_storage_certificate() {
-      return certificate::parse_der(base64::to_bytes(common_storage_certificate_));
+    static std::shared_ptr<certificate> get_storage_certificate() {
+      return std::make_shared<certificate>(certificate::parse_der(base64::to_bytes(common_storage_certificate_)));
     }
 
-    static asymmetric_private_key get_common_storage_private_key() {
-      return asymmetric_private_key::parse_der(base64::to_bytes(common_storage_private_key_), std::string());
+    static std::shared_ptr<asymmetric_private_key> get_common_storage_private_key() {
+      return std::make_shared<asymmetric_private_key>(
+        asymmetric_private_key::parse_der(base64::to_bytes(common_storage_private_key_), std::string()));
     }
 
     class private_info_t {
     public:
-      asymmetric_private_key root_private_key_;
-      asymmetric_private_key common_news_write_private_key_;
-      asymmetric_private_key common_news_admin_private_key_;
+      std::shared_ptr<asymmetric_private_key> root_private_key_;
+      std::shared_ptr<asymmetric_private_key> common_news_write_private_key_;
+      std::shared_ptr<asymmetric_private_key> common_news_admin_private_key_;
 
 
       void genereate_all();

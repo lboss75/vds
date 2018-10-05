@@ -14,7 +14,7 @@ namespace vds {
   class _asymmetric_public_key;
   class _asymmetric_sign_verify;
 
-  class _asymmetric_private_key : public std::enable_shared_from_this<_asymmetric_private_key>
+  class _asymmetric_private_key
   {
   public:
     _asymmetric_private_key(EVP_PKEY * key);
@@ -82,7 +82,7 @@ namespace vds {
     EVP_PKEY * key_;
   };
 
-  class _asymmetric_public_key : public std::enable_shared_from_this<_asymmetric_public_key>
+  class _asymmetric_public_key
   {
   public:
     _asymmetric_public_key(EVP_PKEY * key);
@@ -142,7 +142,7 @@ namespace vds {
     EVP_PKEY * key_;
   };
 
-  class _asymmetric_sign : public _stream<uint8_t>
+  class _asymmetric_sign
   {
   public:
     _asymmetric_sign(
@@ -151,9 +151,10 @@ namespace vds {
     );
     ~_asymmetric_sign();
 
-    void write(
-      const uint8_t * data,
-      size_t len) override;
+    std::future<void> write_async(
+      const service_provider &sp,
+      const uint8_t *data,
+      size_t len);
 
     const const_data_buffer & signature() const {
       return this->sig_;
@@ -165,7 +166,7 @@ namespace vds {
     const_data_buffer sig_;
   };
 
-  class _asymmetric_sign_verify : public _stream<uint8_t>
+  class _asymmetric_sign_verify
   {
   public:
     _asymmetric_sign_verify(
@@ -175,8 +176,9 @@ namespace vds {
     
     ~_asymmetric_sign_verify();
 
-    void write(
-      const uint8_t * data,
+    std::future<void> write_async(
+      const service_provider &sp,
+      const uint8_t *data,
       size_t len);
 
     bool result() const { return this->result_; }
@@ -198,7 +200,7 @@ namespace vds {
   // openssl req -new -key user.key -out user.csr
   // openssl x509 -req -days 730 -in user.csr -CA cacert.crt -CAkey cakey.pem -CAcreateserial -out user.crt
   
-  class _certificate : public std::enable_shared_from_this<_certificate>
+  class _certificate
   {
   public:
     _certificate(certificate && original);

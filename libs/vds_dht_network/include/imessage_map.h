@@ -57,11 +57,11 @@ namespace vds {
           uint16_t hops_;
         };
 
-        virtual async_task<> process_message(
+        virtual std::future<void> process_message(
           const service_provider& scope,
           const message_info_t& message_info) = 0;
 
-        virtual void on_new_session(
+        virtual std::future<void> on_new_session(
           const service_provider& sp,
           const const_data_buffer & partner_id) = 0;
       };

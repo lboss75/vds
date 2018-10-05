@@ -52,18 +52,17 @@ void vds::server::stop(const service_provider& sp)
   this->impl_->stop(sp);
 }
 
-vds::async_task<> vds::server::start_network(const vds::service_provider &sp, uint16_t port) {
-  return [this, sp, port]() {
-    this->impl_->dht_network_service_->start(sp, this->impl_->udp_transport_, port);
-    this->impl_->file_manager_->start(sp);
-  };
+std::future<void> vds::server::start_network(const vds::service_provider &sp, uint16_t port) {
+  this->impl_->dht_network_service_->start(sp, this->impl_->udp_transport_, port);
+  this->impl_->file_manager_->start(sp);
+  co_return;
 }
 
-vds::async_task<> vds::server::prepare_to_stop(const vds::service_provider &sp) {
+std::future<void> vds::server::prepare_to_stop(const vds::service_provider &sp) {
   return this->impl_->prepare_to_stop(sp);
 }
 
-vds::async_task<vds::server_statistic> vds::server::get_statistic(const vds::service_provider &sp) const {
+std::future<vds::server_statistic> vds::server::get_statistic(const vds::service_provider &sp) const {
   return this->impl_->get_statistic(sp);
 }
 
@@ -100,12 +99,10 @@ void vds::_server::start(const service_provider& scope)
         if (!sp.get_shutdown_event().is_shuting_down()) {
           pthis->transaction_log_sync_process_->do_sync(sp, t);
         }
-      }).execute([sp, pthis](const std::shared_ptr<std::exception> & ex) {
-        if (ex) {
-        }
-        std::unique_lock<std::debug_mutex> lock(pthis->update_timer_mutex_);
-        pthis->in_update_timer_ = false;
-      });
+      }).get();
+
+      lock.lock();
+      pthis->in_update_timer_ = false;
     }
 
     return !sp.get_shutdown_event().is_shuting_down();
@@ -125,18 +122,17 @@ void vds::_server::stop(const service_provider& sp)
   this->db_model_.reset();
 }
 
-vds::async_task<> vds::_server::prepare_to_stop(const vds::service_provider &sp) {
-  return async_series(
-    this->dht_network_service_->prepare_to_stop(sp),
-    this->db_model_->prepare_to_stop(sp)
-  );
+std::future<void> vds::_server::prepare_to_stop(const vds::service_provider &sp) {
+  co_await this->dht_network_service_->prepare_to_stop(sp);
+  co_await this->db_model_->prepare_to_stop(sp);
 }
 
-vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::service_provider &sp) {
+std::future<vds::server_statistic> vds::_server::get_statistic(const vds::service_provider &sp) {
   auto result = std::make_shared<vds::server_statistic>();
   sp.get<dht::network::client>()->get_route_statistics(result->route_statistic_);
   sp.get<dht::network::client>()->get_session_statistics(result->session_statistic_);
-  return sp.get<db_model>()->async_read_transaction(sp, [sp, this, result](database_read_transaction & t){
+
+  co_await sp.get<db_model>()->async_read_transaction(sp, [sp, this, result](database_read_transaction & t){
 
     orm::transaction_log_record_dbo t2;
     auto st = t.get_reader(t2.select(t2.id, t2.state, t2.order_no));
@@ -264,13 +260,12 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
       result->sync_statistic_.sync_states_[t8.object_id.get(st)].members_[t8.node.get(st)].replicas_.emplace(t8.replica.get(st));
     }
 
-  }).then([result]()->server_statistic{
-    return *result;
   });
 
+  co_return *result;
 }
 
-vds::async_task<> vds::_server::apply_message(
+std::future<void> vds::_server::apply_message(
   const service_provider & sp,
   database_transaction & t,
   const dht::messages::transaction_log_state & message,
@@ -294,13 +289,11 @@ void vds::_server::apply_message(
   this->transaction_log_sync_process_->apply_message(sp, t, message, message_info);
 }
 
-void vds::_server::on_new_session(const service_provider& sp, const const_data_buffer& partner_id) {
+std::future<void> vds::_server::on_new_session(const service_provider& sp, const const_data_buffer& partner_id) {
   
-  sp.get<db_model>()->async_read_transaction(sp, [this, sp, partner_id](database_read_transaction & t) {
+  co_await sp.get<db_model>()->async_read_transaction(sp, [this, sp, partner_id](database_read_transaction & t) {
 
     this->transaction_log_sync_process_->on_new_session(sp, t, partner_id);
     (*sp.get<dht::network::client>())->on_new_session(sp, t, partner_id);
-  }).execute([](const std::shared_ptr<std::exception> & ex) {
-    
   });
 }

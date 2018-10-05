@@ -11,14 +11,14 @@ vds::http_client::http_client()
 {
 }
 
-vds::async_task<> vds::http_client::send(
+std::future<void> vds::http_client::send(
   const vds::service_provider & sp,
   const std::shared_ptr<vds::http_message>& message)
 {
 }
 
 
-vds::async_task<> vds::http_client::start(
+std::future<void> vds::http_client::start(
   const vds::service_provider & sp,
   const handler_type & handler)
 {
@@ -28,7 +28,7 @@ vds::async_task<> vds::http_client::start(
   );
 }
 
-vds::async_task<> vds::http_client::process_input_commands(
+std::future<void> vds::http_client::process_input_commands(
   const vds::service_provider & sp,
   const handler_type & handler)
 {

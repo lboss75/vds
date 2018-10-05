@@ -17,26 +17,26 @@ namespace vds {
     http_request(const http_message & message);
 
     http_request(
-        const service_provider & sp,
         const std::list<std::string> & headers,
         const std::string & method,
         const std::string & url,
-        const std::string & agent = "HTTP/1.0"
-    ): message_(sp, headers), method_(method), url_(url), agent_(agent)
+        const std::string & agent = "HTTP/1.0",
+        const std::shared_ptr<stream_input_async<uint8_t>> & body = std::make_shared<buffer_stream_input_async>(const_data_buffer())
+      ): message_(headers, body), method_(method), url_(url), agent_(agent)
     {
       this->parse_parameters();
     }
 
     static http_request create(
-      const service_provider & sp,
       const std::string & method,
       const std::string & url,
-      const std::string & agent = "HTTP/1.0")
+      const std::string & agent = "HTTP/1.0",
+      const std::shared_ptr<stream_input_async<uint8_t>> & body = std::make_shared<buffer_stream_input_async>(const_data_buffer()))
     {
       std::list<std::string> headers;
       headers.push_back(method + " " + url + " " + agent);
 
-      return http_request(sp, headers, method, url, agent);
+      return http_request(headers, method, url, agent);
     }
 
     const std::string & url() const {

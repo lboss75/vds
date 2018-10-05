@@ -19,7 +19,7 @@ namespace vds {
         const std::string & login,
         const std::string & password);
 
-    async_task<> load(
+    std::future<void> load(
       const service_provider & sp,
       const const_data_buffer & crypted_private_key);
 

@@ -13,12 +13,14 @@ All rights reserved
 
 ///////////////////////////////////////////////////////////////////////
 vds::asymmetric_private_key::asymmetric_private_key()
+  : impl_(nullptr)
 {
 }
 
-vds::asymmetric_private_key::asymmetric_private_key(const asymmetric_private_key & original)
+vds::asymmetric_private_key::asymmetric_private_key(asymmetric_private_key && original)
   : impl_(original.impl_)
 {
+  original.impl_ = nullptr;
 }
 
 vds::asymmetric_private_key::asymmetric_private_key(
@@ -34,6 +36,7 @@ vds::asymmetric_private_key::asymmetric_private_key(_asymmetric_private_key * im
 
 vds::asymmetric_private_key::~asymmetric_private_key()
 {
+  delete this->impl_;
 }
 
 vds::asymmetric_private_key vds::asymmetric_private_key::generate(const asymmetric_crypto_info & info)
@@ -81,6 +84,12 @@ void vds::asymmetric_private_key::save(const filename & filename, const std::str
 vds::const_data_buffer vds::asymmetric_private_key::decrypt(const void * data, size_t size) const
 {
   return this->impl_->decrypt(data, size);
+}
+
+vds::asymmetric_private_key& vds::asymmetric_private_key::operator=(asymmetric_private_key&& original) {
+  this->impl_ = original.impl_;
+  original.impl_ = nullptr;
+  return *this;
 }
 
 vds::const_data_buffer vds::asymmetric_private_key::decrypt(const const_data_buffer & data) const
@@ -276,13 +285,17 @@ const vds::asymmetric_crypto_info & vds::asymmetric_crypto::rsa4096()
 vds::asymmetric_sign::asymmetric_sign(
   const hash_info & hash_info,
   const asymmetric_private_key & key)
-: stream<uint8_t>(new _asymmetric_sign(hash_info, key))
+: impl_(new _asymmetric_sign(hash_info, key))
 {
+}
+
+vds::asymmetric_sign::~asymmetric_sign() {
+  delete this->impl_;
 }
 
 vds::const_data_buffer vds::asymmetric_sign::signature()
 {
-  return static_cast<_asymmetric_sign *>(this->impl_.get())->signature();
+  return this->impl_->signature();
 }
 
 vds::const_data_buffer vds::asymmetric_sign::signature(
@@ -299,14 +312,18 @@ vds::const_data_buffer vds::asymmetric_sign::signature(
 
 vds::const_data_buffer vds::asymmetric_sign::signature(
   const vds::hash_info& hash_info,
-  const vds::asymmetric_private_key& key,
+  const vds::asymmetric_private_key & key,
   const void* data,
   size_t data_size)
 {
   _asymmetric_sign s(hash_info, key);
-  s.write(reinterpret_cast<const uint8_t *>(data), data_size);
-  s.write(nullptr, 0);
+  s.write_async(*(service_provider *)nullptr, reinterpret_cast<const uint8_t *>(data), data_size).get();
+  s.write_async(*(service_provider *)nullptr, nullptr, 0).get();
   return s.signature();
+}
+
+std::future<void> vds::asymmetric_sign::write_async(const service_provider& sp, const uint8_t* data, size_t len) {
+  return this->impl_->write_async(sp, data, len);
 }
 
 
@@ -346,8 +363,10 @@ vds::_asymmetric_sign::~_asymmetric_sign()
   }
 }
 
-void vds::_asymmetric_sign::write(const uint8_t * data, size_t data_size)
-{
+std::future<void> vds::_asymmetric_sign::write_async(
+  const service_provider &/*sp*/,
+  const uint8_t * data,
+  size_t data_size) {
 	if (0 == data_size) {
 		size_t req = 0;
 		if (1 != EVP_DigestSignFinal(this->ctx_, NULL, &req) || req <= 0) {
@@ -372,6 +391,8 @@ void vds::_asymmetric_sign::write(const uint8_t * data, size_t data_size)
     const auto error = ERR_get_error();
     throw crypto_exception("EVP_DigestInit_ex", error);
   }
+
+  co_return;
 }
 
 ///////////////////////////////////////////////////////////////
@@ -379,13 +400,15 @@ vds::asymmetric_sign_verify::asymmetric_sign_verify(
   const hash_info & hash_info,
   const asymmetric_public_key & key,
   const const_data_buffer & sig)
-: stream<uint8_t>(new _asymmetric_sign_verify(hash_info, key, sig))
-{
+: impl_(new _asymmetric_sign_verify(hash_info, key, sig)) {
 }
 
-bool vds::asymmetric_sign_verify::result() const
-{
-  return static_cast<_asymmetric_sign_verify *>(this->impl_.get())->result();
+vds::asymmetric_sign_verify::~asymmetric_sign_verify() {
+  delete this->impl_;  
+}
+
+bool vds::asymmetric_sign_verify::result() const {
+  return this->impl_->result();
 }
 
 bool vds::asymmetric_sign_verify::verify(
@@ -396,8 +419,8 @@ bool vds::asymmetric_sign_verify::verify(
     size_t data_size)
 {
   _asymmetric_sign_verify s(hash_info, key, signature);
-  s.write(reinterpret_cast<const uint8_t *>(data), data_size);
-  s.write(nullptr, 0);
+  s.write_async(*(service_provider *)nullptr, reinterpret_cast<const uint8_t *>(data), data_size).get();
+  s.write_async(*(service_provider *)nullptr, nullptr, 0).get();
   return s.result();
 }
 
@@ -408,6 +431,11 @@ bool vds::asymmetric_sign_verify::verify(
     const const_data_buffer &data)
 {
   return verify(hash_info, key, signature, data.data(), data.size());
+}
+
+std::future<void> vds::asymmetric_sign_verify::
+write_async(const service_provider& sp, const uint8_t* data, size_t len) {
+  return this->impl_->write_async(sp, data, len);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -447,10 +475,10 @@ vds::_asymmetric_sign_verify::~_asymmetric_sign_verify()
   }
 }
 
-void vds::_asymmetric_sign_verify::write(
-  const uint8_t * data,
-  size_t len)
-{
+std::future<void> vds::_asymmetric_sign_verify::write_async(
+  const service_provider &/*sp*/,
+  const uint8_t *data,
+  size_t len) {
 	if (0 == len) {
 		this->result_ = (1 == EVP_DigestVerifyFinal(
         this->ctx_,
@@ -461,6 +489,8 @@ void vds::_asymmetric_sign_verify::write(
     auto error = ERR_get_error();
     throw crypto_exception("EVP_DigestInit_ex", error);
   }
+
+  co_return;
 }
 //////////////////////////////////////////////////////////////////////
 vds::asymmetric_public_key::asymmetric_public_key(_asymmetric_public_key * impl)
@@ -653,13 +683,15 @@ vds::certificate::certificate(_certificate * impl)
 {
 }
 
-vds::certificate::certificate(const certificate & original)
+vds::certificate::certificate(certificate && original)
   : impl_(original.impl_)
 {
+  original.impl_ = nullptr;
 }
 
 vds::certificate::~certificate()
 {
+  delete this->impl_;
 }
 
 vds::certificate vds::certificate::parse(const std::string & value)
@@ -762,9 +794,10 @@ vds::certificate_extension vds::certificate::get_extension(int index) const
   return this->impl_->get_extension(index);
 }
 
-vds::certificate & vds::certificate::operator = (const certificate & original)
+vds::certificate & vds::certificate::operator = (certificate && original)
 {
   this->impl_ = original.impl_;
+  original.impl_ = nullptr;
   return *this;
 }
 

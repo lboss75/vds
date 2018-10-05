@@ -577,7 +577,7 @@ namespace vds {
     {
     }
 
-    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+    void collect_aliases(std::map<const database_table *, std::string> & /*aliases*/) const{
     }
 
     std::string visit(_database_sql_builder & builder) const

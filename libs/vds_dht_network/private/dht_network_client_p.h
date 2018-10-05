@@ -44,8 +44,8 @@ namespace vds {
         _client(
           const service_provider& sp,
           const std::shared_ptr<iudp_transport> & udp_transport,
-          const certificate & node_cert,
-          const asymmetric_private_key & node_key);
+          const std::shared_ptr<certificate> & node_cert,
+          const std::shared_ptr<asymmetric_private_key> & node_key);
 
         void start(const service_provider& sp);
         void stop(const service_provider& sp);
@@ -57,10 +57,6 @@ namespace vds {
           const service_provider& sp,
           database_read_transaction& t,
           const const_data_buffer& partner_id);
-        
-        void remove_session(
-          const service_provider& sp,
-          const std::shared_ptr<dht_session>& session);
 
         static filename save_data(
           const service_provider& sp,
@@ -96,7 +92,7 @@ namespace vds {
           const messages::dht_find_node& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<> apply_message(
+        std::future<void> apply_message(
           const service_provider& sp,
           const messages::dht_find_node_response& message,
           const imessage_map::message_info_t& message_info);
@@ -210,14 +206,14 @@ namespace vds {
 
         //
         template <typename message_type>
-        void send(
+        std::future<void> send(
           const service_provider& sp,
           const const_data_buffer& node_id,
           const message_type& message) {
-          this->send(sp, node_id, message_type::message_id, message.serialize());
+          co_await this->send(sp, node_id, message_type::message_id, message.serialize());
         }
 
-        void send(
+        std::future<void> send(
           const service_provider& sp,
           const const_data_buffer& node_id,
           message_type_t message_id,
@@ -248,32 +244,32 @@ namespace vds {
         }
 
         template <typename message_type>
-        void send_neighbors(
+        std::future<void> send_neighbors(
           const service_provider& sp,
           const message_type& message) {
-          this->send_neighbors(sp, message_type::message_id, message.serialize());
+          co_await this->send_neighbors(sp, message_type::message_id, message.serialize());
         }
 
         void add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops);
 
-        async_task<> restore(
+        std::future<void> restore(
           const service_provider& sp,
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);
 
-        async_task<> restore(
+        std::future<void> restore(
           const service_provider& sp,
           const std::string& name,
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);
 
-        async_task<uint8_t> restore_async(
+        std::future<uint8_t> restore_async(
           const service_provider& sp,
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result);
 
-        async_task<uint8_t> restore_async(
+        std::future<uint8_t> restore_async(
           const service_provider& sp,
           const std::string& name,
           const std::shared_ptr<const_data_buffer>& result);
@@ -302,21 +298,20 @@ namespace vds {
 
         uint32_t update_route_table_counter_;
 
-        async_task<> update_route_table(
-          const service_provider& sp);
-        async_task<> process_update(
+        std::future<void> update_route_table(const service_provider& sp);
+        std::future<void> process_update(
           const service_provider& sp,
           database_transaction& t);
 
 
-        void send_near(
+        std::future<void> send_near(
           const service_provider& sp,
           const const_data_buffer& node_id,
           size_t radius,
           message_type_t message_id,
           const const_data_buffer& message);
 
-        void send_near(
+        std::future<void> send_near(
           const service_provider& sp,
           const const_data_buffer& node_id,
           size_t radius,
@@ -324,7 +319,7 @@ namespace vds {
           const const_data_buffer& message,
           const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter);
 
-        void proxy_message(
+        std::future<void> proxy_message(
             const service_provider &sp,
             const const_data_buffer &node_id,
             message_type_t message_id,
@@ -332,7 +327,7 @@ namespace vds {
             const const_data_buffer &source_node,
             uint16_t hops);
 
-        void send_neighbors(
+        std::future<void> send_neighbors(
           const service_provider& sp,
           message_type_t message_id,
           const const_data_buffer& message);
@@ -341,7 +336,7 @@ namespace vds {
           const std::string& key,
           uint16_t replica);
 
-        async_task<> update_wellknown_connection(
+        std::future<void> update_wellknown_connection(
           const service_provider& sp,
           database_transaction& t);
 

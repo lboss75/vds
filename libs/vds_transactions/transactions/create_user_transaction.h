@@ -19,45 +19,20 @@ namespace vds {
     public:
       static const transaction_id message_id = transaction_id::create_user_transaction;
 
-      create_user_transaction(
-          const std::string & user_credentials_key,
-          const certificate &user_cert,
-          const std::string &user_name,
-          const certificate &parent_cert)
-        : user_credentials_key_(user_credentials_key),
-          user_cert_(user_cert),
-          user_name_(user_name),
-          parent_cert_(parent_cert.subject()) {        
+      std::string user_credentials_key;
+      std::shared_ptr<certificate> user_cert;
+      std::string user_name;
+      std::string parent_cert;
+
+      template <typename  visitor_type>
+      void visit(visitor_type & v) {
+        v(
+          user_credentials_key,
+          user_cert,
+          user_name,
+          parent_cert
+        );
       }
-
-      const std::string & user_credentials_key() const { return this->user_credentials_key_; }
-      const certificate & user_cert() const { return this->user_cert_; }
-      const std::string & user_name() const { return this->user_name_; }
-      const std::string & parent_cert() const { return this->parent_cert_; }
-
-      create_user_transaction(
-        class binary_deserializer & s) {
-        s
-          >> this->user_credentials_key_
-          >> this->user_cert_
-          >> this->user_name_
-          >> this->parent_cert_;
-      }
-
-      void serialize(class binary_serializer & s) const {
-        s
-          << this->user_credentials_key_
-          << this->user_cert_
-          << this->user_name_
-          << this->parent_cert_;
-      }
-
-
-    private:
-      std::string user_credentials_key_;
-      certificate user_cert_;
-      std::string user_name_;
-      std::string parent_cert_;
     };
   }
 }

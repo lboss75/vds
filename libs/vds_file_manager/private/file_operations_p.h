@@ -18,20 +18,21 @@ namespace vds {
   namespace file_manager_private {
     class _file_operations : public std::enable_shared_from_this<_file_operations> {
     public:
-			async_task<transactions::user_message_transaction::file_info_t> upload_file(
+			std::future<transactions::user_message_transaction::file_info_t> upload_file(
 					const service_provider &sp,
           const std::shared_ptr<user_manager> & user_mng,
           const std::string & name,
           const std::string & mime_type,
-					const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
+					const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
-	    async_task<file_manager::file_operations::download_result_t> download_file(
+	    std::future<file_manager::file_operations::download_result_t> download_file(
 					const service_provider &sp,
           const std::shared_ptr<user_manager> & user_mng,
           const const_data_buffer & channel_id,
-          const const_data_buffer & target_file);
+          const const_data_buffer & target_file,
+          const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
-      async_task<> create_message(
+      std::future<void> create_message(
         const service_provider& sp,
         const std::shared_ptr<user_manager>& user_mng,
         const const_data_buffer& channel_id,
@@ -39,7 +40,7 @@ namespace vds {
         const std::list<transactions::user_message_transaction::file_info_t>& files);
 
 
-      //	    async_task<> download_block(
+      //	    std::future<void> download_block(
 //			const service_provider& sp,
 //			database_transaction& t,
 //      file_manager::download_file_task::block_info & block_id,
@@ -52,9 +53,9 @@ namespace vds {
         std::list<transactions::user_message_transaction::file_block_t> file_blocks;
       };
 
-      async_task<pack_file_result> pack_file(
+      std::future<pack_file_result> pack_file(
           const service_provider &sp,
-          const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) const;
+          const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) const;
 
 //			void restore_chunk(
 //					const service_provider& sp,
@@ -62,9 +63,9 @@ namespace vds {
 //					file_manager::download_file_task::block_info & block,
 //					const std::shared_ptr<file_manager::download_file_task> & result);
 
-      void download_stream(
+      std::future<void> download_stream(
           const service_provider& sp,
-          const std::shared_ptr<continuous_buffer<uint8_t>> & target_stream,
+          const std::shared_ptr<stream_output_async<uint8_t>> & target_stream,
           const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);
 		};
   }

@@ -55,7 +55,7 @@ vds::url_parser::network_address vds::url_parser::parse_network_address(const st
   p = address.find('/', start);
   if (std::string::npos == p) {
     auto p1 = address.find_last_of(':');
-    if (std::string::npos == p1) {
+    if (std::string::npos == p1 || p1 < start) {
       result.server = address.substr(start);
     }
     else {
@@ -65,7 +65,7 @@ vds::url_parser::network_address vds::url_parser::parse_network_address(const st
   }
   else {
     auto p1 = address.find_last_of(':');
-    if (std::string::npos == p1) {
+    if (std::string::npos == p1 || p1 < start) {
       result.server = address.substr(start, p - start);
     }
     else if (p < p1) {

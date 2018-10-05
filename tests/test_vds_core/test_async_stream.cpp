@@ -3,7 +3,7 @@
 //#include "mt_service.h"
 //#include "random_reader.h"
 //#include "compare_data.h"
-//#include "async_task.h"
+//
 //#include "async_buffer.h"
 //#include "random_buffer.h"
 //#include "test_config.h"
@@ -31,7 +31,7 @@
 //  std::shared_ptr<std::exception> err;
 //
 //  vds::async_series(
-//    vds::create_async_task(
+//    vds::create_std::future(
 //      [&data, stream](
 //        const std::function<void(const vds::service_provider & sp)> & done,
 //        const vds::error_handler & error,
@@ -44,7 +44,7 @@
 //        });
 //      }
 //    ),
-//    vds::create_async_task(
+//    vds::create_std::future(
 //      [&data, stream](
 //        const std::function<void(const vds::service_provider & sp)> & done,
 //        const vds::error_handler & error,

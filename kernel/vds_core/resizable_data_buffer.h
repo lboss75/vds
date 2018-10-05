@@ -52,12 +52,10 @@ namespace vds {
       this->size_ = 0;
     }
 
-  private:
-    friend class const_data_buffer;
-
-    uint8_t * data_;
-    size_t size_;
-    size_t allocated_size_;
+    void apply_size(size_t size) {
+      vds_assert(this->size_ + size <= this->allocated_size_);
+      this->size_ += size;
+    }
 
     void resize_data(size_t size) {
       if (this->allocated_size_ < size) {
@@ -68,6 +66,14 @@ namespace vds {
         }
       }
     }
+
+  private:
+    friend class const_data_buffer;
+
+    uint8_t * data_;
+    size_t size_;
+    size_t allocated_size_;
+
   };
 }
 

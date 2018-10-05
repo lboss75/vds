@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "async_task.h"
+
 
 namespace vds {
 
@@ -20,16 +20,16 @@ namespace vds {
       this->tasks_.push_back(std::forward<task_type>(task));
     }
 
-    async_task<> run()
+    std::future<void> run()
     {
-      return [this](const async_result<> & result) {
+      return [this](const std::promise<> & result) {
           auto runner = new _async_series(result, this->tasks_.size());
           runner->run(std::move(this->tasks_));
         };
     }
 
   private:
-    std::list<async_task<>> tasks_;
+    std::list<std::future<void>> tasks_;
   };
 }
 

@@ -17,113 +17,153 @@ namespace vds {
   class http_multipart_reader : public std::enable_shared_from_this<http_multipart_reader> {
   public:
     http_multipart_reader(
-      const service_provider & sp,
       const std::string & boundary,
-      const std::function<async_task<>(const http_message &message)> & message_callback)
-      : boundary_(boundary), parser_(sp, message_callback), readed_(0), is_first_(true){
+      const std::function<std::future<void>(const http_message &message)> & message_callback)
+      : boundary_(boundary), message_callback_(message_callback), readed_(0), is_first_(true), eof_(false) {
     }
 
-    async_task<> process(
+    std::future<void> process(
       const service_provider & sp,
-      const http_message & message)
+      const std::shared_ptr<stream_input_async<uint8_t>> & input_stream)
     {
-      return this->continue_read(sp, message.body());
+      while(!this->eof_) {
+        auto parser = std::make_shared<http_form_part_parser>(this->message_callback_);
+        co_await parser->start(sp, std::make_shared<part_reader>(this));
+      }
     }
 
   private:
     const std::string boundary_;
-    http_form_part_parser parser_;
+    std::function<std::future<void>(const http_message &message)> message_callback_;
 
     uint8_t buffer_[1024];
     size_t readed_;
 
     bool is_first_;
+    bool eof_;
 
-    async_task<> continue_read(
-      const service_provider & sp,
-      const std::shared_ptr<continuous_buffer<uint8_t>> & body)
-    {
-      while (0 < this->readed_) {
-        std::string value((const char *)this->buffer_, this->readed_);
-        auto p = value.find(this->boundary_);
-        if (std::string::npos != p) {
-          if (0 < p) {
-            auto finish = p;
-            if(0 < finish && this->buffer_[finish - 1] == '\n') {
-              --finish;
-            }
-            if (0 < finish && this->buffer_[finish - 1] == '\r') {
-              --finish;
-            }
-            this->parser_.write(this->buffer_, finish);
-            memmove(this->buffer_, this->buffer_ + p, this->readed_ - p);
-            this->readed_ -= p;
-
-            continue;
-          }
-
-          if (this->readed_ > this->boundary_.length()) {
-            size_t offset = 0;
-            if (this->buffer_[this->boundary_.length()] == '\n') {
-              offset = 1;
-            }
-            else if (this->buffer_[this->boundary_.length()] == '\r'
-              && this->readed_ > this->boundary_.length() + 1
-              && this->buffer_[this->boundary_.length() + 1] == '\n') {
-              offset = 2;
-            }
-
-            if (offset > 0) {
-
-              if (!this->is_first_) {
-                this->parser_.write(nullptr, 0);
-                this->parser_.reset();
-              }
-              else {
-                this->is_first_ = false;
-              }
-
-              this->readed_ -= this->boundary_.length();
-              this->readed_ -= offset;
-              memmove(this->buffer_, this->buffer_ + this->boundary_.length() + offset, this->readed_);
-
-              continue;
-            }
-            else if (this->buffer_[this->boundary_.length()] == '-'
-              && this->readed_ > this->boundary_.length() + 1
-              && this->buffer_[this->boundary_.length() + 1] == '-') {
-              if (!this->is_first_) {
-                this->parser_.write(nullptr, 0);
-              }
-              return vds::async_task<>::empty();
-            }
-          }
-        }
-        else if (this->readed_ > this->boundary_.length() + 2) {
-          vds_assert(!this->is_first_);
-          this->parser_.write(this->buffer_, this->readed_ - this->boundary_.length() - 2);
-          memmove(this->buffer_, this->buffer_ + this->readed_ - this->boundary_.length() - 2, this->boundary_.length() + 2);
-          this->readed_ = this->boundary_.length() + 2;
-
-          continue;
-        }
-        break;
+    class part_reader : public stream_input_async<uint8_t> {
+    public:
+      part_reader(http_multipart_reader * owner)
+      : owner_(owner){
+        
       }
-      return body->read_async(this->buffer_ + this->readed_, sizeof(this->buffer_) - this->readed_)
-        .then([pthis = this->shared_from_this(), sp, body](size_t readed) {
-        if (0 != readed) {
-          pthis->readed_ += readed;
-          return pthis->continue_read(sp, body);
-        }
-        else {
-          if (pthis->readed_ > 0) {
-            pthis->parser_.write(pthis->buffer_, pthis->readed_);
+
+      std::future<size_t> read_async(const service_provider& sp, uint8_t * buffer, size_t len) override {
+        for (;;) {
+          while (0 < this->owner_->readed_) {
+            std::string value((const char *)this->owner_->buffer_, this->owner_->readed_);
+            auto p = value.find(this->owner_->boundary_);
+            if (std::string::npos != p) {
+              if (0 < p) {
+                auto finish = p;
+                if (0 < finish && this->owner_->buffer_[finish - 1] == '\n') {
+                  --finish;
+                }
+                if (0 < finish && this->owner_->buffer_[finish - 1] == '\r') {
+                  --finish;
+                }
+
+                if(finish > len) {
+                  finish = len;
+                }
+                if (0 < finish) {
+                  memcpy(buffer, this->owner_->buffer_, finish);
+                  memmove(this->owner_->buffer_, this->owner_->buffer_ + finish, this->owner_->readed_ - finish);
+                  this->owner_->readed_ -= finish;
+
+                  co_return finish;
+                }
+                else {
+                  memmove(this->owner_->buffer_, this->owner_->buffer_ + p, this->owner_->readed_ - p);
+                  this->owner_->readed_ -= p;
+                }
+                continue;
+              }
+
+              if (this->owner_->readed_ > this->owner_->boundary_.length()) {
+                size_t offset = 0;
+                if (this->owner_->buffer_[this->owner_->boundary_.length()] == '\n') {
+                  offset = 1;
+                }
+                else if (this->owner_->buffer_[this->owner_->boundary_.length()] == '\r'
+                  && this->owner_->readed_ > this->owner_->boundary_.length() + 1
+                  && this->owner_->buffer_[this->owner_->boundary_.length() + 1] == '\n') {
+                  offset = 2;
+                }
+
+                if (offset > 0) {
+
+                  if (!this->owner_->is_first_) {
+                    co_return 0;
+                  }
+                  else {
+                    this->owner_->is_first_ = false;
+                  }
+
+                  this->owner_->readed_ -= this->owner_->boundary_.length();
+                  this->owner_->readed_ -= offset;
+                  memmove(this->owner_->buffer_, this->owner_->buffer_ + this->owner_->boundary_.length() + offset, this->owner_->readed_);
+
+                  continue;
+                }
+                else if (this->owner_->buffer_[this->owner_->boundary_.length()] == '-'
+                  && this->owner_->readed_ > this->owner_->boundary_.length() + 1
+                  && this->owner_->buffer_[this->owner_->boundary_.length() + 1] == '-') {
+                  this->owner_->eof_ = true;
+                  co_return 0;
+                }
+              }
+            }
+            else if (this->owner_->readed_ > this->owner_->boundary_.length() + 2) {
+              vds_assert(!this->owner_->is_first_);
+              if(len < this->owner_->readed_ - this->owner_->boundary_.length() - 2) {
+                len = this->owner_->readed_ - this->owner_->boundary_.length() - 2;
+              }
+              memcpy(buffer, this->owner_->buffer_, len);
+              memmove(this->owner_->buffer_, this->owner_->buffer_ + len, this->owner_->readed_ - len);
+              this->owner_->readed_ -= len;
+
+              co_return len;
+            }
+            break;
           }
 
-          return async_task<>::empty();
+          if (!this->owner_->eof_) {
+            size_t readed = co_await this->input_stream_->read_async(
+              sp,
+              this->owner_->buffer_ + this->owner_->readed_,
+              sizeof(this->owner_->buffer_) - this->owner_->readed_);
+
+            if (0 != readed) {
+              this->owner_->readed_ += readed;
+            }
+            else {
+              this->owner_->eof_ = true;
+            }
+          }
+
+          if(this->owner_->eof_){
+            if (this->owner_->readed_ > 0) {
+              if(len > this->owner_->readed_) {
+                len = this->owner_->readed_;
+              }
+              memcpy(buffer, this->owner_->buffer_, len);
+              this->owner_->readed_ -= len;
+              memmove(this->owner_->buffer_, this->owner_->buffer_ + len, this->owner_->readed_ - len);
+
+              co_return len;
+            }
+
+            co_return 0;
+          }
         }
-      });
-    }
+
+      }
+    private:
+      http_multipart_reader * owner_;
+      std::shared_ptr<stream_input_async<uint8_t>> input_stream_;
+    };
   };
 }
 

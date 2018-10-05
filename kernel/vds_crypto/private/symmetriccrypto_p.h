@@ -71,12 +71,12 @@ namespace vds {
     uint8_t * iv_;
   };
   
-  class _symmetric_encrypt : public _stream<uint8_t>
+  class _symmetric_encrypt
   {
   public:
     _symmetric_encrypt(
       const symmetric_key & key,
-      const stream<uint8_t> & target)
+      const std::shared_ptr<stream_output_async<uint8_t>> & target)
     : target_(target),
       ctx_(EVP_CIPHER_CTX_new()),
       block_size_(key.block_size()),
@@ -108,9 +108,10 @@ namespace vds {
       }
     }
     
-    void write(
+    std::future<void> write_async(
+      const service_provider & sp,
         const uint8_t * input_buffer,
-        size_t input_buffer_size) override {
+        size_t input_buffer_size) {
       if (0 < input_buffer_size) {
         while (0 < input_buffer_size) {
           auto s = this->block_size_ - this->input_buffer_offset_;
@@ -136,7 +137,7 @@ namespace vds {
             }
 
             if(0 < len) {
-              this->target_.write(this->output_buffer_, len);
+              co_await this->target_->write_async(sp, this->output_buffer_, len);
             }
 
             this->input_buffer_offset_ = 0;
@@ -157,7 +158,7 @@ namespace vds {
           }
 
           if(0 < len) {
-            this->target_.write(this->output_buffer_, len);
+            co_await this->target_->write_async(sp, this->output_buffer_, len);
           }
         }
 
@@ -170,16 +171,15 @@ namespace vds {
         }
 
         if(0 < len) {
-          this->target_.write(this->output_buffer_, len);
+          co_await this->target_->write_async(sp, this->output_buffer_, len);
         }
 
-        this->target_.write(nullptr, 0);
+        co_await this->target_->write_async(sp, nullptr, 0);
       }
     }
 
-
   private:
-    stream<uint8_t> target_;
+    std::shared_ptr<stream_output_async<uint8_t>> target_;
     EVP_CIPHER_CTX * ctx_;
     size_t block_size_;
 
@@ -188,12 +188,12 @@ namespace vds {
     uint8_t  * output_buffer_;
   };
 
-  class _symmetric_decrypt : public _stream<uint8_t>
+  class _symmetric_decrypt
   {
   public:
     _symmetric_decrypt(
         const symmetric_key & key,
-        const stream<uint8_t> & target)
+        const std::shared_ptr<stream_output_async<uint8_t>> & target)
       : target_(target),
         ctx_(EVP_CIPHER_CTX_new()),
         block_size_(key.block_size()),
@@ -225,9 +225,10 @@ namespace vds {
       }
     }
 
-    void write(
+    std::future<void> write_async(
+      const service_provider & sp,
         const uint8_t * input_buffer,
-        size_t input_buffer_size) override
+        size_t input_buffer_size)
     {
       if (0 < input_buffer_size) {
         while (0 < input_buffer_size) {
@@ -254,7 +255,7 @@ namespace vds {
             }
 
             if(0 < len) {
-              this->target_.write(this->output_buffer_, len);
+              co_await this->target_->write_async(sp, this->output_buffer_, len);
             }
 
             this->input_buffer_offset_ = 0;
@@ -275,7 +276,7 @@ namespace vds {
           }
 
           if(0 < len) {
-            this->target_.write(this->output_buffer_, len);
+            co_await this->target_->write_async(sp, this->output_buffer_, len);
           }
         }
 
@@ -288,15 +289,15 @@ namespace vds {
         }
 
         if(0 < len) {
-          this->target_.write(this->output_buffer_, len);
+          co_await this->target_->write_async(sp, this->output_buffer_, len);
         }
 
-        this->target_.write(nullptr, 0);
+        co_await this->target_->write_async(sp, nullptr, 0);
       }
     }
 
   private:
-    stream<uint8_t> target_;
+    std::shared_ptr<stream_output_async<uint8_t>> target_;
     EVP_CIPHER_CTX * ctx_;
     size_t block_size_;
     uint8_t  * input_buffer_;

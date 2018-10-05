@@ -261,19 +261,33 @@ namespace vds {
       return sql_statement(new _sql_statement(this->db_, sql));
     }
 
-    void async_read_transaction(
+    std::future<void> async_read_transaction(
       const service_provider & sp,
       const std::function<void(database_read_transaction & tr)> & callback) {
-      this->execute_queue_->schedule(sp, [pthis = this->shared_from_this(), callback]() {
+
+      auto r = std::make_shared<std::promise<void>>();
+      this->execute_queue_->schedule(sp, [pthis = this->shared_from_this(), r, callback]() {
         database_read_transaction tr(pthis);
-        callback(tr);
+        try {
+          callback(tr);
+        }
+        catch(...) {
+          r->set_exception(std::current_exception());
+          return;
+        }
+
+        r->set_value();
       });
+
+      return r->get_future();
     }
 
-    void async_transaction(
+    std::future<void> async_transaction(
       const service_provider & sp,
       const std::function<bool(database_transaction & tr)> & callback) {
-      this->execute_queue_->schedule(sp, [pthis = this->shared_from_this(), callback]() {
+      auto r = std::make_shared<std::promise<void>>();
+
+      this->execute_queue_->schedule(sp, [pthis = this->shared_from_this(), r, callback]() {
         pthis->execute("BEGIN TRANSACTION");
 
         database_transaction tr(pthis);
@@ -284,7 +298,8 @@ namespace vds {
         }
         catch (...) {
           pthis->execute("ROLLBACK TRANSACTION");
-          throw;
+          r->set_exception(std::current_exception());
+          return;
         }
 
         if (result) {
@@ -293,11 +308,15 @@ namespace vds {
         else {
           pthis->execute("ROLLBACK TRANSACTION");
         }
+
+        r->set_value();
       });
+
+      return r->get_future();
     }
 
-    async_task<> prepare_to_stop(const service_provider & sp){
-      return async_task<>::empty();
+    std::future<void> prepare_to_stop(const service_provider & sp){
+      co_return;
     }
 
 

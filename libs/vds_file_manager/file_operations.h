@@ -8,7 +8,7 @@ All rights reserved
 #include <string>
 #include "user_message_transaction.h"
 #include "const_data_buffer.h"
-#include "async_task.h"
+
 #include "async_buffer.h"
 
 namespace vds {
@@ -25,20 +25,19 @@ namespace vds {
         std::string name;
         std::string mime_type;
         size_t size;
-        std::shared_ptr<continuous_buffer<uint8_t>> output_stream;
       };
 
 
       file_operations();
 
-			vds::async_task<transactions::user_message_transaction::file_info_t> upload_file(
+			std::future<transactions::user_message_transaction::file_info_t> upload_file(
 				const service_provider &sp,
         const std::shared_ptr<user_manager> & user_mng,
         const std::string & name,
         const std::string & mime_type,
-        const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
+        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
-      async_task<> create_message(
+      std::future<void> create_message(
         const service_provider& sp,
         const std::shared_ptr<user_manager>& user_mng,
         const const_data_buffer& channel_id,
@@ -46,11 +45,12 @@ namespace vds {
         const std::list<transactions::user_message_transaction::file_info_t>& files);
 
 
-			vds::async_task<download_result_t> download_file(
+			std::future<download_result_t> download_file(
 		    const service_provider &sp,
         const std::shared_ptr<user_manager> & user_mng,
         const const_data_buffer & channel_id,
-        const const_data_buffer & target_file);
+        const const_data_buffer & target_file,
+        const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
     protected:
       std::shared_ptr<file_manager_private::_file_operations> impl_;

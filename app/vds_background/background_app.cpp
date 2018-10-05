@@ -58,9 +58,14 @@ void vds::background_app::main(const service_provider & sp)
         ;
 
       cert_control::private_info_t private_info;
-      private_info.root_private_key_ = asymmetric_private_key::parse_der(root_private_key, this->user_password_.value());
-      private_info.common_news_write_private_key_ = asymmetric_private_key::parse_der(common_news_write_private_key, this->user_password_.value());
-      private_info.common_news_admin_private_key_ = asymmetric_private_key::parse_der(common_news_admin_private_key, this->user_password_.value());
+      private_info.root_private_key_ = std::make_shared<asymmetric_private_key>(
+        asymmetric_private_key::parse_der(root_private_key, this->user_password_.value()));
+
+      private_info.common_news_write_private_key_ = std::make_shared<asymmetric_private_key>(
+        asymmetric_private_key::parse_der(common_news_write_private_key, this->user_password_.value()));
+
+      private_info.common_news_admin_private_key_ = std::make_shared<asymmetric_private_key>(
+        asymmetric_private_key::parse_der(common_news_admin_private_key, this->user_password_.value()));
 
 
       auto user_mng = std::make_shared<user_manager>();

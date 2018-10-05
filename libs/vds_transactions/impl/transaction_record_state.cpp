@@ -19,17 +19,17 @@ void vds::transactions::transaction_record_state::apply(
       return false;
     }
 
-    auto p1 = p->second.balance_.find(t.source_transaction());
+    auto p1 = p->second.balance_.find(t.source_transaction);
     if (p->second.balance_.end() == p1) {
-      throw transaction_source_not_found_error(t.source_transaction(), block.id());
+      throw transaction_source_not_found_error(t.source_transaction, block.id());
     }
 
-    if (p1->second < t.value()) {
-      throw transaction_lack_of_funds(t.source_transaction(), block.id());
+    if (p1->second < t.value) {
+      throw transaction_lack_of_funds(t.source_transaction, block.id());
     }
 
-    p1->second -= t.value();
-    this->account_state_[t.target_user()].balance_[block.id()] += t.value();
+    p1->second -= t.value;
+    this->account_state_[t.target_user].balance_[block.id()] += t.value;
     return true;
   });
 }

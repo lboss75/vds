@@ -13,7 +13,7 @@ namespace vds {
   class http_context : public service_provider::property_holder
   {
   public:
-    http_context(const certificate &  peer_certificate);
+    http_context(certificate &&  peer_certificate);
 
     const certificate & peer_certificate() const {
       return this->peer_certificate_;

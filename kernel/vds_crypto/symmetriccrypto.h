@@ -43,11 +43,11 @@ namespace vds {
   {
   public:
     symmetric_key();
-    symmetric_key(const symmetric_key & origin) = default;
-    symmetric_key(symmetric_key && origin) = default;
+    symmetric_key(const symmetric_key & origin) = delete;
+    symmetric_key(symmetric_key && origin);
     ~symmetric_key();
     
-    symmetric_key & operator = (const symmetric_key & origin) = default;
+    symmetric_key & operator = (const symmetric_key & origin) = delete;
     symmetric_key & operator = (symmetric_key && origin) = default;
     
     static symmetric_key generate(const symmetric_crypto_info & crypto_info);
@@ -62,7 +62,6 @@ namespace vds {
       return s.move_data();
     }
 
-
     size_t block_size() const;
     
     static symmetric_key from_password(const std::string & password);
@@ -72,13 +71,6 @@ namespace vds {
         const uint8_t * key,
         const uint8_t * iv);
 
-    bool operator !() const {
-      return !this->impl_;
-    }
-    operator bool() const {
-      return nullptr != this->impl_.get();
-    }
-
   private:
     friend class _symmetric_encrypt;
     friend class _symmetric_decrypt;
@@ -86,15 +78,17 @@ namespace vds {
 
     symmetric_key(class _symmetric_key * impl);
 
-    std::shared_ptr<class _symmetric_key> impl_;
+    class _symmetric_key * impl_;
   };
   
-  class symmetric_encrypt : public stream<uint8_t>
+  class symmetric_encrypt : public stream_output_async<uint8_t>
   {
   public:
     symmetric_encrypt(
       const symmetric_key & key,
-      const stream<uint8_t> & target);
+      const std::shared_ptr<stream_output_async<uint8_t>> & target);
+
+    ~symmetric_encrypt();
 
     static const_data_buffer encrypt(
       const symmetric_key & key,
@@ -102,18 +96,23 @@ namespace vds {
       size_t input_buffer_size);
 
     static const_data_buffer encrypt(
-        const symmetric_key & key,
+      const symmetric_key & key,
         const const_data_buffer & input_buffer){
       return encrypt(key, input_buffer.data(), input_buffer.size());
     }
+
+  private:
+    _symmetric_encrypt * impl_;
   };
   
-  class symmetric_decrypt : public stream<uint8_t>
+  class symmetric_decrypt : public stream_output_async<uint8_t>
   {
   public:
     symmetric_decrypt(
       const symmetric_key & key,
-      const stream<uint8_t> & target);
+      const std::shared_ptr<stream_output_async<uint8_t>> & target);
+
+    ~symmetric_decrypt();
 
     static const_data_buffer decrypt(
       const symmetric_key & key,
@@ -121,10 +120,13 @@ namespace vds {
       size_t input_buffer_size);
 
     static const_data_buffer decrypt(
-        const symmetric_key & key,
+      const symmetric_key & key,
         const const_data_buffer & input_buffer){
       return decrypt(key, input_buffer.data(), input_buffer.size());
     }
+
+  private:
+    _symmetric_decrypt * impl_;
   };
 
 }

@@ -61,7 +61,7 @@ static size_t test_json_parser_validate(const std::shared_ptr<vds::json_value> &
         }
         else if ("GlossDiv" == prop->name()) {
           auto glossdiv_prop = std::dynamic_pointer_cast<vds::json_object>(prop->value());
-          ASSERT_NE(nullptr, glossdiv_prop);
+          GTEST_ASSERT_EQ(true, nullptr != glossdiv_prop.get());
 
         }
         else {
@@ -85,11 +85,12 @@ static size_t test_json_parser_validate(const std::shared_ptr<vds::json_value> &
 }
 
 TEST(test_json_parser, test_parser) {
-  vds::json_parser parser("test",
+  auto parser = std::make_shared<vds::json_parser>("test",
     [](const std::shared_ptr<vds::json_value> & value){
       test_json_parser_validate(value);
     }
   );
-  parser.write((const uint8_t *)test_data, sizeof(test_data) - 1);
-  parser.write(nullptr, 0);
+  vds::service_provider * sp = nullptr;
+  parser->write_async(*sp, (const uint8_t *)test_data, sizeof(test_data) - 1).get();
+  parser->write_async(*sp, nullptr, 0).get();
 }

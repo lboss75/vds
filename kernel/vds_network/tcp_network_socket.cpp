@@ -9,20 +9,24 @@ All rights reserved
 #include "private/write_socket_task_p.h"
 
 vds::tcp_network_socket::tcp_network_socket()
-: stream_async<uint8_t>(new _tcp_network_socket())
+: impl_(new _tcp_network_socket())
 {
 }
 
-vds::tcp_network_socket::tcp_network_socket(
-    _tcp_network_socket * impl)
-: stream_async<uint8_t>(impl)
+vds::tcp_network_socket::tcp_network_socket(_tcp_network_socket * impl)
+: impl_(impl)
 {
 }
 
-vds::tcp_network_socket vds::tcp_network_socket::connect(
+vds::tcp_network_socket::~tcp_network_socket(){
+#ifdef _WIN32
+  delete this->impl_;
+#endif//_WIN32
+}
+
+std::shared_ptr<vds::tcp_network_socket> vds::tcp_network_socket::connect(
   const vds::service_provider& sp,
-  const network_address & address,
-  const stream<uint8_t> & input_handler)
+  const network_address & address)
 {
 
       auto s = std::make_unique<_tcp_network_socket>(
@@ -45,7 +49,7 @@ vds::tcp_network_socket vds::tcp_network_socket::connect(
         }
       }
 
-      static_cast<_network_service *>(sp.get<inetwork_service>())->associate(s->handle());
+      (*sp.get<network_service>())->associate(s->handle());
 #else
       // Connect 
       if (0 > ::connect(s->handle(), address, address.size())) {
@@ -56,20 +60,65 @@ vds::tcp_network_socket vds::tcp_network_socket::connect(
       s->set_timeouts();
 #endif
       
-      tcp_network_socket sc(s.release());
-      sc.start(sp, input_handler);
-      return sc;
+      return std::shared_ptr<tcp_network_socket>(new tcp_network_socket(s.release()));
 }
 
 
 void vds::tcp_network_socket::close()
 {
-  static_cast<_tcp_network_socket *>(this->impl_.get())->close();
+  this->impl_->close();
 }
 
-void vds::tcp_network_socket::start(
-    const vds::service_provider &sp,
-    const vds::stream<uint8_t> &input_handler) const {
-  static_cast<_tcp_network_socket *>(this->impl_.get())->start(sp, input_handler);
+#ifdef _WIN32
+std::tuple<
+  std::shared_ptr<vds::stream_input_async<uint8_t>>,
+  std::shared_ptr<vds::stream_output_async<uint8_t>>> vds::tcp_network_socket::start(
+    const vds::service_provider &sp) {
+  auto pthis = this->shared_from_this();
+  return {std::make_shared< _read_socket_task>(pthis), std::make_shared< _write_socket_task>(pthis) };
 }
 
+#else//_WIN32
+
+std::tuple<
+    std::shared_ptr<vds::stream_input_async<uint8_t>>,
+    std::shared_ptr<vds::stream_output_async<uint8_t>>> vds::tcp_network_socket::start(
+    const vds::service_provider &sp) {
+
+  auto pthis = this->shared_from_this();
+  auto reader = std::make_shared<_read_socket_task>(sp, pthis);
+  auto writer = std::make_shared<_write_socket_task>(sp, pthis);
+
+  (*this)->read_task_ = reader;
+  (*this)->write_task_ = writer;
+
+  return std::make_tuple(reader, writer);
+}
+
+//: network_service_(sp.get<network_service>()->operator->()),
+//event_masks_(EPOLLET) {
+//}
+
+void vds::tcp_network_socket::process(uint32_t events) {
+  this->impl_->process(events);
+}
+
+void vds::_tcp_network_socket::process(uint32_t events) {
+  if(EPOLLOUT == (EPOLLOUT & events)){
+    if(0 == (this->event_masks_ & EPOLLOUT)) {
+      throw std::runtime_error("Invalid state");
+    }
+
+    this->write_task_.lock()->process();
+  }
+
+  if(EPOLLIN == (EPOLLIN & events)){
+    if(0 == (this->event_masks_ & EPOLLIN)) {
+      throw std::runtime_error("Invalid state");
+    }
+
+    this->read_task_.lock()->process();
+  }
+}
+
+#endif

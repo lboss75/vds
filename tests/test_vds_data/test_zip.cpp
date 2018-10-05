@@ -25,13 +25,13 @@ TEST(test_zip, inflate_tests) {
 
     random_buffer buffer;
     
-    compare_data<uint8_t> cd(buffer.data(), buffer.size());
-    vds::inflate il(cd);
-    vds::deflate dl(il);
-    random_stream<uint8_t> rs(dl);
+    auto cd = std::make_shared<compare_data_async<uint8_t>>(buffer.data(), buffer.size());
+    auto il = std::make_shared<vds::inflate>(cd);
+    auto dl = std::make_shared<vds::deflate>(il);
+    auto rs = std::make_shared<random_stream<uint8_t>>(dl);
     
-    rs.write(buffer.data(), buffer.size());
-    rs.write(nullptr, 0);
+    rs->write_async(sp, buffer.data(), buffer.size()).get();
+    rs->write_async(sp, nullptr, 0).get();
 
     registrator.shutdown(sp);
   }

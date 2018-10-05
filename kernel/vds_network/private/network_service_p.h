@@ -21,9 +21,9 @@ All rights reserved
 
 namespace vds {
     class network_service;
-    class _socket_task;
+    class socket_base;
 
-    class _network_service : public inetwork_service
+    class _network_service
     {
     public:
         _network_service();
@@ -32,25 +32,22 @@ namespace vds {
         // Inherited via iservice
         void start(const service_provider &);
         void stop(const service_provider &);
-        async_task<> prepare_to_stop(const service_provider &);
+        std::future<void> prepare_to_stop(const service_provider &);
         
-        void remove(_socket_task * socket);
+        void remove(socket_base * socket);
 
 #ifdef _WIN32
         void associate(SOCKET_HANDLE s);
 
 #else
         void associate(
-          const service_provider & sp,
           SOCKET_HANDLE s,
-          const std::shared_ptr<_socket_task> & handler,
+          const std::shared_ptr<socket_base> & handler,
           uint32_t event_mask);
         void set_events(
-          const service_provider & sp,
           SOCKET_HANDLE s,
           uint32_t event_mask);
         void remove_association(
-          const service_provider & sp,
           SOCKET_HANDLE s);
 #endif
         static std::string to_string(const sockaddr_in & from);
@@ -63,7 +60,6 @@ namespace vds {
         friend class _read_socket_task;
         friend class _write_socket_task;
         
-        std::map<SOCKET_HANDLE, std::shared_ptr<_socket_task>> tasks_;
         std::mutex tasks_mutex_;
         std::condition_variable tasks_cond_;
 
@@ -72,7 +68,8 @@ namespace vds {
         void thread_loop(const service_provider & provider);
         std::list<std::thread *> work_threads_;
 #else
-      int epoll_set_;
+        std::map<SOCKET_HANDLE, std::shared_ptr<socket_base>> tasks_;
+        int epoll_set_;
       std::thread epoll_thread_;
 #endif//_WIN32
     };

@@ -13,13 +13,14 @@ All rights reserved
 #include "register_request.h"
 #include "dht_object_id.h"
 
-vds::async_task<vds::http_message> vds::login_page::register_request_post(
+std::future<vds::http_message> vds::login_page::register_request_post(
   const service_provider& sp,
   const std::shared_ptr<_web_server>& owner,
   const http_message& message) {
   auto parser = std::make_shared<http::simple_form_parser>();
 
-  return parser->parse(sp, message).then([sp, owner, parser]() -> async_task<http_message> {
+  co_await parser->parse(sp, message);
+  
     auto userName = parser->values().find("userName");
     auto userEmail = parser->values().find("userEmail");
     auto userPassword = parser->values().find("userPassword");
@@ -28,17 +29,14 @@ vds::async_task<vds::http_message> vds::login_page::register_request_post(
       userName == parser->values().end()
       || userEmail == parser->values().end()
       || userPassword == parser->values().end()) {
-      return async_task<http_message>::result(
-        http_response::redirect(sp, "/error/?code=InvalidRegister"));
+      co_return http_response::redirect("/error/?code=InvalidRegister");
     }
 
-    return user_manager::create_register_request(
+  auto request_id = co_await user_manager::create_register_request(
       sp,
       userName->second,
       userEmail->second,
-      userPassword->second).then([sp](const const_data_buffer & request_id){
+      userPassword->second);
 
-      return http_response::redirect(sp, "/register_request?id=" + url_encode::encode(base64::from_bytes(request_id)));
-    });
-  });
+      co_return http_response::redirect("/register_request?id=" + url_encode::encode(base64::from_bytes(request_id)));
 }

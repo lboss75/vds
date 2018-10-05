@@ -49,18 +49,8 @@ namespace vds {
       this->shutdown_event_.set();
       std::this_thread::sleep_for(std::chrono::seconds(5));
 
-      if (!this->factories_.empty()) {
-        barrier b;
-        async_task<>([this, sp](const async_result<> & result) {
-          auto runner = new _async_series(result, this->factories_.size());
-          for (auto & p : this->factories_) {
-            runner->add(p->prepare_to_stop(sp));
-          }
-        }).execute([&b](const std::shared_ptr<std::exception> & ex) {
-          b.set();
-        });
-
-        b.wait();
+      for (auto & p : this->factories_) {
+        p->prepare_to_stop(sp).get();
       }
       
       while (!this->factories_.empty()) {

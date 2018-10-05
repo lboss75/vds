@@ -10,30 +10,34 @@ All rights reserved
 
 namespace vds {
   class _deflate_handler;
-  class _deflate_async_handler;
   class const_data_buffer;
 
   //Compress data
-  class deflate : public stream<uint8_t>
+  class deflate : public stream_output_async<uint8_t>
   {
   public:
-    deflate(stream<uint8_t> & target);
-    deflate(stream<uint8_t> & target, int compression_level);
+    deflate(const std::shared_ptr<stream_output_async<uint8_t>> & target);
+    deflate(const std::shared_ptr<stream_output_async<uint8_t>> & target, int compression_level);
+    ~deflate();
 
     static const_data_buffer compress(
+      const service_provider & sp,
       const uint8_t * data,
       size_t len);
     
     static const_data_buffer compress(
+      const service_provider & sp,
       const const_data_buffer & data);
+
+    std::future<void> write_async(
+        const service_provider &sp,
+        const uint8_t *data,
+        size_t len) override;
+
+  private:
+    _deflate_handler * impl_;
   };
 
-  class deflate_async : public stream_async<uint8_t>
-  {
-  public:
-	  deflate_async(stream_async<uint8_t> & target);
-	  deflate_async(stream_async<uint8_t> & target, int compression_level);
-  };
 }
 
 #endif // __VDS_DATA_DEFLATE_H_

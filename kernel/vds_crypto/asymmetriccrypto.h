@@ -43,7 +43,7 @@ namespace vds {
   {
   public:
     asymmetric_private_key();
-    asymmetric_private_key(const asymmetric_private_key & original);
+    asymmetric_private_key(asymmetric_private_key && original);
     asymmetric_private_key(const asymmetric_crypto_info & info);
     ~asymmetric_private_key();
     
@@ -62,9 +62,8 @@ namespace vds {
 
     const_data_buffer decrypt(const const_data_buffer & data) const;
     const_data_buffer decrypt(const void * data, size_t size) const;
-
-    bool operator !() const { return !this->impl_; }
-    operator bool () const { return  nullptr != this->impl_.get(); }
+    
+    asymmetric_private_key & operator = (asymmetric_private_key && original);
 
   private:
     friend class _asymmetric_sign;
@@ -75,7 +74,7 @@ namespace vds {
     
     asymmetric_private_key(_asymmetric_private_key * impl);
     
-    std::shared_ptr<_asymmetric_private_key> impl_;
+    _asymmetric_private_key * impl_;
   };
 
   class _asymmetric_public_key;
@@ -105,15 +104,17 @@ namespace vds {
     friend class _certificate;
     friend class _asymmetric_public_key;
 
-    std::shared_ptr<_asymmetric_public_key> impl_;
+    _asymmetric_public_key * impl_;
   };
 
-  class asymmetric_sign : public stream<uint8_t>
+  class asymmetric_sign : public stream_output_async<uint8_t>
   {
   public:
     asymmetric_sign(
       const hash_info & hash_info,
       const asymmetric_private_key & key);
+
+    ~asymmetric_sign();
 
     const_data_buffer signature();
 
@@ -127,9 +128,17 @@ namespace vds {
       const asymmetric_private_key & key,
       const void * data,
       size_t data_size);
+
+    std::future<void> write_async(
+      const service_provider &sp,
+      const uint8_t  *data,
+      size_t len) override;
+
+  private:
+    _asymmetric_sign * impl_;
   };
 
-  class asymmetric_sign_verify : public stream<uint8_t>
+  class asymmetric_sign_verify : public stream_output_async<uint8_t>
   {
   public:
     asymmetric_sign_verify(
@@ -137,6 +146,7 @@ namespace vds {
       const asymmetric_public_key & key,
       const const_data_buffer & sig);
 
+    ~asymmetric_sign_verify();
     
     bool result() const;
     
@@ -152,6 +162,14 @@ namespace vds {
       const asymmetric_public_key & key,
       const const_data_buffer & signature,
       const const_data_buffer & data);
+
+    std::future<void> write_async(
+      const service_provider &sp,
+      const uint8_t *data,
+      size_t len) override;
+
+  private:
+    _asymmetric_sign_verify * impl_;
   };
   
   
@@ -187,7 +205,8 @@ namespace vds {
   {
   public:
     certificate();
-    certificate(const certificate & original);
+    certificate(const certificate & original) = delete;
+    certificate(certificate && original);
     ~certificate();
 
     static certificate parse(const std::string & format);
@@ -238,10 +257,8 @@ namespace vds {
     int extension_by_NID(int nid) const;
     certificate_extension get_extension(int index) const;
 
-    certificate & operator = (const certificate & original);
-
-    bool operator ! () const { return !this->impl_; }
-    explicit operator bool () const { return nullptr != this->impl_.get(); }
+    certificate & operator = (const certificate & original) = delete;
+    certificate & operator = (certificate && original);
 
   private:
     friend class _certificate;
@@ -250,7 +267,7 @@ namespace vds {
     
     certificate(_certificate * impl);
     
-    std::shared_ptr<_certificate> impl_;
+    _certificate * impl_;
   };
 
   class _certificate_store;
@@ -276,18 +293,32 @@ namespace vds {
     _certificate_store * impl_;
   };
 
-inline vds::binary_serializer & operator << (vds::binary_serializer & s, const vds::certificate & cert)
+inline vds::binary_serializer & operator << (vds::binary_serializer & s, const std::shared_ptr<vds::certificate> & cert)
 {
-	return s << cert.der();
+	return s << cert->der();
 }
 
-inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, vds::certificate & cert)
+inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, std::shared_ptr<vds::certificate> & cert)
 {
 	vds::const_data_buffer cert_data;
 	s >> cert_data;
-	cert = vds::certificate::parse_der(cert_data);
+	cert = std::make_shared<vds::certificate>(std::move(vds::certificate::parse_der(cert_data)));
 	return s;
 }
+
+inline vds::binary_serializer & operator << (vds::binary_serializer & s, const std::shared_ptr<vds::asymmetric_private_key> & key)
+{
+  return s << key->der(std::string());
+}
+
+inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, std::shared_ptr<vds::asymmetric_private_key> & key)
+{
+  vds::const_data_buffer key_data;
+  s >> key_data;
+  key = std::make_shared<vds::asymmetric_private_key>(std::move(vds::asymmetric_private_key::parse_der(key_data, std::string())));
+  return s;
+}
+
 }
 
 

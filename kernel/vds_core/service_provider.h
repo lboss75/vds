@@ -71,7 +71,7 @@ namespace vds {
       return !this->impl_;
     }
     
-    void unhandled_exception(const std::shared_ptr<std::exception> & ex) const;
+    void unhandled_exception(const std::exception_ptr & ex) const;
   private:
     friend class _service_provider;
     friend class _service_registrator;
@@ -91,8 +91,8 @@ namespace vds {
     virtual void register_services(service_registrator &) = 0;
     virtual void start(const service_provider &) = 0;
     virtual void stop(const service_provider &) = 0;
-    virtual async_task<> prepare_to_stop(const service_provider &) {
-      return async_task<>::empty();
+    virtual std::future<void> prepare_to_stop(const service_provider &) {
+      co_return;
     }
   };
   
@@ -125,12 +125,12 @@ namespace vds {
   class unhandled_exception_handler : public service_provider::property_holder
   {
   public:
-    unhandled_exception_handler(const std::function<void(const service_provider & sp, const std::shared_ptr<std::exception> & ex)> & handler)
+    unhandled_exception_handler(const std::function<void(const service_provider & sp, const std::exception_ptr & ex)> & handler)
       : on_error(handler)
     {
     }
 
-    std::function<void(const service_provider & sp, const std::shared_ptr<std::exception> & ex)> on_error;
+    std::function<void(const service_provider & sp, const std::exception_ptr & ex)> on_error;
   };
 }
 

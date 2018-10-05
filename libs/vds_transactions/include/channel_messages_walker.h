@@ -12,6 +12,7 @@ All rights reserved
 #include "channel_add_writer_transaction.h"
 #include "channel_create_transaction.h"
 #include "user_message_transaction.h"
+#include "func_utils.h"
 
 namespace vds {
   namespace transactions {
@@ -42,25 +43,25 @@ namespace vds {
 
           switch((channel_message_id)message_id) {
           case channel_add_reader_transaction::message_id: {
-            if (!this->visit(channel_add_reader_transaction(s))) {
+            if (!this->visit(message_deserialize<channel_add_reader_transaction>(s))) {
               return false;
             }
             break;
           }
             case channel_add_writer_transaction::message_id: {
-              if (!this->visit(channel_add_writer_transaction(s))) {
+              if (!this->visit(message_deserialize<channel_add_writer_transaction>(s))) {
                 return false;
               }
               break;
             }
             case channel_create_transaction::message_id: {
-              if (!this->visit(channel_create_transaction(s))) {
+              if (!this->visit(message_deserialize<channel_create_transaction>(s))) {
                 return false;
               }
               break;
             }
             case user_message_transaction::message_id: {
-              if (!this->visit(user_message_transaction(s))) {
+              if (!this->visit(message_deserialize<user_message_transaction>(s))) {
                 return false;
               }
               break;

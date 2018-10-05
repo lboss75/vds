@@ -30,14 +30,14 @@ namespace vds {
 
         void start(
           const service_provider& sp,
-          const certificate & node_cert,
-          const asymmetric_private_key & node_key,
+          const std::shared_ptr<certificate> & node_cert,
+          const std::shared_ptr<asymmetric_private_key> & node_key,
           uint16_t port) override;
 
         void stop(const service_provider& sp) override;
 
-        async_task<> write_async(const service_provider& sp, const udp_datagram& datagram);
-        async_task<> try_handshake(const service_provider& sp, const std::string& address);
+        std::future<void> write_async(const service_provider& sp, const udp_datagram& datagram);
+        std::future<void> try_handshake(const service_provider& sp, const std::string& address);
 
         const const_data_buffer& this_node_id() const {
           return this->this_node_id_;
@@ -47,15 +47,13 @@ namespace vds {
 
       private:
         const_data_buffer this_node_id_;
-        certificate node_cert_;
-        asymmetric_private_key node_key_;
+        std::shared_ptr<certificate> node_cert_;
+        std::shared_ptr<asymmetric_private_key> node_key_;
         udp_server server_;
 
-        std::list<std::tuple<udp_datagram, async_result<>>> send_queue_;
+        std::shared_ptr<vds::udp_datagram_reader> reader_;
+        std::shared_ptr<vds::udp_datagram_writer> writer_;
 
-        std::debug_mutex write_mutex_;
-        std::condition_variable write_cond_;
-        bool write_in_progress_;
 #ifdef _DEBUG
 #ifndef _WIN32
         pid_t owner_id_;
@@ -79,8 +77,7 @@ namespace vds {
         mutable std::shared_mutex sessions_mutex_;
         std::map<network_address, session_state> sessions_;
 
-        void continue_read(const service_provider& sp);
-        void continue_send(const service_provider& sp);
+        std::future<void> continue_read(const service_provider& sp);
       };
     }
   }

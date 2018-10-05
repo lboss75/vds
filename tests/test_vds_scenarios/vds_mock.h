@@ -8,6 +8,8 @@ All rights reserved
 #include "network_service.h"
 #include "dht_network.h"
 #include "user_channel.h"
+#include "async_buffer.h"
+#include "file_operations.h"
 
 namespace vds {
   class user_manager;
@@ -39,7 +41,7 @@ public:
     return this->sp_;
   }
 
-  vds::async_task<vds::server_statistic> get_statistic() const{
+  std::future<vds::server_statistic> get_statistic() const{
 	  auto scope = this->sp_.create_scope(__FUNCTION__);
 	  vds::mt_service::enable_async(scope);
     return this->server_.get_statistic(scope);
@@ -88,17 +90,15 @@ public:
       const vds::const_data_buffer &channel_id,
       const std::string &name,
       const std::string &mimetype,
-      const std::shared_ptr<vds::continuous_buffer<uint8_t>> & input_stream);
+    const std::shared_ptr<vds::stream_input_async<uint8_t>>& input_stream);
 
-  vds::async_task<
-      std::string /*content_type*/,
-      size_t /*body_size*/,
-      std::shared_ptr<vds::continuous_buffer<uint8_t>> /*output_stream*/>
+  std::future<vds::file_manager::file_operations::download_result_t>
   download_data(
 	  size_t client_index,
 	  const vds::const_data_buffer & channel_id,
 	  const std::string & name,
-	  const vds::const_data_buffer & file_hash);
+	  const vds::const_data_buffer & file_hash,
+    const std::shared_ptr<vds::stream_output_async<uint8_t>> & output_stream);
 
   bool dump_statistic(std::ostream & logfile, std::vector<vds::server_statistic>& statistics);
   void sync_wait();

@@ -3,12 +3,17 @@
 #include "private/udp_socket_p.h"
 
 vds::udp_datagram::udp_datagram()
+  : impl_(nullptr)
 {
 }
 
 vds::udp_datagram::udp_datagram(vds::_udp_datagram* impl)
   : impl_(impl)
 {
+}
+
+std::future<vds::udp_datagram> vds::udp_datagram_reader::read_async(const service_provider& sp) {
+  return static_cast<_udp_receive *>(this)->read_async(sp);
 }
 
 vds::udp_datagram::udp_datagram(
@@ -35,6 +40,10 @@ vds::udp_datagram::udp_datagram(
   }
 }
 
+vds::udp_datagram::~udp_datagram() {
+  delete this->impl_;
+}
+
 vds::network_address vds::udp_datagram::address() const {
   return this->impl_->address();
 }
@@ -59,30 +68,33 @@ size_t vds::udp_datagram::data_size() const
   return this->impl_ ? this->impl_->data_size() : 0;
 }
 
+std::future<void> vds::udp_datagram_writer::write_async(const service_provider& sp, const udp_datagram& message) {
+  return static_cast<_udp_send *>(this)->write_async(sp, message);
+}
+
 vds::udp_socket::udp_socket()
 {
 }
 
 vds::udp_socket::~udp_socket()
 {
+  delete this->impl_;
 }
 
-vds::async_task<const vds::udp_datagram&> vds::udp_socket::read_async() const
+std::tuple<std::shared_ptr<vds::udp_datagram_reader>, std::shared_ptr<vds::udp_datagram_writer>>
+vds::udp_socket::start(const service_provider & sp)
 {
-  return this->impl_->read_async();
-}
-
-vds::async_task<> vds::udp_socket::write_async(const udp_datagram & message) const
-{
-  return this->impl_->write_async(message);
+  return {
+    std::make_shared<_udp_receive>(sp, this->shared_from_this()),
+    std::make_shared<_udp_send>(sp, this->shared_from_this())
+  };
 }
 
 void vds::udp_socket::stop()
 {
-  this->impl_->stop();
 }
 
-vds::udp_socket vds::udp_socket::create(
+std::shared_ptr<vds::udp_socket> vds::udp_socket::create(
     const service_provider & sp,
     sa_family_t af)
 {
@@ -101,7 +113,7 @@ vds::udp_socket vds::udp_socket::create(
       throw std::system_error(error, std::system_category(), "set IPV6_V6ONLY=0");
     }
   }
-  static_cast<_network_service *>(sp.get<inetwork_service>())->associate(s);
+  (*sp.get<network_service>())->associate(s);
 #else
   auto s = socket(af, SOCK_DGRAM, IPPROTO_UDP);
   if (0 > s) {
@@ -140,39 +152,69 @@ vds::udp_socket vds::udp_socket::create(
   }
 
 #endif
-  return udp_socket(std::make_shared<_udp_socket>(s));
+  return std::shared_ptr<udp_socket>(new udp_socket(new _udp_socket(s)));
 }
 
+#ifndef _WIN32
+void vds::udp_socket::process(uint32_t events) {
+  this->impl_->process(events);
+}
+
+void vds::_udp_socket::process(uint32_t events) {
+  if (EPOLLOUT == (EPOLLOUT & events)) {
+    if (0 == (this->event_masks_ & EPOLLOUT)) {
+      throw std::runtime_error("Invalid state");
+    }
+
+    auto w = this->write_task_.lock();
+    if(w) {
+      w->process();
+    }
+  }
+
+  if (EPOLLIN == (EPOLLIN & events)) {
+    if (0 == (this->event_masks_ & EPOLLIN)) {
+      throw std::runtime_error("Invalid state");
+    }
+
+    auto r = this->read_task_.lock();
+    if(r){
+      r->process();
+    }
+  }
+}
+#endif//_WIN32
+
 vds::udp_server::udp_server()
+  : impl_(nullptr)
 {
 }
 
 vds::udp_server::~udp_server()
 {
+  delete this->impl_;
 }
 
-vds::udp_socket & vds::udp_server::start(
+std::tuple<std::shared_ptr<vds::udp_datagram_reader>, std::shared_ptr<vds::udp_datagram_writer>> vds::udp_server::start(
   const service_provider & sp,
   const network_address & address)
 {
-  this->impl_.reset(new _udp_server(address));
+  vds_assert(nullptr == this->impl_);
+  this->impl_ = new _udp_server(address);
   return this->impl_->start(sp);
-
 }
 
 void vds::udp_server::stop(const service_provider & sp)
 {
   this->impl_->stop(sp);
-  this->impl_.reset();
+  delete this->impl_;
+  this->impl_ = nullptr;
 }
 
-vds::udp_socket &vds::udp_server::socket() {
+const std::shared_ptr<vds::udp_socket> &vds::udp_server::socket() const {
   return this->impl_->socket();
 }
 
-const vds::udp_socket &vds::udp_server::socket() const{
-	return this->impl_->socket();
-}
 
 const vds::network_address& vds::udp_server::address() const {
   return this->impl_->address();
@@ -190,11 +232,11 @@ vds::udp_client::~udp_client()
 {
 }
 
-vds::udp_socket & vds::udp_client::start(
+std::tuple<std::shared_ptr<vds::udp_datagram_reader>, std::shared_ptr<vds::udp_datagram_writer>>  vds::udp_client::start(
     const service_provider & sp,
-    sa_family_t af)
-{
-  this->impl_.reset(new _udp_client());
+    sa_family_t af) {
+  vds_assert(nullptr == this->impl_);
+  this->impl_ = new _udp_client();
   return this->impl_->start(sp, af);
 }
 

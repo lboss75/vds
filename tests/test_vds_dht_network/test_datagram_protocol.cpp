@@ -16,7 +16,7 @@ static void send_message_check(
   vds::const_data_buffer message;
   message.resize(size);
   for(size_t i = 0; i < size; ++i){
-    message[i] = std::rand();
+    message[i] = static_cast<uint8_t>(std::rand());
   }
 
   session1->send_message(sp, transport12, 10, node2, message);
@@ -111,15 +111,15 @@ TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
   const auto node1_certificate = vds::_cert_control::create_cert(
       "Node1",
       node1_key,
-      cert,
-      key);
+      *cert,
+      *key);
 
   const auto node2_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
   const auto node2_certificate = vds::_cert_control::create_cert(
       "Node2",
       node2_key,
-      cert,
-      key);
+      *cert,
+      *key);
 
   vds::const_data_buffer node1 = node1_certificate.fingerprint(vds::hash::sha256());
   vds::const_data_buffer node2 = node2_certificate.fingerprint(vds::hash::sha256());
@@ -157,7 +157,7 @@ TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
   registrator.shutdown(sp);
 }
 
-vds::async_task<> mock_transport::write_async(
+std::future<void> mock_transport::write_async(
     const vds::service_provider &sp,
     const vds::udp_datagram &data) {
   return this->s_.process_datagram(

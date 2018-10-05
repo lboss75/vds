@@ -17,29 +17,20 @@ All rights reserved
 #include "test_config.h"
 #include "task_manager.h"
 
-class echo_stream : public vds::stream<uint8_t> {
-public:
-  echo_stream(const vds::tcp_network_socket & s)
-    : vds::stream<uint8_t>(new _echo_stream(s)) {
+std::future<void> copy_stream(
+  vds::service_provider sp,
+  std::shared_ptr<vds::stream_input_async<uint8_t>> reader,
+  std::shared_ptr<vds::stream_output_async<uint8_t>> writer) {
+  auto buffer = std::shared_ptr<uint8_t>(new uint8_t[1024]);
+  for (;;) {
+    auto readed = co_await reader->read_async(sp, buffer.get(), 1024);
+    if (0 == readed) {
+      co_await writer->write_async(sp, nullptr, 0);
+      co_return;
+    }
+    co_await writer->write_async(sp, buffer.get(), readed);
   }
-
-private:
-  class _echo_stream : public vds::_stream<uint8_t> {
-  public:
-    _echo_stream(const vds::tcp_network_socket & s)
-      : s_(s) {
-    }
-
-    void write(
-      const uint8_t *data,
-      size_t len) override {
-      this->s_.write_async(data, len).wait();
-    }
-
-  private:
-    vds::tcp_network_socket s_;
-  };
-};
+}
 
 TEST(network_tests, test_server)
 {
@@ -57,76 +48,44 @@ TEST(network_tests, test_server)
   registrator.add(mt_service);
   registrator.add(network_service);
 
-  vds::barrier done;
-
   auto sp = registrator.build("network_tests::test_server");
   registrator.start(sp);
 
   vds::imt_service::enable_async(sp);
 
-  std::shared_ptr<std::exception> error;
-  vds::barrier b;
   vds::tcp_socket_server server;
   server.start(
     sp,
     vds::network_address::any_ip4(8000),
-    [sp](vds::tcp_network_socket s) {
-    s.start(sp, echo_stream(s));
-  }).execute(
-    [&b, sp, &error](const std::shared_ptr<std::exception> & ex) {
-    if (!ex) {
-      sp.get<vds::logger>()->debug("TCP", sp, "Server has been started");
-      b.set();
-    }
-    else {
-      error = ex;
-      b.set();
-    }
-  });
-
-  b.wait();
-
-  if (error) {
-    registrator.shutdown(sp);
-    GTEST_FAIL() << error->what();
-  }
-
-  b.reset();
-
+    [sp](const std::shared_ptr<vds::tcp_network_socket> & s) -> std::future<void> {
+      auto[reader, writer] = s->start(sp);
+      return copy_stream(sp, reader, writer);
+  }).get();
+  
   std::string answer;
   random_buffer data;
 
-  const auto cd = std::make_shared<compare_data<uint8_t>>(data.data(), data.size());
   auto s = vds::tcp_network_socket::connect(
     sp,
-    vds::network_address::any_ip4(8000),
-    *cd);
+    vds::network_address::ip4("localhost", 8000));
 
   sp.get<vds::logger>()->debug("TCP", sp, "Connected");
+  auto [reader, writer] = s->start(sp);
 
-
-  auto rs = std::make_shared<random_stream_async<uint8_t>>(s);
-
-  rs->write_async(data.data(), data.size())
-    .then([rs, sp]() {
-    return rs->write_async(nullptr, 0);
-  }).execute([&b, sp, &error](const std::shared_ptr<std::exception> & ex) {
-    if (!ex) {
-      sp.get<vds::logger>()->debug("TCP", sp, "Request sent");
-      b.set();
-    }
-    else {
-      error = ex;
-      sp.get<vds::logger>()->debug("TCP", sp, "Request error");
-      b.set();
-    }
+  std::thread t1([sp, w = writer, &data]() {
+    auto rs = std::make_shared<random_stream<uint8_t>>(w);
+    rs->write_async(sp, data.data(), data.size()).get();
+    rs->write_async(sp, nullptr, 0).get();
   });
 
-  b.wait();
+  std::thread t2([sp, r = reader, &data]() {
+    const auto cd = std::make_shared<compare_data_async<uint8_t>>(data.data(), data.size());
+    copy_stream(sp, r, cd).get();
+  });
+
+  t1.join();
+  t2.join();
+
   //Wait
   registrator.shutdown(sp);
-
-  if (error) {
-    GTEST_FAIL() << error->what();
-  }
 }

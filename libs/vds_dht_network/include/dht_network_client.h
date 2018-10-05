@@ -29,8 +29,8 @@ namespace vds {
 
         void start(
           const service_provider& sp,
-          const certificate & node_cert,
-          const asymmetric_private_key & node_key,
+          const std::shared_ptr<certificate> & node_cert,
+          const std::shared_ptr<asymmetric_private_key> & node_key,
           const std::shared_ptr<iudp_transport> & udp_transport);
 
         void stop(const service_provider& sp);
@@ -52,15 +52,15 @@ namespace vds {
           const std::string& key,
           const const_data_buffer& value);
 
-        async_task<const_data_buffer> restore(
+        std::future<const_data_buffer> restore(
           const service_provider& sp,
           const chunk_info& block_id);
 
-        async_task<const_data_buffer> restore(
+        std::future<const_data_buffer> restore(
           const service_provider& sp,
           const std::string& key);
 
-        async_task<uint8_t, const_data_buffer> restore_async(
+        std::future<std::tuple<uint8_t, const_data_buffer>> restore_async(
           const service_provider& sp,
           const std::string& key);
 
