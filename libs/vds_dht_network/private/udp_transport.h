@@ -45,11 +45,6 @@ namespace vds {
 
         void get_session_statistics(session_statistic& session_statistic);
 
-        void add_session(
-          const service_provider& sp,
-          const network_address& address,
-          const std::shared_ptr<class dht_session>& session);
-
       private:
         const_data_buffer this_node_id_;
         std::shared_ptr<certificate> node_cert_;

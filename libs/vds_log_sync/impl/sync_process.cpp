@@ -197,7 +197,6 @@ void vds::transaction_log::sync_process::apply_message(
   if(transactions::transaction_log::save(
     sp,
     t,
-    message.record_id(),
     message.data())) {
     this->sync_local_channels(sp, t, const_data_buffer());
   }

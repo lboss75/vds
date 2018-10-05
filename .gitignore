@@ -60,4 +60,12 @@ servers/
 Debug/
 ipch/
 keys
-externals/
+externals/android/
+externals/android64/
+externals/Build-VC-64-debug/
+externals/build_gtest/
+externals/build_zlib/
+externals/googletest/
+externals/openssl/
+externals/zlib/
+externals/zlib_out/

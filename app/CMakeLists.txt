@@ -6,4 +6,3 @@ add_subdirectory(vds_get_root)
 endif(ANDROID_PLATFORM)
 
 add_subdirectory(vds_embedded)
-add_subdirectory(test)
