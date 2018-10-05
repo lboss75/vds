@@ -40,6 +40,8 @@ namespace vds {
           const const_data_buffer & source_node,
           uint16_t hops,
           const const_data_buffer& message);
+
+        session_statistic::session_info get_statistic() const;
       };
     }
   }

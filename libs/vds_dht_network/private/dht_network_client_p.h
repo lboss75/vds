@@ -282,6 +282,11 @@ namespace vds {
           const const_data_buffer& source_node,
           uint16_t hops,
           const std::shared_ptr<dht_session>& session);
+
+        void remove_session(
+          const service_provider& sp,
+          const std::shared_ptr<dht_session>& session);
+
       private:
         friend class sync_process;
         friend class dht_session;

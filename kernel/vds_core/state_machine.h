@@ -26,17 +26,9 @@ namespace vds {
     
     std::future<void> change_state(state_enum_type expected_state, state_enum_type new_state)
     {
-<<<<<<< HEAD
-        return [pthis = this->shared_from_this(), expected_state, new_state](const async_result<> & result){
-        std::unique_lock<std::mutex> lock(pthis->state_mutex_);
-        vds_assert(pthis->state_expectants_.end() == pthis->state_expectants_.find(expected_state));
-        if(expected_state == pthis->state_){
-          pthis->state_ = new_state;
-=======
         std::unique_lock<std::mutex> lock(this->state_mutex_);
         if(expected_state == this->state_){
           this->state_ = new_state;
->>>>>>> coroutines
           lock.unlock();
 
           for (;;) {
@@ -67,18 +59,6 @@ namespace vds {
 
     std::future<void> wait(state_enum_type expected_state)
     {
-<<<<<<< HEAD
-      return [pthis = this->shared_from_this(), expected_state](const async_result<> & result){
-        std::unique_lock<std::mutex> lock(pthis->state_mutex_);
-        vds_assert(pthis->state_expectants_.end() == pthis->state_expectants_.find(expected_state));
-        if(expected_state == pthis->state_){
-          result.done();
-        }
-        else {
-          pthis->state_expectants_[expected_state] = std::make_tuple(expected_state, result);
-        }
-      };
-=======
       std::unique_lock<std::mutex> lock(this->state_mutex_);
       if(expected_state != this->state_){
         vds_assert(this->state_expectants_.end() == this->state_expectants_.find(expected_state));
@@ -87,7 +67,6 @@ namespace vds {
         this->state_expectants_[expected_state] = std::make_tuple(expected_state, std::move(result));
         co_return co_await std::move(ret);
       }
->>>>>>> coroutines
     }
 
 

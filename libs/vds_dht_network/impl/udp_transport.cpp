@@ -66,15 +66,6 @@ vds::dht::network::udp_transport::write_async(const service_provider& sp, const 
 std::future<void> vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
                                                                   const std::string& address) {
 
-  this->block_list_mutex_.lock();
-  auto p = this->block_list_.find(address);
-  if (this->block_list_.end() != p && p->second < std::chrono::steady_clock::now()) {
-    this->block_list_mutex_.unlock();
-    co_return;
-  }
-  this->block_list_[address] = std::chrono::steady_clock::now() + std::chrono::minutes(1);
-  this->block_list_mutex_.unlock();
-
   resizable_data_buffer out_message;
   out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
   out_message.add(MAGIC_LABEL >> 24);
@@ -98,8 +89,8 @@ void vds::dht::network::udp_transport::get_session_statistics(session_statistic&
 
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
   for (const auto& p : this->sessions_) {
-    const auto session = p.second;
-    session_statistic.items_.push_back(session->get_statistic());
+    const auto & session = p.second;
+    session_statistic.items_.push_back(session.session_->get_statistic());
   }
 }
 

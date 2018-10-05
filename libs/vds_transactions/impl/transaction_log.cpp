@@ -22,7 +22,6 @@ All rights reserved
 bool vds::transactions::transaction_log::save(
 	const service_provider & sp,
 	database_transaction & t,
-  const const_data_buffer & refer_id,
 	const const_data_buffer & block_data)
 {
   transaction_block block(block_data);

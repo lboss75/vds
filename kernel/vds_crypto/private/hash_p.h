@@ -52,12 +52,7 @@ namespace vds {
   private:
     const hash_info & info_;
     HMAC_CTX * ctx_;
-<<<<<<< HEAD
-
-#if OPENSSL_VERSION_NUMBER<0x10100000L 
-=======
 #if OPENSSL_VERSION_NUMBER < 0x00090605f
->>>>>>> coroutines
     HMAC_CTX ctx_data_;
 #endif
 
