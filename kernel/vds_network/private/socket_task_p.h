@@ -17,9 +17,6 @@ namespace vds {
   class _socket_task
   {
   public:
-    _socket_task();
-    virtual ~_socket_task();
-    
     virtual void process(DWORD dwBytesTransfered) = 0;
     virtual void error(DWORD error_code) = 0;
 
