@@ -69,12 +69,6 @@ namespace vds {
           database_transaction& t,
           const const_data_buffer& value);
 
-        void save(
-          const service_provider& sp,
-          database_transaction& t,
-          const std::string& name,
-          const const_data_buffer& value);
-
         const const_data_buffer& current_node_id() const {
           return this->route_.current_node_id();
         }
@@ -258,20 +252,9 @@ namespace vds {
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);
 
-        std::future<void> restore(
-          const service_provider& sp,
-          const std::string& name,
-          const std::shared_ptr<const_data_buffer>& result,
-          const std::chrono::steady_clock::time_point& start);
-
         std::future<uint8_t> restore_async(
           const service_provider& sp,
           const std::vector<const_data_buffer>& object_ids,
-          const std::shared_ptr<const_data_buffer>& result);
-
-        std::future<uint8_t> restore_async(
-          const service_provider& sp,
-          const std::string& name,
           const std::shared_ptr<const_data_buffer>& result);
 
         void get_route_statistics(route_statistic& result);
@@ -352,7 +335,6 @@ namespace vds {
         static void delete_data(
           const const_data_buffer& replica_hash,
           const filename& filename);
-
       };
     }
   }

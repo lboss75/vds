@@ -6,27 +6,21 @@
 
 vds::auth_session::auth_session(const std::string &login, const std::string &password)
 : login_(login),
-  user_credentials_key_(dht::dht_object_id::user_credentials_to_key(login, password)),
-  password_key_(symmetric_key::from_password(password)),
-  password_hash_(hash::signature(hash::sha256(), password.c_str(), password.length())),
+  password_(password),
   user_mng_(new user_manager()) {
 
 }
 
 
 std::future<void> vds::auth_session::load(
-  const service_provider& sp,
-  const const_data_buffer & crypted_private_key) {
+  const service_provider& sp) {
 
-  return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this(), crypted_private_key](database_transaction & t) {
-      pthis->user_mng_->load(
-        sp,
-        t,
-        pthis->user_credentials_key_,
-        std::make_shared<asymmetric_private_key>(
-          asymmetric_private_key::parse_der(
-            symmetric_decrypt::decrypt(pthis->password_key_, crypted_private_key),
-            std::string())));
+  return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this()](database_transaction & t) {
+    pthis->user_mng_->load(
+      sp,
+      t,
+      pthis->login_,
+      pthis->password_);
   });
 }
 

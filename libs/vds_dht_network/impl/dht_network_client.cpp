@@ -89,38 +89,6 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
   return result;
 }
 
-void vds::dht::network::_client::save(
-  const service_provider& sp,
-  database_transaction& t,
-  const std::string& name,
-  const const_data_buffer& value) {
-  for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
-    binary_serializer s;
-    this->generators_.find(replica)->second->write(s, value.data(), value.size());
-    const auto replica_data = s.move_data();
-    const auto id = replica_id(name, replica);
-
-    sp.get<logger>()->trace(
-      ThisModule,
-      sp,
-      "save replica %s[%d]: %s",
-      name.c_str(),
-      replica,
-      base64::from_bytes(id).c_str());
-
-    const auto replica_hash = hash::signature(hash::sha256(), replica_data);
-    auto fn = this->save_data(sp, t, replica_hash, replica_data);
-    orm::chunk_dbo t1;
-    t.execute(
-      t1.insert(
-        t1.object_id = id,
-        t1.replica_hash = replica_hash,
-        t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
-      ));
-    this->sync_process_.add_sync_entry(sp, t, id, replica_data.size());
-  }
-}
-
 void vds::dht::network::_client::apply_message(
   const service_provider& sp,
   const messages::dht_find_node& message,
@@ -571,33 +539,6 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, datab
 
 std::future<void> vds::dht::network::_client::restore(
   const service_provider& sp,
-  const std::string& name,
-  const std::shared_ptr<const_data_buffer>& result,
-  const std::chrono::steady_clock::time_point& start) {
-
-  std::vector<const_data_buffer> replica_hashes;
-  for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
-    replica_hashes.push_back(replica_id(name, replica));
-  }
-
-  return this->restore(sp, replica_hashes, result, start);
-}
-
-std::future<uint8_t> vds::dht::network::_client::restore_async(
-  const service_provider& sp,
-  const std::string& name,
-  const std::shared_ptr<const_data_buffer>& result) {
-
-  std::vector<const_data_buffer> object_ids;
-  for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
-    object_ids.push_back(replica_id(name, replica));
-  }
-
-  return this->restore_async(sp, object_ids, result);
-}
-
-std::future<void> vds::dht::network::_client::restore(
-  const service_provider& sp,
   const std::vector<const_data_buffer>& object_ids,
   const std::shared_ptr<const_data_buffer>& result,
   const std::chrono::steady_clock::time_point& start) {
@@ -783,11 +724,6 @@ vds::dht::network::client::chunk_info vds::dht::network::client::save(
   };
 }
 
-void vds::dht::network::client::save(const service_provider& sp, database_transaction& t, const std::string& key,
-                                     const const_data_buffer& value) {
-  this->impl_->save(sp, t, key, value);
-}
-
 std::future<vds::const_data_buffer> vds::dht::network::client::restore(
   const service_provider& sp,
   const chunk_info& block_id) {
@@ -806,20 +742,6 @@ std::future<vds::const_data_buffer> vds::dht::network::client::restore(
 
   co_return original_data;
 
-}
-
-std::future<vds::const_data_buffer> vds::dht::network::client::restore(const service_provider& sp,
-                                                                           const std::string& key) {
-  auto result = std::make_shared<const_data_buffer>();
-  co_await this->impl_->restore(sp, key, result, std::chrono::steady_clock::now());
-  co_return *result;
-}
-
-std::future<std::tuple<uint8_t, vds::const_data_buffer>> vds::dht::network::client::restore_async(
-  const service_provider& sp, const std::string& key) {
-  auto result = std::make_shared<const_data_buffer>();
-  uint8_t percent = co_await this->impl_->restore_async(sp, key, result);
-  co_return std::make_tuple(percent, *result);
 }
 
 const vds::const_data_buffer& vds::dht::network::client::current_node_id() const {

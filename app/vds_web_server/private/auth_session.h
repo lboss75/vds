@@ -20,8 +20,7 @@ namespace vds {
         const std::string & password);
 
     std::future<void> load(
-      const service_provider & sp,
-      const const_data_buffer & crypted_private_key);
+      const service_provider & sp);
 
     const std::shared_ptr<user_manager> & get_secured_context(
         const service_provider & sp) const {
@@ -33,9 +32,7 @@ namespace vds {
 
   private:
     std::string login_;
-    std::string user_credentials_key_;
-    symmetric_key password_key_;
-    const_data_buffer password_hash_;
+    std::string password_;
     std::shared_ptr<user_manager> user_mng_;
 
     std::chrono::steady_clock::time_point last_update_;

@@ -21,6 +21,7 @@ namespace vds {
 
       std::string user_credentials_key;
       std::shared_ptr<certificate> user_cert;
+      const_data_buffer user_private_key;
       std::string user_name;
       std::string parent_cert;
 
@@ -29,6 +30,7 @@ namespace vds {
         v(
           user_credentials_key,
           user_cert,
+          user_private_key,
           user_name,
           parent_cert
         );

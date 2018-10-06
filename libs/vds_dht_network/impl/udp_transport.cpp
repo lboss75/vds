@@ -38,7 +38,11 @@ void vds::dht::network::udp_transport::start(
   }
 
   std::thread([sp, this]() {
-    this->continue_read(sp.create_scope("vds::dht::network::udp_transport::continue_read")).get();
+    try {
+      this->continue_read(sp.create_scope("vds::dht::network::udp_transport::continue_read")).get();
+    }
+    catch (...) {
+    }
   }).detach();
 }
 

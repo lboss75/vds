@@ -7,7 +7,7 @@ All rights reserved
 */
 #include "binary_serialize.h"
 #include "payment_transaction.h"
-#include "root_user_transaction.h"
+#include "user_manager_transactions.h"
 #include "channel_message.h"
 #include "create_user_transaction.h"
 

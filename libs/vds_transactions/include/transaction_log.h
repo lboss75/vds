@@ -7,7 +7,7 @@ All rights reserved
 */
 
 #include "const_data_buffer.h"
-#include "root_user_transaction.h"
+#include "user_manager_transactions.h"
 
 namespace vds {
   namespace transactions {

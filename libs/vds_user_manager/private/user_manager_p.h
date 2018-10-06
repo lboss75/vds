@@ -14,8 +14,8 @@ namespace vds {
   class _user_manager : public std::enable_shared_from_this<_user_manager> {
   public:
     _user_manager(
-        const std::string &user_credentials_key,
-        const std::shared_ptr<asymmetric_private_key> & user_private_key);
+      const std::string & user_login,
+      const std::string & user_password);
 
     const std::string & user_credentials_key() const {
       return this->user_credentials_key_;
@@ -94,6 +94,7 @@ namespace vds {
     std::set<const_data_buffer> processed_;
     std::shared_ptr<certificate> user_cert_;
     std::string user_name_;
+    std::string user_password_;
     std::map<const_data_buffer, std::shared_ptr<user_channel>> channels_;
     std::map<std::string, std::shared_ptr<certificate>> certificate_chain_;
   };

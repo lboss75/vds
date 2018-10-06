@@ -46,23 +46,9 @@ namespace vds {
           database_transaction& t,
           const const_data_buffer& value);
 
-        void save(
-          const service_provider& sp,
-          database_transaction& t,
-          const std::string& key,
-          const const_data_buffer& value);
-
         std::future<const_data_buffer> restore(
           const service_provider& sp,
           const chunk_info& block_id);
-
-        std::future<const_data_buffer> restore(
-          const service_provider& sp,
-          const std::string& key);
-
-        std::future<std::tuple<uint8_t, const_data_buffer>> restore_async(
-          const service_provider& sp,
-          const std::string& key);
 
         const const_data_buffer& current_node_id() const;
 

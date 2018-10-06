@@ -36,8 +36,8 @@ namespace vds {
     void load(
       const service_provider & sp,
       class database_transaction &t,
-      const std::string &user_credentials_key,
-      const std::shared_ptr<asymmetric_private_key> & user_private_key);
+      const std::string & user_login,
+      const std::string & user_password);
 
     std::future<vds::user_channel> create_channel(
       const service_provider &sp,

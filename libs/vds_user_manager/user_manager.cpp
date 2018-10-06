@@ -9,7 +9,7 @@ All rights reserved
 #include "private/user_manager_p.h"
 #include "private/member_user_p.h"
 #include "database_orm.h"
-#include "root_user_transaction.h"
+#include "user_manager_transactions.h"
 #include "private/cert_control_p.h"
 #include "vds_exceptions.h"
 #include "channel_create_transaction.h"
@@ -44,16 +44,16 @@ std::future<void> vds::user_manager::update(const service_provider& sp) {
 void vds::user_manager::load(
   const service_provider & sp,
   database_transaction & t,
-  const std::string &user_credentials_key,
-  const std::shared_ptr<asymmetric_private_key> & user_private_key)
+  const std::string & user_login,
+  const std::string & user_password)
 {
 	if (nullptr != this->impl_.get()) {
 		throw std::runtime_error("Logic error");
 	}
 
 	this->impl_.reset(new _user_manager(
-    user_credentials_key,
-    user_private_key));
+    user_login,
+    user_password));
 
 	this->impl_->update(sp, t);
 }
@@ -70,12 +70,6 @@ void vds::user_manager::reset(
     const cert_control::private_info_t & private_info) {
   return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password, private_info](
     database_transaction & t) {
-    auto client = sp.get<dht::network::client>();
-    client->save(
-      sp,
-      t,
-      dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
-      private_info.root_private_key_->der(root_password));
 
     auto playback = transactions::transaction_block_builder::create_root_block();
 
@@ -303,11 +297,11 @@ std::future<bool> vds::user_manager::approve_join_request(
 
 /////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
-		const std::string & user_credentials_key,
-    const std::shared_ptr<asymmetric_private_key> & user_private_key)
-		: user_credentials_key_(user_credentials_key),
-      user_private_key_(user_private_key),
-      login_state_(user_manager::login_state_t::waiting)
+		const std::string & user_login,
+    const std::string & user_password)
+: login_state_(user_manager::login_state_t::waiting), 
+  user_credentials_key_(dht::dht_object_id::user_credentials_to_key(user_login, user_password)),
+  user_password_(user_password)
 {
 }
 
@@ -353,6 +347,8 @@ void vds::_user_manager::update(
           this->user_cert_ = message.user_cert;
           this->user_name_ = message.user_name;
           this->login_state_ = user_manager::login_state_t::login_sucessful;
+          this->user_private_key_ = std::make_shared<asymmetric_private_key>(
+            asymmetric_private_key::parse_der(message.user_private_key, this->user_password_));
 
           auto cp = _user_channel::import_personal_channel(
             sp,
@@ -373,6 +369,8 @@ void vds::_user_manager::update(
         if (this->user_credentials_key_ == message.user_credentials_key) {
           this->user_cert_ = message.user_cert;
           this->user_name_ = message.user_name;
+          this->user_private_key_ = std::make_shared<asymmetric_private_key>(
+            asymmetric_private_key::parse_der(message.user_private_key, this->user_password_));
           this->login_state_ = user_manager::login_state_t::login_sucessful;
 
           auto cp = _user_channel::import_personal_channel(
@@ -518,6 +516,7 @@ std::future<bool> vds::_user_manager::approve_join_request(const service_provide
         message_create<transactions::create_user_transaction>(
           user_object_id,
           user_cert,
+          user_private_key_der,
           userEmail,
           pthis->user_cert_->subject()));
 
@@ -541,13 +540,6 @@ std::future<bool> vds::_user_manager::approve_join_request(const service_provide
         t,
         pthis->user_cert_,
         pthis->user_private_key_);
-
-      auto client = sp.get<dht::network::client>();
-      client->save(
-        sp,
-        t,
-        user_object_id,
-        user_private_key_der);
 
       return true;
     });

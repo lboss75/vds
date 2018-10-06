@@ -11,7 +11,7 @@ All rights reserved
 
 #include "member_user.h"
 #include "database_orm.h"
-#include "root_user_transaction.h"
+#include "user_manager_transactions.h"
 #include "transaction_block_builder.h"
 #include "private/member_user_p.h"
 #include "private/cert_control_p.h"
@@ -132,7 +132,8 @@ vds::member_user vds::_member_user::create_root_user(
     message_create<transactions::root_user_transaction>(
       dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
       root_user_cert,
-      root_user_name));
+      root_user_name,
+      root_private_key->der(root_password)));
 
   sp.get<logger>()->info(ThisModule, sp, "Create root user %s",
     root_user_cert->subject().c_str());

@@ -47,23 +47,9 @@ std::future<vds::http_message> vds::api_controller::get_login_state(
   const std::shared_ptr<_web_server>& owner,
   const http_message& message) {
 
-  auto[percent, crypted_private_key] = co_await sp.get<dht::network::client>()->restore_async(
-    sp,
-    dht::dht_object_id::user_credentials_to_key(login, password));
-
-  if (!crypted_private_key) {
-    auto item = std::make_shared<json_object>();
-    item->add_property("state", std::to_string(percent));
-
-    co_return http_response::simple_text_response(
-      item->json_value::str(),
-      "application/json; charset=utf-8");
-  }
-
   auto session_id = std::to_string(std::rand()) + "." + std::to_string(std::rand()) + "." + std::to_string(std::rand());
   auto session = std::make_shared<auth_session>(login, password);
-  co_await session->load(sp, crypted_private_key);
-
+  co_await session->load(sp);
 
   auto item = std::make_shared<json_object>();
 

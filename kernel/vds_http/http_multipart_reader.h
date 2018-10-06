@@ -158,7 +158,6 @@ namespace vds {
             co_return 0;
           }
         }
-
       }
     private:
       http_multipart_reader * owner_;

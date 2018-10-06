@@ -1,5 +1,5 @@
-#ifndef __VDS_TRANSACTIONS__ROOT_CERTIFICATE_TRANSACTION_H_
-#define __VDS_TRANSACTIONS__ROOT_CERTIFICATE_TRANSACTION_H_
+#ifndef __VDS_TRANSACTIONS_USER_MANAGER_TRANSACTIONS_H_
+#define __VDS_TRANSACTIONS_USER_MANAGER_TRANSACTIONS_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -23,6 +23,7 @@ namespace vds {
 
       std::string user_credentials_key;
       std::shared_ptr<certificate> user_cert;
+      const_data_buffer user_private_key;
       std::string user_name;
 
       template <typename visitor_t>
@@ -30,10 +31,11 @@ namespace vds {
         v(
           user_credentials_key,
           user_cert,
-          user_name);
+          user_name,
+          user_private_key);
       }
     };
   }
 }
 
-#endif //__VDS_TRANSACTIONS__ROOT_CERTIFICATE_TRANSACTION_H_
+#endif //__VDS_TRANSACTIONS_USER_MANAGER_TRANSACTIONS_H_
