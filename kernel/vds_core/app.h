@@ -14,7 +14,7 @@ All rights reserved
 #include <sys/resource.h> 
 #include <signal.h>
 #include <sys/stat.h>
-
+#include "barrier.h"
 /* an idea from 'Advanced Programming in the Unix Environment'
   Stevens 1993 - see BecomeDaemonProcess() */
 
