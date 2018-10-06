@@ -22,7 +22,7 @@ namespace vds {
     ~http_server();
 
     std::future<void> start(
-      const vds::service_provider & sp,
+      const vds::service_provider * sp,
       const std::shared_ptr<continuous_buffer<uint8_t>> & incoming_stream,
       const std::shared_ptr<continuous_buffer<uint8_t>> & outgoing,
       const handler_type & handler);

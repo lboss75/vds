@@ -23,7 +23,7 @@ TEST(test_certificates, test_pem)
 
 
     {
-      auto sp = registrator.build("test_pem");
+      auto sp = registrator.build();
       registrator.start(sp);
 
       //Generate CA certificate
@@ -192,7 +192,7 @@ TEST(test_certificates, test_der)
   registrator.add(console_logger);
   registrator.add(crypto_service);
   {
-    auto sp = registrator.build("test_der");
+    auto sp = registrator.build();
     registrator.start(sp);
 
     const std::string der_password("123qwe");

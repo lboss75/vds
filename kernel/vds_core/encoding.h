@@ -61,7 +61,7 @@ namespace vds {
       {
       }
 
-      void sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
+      void sync_process_data(const vds::service_provider * sp, size_t & input_readed, size_t & output_written)
       {
         if (0 < this->written_) {
           auto required = utf8::char_size(this->buffer_[0]);
@@ -125,7 +125,7 @@ namespace vds {
       {
       }
 
-      void sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
+      void sync_process_data(const vds::service_provider * sp, size_t & input_readed, size_t & output_written)
       {
         auto n = (this->output_buffer_size() < this->input_buffer_size()) ? this->output_buffer_size() : this->input_buffer_size();
         memcpy(this->output_buffer(), this->input_buffer(), n);

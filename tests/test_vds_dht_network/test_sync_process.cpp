@@ -199,7 +199,7 @@ void transport_hab::attach(const std::shared_ptr<test_server>& server1, const st
 }
 
 void transport_hab::register_message(
-  const vds::service_provider& sp,
+  const vds::service_provider * sp,
   const vds::const_data_buffer& target_node_id,
   const vds::dht::network::imessage_map::message_info_t& message_info) {
   std::lock_guard<std::mutex> lock(this->log_mutex_);
@@ -223,7 +223,7 @@ test_server::test_server(const vds::network_address & address, const std::shared
   test_config::instance().log_level(),
   test_config::instance().modules()),
   server_(address, hab),
-  sp_(vds::service_provider::empty()){
+  sp_(nullptr){
 }
 
 void test_server::start(const std::shared_ptr<transport_hab> & hab, int index) {
@@ -239,15 +239,12 @@ void test_server::start(const std::shared_ptr<transport_hab> & hab, int index) {
   registrator_.add(task_manager_);
   registrator_.add(server_);
 
-  sp_ = registrator_.build("test_async_stream" + std::to_string(index));
+  registrator_.current_user(folder);
+  registrator_.local_machine(folder);
 
-  auto root_folders = new vds::persistence_values();
-  root_folders->current_user_ = folder;
-  root_folders->local_machine_ = folder;
-  sp_.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
+  sp_ = registrator_.build();
 
   registrator_.start(sp_);
-  vds::mt_service::enable_async(sp_);
 }
 
 void test_server::stop() {
@@ -270,7 +267,7 @@ std::future<void> test_server::process_datagram(
 }
 
 const vds::const_data_buffer& test_server::node_id() const {
-  return (*this->sp_.get<vds::dht::network::client>())->current_node_id();
+  return (*this->sp_->get<vds::dht::network::client>())->current_node_id();
 }
 
 const vds::network_address& test_server::address() const {
@@ -283,7 +280,7 @@ void test_server::add_session(
 }
 
 std::future<void> mock_server::process_datagram(
-  const vds::service_provider& sp,
+  const vds::service_provider * sp,
   const vds::udp_datagram& datagram,
   const vds::const_data_buffer& source_node_id,
   const vds::network_address & source_address) {
@@ -295,11 +292,11 @@ std::future<void> mock_server::process_datagram(
 }
 
 void mock_server::add_session(
-  const vds::service_provider& sp,
+  const vds::service_provider * sp,
   const std::shared_ptr<vds::dht::network::dht_session>& session) {
   this->sessions_.emplace(session->address(), session);
 
-  (*sp.get<vds::dht::network::client>())->add_session(sp, session, 0);
+  (*sp->get<vds::dht::network::client>())->add_session(sp, session, 0);
 }
 
 const vds::network_address& mock_server::address() const {
@@ -309,11 +306,11 @@ const vds::network_address& mock_server::address() const {
 
 #define route_client(message_type)\
   case vds::dht::network::message_type_t::message_type: {\
-      co_return co_await sp.get<vds::db_model>()->async_transaction(sp, [sp, message_info](vds::database_transaction & t) {\
+      co_return co_await sp->get<vds::db_model>()->async_transaction(sp, [sp, message_info](vds::database_transaction & t) {\
         vds::binary_deserializer s(message_info.message_data());\
         vds::dht::messages::message_type message(s);\
-        (*sp.get<vds::dht::network::client>())->apply_message(\
-        sp.create_scope("messages::" #message_type),\
+        (*sp->get<vds::dht::network::client>())->apply_message(\
+         sp,\
          t,\
          message,\
          message_info);\
@@ -326,8 +323,8 @@ const vds::network_address& mock_server::address() const {
   case vds::dht::network::message_type_t::message_type: {\
       vds::binary_deserializer s(message_info.message_data());\
       vds::dht::messages::message_type message(s);\
-      co_return co_await (*sp.get<vds::dht::network::client>())->apply_message(\
-      sp.create_scope("messages::" #message_type),\
+      co_return co_await (*sp->get<vds::dht::network::client>())->apply_message(\
+        sp,\
         message,\
         message_info);\
       break;\
@@ -337,18 +334,18 @@ const vds::network_address& mock_server::address() const {
   case vds::dht::network::message_type_t::message_type: {\
       vds::binary_deserializer s(message_info.message_data());\
       vds::dht::messages::message_type message(s);\
-      (*sp.get<vds::dht::network::client>())->apply_message(\
-      sp.create_scope("messages::" #message_type),\
+      (*sp->get<vds::dht::network::client>())->apply_message(\
+        sp,\
         message,\
         message_info);\
       break;\
     }
 
 std::future<void> mock_server::process_message(
-  const vds::service_provider& sp,
+  const vds::service_provider * sp,
   const message_info_t& message_info) {
 
-  static_cast<mock_transport *>(this->transport_.get())->hab()->register_message(sp, sp.get<vds::dht::network::client>()->current_node_id(), message_info);
+  static_cast<mock_transport *>(this->transport_.get())->hab()->register_message(sp, sp->get<vds::dht::network::client>()->current_node_id(), message_info);
 
   switch (message_info.message_type()) {
     route_client(sync_new_election_request)
@@ -389,17 +386,17 @@ std::future<void> mock_server::process_message(
 
 }
 
-std::future<void> mock_server::on_new_session(const vds::service_provider& sp, const vds::const_data_buffer& partner_id) {
+std::future<void> mock_server::on_new_session(const vds::service_provider * sp, const vds::const_data_buffer& partner_id) {
   throw vds::vds_exceptions::invalid_operation();
 }
 
 
 void mock_server::add_sync_entry(
-  const vds::service_provider& sp,
+  const vds::service_provider * sp,
   const vds::const_data_buffer& object_id,
   const vds::const_data_buffer& object_data) {
-  sp.get<vds::db_model>()->async_transaction(sp, [sp, object_id, object_data](vds::database_transaction & t) {
-    auto client = sp.get<vds::dht::network::client>();
+  sp->get<vds::db_model>()->async_transaction(sp, [sp, object_id, object_data](vds::database_transaction & t) {
+    auto client = sp->get<vds::dht::network::client>();
     const auto replica_hash = vds::hash::signature(vds::hash::sha256(), object_data);
     auto fn = (*client)->save_data(sp, t, replica_hash, object_data);
     vds::orm::chunk_dbo t1;
@@ -428,23 +425,23 @@ void mock_server::register_services(vds::service_registrator& registrator) {
   registrator.add_service<vds::dht::network::imessage_map>(this);
 }
 
-void mock_server::start(const vds::service_provider& sp) {
+void mock_server::start(const vds::service_provider * sp) {
   this->db_model_.start(sp);
 
   this->client_.start(sp, this->transport_, 0);
 }
 
-void mock_server::stop(const vds::service_provider& sp) {
+void mock_server::stop(const vds::service_provider * sp) {
   this->client_.stop(sp);
   this->db_model_.stop(sp);
 }
 
-std::future<void> mock_server::prepare_to_stop(const vds::service_provider& sp) {
+std::future<void> mock_server::prepare_to_stop(const vds::service_provider * sp) {
   co_return;
 }
 
 void mock_transport::start(
-  const vds::service_provider& sp,
+  const vds::service_provider * sp,
   const std::shared_ptr<vds::certificate> & node_cert,
   const std::shared_ptr<vds::asymmetric_private_key> & node_key,
   uint16_t port) {
@@ -453,17 +450,17 @@ void mock_transport::start(
 
 }
 
-void mock_transport::stop(const vds::service_provider& sp) {
+void mock_transport::stop(const vds::service_provider * sp) {
 }
 
 std::future<void> mock_transport::write_async(
-  const vds::service_provider& sp,
+  const vds::service_provider * sp,
   const vds::udp_datagram& datagram) {
   return this->hab_->write_async(datagram, this->node_id_, this->owner_->address());
 }
 
 std::future<void> mock_transport::try_handshake(
-  const vds::service_provider& sp,
+  const vds::service_provider * sp,
   const std::string & address) {
 
   co_return;

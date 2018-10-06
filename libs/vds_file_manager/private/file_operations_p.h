@@ -19,21 +19,21 @@ namespace vds {
     class _file_operations : public std::enable_shared_from_this<_file_operations> {
     public:
 			std::future<transactions::user_message_transaction::file_info_t> upload_file(
-					const service_provider &sp,
+					const service_provider *sp,
           const std::shared_ptr<user_manager> & user_mng,
           const std::string & name,
           const std::string & mime_type,
 					const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
 	    std::future<file_manager::file_operations::download_result_t> download_file(
-					const service_provider &sp,
+					const service_provider *sp,
           const std::shared_ptr<user_manager> & user_mng,
           const const_data_buffer & channel_id,
           const const_data_buffer & target_file,
           const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
       std::future<void> create_message(
-        const service_provider& sp,
+        const service_provider * sp,
         const std::shared_ptr<user_manager>& user_mng,
         const const_data_buffer& channel_id,
         const std::string& message,
@@ -41,7 +41,7 @@ namespace vds {
 
 
       //	    std::future<void> download_block(
-//			const service_provider& sp,
+//			const service_provider * sp,
 //			database_transaction& t,
 //      file_manager::download_file_task::block_info & block_id,
 //			const std::shared_ptr<file_manager::download_file_task> & result);
@@ -54,17 +54,17 @@ namespace vds {
       };
 
       std::future<pack_file_result> pack_file(
-          const service_provider &sp,
+          const service_provider *sp,
           const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) const;
 
 //			void restore_chunk(
-//					const service_provider& sp,
+//					const service_provider * sp,
 //					database_transaction& t,
 //					file_manager::download_file_task::block_info & block,
 //					const std::shared_ptr<file_manager::download_file_task> & result);
 
       std::future<void> download_stream(
-          const service_provider& sp,
+          const service_provider * sp,
           const std::shared_ptr<stream_output_async<uint8_t>> & target_stream,
           const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);
 		};

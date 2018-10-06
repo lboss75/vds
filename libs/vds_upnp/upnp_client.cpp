@@ -38,14 +38,14 @@ vds::upnp_client::~upnp_client()
 
 
 bool vds::upnp_client::open_port(
-  const service_provider & sp,
+  const service_provider * sp,
   uint16_t internal_port,
   uint16_t external_port,
   const std::string & protocol,
   const std::string & description
 )
 {
-  sp.get<logger>()->debug(this_module_name, sp, "Execute the UPNP discovery process");
+  sp->get<logger>()->debug(this_module_name, sp, "Execute the UPNP discovery process");
 
 #ifdef _WIN32
   void * nat;
@@ -56,7 +56,7 @@ bool vds::upnp_client::open_port(
     IID_IUPnPNAT,
     &nat);
   if(FAILED(hr)) {
-    sp.get<logger>()->error(this_module_name, sp, "Failed to create instance of IUPnPNAT. Error: %d", hr);
+    sp->get<logger>()->error(this_module_name, sp, "Failed to create instance of IUPnPNAT. Error: %d", hr);
     throw std::system_error(hr, std::system_category(), "Failed to create instance of IUPnPNAT");
   }
   this->nat_.reset((IUPnPNAT *)nat);
@@ -97,7 +97,7 @@ bool vds::upnp_client::open_port(
     }
   }
 
-  sp.get<logger>()->error(this_module_name, sp, "Failed to add port mapping. Error code: %d", hr);
+  sp->get<logger>()->error(this_module_name, sp, "Failed to add port mapping. Error code: %d", hr);
   return false;
 
 #else
@@ -105,7 +105,7 @@ bool vds::upnp_client::open_port(
   int error_code;
   this->devlist_ = upnpDiscover(2000, NULL, NULL, 0, 0, &error_code);
   if(nullptr == this->devlist_) {
-    sp.get<logger>()->error(this_module_name, sp, "No UPnP device found on the network. Error: %d", error_code);
+    sp->get<logger>()->error(this_module_name, sp, "No UPnP device found on the network. Error: %d", error_code);
   }
   else {
     auto status = UPNP_GetValidIGD(
@@ -115,10 +115,10 @@ bool vds::upnp_client::open_port(
       this->lanaddr_,
       sizeof(this->lanaddr_));
     if(0 == status){
-      sp.get<logger>()->error(this_module_name, sp, "No IGD found");
+      sp->get<logger>()->error(this_module_name, sp, "No IGD found");
     }
     else {
-      sp.get<logger>()->debug(this_module_name, sp, "Found IGD %s (status %d)", this->upnp_urls_.controlURL, status);
+      sp->get<logger>()->debug(this_module_name, sp, "Found IGD %s (status %d)", this->upnp_urls_.controlURL, status);
       
       int r = UPNP_AddPortMapping(
 				this->upnp_urls_.controlURL,
@@ -131,11 +131,11 @@ bool vds::upnp_client::open_port(
 				0,
 				0);
       if (r == UPNPCOMMAND_SUCCESS) {
-        sp.get<logger>()->debug(this_module_name, sp, "Added mapping %s %d to %s:%d", protocol.c_str(), external_port, this->lanaddr_, internal_port);
+        sp->get<logger>()->debug(this_module_name, sp, "Added mapping %s %d to %s:%d", protocol.c_str(), external_port, this->lanaddr_, internal_port);
         return true;
       }
       else {
-        sp.get<logger>()->error(this_module_name, sp, "open_port failed with code %d(%s)", r, strupnperror(r));
+        sp->get<logger>()->error(this_module_name, sp, "open_port failed with code %d(%s)", r, strupnperror(r));
       }
     }
   }
@@ -145,7 +145,7 @@ bool vds::upnp_client::open_port(
 }
 
 void vds::upnp_client::close_port(
-  const service_provider & sp,
+  const service_provider * sp,
   uint16_t external_port,
   const std::string& protocol)
 {
@@ -166,10 +166,10 @@ void vds::upnp_client::close_port(
     protocol.c_str(),
     0);
   if (r == UPNPCOMMAND_SUCCESS) {
-    sp.get<logger>()->debug(this_module_name, sp, "Removed mapping %s %d", protocol.c_str(), external_port);
+    sp->get<logger>()->debug(this_module_name, sp, "Removed mapping %s %d", protocol.c_str(), external_port);
   }
   else {
-    sp.get<logger>()->error(this_module_name, sp, "close_port failed with code %d(%s)", r, strupnperror(r));
+    sp->get<logger>()->error(this_module_name, sp, "close_port failed with code %d(%s)", r, strupnperror(r));
   }
 #endif
 }

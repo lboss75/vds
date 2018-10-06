@@ -18,7 +18,7 @@ namespace vds {
   public:
 
     static std::future<http_message> register_request_post(
-      const service_provider& sp,
+      const service_provider * sp,
       const std::shared_ptr<_web_server>& owner,
       const http_message& message);
   };

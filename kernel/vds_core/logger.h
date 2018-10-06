@@ -29,7 +29,6 @@ namespace vds {
     {
       log_level level;
       std::string module;
-      std::string source;
       std::string message;
     };
 
@@ -38,7 +37,7 @@ namespace vds {
     public:
       log_writer(log_level level);
 
-      virtual void write(const service_provider & sp, const log_record & record) = 0;
+      virtual void write(const service_provider * sp, const log_record & record) = 0;
       virtual void flush() = 0;
 
       log_level level() const {
@@ -59,7 +58,7 @@ namespace vds {
       }
 
       template <typename... arg_types>
-      void operator () (const std::string & module, const service_provider & sp, log_level level, const std::string & format, arg_types... args) const
+      void operator () (const std::string & module, const service_provider * sp, log_level level, const std::string & format, arg_types... args) const
       {
         if (this->check(module, sp, level)) {
           (*this)(module, sp, level, string_format(format, args...));
@@ -67,7 +66,7 @@ namespace vds {
       }
 
       template <typename... arg_types>
-      void trace(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
+      void trace(const std::string & module, const service_provider * sp, const std::string & format, arg_types... args) const
       {
         if(this->check(module, sp, log_level::ll_trace)) {
           (*this)(module, sp, log_level::ll_trace, string_format(format, args...));
@@ -75,7 +74,7 @@ namespace vds {
       }
 
       template <typename... arg_types>
-      void debug(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
+      void debug(const std::string & module, const service_provider * sp, const std::string & format, arg_types... args) const
       {
         if (this->check(module, sp, log_level::ll_debug)) {
           (*this)(module, sp, log_level::ll_debug, string_format(format, args...));
@@ -83,7 +82,7 @@ namespace vds {
       }
 
       template <typename... arg_types>
-      void info(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
+      void info(const std::string & module, const service_provider * sp, const std::string & format, arg_types... args) const
       {
         if (this->check(module, sp, log_level::ll_info)) {
           (*this)(module, sp, log_level::ll_info, string_format(format, args...));
@@ -91,7 +90,7 @@ namespace vds {
       }
 
       template <typename... arg_types>
-      void warning(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
+      void warning(const std::string & module, const service_provider * sp, const std::string & format, arg_types... args) const
       {
         if (this->check(module, sp, log_level::ll_warning)) {
           (*this)(module, sp, log_level::ll_warning, string_format(format, args...));
@@ -99,7 +98,7 @@ namespace vds {
       }
 
       template <typename... arg_types>
-      void error(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
+      void error(const std::string & module, const service_provider * sp, const std::string & format, arg_types... args) const
       {
         if (this->check(module, sp, log_level::ll_error)) {
           (*this)(module, sp, log_level::ll_error, string_format(format, args...));
@@ -110,9 +109,9 @@ namespace vds {
         return this->min_log_level_;
       }
       
-      static logger * get(const service_provider & sp)
+      static logger * get(const service_provider * sp)
       {
-        return sp.get<logger>();
+        return sp->get<logger>();
       }
 
       static inline std::string escape_string(const std::string & str) {
@@ -138,7 +137,7 @@ namespace vds {
         }
       }
       
-      bool check(const std::string & module, const service_provider & /*sp*/, log_level level) const
+      bool check(const std::string & module, const service_provider * /*sp*/, log_level level) const
       {
         if(log_level::ll_error <= level) {
           return true;
@@ -186,7 +185,7 @@ namespace vds {
       
       void operator () (
         const std::string & module,
-        const service_provider & sp,
+        const service_provider * sp,
         log_level level,
         const std::string & message) const;
     };
@@ -198,11 +197,11 @@ namespace vds {
 
       //iservice_factory
       void register_services(service_registrator &) override;
-      void start(const service_provider &) override;
-      void stop(const service_provider &) override;
+      void start(const service_provider *) override;
+      void stop(const service_provider *) override;
 
       //log_writer
-      void write(const service_provider & sp, const log_record & record) override;
+      void write(const service_provider * sp, const log_record & record) override;
       void flush() override;
     };
 
@@ -214,11 +213,11 @@ namespace vds {
 
       //iservice_factory
       void register_services(service_registrator &) override;
-      void start(const service_provider & sp) override;
-      void stop(const service_provider & sp) override;
+      void start(const service_provider * sp) override;
+      void stop(const service_provider * sp) override;
 
       //log_writer
-      void write(const service_provider & sp, const log_record & record) override;
+      void write(const service_provider * sp, const log_record & record) override;
       void flush() override;
 
     private:

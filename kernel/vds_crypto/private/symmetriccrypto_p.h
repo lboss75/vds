@@ -109,7 +109,7 @@ namespace vds {
     }
     
     std::future<void> write_async(
-      const service_provider & sp,
+      const service_provider * sp,
         const uint8_t * input_buffer,
         size_t input_buffer_size) {
       if (0 < input_buffer_size) {
@@ -226,7 +226,7 @@ namespace vds {
     }
 
     std::future<void> write_async(
-      const service_provider & sp,
+      const service_provider * sp,
         const uint8_t * input_buffer,
         size_t input_buffer_size)
     {

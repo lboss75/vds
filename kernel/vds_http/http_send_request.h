@@ -46,7 +46,7 @@ namespace vds {
         std::cout << "http_send_request::handler::~handler\n";
       }
 
-      bool operator()(const service_provider & sp, const network_socket & s)
+      bool operator()(const service_provider * sp, const network_socket & s)
       {
         dataflow(
           http_request_serializer(),
@@ -81,7 +81,7 @@ namespace vds {
         {
         }
         
-        void operator()(const service_provider & sp)
+        void operator()(const service_provider * sp)
         {
           std::cout << "request sent\n";
         }

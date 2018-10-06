@@ -22,7 +22,7 @@ vds::deflate::~deflate() {
 }
 
 vds::const_data_buffer vds::deflate::compress(
-  const service_provider & sp,
+  const service_provider * sp,
   const uint8_t * data,
   size_t len)
 {
@@ -36,12 +36,12 @@ vds::const_data_buffer vds::deflate::compress(
 }
 
 vds::const_data_buffer vds::deflate::compress(
-  const service_provider & sp,
+  const service_provider * sp,
   const const_data_buffer & data)
 {
   return compress(sp, data.data(), data.size());
 }
 
-std::future<void> vds::deflate::write_async(const vds::service_provider &sp, const uint8_t *data, size_t len) {
+std::future<void> vds::deflate::write_async(const vds::service_provider *sp, const uint8_t *data, size_t len) {
   return this->impl_->write_async(sp, data, len);
 }

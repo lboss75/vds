@@ -23,12 +23,12 @@ namespace vds {
     }
 
     std::future<void> process(
-      const service_provider & sp,
+      const service_provider * sp,
       const std::shared_ptr<stream_input_async<uint8_t>> & input_stream)
     {
       while(!this->eof_) {
         auto parser = std::make_shared<http_form_part_parser>(this->message_callback_);
-        co_await parser->start(sp, std::make_shared<part_reader>(this));
+        co_await parser->start(sp, std::make_shared<part_reader>(this->shared_from_this(), input_stream));
       }
     }
 
@@ -44,12 +44,15 @@ namespace vds {
 
     class part_reader : public stream_input_async<uint8_t> {
     public:
-      part_reader(http_multipart_reader * owner)
-      : owner_(owner){
-        
+      part_reader(
+        const std::shared_ptr<http_multipart_reader> & owner,
+        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream)
+      : owner_(owner), input_stream_(input_stream) {        
       }
 
-      std::future<size_t> read_async(const service_provider& sp, uint8_t * buffer, size_t len) override {
+      std::future<size_t> read_async(const service_provider * sp, uint8_t * buffer, size_t len) override {
+        auto pthis = this->shared_from_this();
+
         for (;;) {
           while (0 < this->owner_->readed_) {
             std::string value((const char *)this->owner_->buffer_, this->owner_->readed_);
@@ -70,12 +73,14 @@ namespace vds {
                 if (0 < finish) {
                   memcpy(buffer, this->owner_->buffer_, finish);
                   memmove(this->owner_->buffer_, this->owner_->buffer_ + finish, this->owner_->readed_ - finish);
+                  vds_assert(this->owner_->readed_ >= finish);
                   this->owner_->readed_ -= finish;
 
                   co_return finish;
                 }
                 else {
                   memmove(this->owner_->buffer_, this->owner_->buffer_ + p, this->owner_->readed_ - p);
+                  vds_assert(this->owner_->readed_ >= p);
                   this->owner_->readed_ -= p;
                 }
                 continue;
@@ -93,6 +98,10 @@ namespace vds {
                 }
 
                 if (offset > 0) {
+                  this->owner_->readed_ -= this->owner_->boundary_.length();
+                  vds_assert(this->owner_->readed_ >= offset);
+                  this->owner_->readed_ -= offset;
+                  memmove(this->owner_->buffer_, this->owner_->buffer_ + this->owner_->boundary_.length() + offset, this->owner_->readed_);
 
                   if (!this->owner_->is_first_) {
                     co_return 0;
@@ -100,10 +109,6 @@ namespace vds {
                   else {
                     this->owner_->is_first_ = false;
                   }
-
-                  this->owner_->readed_ -= this->owner_->boundary_.length();
-                  this->owner_->readed_ -= offset;
-                  memmove(this->owner_->buffer_, this->owner_->buffer_ + this->owner_->boundary_.length() + offset, this->owner_->readed_);
 
                   continue;
                 }
@@ -117,11 +122,15 @@ namespace vds {
             }
             else if (this->owner_->readed_ > this->owner_->boundary_.length() + 2) {
               vds_assert(!this->owner_->is_first_);
-              if(len < this->owner_->readed_ - this->owner_->boundary_.length() - 2) {
+              if (len > this->owner_->readed_ - this->owner_->boundary_.length() - 2) {
                 len = this->owner_->readed_ - this->owner_->boundary_.length() - 2;
               }
+
+              vds_assert(this->owner_->readed_ >= len);
+
               memcpy(buffer, this->owner_->buffer_, len);
               memmove(this->owner_->buffer_, this->owner_->buffer_ + len, this->owner_->readed_ - len);
+
               this->owner_->readed_ -= len;
 
               co_return len;
@@ -149,6 +158,7 @@ namespace vds {
                 len = this->owner_->readed_;
               }
               memcpy(buffer, this->owner_->buffer_, len);
+              vds_assert(this->owner_->readed_ >= len);
               this->owner_->readed_ -= len;
               memmove(this->owner_->buffer_, this->owner_->buffer_ + len, this->owner_->readed_ - len);
 
@@ -160,7 +170,7 @@ namespace vds {
         }
       }
     private:
-      http_multipart_reader * owner_;
+      std::shared_ptr<http_multipart_reader> owner_;
       std::shared_ptr<stream_input_async<uint8_t>> input_stream_;
     };
   };

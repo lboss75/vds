@@ -31,37 +31,37 @@ namespace vds {
 
     login_state_t get_login_state() const;
 
-    std::future<void> update(const service_provider & sp);
+    std::future<void> update(const service_provider * sp);
 
     void load(
-      const service_provider & sp,
+      const service_provider * sp,
       class database_transaction &t,
       const std::string & user_login,
       const std::string & user_password);
 
     std::future<vds::user_channel> create_channel(
-      const service_provider &sp,
+      const service_provider *sp,
       const std::string &name) const;
 
     void reset(
-        const service_provider &sp,
+        const service_provider *sp,
         const std::string &root_user_name,
         const std::string &root_password,
         const cert_control::private_info_t & private_info);
 
     //std::future<void> init_server(
-    //  const vds::service_provider &sp,
+    //  const vds::service_provider *sp,
     //  const std::string & root_user_name,
     //  const std::string & user_password,
     //  const std::string & device_name,
     //  int port);
 
-    std::shared_ptr<user_channel> get_channel(const service_provider & sp, const const_data_buffer &channel_id) const;
+    std::shared_ptr<user_channel> get_channel(const service_provider * sp, const const_data_buffer &channel_id) const;
     std::map<const_data_buffer, std::shared_ptr<user_channel>> get_channels() const;
 
     template <typename... handler_types>
     void walk_messages(
-      const service_provider & sp,
+      const service_provider * sp,
       const const_data_buffer & channel_id,
       database_transaction & t,
       handler_types && ... handlers) const {
@@ -97,35 +97,35 @@ namespace vds {
     }
 
     bool validate_and_save(
-        const service_provider & sp,
+        const service_provider * sp,
         const std::list<std::shared_ptr<certificate>> &cert_chain);
 
-    void save_certificate(const service_provider &sp, database_transaction &t, const certificate &cert);
+    void save_certificate(const service_provider *sp, database_transaction &t, const certificate &cert);
 
     member_user get_current_user() const;
     const std::shared_ptr<asymmetric_private_key> & get_current_user_private_key() const;
     const std::string & user_name() const;
 
     static std::future<const_data_buffer> create_register_request(
-      const service_provider& sp,
+      const service_provider * sp,
       const std::string& userName,
       const std::string& userEmail,
       const std::string& userPassword);
 
     static bool parse_join_request(
-        const service_provider& sp,
+        const service_provider * sp,
         const const_data_buffer & data,
         std::string & userName,
         std::string & userEmail);
 
     std::future<bool> approve_join_request(
-      const service_provider& sp,
+      const service_provider * sp,
       const const_data_buffer & data);
 
   private:
     std::shared_ptr<_user_manager> impl_;
 
-    std::future<void> save_certificate(const service_provider &sp, const std::shared_ptr<certificate> &cert);
+    std::future<void> save_certificate(const service_provider *sp, const std::shared_ptr<certificate> &cert);
   };
 }
 

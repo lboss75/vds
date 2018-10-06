@@ -15,7 +15,7 @@ vds::database::~database()
 {
 }
 
-void vds::database::open(const service_provider & sp, const filename & fn)
+void vds::database::open(const service_provider * sp, const filename & fn)
 {
   this->impl_->open(sp, fn);
 }
@@ -26,18 +26,18 @@ void vds::database::close()
 }
 
 std::future<void> vds::database::async_transaction(
-  const service_provider & sp,
+  const service_provider * sp,
   const std::function<bool(database_transaction & tr)> & callback)
 {
   return this->impl_->async_transaction(sp, callback);
 }
 
-std::future<void> vds::database::async_read_transaction(const service_provider& sp,
+std::future<void> vds::database::async_read_transaction(const service_provider * sp,
   const std::function<void(database_read_transaction& tr)>& callback) {
   return this->impl_->async_read_transaction(sp, callback);
 }
 
-std::future<void> vds::database::prepare_to_stop(const vds::service_provider &sp) {
+std::future<void> vds::database::prepare_to_stop(const vds::service_provider *sp) {
   return this->impl_->prepare_to_stop(sp);
 }
 

@@ -14,12 +14,10 @@ void vds::dht::network::service::register_services(service_registrator& registra
 }
 
 void vds::dht::network::service::start(
-  const service_provider& parent_scope,
+  const service_provider * sp,
   const std::shared_ptr<iudp_transport> & udp_transport,
   const uint16_t port) {
-  auto sp = parent_scope.create_scope(__FUNCTION__);
-  mt_service::enable_async(sp);
-  sp.get<db_model>()->async_transaction(sp, [this, sp, udp_transport, port](database_transaction& t) {
+  sp->get<db_model>()->async_transaction(sp, [this, sp, udp_transport, port](database_transaction& t) {
     std::shared_ptr<certificate> node_cert;
     std::shared_ptr<asymmetric_private_key> node_key;
 
@@ -70,11 +68,11 @@ void vds::dht::network::service::start(
   });
 }
 
-void vds::dht::network::service::stop(const service_provider& sp) {
+void vds::dht::network::service::stop(const service_provider * sp) {
   this->client_.stop(sp);
 }
 
-std::future<void> vds::dht::network::service::prepare_to_stop(const service_provider& /*sp*/) {
+std::future<void> vds::dht::network::service::prepare_to_stop(const service_provider * /*sp*/) {
   co_return;
 }
 

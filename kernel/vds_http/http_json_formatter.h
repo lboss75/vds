@@ -40,7 +40,7 @@ namespace vds {
       {
       }
       
-      bool operator()(const service_provider & sp, json_value * value)
+      bool operator()(const service_provider * sp, json_value * value)
       {
         if(nullptr != value){
           this->response_.set_result(

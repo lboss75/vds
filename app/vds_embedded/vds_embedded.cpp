@@ -36,17 +36,13 @@ void vds::vds_embedded::server_root(const std::string & /*login*/, const std::st
     registrator.add(network_service);
     registrator.add(server);
 
+    registrator.current_user(folder);
+    registrator.local_machine(folder);
 
-    auto sp = registrator.build("server::init_root");
+    auto sp = registrator.build();
     try {
-      auto root_folders = new vds::persistence_values();
-      root_folders->current_user_ = folder;
-      root_folders->local_machine_ = folder;
-      sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
-
       registrator.start(sp);
 
-      vds::imt_service::enable_async(sp);
       vds::barrier b;
       //server
       //    .reset(sp, login, password)

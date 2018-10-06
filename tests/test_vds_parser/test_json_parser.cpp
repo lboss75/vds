@@ -90,7 +90,6 @@ TEST(test_json_parser, test_parser) {
       test_json_parser_validate(value);
     }
   );
-  vds::service_provider * sp = nullptr;
-  parser->write_async(*sp, (const uint8_t *)test_data, sizeof(test_data) - 1).get();
-  parser->write_async(*sp, nullptr, 0).get();
+  parser->write_async(nullptr, (const uint8_t *)test_data, sizeof(test_data) - 1).get();
+  parser->write_async(nullptr, nullptr, 0).get();
 }

@@ -12,7 +12,7 @@ All rights reserved
 #include "logger.h"
 
 vds::timer::timer(const char * name)
-: name_(name), sp_(service_provider::empty()),
+: name_(name),
   current_state_(std::make_shared<state_machine<state_t>>(state_t::bof)),
   is_shuting_down_(false)
 {
@@ -20,8 +20,7 @@ vds::timer::timer(const char * name)
 
 
 vds::task_manager::task_manager()
-: sp_(service_provider::empty()),
-  is_shuting_down_(false)
+: is_shuting_down_(false)
 {
 }
 
@@ -31,21 +30,20 @@ vds::task_manager::~task_manager()
 
 
 void vds::timer::start(
-  const vds::service_provider& sp,
+  const vds::service_provider * sp,
   const std::chrono::steady_clock::duration & period,
   const std::function< bool(void) >& callback)
 {
   this->current_state_->change_state(state_t::bof, state_t::scheduled).wait();
-  this->sp_ = sp;
   this->period_ = period;
   this->handler_ = callback;
   
   this->schedule(sp);
 }
 
-void vds::timer::stop(const vds::service_provider& sp)
+void vds::timer::stop(const service_provider * sp)
 {
-	auto manager = static_cast<task_manager *>(sp.get<itask_manager>());
+	auto manager = static_cast<task_manager *>(sp->get<task_manager>());
 
 	std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
 	manager->scheduled_.remove(this);
@@ -53,46 +51,40 @@ void vds::timer::stop(const vds::service_provider& sp)
 	this->current_state_->wait(state_t::eof).wait();
 }
 
-void vds::timer::execute(const vds::service_provider& sp)
+void vds::timer::execute(const vds::service_provider * sp)
 {
   try {
-    if (!this->is_shuting_down_ && !sp.get_shutdown_event().is_shuting_down()) {
+    if (!this->is_shuting_down_) {
       this->current_state_->change_state(state_t::scheduled, state_t::in_handler).wait();
       if (this->handler_()) {
         this->current_state_->change_state(state_t::in_handler, state_t::scheduled).wait();
         this->schedule(sp);
       } else {
-        sp.get<logger>()->trace("tm", sp, "Task %s finished", this->name_.c_str());
         this->current_state_->change_state(state_t::in_handler, state_t::eof).wait();
       }
     } else {
       this->current_state_->change_state(state_t::scheduled, state_t::eof).wait();
-      sp.get<logger>()->trace("tm", sp, "Task finished by shuting down");
     }
   }
   catch (...) {
-    sp.unhandled_exception(std::current_exception());
   }
 }
 
-void vds::timer::schedule(const vds::service_provider& sp)
+void vds::timer::schedule(const vds::service_provider * sp)
 {
-  if(sp.get_shutdown_event().is_shuting_down()){
+  if(sp->get_shutdown_event().is_shuting_down()){
     return;
   }
   
-  auto manager = static_cast<task_manager *>(sp.get<itask_manager>());
+  auto manager = static_cast<task_manager *>(sp->get<task_manager>());
   
   this->start_time_ = std::chrono::steady_clock::now() + this->period_;
 
   std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
   manager->scheduled_.push_back(this);
-  sp.get<logger>()->trace("tm", sp, "Add Task %s", this->name_.c_str());
+  sp->get<logger>()->trace("tm", sp, "Add Task %s", this->name_.c_str());
 
   if (!manager->work_thread_.joinable()) {
-    if (!manager->sp_) {
-      throw std::runtime_error("Invalid task_manager state");
-    }
     manager->work_thread_ = std::thread([manager]() {
       manager->work_thread();
     });
@@ -103,18 +95,17 @@ void vds::timer::schedule(const vds::service_provider& sp)
 
 void vds::task_manager::register_services(service_registrator & registrator)
 {
-  registrator.add_service<itask_manager>(this);
+  registrator.add_service<task_manager>(this);
 }
 
-void vds::task_manager::start(const service_provider & sp)
+void vds::task_manager::start(const service_provider * sp)
 {
-  this->sp_ = sp.create_scope("task_manager");
-  imt_service::enable_async(this->sp_);
+  this->sp_ = sp;
 }
 
-void vds::task_manager::stop(const service_provider & sp)
+void vds::task_manager::stop(const service_provider * sp)
 {
-  sp.get<logger>()->debug("tm", sp, "Stopping task manager");
+  sp->get<logger>()->debug("tm", sp, "Stopping task manager");
 
   this->is_shuting_down_ = true;
   if (this->work_thread_.joinable()) {
@@ -135,8 +126,6 @@ void vds::task_manager::work_thread()
     for(auto task : this->scheduled_){
       if(task->start_time_ <= now){
         this->scheduled_.remove(task);
-        this->sp_.get<logger>()->trace("tm", this->sp_, "Remove Task %s", task->name_.c_str());
-
         ++b;
         
         imt_service::async(this->sp_, [this, task, &b](){
@@ -162,8 +151,6 @@ void vds::task_manager::work_thread()
     this->scheduled_changed_.wait_for(lock, timeout);
   }
   
-  this->sp_.get<logger>()->debug("tm", this->sp_, "Waiting stop task manager");
   b.wait();
-  this->sp_.get<logger>()->debug("tm", this->sp_, "Task manager stopped");
   
 }

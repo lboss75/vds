@@ -406,7 +406,7 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::const_data_bu
 //            }
 //			vds::user_channel channel(channel_id, channel_name, channel_read_cert, channel_write_cert);
 //
-//			sp.get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
+//			sp->get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
 //				channel_name.c_str(),
 //				channel_id.str().c_str(),
 //				vds::cert_control::get_id(channel_write_cert).str().c_str());
@@ -499,7 +499,7 @@ void vds_mock::allow_read_channel(size_t client_index, const vds::const_data_buf
 //            }
 //            vds::user_channel channel(channel_id, channel_name, channel_read_cert, channel_write_cert);
 //
-//            sp.get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
+//            sp->get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
 //                                         channel_name.c_str(),
 //                                         channel_id.str().c_str(),
 //                                         vds::cert_control::get_id(channel_write_cert).str().c_str());
@@ -556,12 +556,11 @@ vds::const_data_buffer vds_mock::upload_file(
   const std::string &mimetype,
   const std::shared_ptr<vds::stream_input_async<uint8_t>>& input_stream) {
 
-  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
+  auto sp = this->servers_[client_index]->get_service_provider();
 
-  vds::mt_service::enable_async(sp);
   auto user_mng = std::make_shared<vds::user_manager>();
 
-  sp.get<vds::db_model>()->async_transaction(
+  sp->get<vds::db_model>()->async_transaction(
     sp,
     [this, sp, user_mng](vds::database_transaction & t) -> bool {
 
@@ -574,7 +573,7 @@ vds::const_data_buffer vds_mock::upload_file(
     return true;
   }).get();
 
-  auto file_info = sp.get<vds::file_manager::file_operations>()->upload_file(
+  auto file_info = sp->get<vds::file_manager::file_operations>()->upload_file(
     sp,
     user_mng,
     name,
@@ -582,7 +581,7 @@ vds::const_data_buffer vds_mock::upload_file(
     input_stream).get();
 
   std::list<vds::transactions::user_message_transaction::file_info_t> files{ file_info };
-  sp.get<vds::file_manager::file_operations>()->create_message(
+  sp->get<vds::file_manager::file_operations>()->create_message(
     sp,
     user_mng,
     channel_id,
@@ -599,12 +598,11 @@ vds_mock::download_data(
   const std::string &name,
   const vds::const_data_buffer & file_hash,
   const std::shared_ptr<vds::stream_output_async<uint8_t>> & output_stream) {
-  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
-  vds::mt_service::enable_async(sp);
+  auto sp = this->servers_[client_index]->get_service_provider();
 
   auto user_mng = std::make_shared<vds::user_manager>();
 
-  co_await sp.get<vds::db_model>()->async_transaction(
+  co_await sp->get<vds::db_model>()->async_transaction(
     sp,
     [this, sp, user_mng, name, channel_id, file_hash](vds::database_transaction &t) {
 
@@ -618,7 +616,7 @@ vds_mock::download_data(
   });
 
 
-  co_return co_await sp.get<vds::file_manager::file_operations>()->download_file(
+  co_return co_await sp->get<vds::file_manager::file_operations>()->download_file(
     sp,
     user_mng,
     channel_id,
@@ -630,12 +628,11 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
 
   vds::user_channel result;
 
-  auto sp = this->servers_[index]->get_service_provider().create_scope(__FUNCTION__);
-  vds::mt_service::enable_async(sp);
+  auto sp = this->servers_[index]->get_service_provider();
 
   auto user_mng = std::make_shared<vds::user_manager>();
 
-  sp.get<vds::db_model>()->async_transaction(
+  sp->get<vds::db_model>()->async_transaction(
     sp,
     [this, sp, user_mng](vds::database_transaction &t) -> bool {
 
@@ -652,7 +649,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
   return user_mng->create_channel(sp, name).get();
 }
 
-vds::service_provider vds_mock::get_sp(int client_index) {
+const vds::service_provider * vds_mock::get_sp(int client_index) {
   return this->servers_[client_index]->get_service_provider();
 }
 
@@ -660,7 +657,7 @@ mock_server::mock_server(int index, int udp_port)
   : index_(index),
   tcp_port_(udp_port),
   udp_port_(udp_port),
-  sp_(vds::service_provider::empty()),
+  sp_(nullptr),
   logger_(
     test_config::instance().log_level(),
     test_config::instance().modules())
@@ -676,17 +673,16 @@ void mock_server::init_root(
 
   auto user_mng = std::make_shared<vds::user_manager>();
 
-  const auto sp = this->get_service_provider().create_scope(__FUNCTION__);
-  vds::mt_service::enable_async(sp);
+  const auto sp = this->get_service_provider();
 
   user_mng->reset(sp, root_user_name, root_password, private_info);
 }
 
 //
 //void mock_server::allocate_storage(const std::string& root_login, const std::string& root_password) {
-//  this->login(root_login, root_password,[](const vds::service_provider & sp, const std::shared_ptr<vds::user_manager> & user_mng) {
-//    return sp.get<db_model>()->async_transaction(sp, [sp, user_mng](database_transaction & t) {
-//      auto client = sp.get<dht::network::client>();
+//  this->login(root_login, root_password,[](const vds::service_provider * sp, const std::shared_ptr<vds::user_manager> & user_mng) {
+//    return sp->get<db_model>()->async_transaction(sp, [sp, user_mng](database_transaction & t) {
+//      auto client = sp->get<dht::network::client>();
 //      auto current_node = client->current_node_id();
 //      foldername fl(foldername(persistence::current_user(sp), ".vds"), "storage");
 //      fl.create();
@@ -708,14 +704,13 @@ void mock_server::init_root(
 void mock_server::login(
   const std::string& root_login,
   const std::string& root_password,
-  const std::function<void(const vds::service_provider & sp, const std::shared_ptr<vds::user_manager> & user_mng)> & callback) {
+  const std::function<void(const vds::service_provider * sp, const std::shared_ptr<vds::user_manager> & user_mng)> & callback) {
 
-auto sp = this->get_service_provider().create_scope(__FUNCTION__);
-vds::mt_service::enable_async(sp);
+auto sp = this->get_service_provider();
 
 auto user_mng = std::make_shared<vds::user_manager>();
 
-  sp.get<vds::db_model>()->async_transaction(
+  sp->get<vds::db_model>()->async_transaction(
     sp,
     [sp, user_mng, root_login, root_password](vds::database_transaction &t) {
 
@@ -749,12 +744,10 @@ void mock_server::start()
   this->registrator_.add(this->server_);
 
   //this->connection_manager_.set_addresses("udp://127.0.0.1:" + std::to_string(8050 + this->index_));
+  this->registrator_.current_user(folder);
+  this->registrator_.local_machine(folder);
 
-  this->sp_ = this->registrator_.build(("mock server on " + std::to_string(this->udp_port_)).c_str());
-  auto root_folders = new vds::persistence_values();
-  root_folders->current_user_ = folder;
-  root_folders->local_machine_ = folder;
-  this->sp_.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
+  this->sp_ = this->registrator_.build();
   this->registrator_.start(this->sp_);
 
   std::shared_ptr<std::exception> error;
@@ -795,23 +788,19 @@ void mock_server::init(
   registrator.add(crypto_service);
   registrator.add(network_service);
   registrator.add(server);
+  
+  registrator.current_user(folder);
+  registrator.local_machine(folder);
 
-  auto sp = registrator.build("mock server::init");
+  auto sp = registrator.build();
   try {
-    auto root_folders = new vds::persistence_values();
-    root_folders->current_user_ = folder;
-    root_folders->local_machine_ = folder;
-    sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
-
     registrator.start(sp);
-
-    vds::imt_service::enable_async(sp);
 
     server.start_network(sp, udp_port).get();
 
         auto user_mng = std::make_shared<vds::user_manager>();
 
-              sp.get<vds::db_model>()->async_transaction(sp, [sp, user_mng, user_login, user_password](
+              sp->get<vds::db_model>()->async_transaction(sp, [sp, user_mng, user_login, user_password](
                   vds::database_transaction &t) {
                 user_mng->load(
                     sp,

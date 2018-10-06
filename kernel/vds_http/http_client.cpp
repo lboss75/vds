@@ -12,14 +12,14 @@ vds::http_client::http_client()
 }
 
 std::future<void> vds::http_client::send(
-  const vds::service_provider & sp,
+  const vds::service_provider * sp,
   const std::shared_ptr<vds::http_message>& message)
 {
 }
 
 
 std::future<void> vds::http_client::start(
-  const vds::service_provider & sp,
+  const vds::service_provider * sp,
   const handler_type & handler)
 {
   return async_series(
@@ -29,7 +29,7 @@ std::future<void> vds::http_client::start(
 }
 
 std::future<void> vds::http_client::process_input_commands(
-  const vds::service_provider & sp,
+  const vds::service_provider * sp,
   const handler_type & handler)
 {
   return this->input_commands_->read_async(sp, &this->input_buffer_, 1)

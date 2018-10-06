@@ -143,13 +143,13 @@ namespace vds {
   {
   public:
     _udp_receive(
-        const service_provider & /*sp*/,
+        const service_provider * /*sp*/,
         const std::shared_ptr<udp_socket> & s)
       : s_(s)
     {
     }
 
-    std::future<udp_datagram> read_async(const service_provider & sp)
+    std::future<udp_datagram> read_async(const service_provider * sp)
     {
       vds_assert(!this->result_);
 
@@ -160,7 +160,7 @@ namespace vds {
       auto r = std::make_shared<std::promise<udp_datagram>>();
       this->result_ = r;
 
-      sp.get<logger>()->trace("UDP", sp, "WSARecvFrom %d", this->s_);
+      sp->get<logger>()->trace("UDP", sp, "WSARecvFrom %d", this->s_);
 
       DWORD flags = 0;
       DWORD numberOfBytesRecvd;
@@ -185,19 +185,19 @@ namespace vds {
                 "WSARecvFrom failed")));
         }
         else {
-          sp.get<logger>()->trace("UDP", sp, "Read scheduled");
+          sp->get<logger>()->trace("UDP", sp, "Read scheduled");
         }
       }
       else {
         auto errorCode = WSAGetLastError();
-        sp.get<logger>()->trace("UDP", sp, "Direct readed %d, code %d", numberOfBytesRecvd, errorCode);
+        sp->get<logger>()->trace("UDP", sp, "Direct readed %d, code %d", numberOfBytesRecvd, errorCode);
         //this_->process(numberOfBytesRecvd);
       }
 
       return r->get_future();
     }
 
-    void prepare_to_stop(const service_provider & sp)
+    void prepare_to_stop(const service_provider * sp)
     {
     }
 
@@ -229,12 +229,12 @@ namespace vds {
   {
   public:
     _udp_send(
-        const service_provider & /*sp*/,
+        const service_provider * /*sp*/,
         const std::shared_ptr<udp_socket> & s)
       : s_(s) {
     }
 
-    std::future<void> write_async(const service_provider & sp, const udp_datagram & data)
+    std::future<void> write_async(const service_provider * sp, const udp_datagram & data)
     {
       std::unique_lock<not_mutex> lock(this->not_mutex_);
       vds_assert(!this->result_);
@@ -242,7 +242,7 @@ namespace vds {
       this->buffer_ = data;
       this->wsa_buf_.len = this->buffer_.data_size();
       this->wsa_buf_.buf = (CHAR *)this->buffer_.data();
-      sp.get<logger>()->trace(
+      sp->get<logger>()->trace(
         "UDP",
         sp,
         "write_async %s %d bytes",
@@ -254,7 +254,7 @@ namespace vds {
       lock.unlock();
 
 
-      sp.get<logger>()->trace(
+      sp->get<logger>()->trace(
         "UDP",
         sp,
         "WSASendTo %s %d bytes (%s)",
@@ -282,7 +282,7 @@ namespace vds {
       return r->get_future();
     }
 
-    void prepare_to_stop(const service_provider & sp)
+    void prepare_to_stop(const service_provider * sp)
     {
     }
 
@@ -325,9 +325,9 @@ namespace vds {
   {
   public:
     _udp_receive(
-        const service_provider & sp,
+        const service_provider * sp,
         const std::shared_ptr<socket_base> & owner)
-      : ns_(sp.get<network_service>()->operator->()),
+      : ns_(sp->get<network_service>()->operator->()),
         owner_(owner)
     {
     }
@@ -336,7 +336,7 @@ namespace vds {
     {
     }
 
-    std::future<udp_datagram> read_async(const service_provider & sp) {
+    std::future<udp_datagram> read_async(const service_provider * sp) {
       this->addr_.reset();
       int len = recvfrom((*this->owner())->handle(),
                          this->read_buffer_,
@@ -410,14 +410,14 @@ namespace vds {
   class _udp_send : public udp_datagram_writer {
   public:
     _udp_send(
-        const service_provider & sp,
+        const service_provider * sp,
         const std::shared_ptr<socket_base> & owner)
-        : ns_(sp.get<network_service>()->operator->()),
+        : ns_(sp->get<network_service>()->operator->()),
           owner_(owner) {
 
     }
 
-    std::future<void> write_async(const service_provider & sp, const udp_datagram & message) {
+    std::future<void> write_async(const service_provider * sp, const udp_datagram & message) {
       this->write_message_ = message;
       auto r = std::make_shared<std::promise<void>>();
       this->write_result_ = r;
@@ -487,12 +487,9 @@ namespace vds {
     {
     }
 
-    std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>> start(const service_provider & sp)
+    std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>> start(const service_provider * sp)
     {
-      auto scope = sp.create_scope(("UDP server on " + this->address_.to_string()).c_str());
-      imt_service::enable_async(scope);
-
-      this->socket_ = udp_socket::create(scope, this->address_.family());
+      this->socket_ = udp_socket::create(sp, this->address_.family());
 
       if (0 > bind((*this->socket_)->handle(), this->address_, this->address_.size())) {
 #ifdef _WIN32
@@ -503,14 +500,14 @@ namespace vds {
         throw std::system_error(error, std::system_category(), "bind socket");
       }
 
-      return this->socket_->start(scope);
+      return this->socket_->start(sp);
     }
 
-    void prepare_to_stop(const service_provider & sp)
+    void prepare_to_stop(const service_provider * sp)
     {
     }
 
-    void stop(const service_provider & sp)
+    void stop(const service_provider * sp)
     {
       this->socket_->stop();
     }
@@ -540,7 +537,7 @@ namespace vds {
     }
 
     std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>>
-      start(const service_provider & sp, sa_family_t af)
+      start(const service_provider * sp, sa_family_t af)
     {
       this->socket_ = udp_socket::create(sp, af);
 

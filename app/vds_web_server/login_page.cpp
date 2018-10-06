@@ -14,7 +14,7 @@ All rights reserved
 #include "dht_object_id.h"
 
 std::future<vds::http_message> vds::login_page::register_request_post(
-  const service_provider& sp,
+  const service_provider * sp,
   const std::shared_ptr<_web_server>& owner,
   const http_message& message) {
   auto parser = std::make_shared<http::simple_form_parser>();

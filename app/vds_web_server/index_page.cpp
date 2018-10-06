@@ -12,7 +12,7 @@ All rights reserved
 #include "http_form_parser.h"
 #include "file_operations.h"
 
-std::future<vds::http_message> vds::index_page::create_channel(const vds::service_provider& sp,
+std::future<vds::http_message> vds::index_page::create_channel(const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng, const std::shared_ptr<_web_server>& web_server,
   const http_message& message) {
 
@@ -45,8 +45,8 @@ public:
     }
   }
 
-  std::future<void> on_file(const vds::service_provider & sp, const file_info & file) {
-    auto file_info = co_await sp.get<vds::file_manager::file_operations>()->upload_file(
+  std::future<void> on_file(const vds::service_provider * sp, const file_info & file) {
+    auto file_info = co_await sp->get<vds::file_manager::file_operations>()->upload_file(
       sp,
       this->user_mng_,
       file.file_name,
@@ -56,8 +56,8 @@ public:
     this->files_.push_back(file_info);
   }
 
-  std::future<void> complete(const vds::service_provider & sp) {
-    return sp.get<vds::file_manager::file_operations>()->create_message(
+  std::future<void> complete(const vds::service_provider * sp) {
+    return sp->get<vds::file_manager::file_operations>()->create_message(
       sp,
       this->user_mng_,
       this->channel_id_,
@@ -72,7 +72,7 @@ private:
   std::string message_;
 };
 
-std::future<vds::http_message> vds::index_page::create_message(const vds::service_provider& sp,
+std::future<vds::http_message> vds::index_page::create_message(const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng, const std::shared_ptr<_web_server>& web_server,
   const http_message& message) {
 
@@ -95,7 +95,7 @@ public:
     //Ignore throw std::runtime_error("Invalid field " + field.name);
   }
 
-  std::future<void> on_file(const vds::service_provider & sp, const file_info & file) {
+  std::future<void> on_file(const vds::service_provider * sp, const file_info & file) {
 
     auto buffer = co_await file.stream->read_all(sp);
 
@@ -125,7 +125,7 @@ private:
 };
 
 std::future<vds::http_message> vds::index_page::parse_join_request(
-  const vds::service_provider& sp,
+  const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
   const std::shared_ptr<_web_server>& web_server,
   const http_message& message) {
@@ -161,7 +161,7 @@ public:
     //Ignore
   }
 
-  std::future<void> on_file(const vds::service_provider & sp, const file_info & file) {
+  std::future<void> on_file(const vds::service_provider * sp, const file_info & file) {
     auto buffer = co_await file.stream->read_all(sp);
 
     this->successful_ = co_await this->user_mng_->approve_join_request(sp, buffer);
@@ -177,7 +177,7 @@ private:
 };
 
 
-std::future<vds::http_message> vds::index_page::approve_join_request(const vds::service_provider& sp,
+std::future<vds::http_message> vds::index_page::approve_join_request(const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng, const std::shared_ptr<_web_server>& web_server,
   const http_message& message) {
 

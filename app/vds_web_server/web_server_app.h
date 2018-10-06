@@ -16,11 +16,10 @@ namespace vds {
   public:
     web_server_app();
 
-    void main(const service_provider & sp);
+    void main(const service_provider * sp);
     
     void register_services(service_registrator & registrator);
     void register_command_line(command_line & cmd_line);
-    void start_services(service_registrator & registrator, service_provider & sp);
 
     bool need_demonize();
 

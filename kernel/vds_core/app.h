@@ -138,8 +138,16 @@ namespace vds{
 
       auto pthis = static_cast<app_impl *>(this);
       pthis->register_services(registrator);
-      
-      auto sp = registrator.build("application");
+
+      if (!this->root_folder_.value().empty()) {
+        vds::foldername folder(this->root_folder_.value());
+        folder.create();
+
+        registrator.current_user(folder);
+        registrator.local_machine(folder);
+      }
+
+      auto sp = registrator.build();
       try {
         pthis->prepare(sp);
         pthis->start_services(registrator, sp);
@@ -170,39 +178,24 @@ namespace vds{
       registrator.add(this->logger_);
     }
 
-    void start_services(service_registrator & registrator, service_provider & sp)
+    void start_services(service_registrator & registrator, service_provider * sp)
     {
       registrator.start(sp);
       this->logger_.debug("core", sp, "Start application");
     }
 
-    void before_main(service_provider & sp)
+    void before_main(service_provider * sp)
     {
-      sp.set_property<unhandled_exception_handler>(
-        service_provider::property_scope::any_scope,
-        new vds::unhandled_exception_handler(
-          [this](const vds::service_provider & sp, const std::exception_ptr & ex) {
-        static_cast<app_impl *>(this)->on_exception(sp, ex);
-      }));
     }
     
-    void prepare(service_provider & sp)
+    void prepare(service_provider * sp)
     {
-      if (!this->root_folder_.value().empty()) {
-        vds::foldername folder(this->root_folder_.value());
-        folder.create();
-
-        auto root_folders = new vds::persistence_values();
-        root_folders->current_user_ = folder;
-        root_folders->local_machine_ = folder;
-        sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
-      }
     }
 
-    void on_exception(const service_provider & sp, const std::exception_ptr & ex)
+    void on_exception(const service_provider * sp, const std::exception_ptr & ex)
     {
-      sp.get<logger>()->error("VDS", sp, "Fatal error");
-      sp.get<logger>()->flush();
+      sp->get<logger>()->error("VDS", sp, "Fatal error");
+      sp->get<logger>()->flush();
 
       exit(1);
     }
@@ -509,7 +502,7 @@ namespace vds{
     {
     }
     
-    void on_exception(const service_provider & sp, const std::exception_ptr & ex)
+    void on_exception(const service_provider * sp, const std::exception_ptr & ex)
     {
       std::cerr << "Fatal error\n";
       

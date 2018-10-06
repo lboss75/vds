@@ -42,7 +42,7 @@ namespace vds {
     }
 
     std::future<void> write_async(
-      const service_provider & sp,
+      const service_provider * sp,
       const item_type * data,
       size_t data_size)
     {
@@ -51,7 +51,6 @@ namespace vds {
       }
 
       this->in_mutex_.lock();
-      this->in_mutex_stack_ = sp.full_name();
 
       if (0 == data_size) {
         if (this->eof_) {
@@ -59,7 +58,6 @@ namespace vds {
           throw std::runtime_error("continuous_buffer::write_all_async logic error");
         }
         this->eof_ = true;
-        this->eof_stack_ = sp.full_name();
 
         if (this->continue_read_) {
           std::function<void(void)> f;
@@ -83,7 +81,7 @@ namespace vds {
       }
     }
 
-    std::future<size_t /*readed*/> read_async(const service_provider & sp, item_type * buffer, size_t buffer_size)
+    std::future<size_t /*readed*/> read_async(const service_provider * sp, item_type * buffer, size_t buffer_size)
     {
       vds_assert(0 != buffer_size);
 
@@ -92,7 +90,6 @@ namespace vds {
       }
 
       this->out_mutex_.lock();
-      this->out_mutex_stack_ = sp.full_name();
 
       size_t readed = co_await this->continue_read(sp, buffer, buffer_size);
 
@@ -101,16 +98,14 @@ namespace vds {
       co_return readed;
     }
 
-    std::future<const_data_buffer> read_all(const service_provider & sp)
+    std::future<const_data_buffer> read_all(const service_provider * sp)
     {
       auto buffer = std::make_shared<std::tuple<resizable_data_buffer, item_type[1024]>>();
       co_return co_await this->read_all(sp, buffer);
     }
 
   private:
-    std::string in_mutex_stack_;
     not_mutex in_mutex_;
-    std::string out_mutex_stack_;
     not_mutex out_mutex_;
     std::mutex buffer_mutex_;
     item_type buffer_[4096];
@@ -129,11 +124,11 @@ namespace vds {
     std::function<void(void)> continue_read_;
 
     std::future<size_t /*len*/> continue_write(
-      const service_provider & sp,
+      const service_provider * sp,
       const item_type * data,
       size_t data_size)
     {
-      std::unique_lock<std::mutex> lock(this->buffer_mutex_);
+      this->buffer_mutex_.lock();
       if (this->back_ < sizeof(this->buffer_) / sizeof(this->buffer_[0])) {
         size_t len = sizeof(this->buffer_) / sizeof(this->buffer_[0]) - this->back_;
         if (len > data_size) {
@@ -149,7 +144,7 @@ namespace vds {
           mt_service::async(sp, f);
         }
 
-        lock.unlock();
+        this->buffer_mutex_.unlock();
 
         co_return len;
       }
@@ -167,25 +162,23 @@ namespace vds {
           mt_service::async(sp, f);
         }
 
-        lock.unlock();
+        this->buffer_mutex_.unlock();
 
         co_return len;
       }
 
-      co_return co_await schedule_write(sp, data, data_size);
-    }
-
-    std::future<size_t> schedule_write(const service_provider & sp, const item_type *data, size_t data_size) {
       auto result = std::make_shared<std::promise<size_t>>();
       continue_write_ = [pthis = this->shared_from_this(), sp, result, data, data_size](){
         auto size = pthis->continue_write(sp, data, data_size).get();
         result->set_value(size);
       };
-      return result->get_future();
+      this->buffer_mutex_.unlock();
+
+      co_return co_await result->get_future();
     }
 
     std::future<void> write_all(
-      const service_provider & sp,
+      const service_provider * sp,
       const item_type * data,
       size_t data_size)
     {
@@ -203,12 +196,12 @@ namespace vds {
     }
 
     std::future<size_t /*readed*/> continue_read(
-      const service_provider & sp,
+      const service_provider * sp,
       item_type * buffer,
       size_t buffer_size)
     {
       vds_assert(0 != buffer_size);
-      std::unique_lock<std::mutex> lock(this->buffer_mutex_);
+      this->buffer_mutex_.lock();
 
       if (this->front_ < this->back_) {
         size_t len = this->back_ - this->front_;
@@ -230,12 +223,14 @@ namespace vds {
           mt_service::async(sp, f);
         }
         vds_assert(0 != len);
+        this->buffer_mutex_.unlock();
+
         co_return len;
       }
       else if (this->eof_) {
         vds_assert(!this->eof_readed_);
         this->eof_readed_ = true;
-        lock.unlock();
+        this->buffer_mutex_.unlock();
 
         co_return 0;
       }
@@ -250,11 +245,12 @@ namespace vds {
           result->set_exception(std::current_exception());
         }
       };
+      this->buffer_mutex_.unlock();
 
       co_return co_await result->get_future();
     }
     std::future<const_data_buffer> read_all(
-      const service_provider & sp,
+      const service_provider * sp,
       const std::shared_ptr<std::tuple<resizable_data_buffer, item_type[1024]>> & buffer)
     {
       for (;;) {
@@ -288,7 +284,7 @@ namespace vds {
     }
 
     std::future<size_t> read_async(
-      const service_provider &sp,
+      const service_provider *sp,
       uint8_t * buffer,
       size_t len) override {
       return this->buffer_->read_async(sp, buffer, len);
@@ -307,7 +303,7 @@ namespace vds {
     }
 
     std::future<void> write_async(
-      const service_provider &sp,
+      const service_provider *sp,
       const uint8_t *data,
       size_t len) override {
       return this->buffer_->write_async(sp, data, len);

@@ -164,7 +164,7 @@ void vds::_user_channel::add_writer(
 }
 
 std::shared_ptr<vds::user_channel> vds::_user_channel::import_personal_channel(
-  const service_provider& sp,
+  const service_provider * sp,
   const std::shared_ptr<certificate>& user_cert,
   const std::shared_ptr<asymmetric_private_key>& user_private_key) {
 

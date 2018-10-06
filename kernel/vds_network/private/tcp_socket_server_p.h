@@ -38,12 +38,11 @@ namespace vds {
     }
 
     std::future<void> start(
-      const service_provider & sp,
+      const service_provider * sp,
       const network_address & address,
       const std::function<std::future<void>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection)
     {
-      imt_service::async_enabled_check(sp);
-        
+       
 #ifdef _WIN32
         this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 
@@ -68,7 +67,7 @@ namespace vds {
           [this, sp, new_connection]() {
 
           HANDLE events[2];
-          events[0] = sp.get_shutdown_event().windows_handle();
+          events[0] = sp->get_shutdown_event().windows_handle();
           events[1] = this->accept_event_.handle();
           std::list<std::future<void>> connections;
           for (;;) {
@@ -89,8 +88,8 @@ namespace vds {
 
               auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
               if (INVALID_SOCKET != socket) {
-                sp.get<logger>()->trace("TCP", sp, "Connection from %s", network_service::to_string(client_address).c_str());
-                (*sp.get<network_service>())->associate(socket);
+                sp->get<logger>()->trace("TCP", sp, "Connection from %s", network_service::to_string(client_address).c_str());
+                (*sp->get<network_service>())->associate(socket);
                 auto s = _tcp_network_socket::from_handle(socket);
                 connections.push_back(std::move(new_connection(s)));
               }
@@ -127,7 +126,7 @@ namespace vds {
             }
             
             //bind to address
-            sp.get<logger>()->trace("UDP", sp, "Starting UDP server on %s", address.to_string().c_str());
+            sp->get<logger>()->trace("UDP", sp, "Starting UDP server on %s", address.to_string().c_str());
             if (0 > ::bind(this->s_, address, address.size())) {
               auto error = errno;
               throw std::system_error(error, std::system_category());
@@ -172,7 +171,7 @@ namespace vds {
                   return;
                 }
                 
-                while(!this->is_shuting_down_ && !sp.get_shutdown_event().is_shuting_down()) {
+                while(!this->is_shuting_down_ && !sp->get_shutdown_event().is_shuting_down()) {
                   auto result = epoll_wait(epollfd, &ev, 1, 1000);
                   if(result > 0){
                     sockaddr client_address;
@@ -192,7 +191,7 @@ namespace vds {
             co_return;
     }
     
-    void stop(const service_provider & sp)
+    void stop(const service_provider * sp)
     {
     }
     

@@ -14,7 +14,7 @@ namespace vds {
   {
   public:
     void register_channel(
-      const service_provider & sp,
+      const service_provider * sp,
       const database_transaction & t,
       const std::string & id,
       const std::string & name

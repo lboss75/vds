@@ -11,18 +11,11 @@ All rights reserved
 
 namespace vds {
 
-  class persistence_values : public service_provider::property_holder
-  {
-  public:
-    foldername current_user_;
-    foldername local_machine_;
-  };
-
   class persistence
   {
   public:
-    static foldername current_user(const service_provider & sp);
-    static foldername local_machine(const service_provider & sp);
+    static foldername current_user(const service_provider * sp);
+    static foldername local_machine(const service_provider * sp);
   };
 }
 

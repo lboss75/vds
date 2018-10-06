@@ -28,7 +28,7 @@ namespace vds {
     }
 
     std::future<void> process(
-      const service_provider & sp,
+      const service_provider * sp,
       const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
 
       while (!this->eof_) {
@@ -117,11 +117,11 @@ namespace vds {
 
     
 
-    std::future<void> continue_read_data(const service_provider& sp) {
+    std::future<void> continue_read_data(const service_provider * sp) {
       co_return;
     }
 
-    std::future<void> finish_message(const service_provider& sp) {
+    std::future<void> finish_message(const service_provider * sp) {
       co_return;
     }
     
@@ -162,7 +162,7 @@ namespace vds {
 
 
       std::future<size_t> parse_body(
-        const service_provider& sp,
+        const service_provider * sp,
         uint8_t* buffer,
         size_t buffer_size) {
         if (0 == this->content_length_) {
@@ -178,12 +178,10 @@ namespace vds {
 
         if (this->readed_ == this->processed_) {
           this->processed_ = 0;
-          this->readed_ = co_await
-            this->input_stream_->read_async(sp, this->buffer_, sizeof(this->buffer_));
+          this->readed_ = co_await this->input_stream_->read_async(sp, this->buffer_, sizeof(this->buffer_));
           if (0 == this->readed_) {
             this->eof_ = true;
-            co_return
-              0;
+            co_return 0;
           }
         }
 
@@ -203,22 +201,6 @@ namespace vds {
         co_return size;
       }
 
-      std::future<std::optional<size_t>> parse_size(
-        const service_provider &sp,
-        uint8_t * buffer,
-        size_t buffer_size) {
-
-        if (0 < this->content_length_) {
-          this->state_ = StateEnum::STATE_PARSE_BODY;
-          co_return std::optional<size_t>();
-        }
-        else {
-          this->state_ = StateEnum::STATE_PARSE_HEADER;
-          co_return 0;
-        }
-      }
-
-
       std::future<void> parse_content_size() {
         std::promise<void> result;
 
@@ -235,22 +217,18 @@ namespace vds {
       }
 
       std::future<size_t> read_async(
-        const service_provider& sp,
+        const service_provider * sp,
         uint8_t* buffer,
         size_t buffer_size) override {
         for (;;) {
-
-
           switch (this->state_) {
           case StateEnum::STATE_PARSE_BODY: {
-            co_return co_await
-              this->parse_body(sp, buffer, buffer_size);
+            co_return co_await this->parse_body(sp, buffer, buffer_size);
           }
           case StateEnum::STATE_PARSE_SIZE: {
             if (this->readed_ == this->processed_) {
               this->processed_ = 0;
-              this->readed_ = co_await
-                this->input_stream_->read_async(sp, this->buffer_, sizeof(this->buffer_));
+              this->readed_ = co_await this->input_stream_->read_async(sp, this->buffer_, sizeof(this->buffer_));
               if (0 == this->readed_) {
                 this->eof_ = true;
                 co_return 0;
@@ -278,12 +256,15 @@ namespace vds {
 
             co_await this->parse_content_size();
 
-            auto result = co_await
-              this->parse_size(sp, buffer, buffer_size);
-            if (result.has_value()) {
-              co_return
-                result.value();
+            if (0 < this->content_length_) {
+              this->state_ = StateEnum::STATE_PARSE_BODY;
+              break;
             }
+            else {
+              this->state_ = StateEnum::STATE_PARSE_HEADER;
+              co_return 0;
+            }
+
             break;
           }
           case StateEnum::STATE_PARSE_FINISH_CHUNK: {

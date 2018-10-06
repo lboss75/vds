@@ -7,7 +7,7 @@ All rights reserved
 #include "http_simple_form_parser.h"
 #include "http_multipart_reader.h"
 
-std::future<void> vds::http::simple_form_parser::parse(const service_provider& sp, const http_message& message) {
+std::future<void> vds::http::simple_form_parser::parse(const service_provider * sp, const http_message& message) {
   std::string content_type;
   if (message.get_header("Content-Type", content_type)) {
     static const char multipart_form_data[] = "multipart/form-data;";
@@ -46,7 +46,7 @@ std::future<void> vds::http::simple_form_parser::parse(const service_provider& s
 }
 
 std::future<std::string> vds::http::simple_form_parser::form_parser::read_string_body(
-  const service_provider & sp,
+  const service_provider * sp,
   const http_message& part) {
 
   std::string buffer;
@@ -63,7 +63,7 @@ vds::http::simple_form_parser::form_parser::form_parser(const std::shared_ptr<si
 : owner_(owner) {
 }
 
-std::future<void> vds::http::simple_form_parser::form_parser::read_part(const service_provider& sp,
+std::future<void> vds::http::simple_form_parser::form_parser::read_part(const service_provider * sp,
   const http_message& part) {
   for (;;) {
     std::string content_disposition;
@@ -117,7 +117,7 @@ std::future<void> vds::http::simple_form_parser::form_parser::read_part(const se
   }
 }
 
-std::future<void> vds::http::simple_form_parser::form_parser::read_form_urlencoded(const service_provider& sp,
+std::future<void> vds::http::simple_form_parser::form_parser::read_form_urlencoded(const service_provider * sp,
   const http_message& message) {
   auto buffer = co_await this->read_string_body(sp, message);
   auto items = split_string(buffer, '&', true);
@@ -139,7 +139,7 @@ std::future<void> vds::http::simple_form_parser::form_parser::read_form_urlencod
 }
 
 std::future<void> vds::http::simple_form_parser::form_parser::skip_part(
-  const service_provider & sp,
+  const service_provider * sp,
   const vds::http_message& part) {
 
   for (;;) {

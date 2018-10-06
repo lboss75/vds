@@ -36,7 +36,6 @@ TEST(test_vds, test_initial)
     mock.allow_write_channel(3, channel.id());
 
     auto sp = mock.get_sp(3);
-    vds::mt_service::enable_async(sp);
     auto input_stream = std::make_shared<vds::continuous_buffer<uint8_t>>();
     vds::mt_service::async(sp, [sp, input_stream, &buffer, len] {
       input_stream->write_async(sp, buffer.get(), len).get();

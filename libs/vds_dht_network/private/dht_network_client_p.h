@@ -42,30 +42,30 @@ namespace vds {
       class _client : public std::enable_shared_from_this<_client> {
       public:
         _client(
-          const service_provider& sp,
+          const service_provider * sp,
           const std::shared_ptr<iudp_transport> & udp_transport,
           const std::shared_ptr<certificate> & node_cert,
           const std::shared_ptr<asymmetric_private_key> & node_key);
 
-        void start(const service_provider& sp);
-        void stop(const service_provider& sp);
+        void start(const service_provider * sp);
+        void stop(const service_provider * sp);
         void get_neighbors(
-          const service_provider& sp,
+          const service_provider * sp,
           std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>& result);
         
         void on_new_session(
-          const service_provider& sp,
+          const service_provider * sp,
           database_read_transaction& t,
           const const_data_buffer& partner_id);
 
         static filename save_data(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const const_data_buffer& data_hash,
           const const_data_buffer& data);
 
         std::vector<const_data_buffer> save(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const const_data_buffer& value);
 
@@ -74,7 +74,7 @@ namespace vds {
         }
 
         void neighbors(
-          const service_provider& sp,
+          const service_provider * sp,
           const const_data_buffer& key,
           std::map<const_data_buffer /*distance*/, std::list<const_data_buffer/*node_id*/>>& result,
           uint16_t max_count) const {
@@ -82,118 +82,118 @@ namespace vds {
         }
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           const messages::dht_find_node& message,
           const imessage_map::message_info_t& message_info);
 
         std::future<void> apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           const messages::dht_find_node_response& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           const messages::dht_ping& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           const messages::dht_pong& message,
           const imessage_map::message_info_t& message_info);
 
         //Sync messages
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_new_election_request& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_new_election_response& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_add_message_request& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_leader_broadcast_request& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_leader_broadcast_response& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_replica_operations_request& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_replica_operations_response& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_looking_storage_request& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_looking_storage_response& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_snapshot_request& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_snapshot_response& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_offer_send_replica_operation_request& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_offer_remove_replica_operation_request& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_replica_request& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_replica_data& message,
           const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t,
           const messages::sync_replica_query_operations_request & message,
           const imessage_map::message_info_t& message_info);
@@ -201,26 +201,26 @@ namespace vds {
         //
         template <typename message_type>
         std::future<void> send(
-          const service_provider& sp,
+          const service_provider * sp,
           const const_data_buffer& node_id,
           const message_type& message) {
           co_await this->send(sp, node_id, message_type::message_id, message.serialize());
         }
 
         std::future<void> send(
-          const service_provider& sp,
+          const service_provider * sp,
           const const_data_buffer& node_id,
           message_type_t message_id,
           const const_data_buffer& message);
 
         void find_nodes(
-            const service_provider& sp,
+            const service_provider * sp,
             const const_data_buffer& node_id,
             size_t radius);
 
         template <typename message_type>
         void send_near(
-          const service_provider& sp,
+          const service_provider * sp,
           const const_data_buffer& node_id,
           size_t radius,
           const message_type& message) {
@@ -229,7 +229,7 @@ namespace vds {
 
         template <typename message_type>
         void send_near(
-          const service_provider& sp,
+          const service_provider * sp,
           const const_data_buffer& node_id,
           size_t radius,
           const message_type& message,
@@ -239,21 +239,21 @@ namespace vds {
 
         template <typename message_type>
         std::future<void> send_neighbors(
-          const service_provider& sp,
+          const service_provider * sp,
           const message_type& message) {
           co_await this->send_neighbors(sp, message_type::message_id, message.serialize());
         }
 
-        void add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops);
+        void add_session(const service_provider * sp, const std::shared_ptr<dht_session>& session, uint8_t hops);
 
         std::future<void> restore(
-          const service_provider& sp,
+          const service_provider * sp,
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);
 
         std::future<uint8_t> restore_async(
-          const service_provider& sp,
+          const service_provider * sp,
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result);
 
@@ -261,13 +261,13 @@ namespace vds {
         void get_session_statistics(session_statistic& session_statistic);
 
         void add_route(
-          const service_provider& sp,
+          const service_provider * sp,
           const const_data_buffer& source_node,
           uint16_t hops,
           const std::shared_ptr<dht_session>& session);
 
         void remove_session(
-          const service_provider& sp,
+          const service_provider * sp,
           const std::shared_ptr<dht_session>& session);
 
       private:
@@ -286,21 +286,21 @@ namespace vds {
 
         uint32_t update_route_table_counter_;
 
-        std::future<void> update_route_table(const service_provider& sp);
+        std::future<void> update_route_table(const service_provider * sp);
         std::future<void> process_update(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t);
 
 
         std::future<void> send_near(
-          const service_provider& sp,
+          const service_provider * sp,
           const const_data_buffer& node_id,
           size_t radius,
           message_type_t message_id,
           const const_data_buffer& message);
 
         std::future<void> send_near(
-          const service_provider& sp,
+          const service_provider * sp,
           const const_data_buffer& node_id,
           size_t radius,
           message_type_t message_id,
@@ -308,7 +308,7 @@ namespace vds {
           const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter);
 
         std::future<void> proxy_message(
-            const service_provider &sp,
+            const service_provider *sp,
             const const_data_buffer &node_id,
             message_type_t message_id,
             const const_data_buffer &message,
@@ -316,7 +316,7 @@ namespace vds {
             uint16_t hops);
 
         std::future<void> send_neighbors(
-          const service_provider& sp,
+          const service_provider * sp,
           message_type_t message_id,
           const const_data_buffer& message);
 
@@ -325,7 +325,7 @@ namespace vds {
           uint16_t replica);
 
         std::future<void> update_wellknown_connection(
-          const service_provider& sp,
+          const service_provider * sp,
           database_transaction& t);
 
         static const_data_buffer read_data(

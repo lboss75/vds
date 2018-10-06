@@ -28,11 +28,11 @@
 
 #define route_client(message_type)\
   case dht::network::message_type_t::message_type: {\
-      co_await sp.get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) {\
+      co_await sp->get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) {\
         binary_deserializer s(message_info.message_data());\
         dht::messages::message_type message(s);\
-        (*sp.get<dht::network::client>())->apply_message(\
-        sp.create_scope("messages::" #message_type),\
+        (*sp->get<dht::network::client>())->apply_message(\
+         sp,\
          t,\
          message,\
          message_info);\
@@ -42,21 +42,20 @@
     }
 
 std::future<void> vds::_server::process_message(
-  const service_provider& scope,
+  const service_provider * sp,
   const message_info_t & message_info) {
 
-  if(scope.get_shutdown_event().is_shuting_down()) {
+  if(sp->get_shutdown_event().is_shuting_down()) {
     co_return;
   }
 
-  auto sp = scope.create_scope(__FUNCTION__);
   switch(message_info.message_type()){
   case dht::network::message_type_t::transaction_log_state: {
-    co_await sp.get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) -> std::future<void> {
+    co_await sp->get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) -> std::future<void> {
       binary_deserializer s(message_info.message_data());
       dht::messages::transaction_log_state message(s);
-      co_await (*sp.get<server>())->apply_message(
-          sp.create_scope("messages::transaction_log_state"),
+      co_await (*sp->get<server>())->apply_message(
+          sp,
           t,
           message,
           message_info);
@@ -64,13 +63,13 @@ std::future<void> vds::_server::process_message(
     break;
   }
   case dht::network::message_type_t::transaction_log_request: {
-    co_await sp.get<db_model>()->async_transaction(
+    co_await sp->get<db_model>()->async_transaction(
         sp,
         [sp, message_info](database_transaction & t) {
       binary_deserializer s(message_info.message_data());
       dht::messages::transaction_log_request message(s);
-      (*sp.get<server>())->apply_message(
-          sp.create_scope("messages::transaction_log_request"),
+      (*sp->get<server>())->apply_message(
+          sp,
           t,
           message,
           message_info);
@@ -78,11 +77,11 @@ std::future<void> vds::_server::process_message(
     break;
   }
   case dht::network::message_type_t::transaction_log_record: {
-    co_await sp.get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) {
+    co_await sp->get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) {
       binary_deserializer s(message_info.message_data());
       dht::messages::transaction_log_record message(s);
-      (*sp.get<server>())->apply_message(
-          sp.create_scope("messages::transaction_log_record"),
+      (*sp->get<server>())->apply_message(
+          sp,
           t,
           message,
           message_info);
@@ -94,8 +93,8 @@ std::future<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_find_node: {
       binary_deserializer s(message_info.message_data());
       dht::messages::dht_find_node message(s);
-      (*sp.get<dht::network::client>())->apply_message(
-          sp.create_scope("messages::dht_find_node"),
+      (*sp->get<dht::network::client>())->apply_message(
+          sp,
           message,
           message_info);
       break;
@@ -104,8 +103,8 @@ std::future<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_find_node_response: {
       binary_deserializer s(message_info.message_data());
       dht::messages::dht_find_node_response message(s);
-      co_await (*sp.get<dht::network::client>())->apply_message(
-          sp.create_scope("messages::dht_find_node_response"),
+      co_await (*sp->get<dht::network::client>())->apply_message(
+          sp,
           message,
           message_info);
       break;
@@ -114,8 +113,8 @@ std::future<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_ping: {
       binary_deserializer s(message_info.message_data());
       dht::messages::dht_ping message(s);
-      (*sp.get<dht::network::client>())->apply_message(
-          sp.create_scope("messages::dht_ping"),
+      (*sp->get<dht::network::client>())->apply_message(
+          sp,
           message,
           message_info);
       break;
@@ -124,8 +123,8 @@ std::future<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_pong: {
       binary_deserializer s(message_info.message_data());
       dht::messages::dht_pong message(s);
-      (*sp.get<dht::network::client>())->apply_message(
-          sp.create_scope("messages::dht_pong"),
+      (*sp->get<dht::network::client>())->apply_message(
+          sp,
           message,
           message_info);
       break;
@@ -136,7 +135,7 @@ std::future<void> vds::_server::process_message(
       binary_deserializer s(message_data);
       messages::sync_replica_request message(s);
       auto result = std::make_shared<std::future<void>>(std::future<void>::empty());
-      *result = (*sp.get<client>())->apply_message(
+      *result = (*sp->get<client>())->apply_message(
         sp.create_scope("messages::sync_replica_request"),
         this->shared_from_this(),
         message);
@@ -150,7 +149,7 @@ std::future<void> vds::_server::process_message(
 
     //  binary_deserializer s(message_data);
     //  messages::offer_replica message(s);
-    //  (*sp.get<client>())->apply_message(
+    //  (*sp->get<client>())->apply_message(
     //      sp.create_scope("messages::sync_replica_request"),
     //      this->shared_from_this(),
     //      message)
@@ -160,7 +159,7 @@ std::future<void> vds::_server::process_message(
     //case network::message_type_t::replica_data: {
     //  binary_deserializer s(message_data);
     //  const messages::sync_replica_data message(s);
-    //  (*sp.get<client>())->apply_message(
+    //  (*sp->get<client>())->apply_message(
     //    sp.create_scope("messages::sync_replica_data"),
     //    this->shared_from_this(),
     //    message)
@@ -170,7 +169,7 @@ std::future<void> vds::_server::process_message(
     //case network::message_type_t::got_replica: {
     //  binary_deserializer s(message_data);
     //  const messages::got_replica message(s);
-    //  (*sp.get<client>())->apply_message(
+    //  (*sp->get<client>())->apply_message(
     //    sp.create_scope("messages::sync_replica_data"),
     //    this->shared_from_this(),
     //    message)

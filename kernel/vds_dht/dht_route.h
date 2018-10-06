@@ -76,7 +76,7 @@ namespace vds {
       }
 
       bool add_node(
-          const vds::service_provider &sp,
+          const vds::service_provider *sp,
           const const_data_buffer &id,
           const session_type &proxy_session,
           uint8_t hops,
@@ -109,13 +109,13 @@ namespace vds {
 
       template <typename... timer_arg_types>
       std::future<void> on_timer(
-          const service_provider &sp,
+          const service_provider *sp,
           timer_arg_types && ... timer_args) {
         return this->ping_buckets(sp, std::forward<timer_arg_types>(timer_args)...);
       }
 
       void neighbors(
-          const service_provider &sp,
+          const service_provider *sp,
           const const_data_buffer &target_id,
           std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> &result,
           uint16_t max_count) const {
@@ -138,7 +138,7 @@ namespace vds {
       }
 
       void search_nodes(
-        const vds::service_provider &sp,
+        const vds::service_provider *sp,
         const const_data_buffer &target_id,
         size_t max_count,
         std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes) const {
@@ -147,7 +147,7 @@ namespace vds {
       }
 
       void search_nodes(
-        const vds::service_provider &sp,
+        const vds::service_provider *sp,
         const const_data_buffer &target_id,
         size_t max_count,
         const std::function<bool(const node & node)>& filter,
@@ -157,7 +157,7 @@ namespace vds {
       }
 
       std::future<void> for_near(
-        const service_provider &sp,
+        const service_provider *sp,
         const const_data_buffer &target_node_id,
         size_t max_count,
         const std::function<std::future<bool>(const std::shared_ptr<node> & candidate)> &callback) {
@@ -177,7 +177,7 @@ namespace vds {
       }
 
       std::future<void> for_near(
-        const service_provider &sp,
+        const service_provider *sp,
         const const_data_buffer &target_node_id,
         size_t max_count,
         const std::function<bool(const node & node)>& filter,
@@ -199,11 +199,11 @@ namespace vds {
       
 
       void get_neighbors(
-        const service_provider& sp,
+        const service_provider * sp,
         std::list<std::shared_ptr<node>> & result_nodes) const;
 
       std::future<void> for_neighbors(
-        const service_provider &sp,
+        const service_provider *sp,
         const std::function<std::future<bool>(const std::shared_ptr<node> & candidate)> &callback) {
 
         std::list<std::shared_ptr<node>> result_nodes;
@@ -228,7 +228,7 @@ namespace vds {
 
       void get_statistics(route_statistic& result);
       void remove_session(
-        const service_provider& sp,
+        const service_provider * sp,
         const session_type & session) {
 
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
@@ -247,7 +247,7 @@ namespace vds {
         std::list<std::shared_ptr<node>> nodes_;
 
         bool add_node(
-            const service_provider &sp,
+            const service_provider *sp,
             const const_data_buffer &id,
             const session_type &proxy_session,
             uint8_t hops,
@@ -290,12 +290,12 @@ namespace vds {
 
         template <typename... timer_arg_types>
         std::future<void> on_timer(
-            const service_provider &sp,
+            const service_provider *sp,
             const dht_route *owner,
             timer_arg_types && ... timer_args) {
           std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
           for (auto p : this->nodes_) {
-            sp.get<logger>()->trace("DHT", sp, "Bucket node node_id=%s,proxy_session=%s,pinged=%d,hops=%d",
+            sp->get<logger>()->trace("DHT", sp, "Bucket node node_id=%s,proxy_session=%s,pinged=%d,hops=%d",
               base64::from_bytes(p->node_id_).c_str(),
               p->proxy_session_->address().to_string().c_str(),
               p->pinged_,
@@ -344,7 +344,7 @@ namespace vds {
           }
         }
 
-        void get_neighbors(const service_provider & sp, std::list<std::shared_ptr<node>> & result_nodes) const {
+        void get_neighbors(const service_provider * sp, std::list<std::shared_ptr<node>> & result_nodes) const {
           std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
           for (auto & p : this->nodes_) {
             if (p->hops_ == 0) {
@@ -358,7 +358,7 @@ namespace vds {
       std::map<size_t, std::shared_ptr<bucket>> buckets_;
 
       void _search_nodes(
-          const vds::service_provider &sp,
+          const vds::service_provider *sp,
           const const_data_buffer &target_id,
           size_t max_count,
           std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes) const {
@@ -391,7 +391,7 @@ namespace vds {
       }
 
       void _search_nodes(
-        const vds::service_provider &sp,
+        const vds::service_provider *sp,
         const const_data_buffer &target_id,
         size_t max_count,
         const std::function<bool(const node & node)>& filter,
@@ -425,7 +425,7 @@ namespace vds {
       }
 
       size_t looking_nodes(
-          const service_provider &/*sp*/,
+          const service_provider */*sp*/,
           const const_data_buffer &target_id,
           const std::function<bool(const node & node)>& filter,
           std::map<const_data_buffer, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes,
@@ -460,17 +460,17 @@ namespace vds {
       }
 
       template <typename... timer_arg_types>
-      std::future<void> ping_buckets(const service_provider &sp, timer_arg_types && ... timer_args) {
+      std::future<void> ping_buckets(const service_provider *sp, timer_arg_types && ... timer_args) {
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
         for (auto &p : this->buckets_) {
-          sp.get<logger>()->trace("DHT", sp, "Bucket %d", p.first);
+          sp->get<logger>()->trace("DHT", sp, "Bucket %d", p.first);
           co_await p.second->on_timer(sp, this, timer_args...);
         }
       }
     };
 
     template <typename session_type>
-    void dht_route<session_type>::get_neighbors(const service_provider& sp,
+    void dht_route<session_type>::get_neighbors(const service_provider * sp,
       std::list<std::shared_ptr<node>>& result_nodes) const {
       std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
       for (auto &p : this->buckets_) {

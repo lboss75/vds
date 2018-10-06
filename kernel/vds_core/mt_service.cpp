@@ -30,50 +30,30 @@ void vds::mt_service::register_services(vds::service_registrator& registrator)
   registrator.add_service<imt_service>(this);
 }
 
-void vds::mt_service::start(const vds::service_provider& sp)
+void vds::mt_service::start(const vds::service_provider * sp)
 {
   this->impl_.reset(new _mt_service(sp));
   this->impl_->start();
 }
 
-void vds::mt_service::stop(const vds::service_provider&)
+void vds::mt_service::stop(const vds::service_provider *)
 {
 	if (this->impl_) {
 		this->impl_->stop();
 	}
 }
 
-void vds::imt_service::do_async(const service_provider & sp, const std::function<void(void)>& handler)
+void vds::imt_service::do_async(const service_provider * sp, const std::function<void(void)>& handler)
 {
   ((mt_service *)this)->impl_->do_async(sp, handler);
 }
 
-void vds::imt_service::do_async(const service_provider & sp, std::function<void(void)> && handler)
+void vds::imt_service::do_async(const service_provider * sp, std::function<void(void)> && handler)
 {
   ((mt_service *)this)->impl_->do_async(sp, std::move(handler));
 }
 
-void vds::imt_service::enable_async(const service_provider & sp)
-{
-  sp.set_property<async_enabled_property>(service_provider::property_scope::any_scope, new async_enabled_property(true));
-}
-
-void vds::imt_service::disable_async(const service_provider & sp)
-{
-  sp.set_property<async_enabled_property>(service_provider::property_scope::any_scope, new async_enabled_property(false));
-}
-
-void vds::imt_service::async_enabled_check(const service_provider & sp)
-{
-  auto p = sp.get_property<async_enabled_property>(service_provider::property_scope::any_scope);
-  if (nullptr != p && p->is_enabled_){
-    return;
-  }
-
-  throw std::runtime_error("Async call is not enabled");
-;}
-
-vds::_mt_service::_mt_service(const service_provider & sp)
+vds::_mt_service::_mt_service(const service_provider * sp)
 : sp_(sp), is_shuting_down_(false)
 {
 }
@@ -102,7 +82,7 @@ void vds::_mt_service::stop()
   }
 }
 
-void vds::_mt_service::do_async(const service_provider & sp, const std::function<void(void)> & handler)
+void vds::_mt_service::do_async(const service_provider * sp, const std::function<void(void)> & handler)
 {
   std::unique_lock<std::mutex> lock(this->mutex_);
 #if defined(DEBUG)
@@ -113,7 +93,7 @@ void vds::_mt_service::do_async(const service_provider & sp, const std::function
     GetCurrentThreadId()
 #endif
   ]() {
-    sp.get<logger>()->trace("Async", sp, "Anync from %d", thread_id);
+    sp->get<logger>()->trace("Async", sp, "Anync from %d", thread_id);
     handler();
   });
 #else//defined(DEBUG)
@@ -122,7 +102,7 @@ void vds::_mt_service::do_async(const service_provider & sp, const std::function
   this->cond_.notify_all();
 }
 
-void vds::_mt_service::do_async(const service_provider & sp, std::function<void(void)> && handler)
+void vds::_mt_service::do_async(const service_provider * sp, std::function<void(void)> && handler)
 {
   std::unique_lock<std::mutex> lock(this->mutex_);
 #if defined(DEBUG)
@@ -133,7 +113,7 @@ void vds::_mt_service::do_async(const service_provider & sp, std::function<void(
     GetCurrentThreadId()
 #endif
   ]() {
-    sp.get<logger>()->trace("Async", sp, "Anync from %d", thread_id);
+    sp->get<logger>()->trace("Async", sp, "Anync from %d", thread_id);
     h();
   });
 #else//defined(DEBUG)

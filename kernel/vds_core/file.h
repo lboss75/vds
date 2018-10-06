@@ -139,7 +139,7 @@ namespace vds {
       {
       }
 
-      size_t sync_get_data(const service_provider & sp)
+      size_t sync_get_data(const service_provider * sp)
       {
         if (0 == this->output_buffer_size()) {
           this->f_.close();
@@ -186,7 +186,7 @@ namespace vds {
         this->f_.seek(this->start_offset_);
       }
 
-      size_t sync_get_data(const service_provider & sp)
+      size_t sync_get_data(const service_provider * sp)
       {
         if (0 == this->output_buffer_size() || 0 == this->max_size_) {
           this->f_.close();
@@ -244,7 +244,7 @@ namespace vds {
       {
       }
 
-      size_t sync_push_data(const service_provider & sp)
+      size_t sync_push_data(const service_provider * sp)
       {
         if(0 == this->input_buffer_size()){
           this->f_.close();
@@ -290,7 +290,7 @@ namespace vds {
       {
       }
 
-      size_t sync_push_data(const service_provider & sp)
+      size_t sync_push_data(const service_provider * sp)
       {
         if (0 != this->input_buffer_size()) {
           this->target_.write(this->input_buffer(), this->input_buffer_size());

@@ -19,7 +19,7 @@ namespace vds {
       vds_assert(this->task_queue_.empty());
     }
 
-    void schedule(const service_provider & sp, const std::function<void(void)> & callback) {
+    void schedule(const service_provider * sp, const std::function<void(void)> & callback) {
       std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
       const auto need_start = this->task_queue_.empty();
       this->task_queue_.push(callback);

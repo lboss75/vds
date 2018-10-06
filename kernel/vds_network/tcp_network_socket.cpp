@@ -25,7 +25,7 @@ vds::tcp_network_socket::~tcp_network_socket(){
 }
 
 std::shared_ptr<vds::tcp_network_socket> vds::tcp_network_socket::connect(
-  const vds::service_provider& sp,
+  const vds::service_provider * sp,
   const network_address & address)
 {
 
@@ -49,7 +49,7 @@ std::shared_ptr<vds::tcp_network_socket> vds::tcp_network_socket::connect(
         }
       }
 
-      (*sp.get<network_service>())->associate(s->handle());
+      (*sp->get<network_service>())->associate(s->handle());
 #else
       // Connect 
       if (0 > ::connect(s->handle(), address, address.size())) {
@@ -73,7 +73,7 @@ void vds::tcp_network_socket::close()
 std::tuple<
   std::shared_ptr<vds::stream_input_async<uint8_t>>,
   std::shared_ptr<vds::stream_output_async<uint8_t>>> vds::tcp_network_socket::start(
-    const vds::service_provider &sp) {
+    const vds::service_provider *sp) {
   auto pthis = this->shared_from_this();
   return {std::make_shared< _read_socket_task>(pthis), std::make_shared< _write_socket_task>(pthis) };
 }
@@ -83,7 +83,7 @@ std::tuple<
 std::tuple<
     std::shared_ptr<vds::stream_input_async<uint8_t>>,
     std::shared_ptr<vds::stream_output_async<uint8_t>>> vds::tcp_network_socket::start(
-    const vds::service_provider &sp) {
+    const vds::service_provider *sp) {
 
   auto pthis = this->shared_from_this();
   auto reader = std::make_shared<_read_socket_task>(sp, pthis);
@@ -95,7 +95,7 @@ std::tuple<
   return std::make_tuple(reader, writer);
 }
 
-//: network_service_(sp.get<network_service>()->operator->()),
+//: network_service_(sp->get<network_service>()->operator->()),
 //event_masks_(EPOLLET) {
 //}
 

@@ -17,7 +17,7 @@ namespace vds {
     public:
 
       static bool save(
-        const service_provider &sp,
+        const service_provider *sp,
         class database_transaction &t,
         const const_data_buffer & block_data);
 
@@ -28,7 +28,7 @@ namespace vds {
         const std::string & account);
 
       static bool process_block(
-        const service_provider &sp,
+        const service_provider *sp,
         class database_transaction &t,
         const const_data_buffer & block_data,
         bool saved);

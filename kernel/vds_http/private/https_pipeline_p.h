@@ -28,7 +28,7 @@ namespace vds {
     
     ~_https_pipeline();
       
-    void connect(const service_provider & sp);
+    void connect(const service_provider * sp);
     
     const std::string & address() const {
       return this->address_;
@@ -38,7 +38,7 @@ namespace vds {
       return this->port_;
     }
     
-    void run(const service_provider & sp, const std::string & body);
+    void run(const service_provider * sp, const std::string & body);
 
   private
     class ioutput_command_stream;
@@ -73,7 +73,7 @@ namespace vds {
         {
         }
 
-        bool operator()(const service_provider & sp, network_socket & s)
+        bool operator()(const service_provider * sp, network_socket & s)
         {
           this->owner_->owner_->on_connected(sp);
           
@@ -112,7 +112,7 @@ namespace vds {
           {
           }
 
-          void operator()(const service_provider & sp)
+          void operator()(const service_provider * sp)
           {
             this->owner_->done_mutex_.lock();
             this->owner_->done_count_++;
@@ -138,9 +138,9 @@ namespace vds {
           {
           }
 
-          void operator()(const service_provider & sp, const std::shared_ptr<std::exception> & ex)
+          void operator()(const service_provider * sp, const std::shared_ptr<std::exception> & ex)
           {
-            sp.get<logger>()->error(
+            sp->get<logger>()->error(
               sp,
               "stream %s:%d error: %s",
               this->owner_->owner_->address_.c_str(),
@@ -196,7 +196,7 @@ namespace vds {
         {
         }
 
-        bool operator()(const service_provider & sp, json_value * response)
+        bool operator()(const service_provider * sp, json_value * response)
         {
           if (nullptr == response) {
             return this->next(sp);
@@ -240,7 +240,7 @@ namespace vds {
         {
         }
 
-        bool operator()(const service_provider & sp, const void * data, size_t len)
+        bool operator()(const service_provider * sp, const void * data, size_t len)
         {
           if (0 == len) {
             this->next(sp);
@@ -281,7 +281,7 @@ namespace vds {
         }
 
         bool operator()(
-          const service_provider & sp,
+          const service_provider * sp,
           http_response * response,
           http_incoming_stream * incoming_stream)
         {
@@ -328,7 +328,7 @@ namespace vds {
     class ioutput_command_stream
     {
     public:
-      virtual void run(const service_provider & sp, const std::string & body) = 0;
+      virtual void run(const service_provider * sp, const std::string & body) = 0;
     };
     class output_command_stream
     {
@@ -359,20 +359,20 @@ namespace vds {
         {
         }
 
-        bool operator()(const service_provider & sp)
+        bool operator()(const service_provider * sp)
         {
           this->processed(sp);
           return false;
         }
 
-        void processed(const service_provider & sp)
+        void processed(const service_provider * sp)
         {
           this->owner_->owner_->get_commands(sp);
         }
 
-        void run(const service_provider & sp, const std::string & body) override
+        void run(const service_provider * sp, const std::string & body) override
         {
-          sp.get<logger>()->trace(sp, "Send message %s", body.c_str());
+          sp->get<logger>()->trace(sp, "Send message %s", body.c_str());
           outgoing_stream_.set_body(body);
           this->next(sp, &this->request_, &this->outgoing_stream_);
         }

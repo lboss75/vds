@@ -24,7 +24,7 @@ namespace vds {
     _upload_stream_task();
 
     std::future<std::list<transactions::user_message_transaction::file_block_t>> start(
-        const service_provider & sp,
+        const service_provider * sp,
         const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
     const const_data_buffer & result_hash() const {
@@ -46,12 +46,12 @@ namespace vds {
     const_data_buffer result_hash_;
 
     std::future<void> continue_read(
-        const service_provider & sp,
+        const service_provider * sp,
         dht::network::client * network_client,
         const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
     std::future<void> process_data(
-        const service_provider & sp,
+        const service_provider * sp,
         dht::network::client * network_client);
   };
 }

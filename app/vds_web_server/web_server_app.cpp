@@ -23,7 +23,7 @@ start_web_(
 {
 }
 
-void vds::web_server_app::main(const service_provider & sp)
+void vds::web_server_app::main(const service_provider * sp)
 {
   if (this->current_command_set_ == &this->server_start_command_set_
     || this->current_command_set_ == &this->server_service_command_set_) {
@@ -83,11 +83,6 @@ void vds::web_server_app::register_command_line(command_line & cmd_line)
   cmd_line.add_command_set(this->server_service_command_set_);
   this->server_service_command_set_.optional(this->start_web_);
   this->server_service_command_set_.optional(this->port_);
-}
-
-void vds::web_server_app::start_services(service_registrator & registrator, service_provider & sp)
-{
-  base_class::start_services(registrator, sp);
 }
 
 bool vds::web_server_app::need_demonize()

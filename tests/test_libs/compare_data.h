@@ -22,7 +22,7 @@ public:
   }
 
   std::future<void> write_async(
-    const vds::service_provider & sp,
+    const vds::service_provider * sp,
     const item_type * data,
     size_t len) override
   {

@@ -17,17 +17,16 @@ namespace vds {
     timer(const char * name);
     
     void start(
-      const service_provider & sp,
+      const service_provider * sp,
       const std::chrono::steady_clock::duration & period,
       const std::function<bool(void)> & callback);
     
-    void stop(const vds::service_provider& sp);
+    void stop(const service_provider * sp);
     
   private:
     std::string name_;
 
     friend class task_manager;
-    service_provider sp_;
     std::chrono::steady_clock::duration period_;
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
     std::function<bool(void)> handler_;
@@ -40,29 +39,24 @@ namespace vds {
 	  };
     std::shared_ptr<state_machine<state_t>> current_state_;
 		bool is_shuting_down_;
-    void execute(const service_provider& sp);
-    void schedule(const service_provider& sp);
+    void execute(const vds::service_provider * sp);
+    void schedule(const vds::service_provider * sp);
   };
 
-  class itask_manager
-  {
-  public:
-  };
-
-  class task_manager : public iservice_factory, public itask_manager
+  class task_manager : public iservice_factory
   {
   public:
     task_manager();
     ~task_manager();
 
     void register_services(service_registrator &) override;
-    void start(const service_provider &) override;
-    void stop(const service_provider &) override;
+    void start(const service_provider * sp) override;
+    void stop(const service_provider * sp) override;
       
   private:
     friend class timer;
    
-    service_provider sp_;
+    const service_provider * sp_;
     std::list<timer *> scheduled_;
     std::condition_variable scheduled_changed_;
     std::mutex scheduled_mutex_;

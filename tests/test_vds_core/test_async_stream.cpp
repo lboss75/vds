@@ -33,9 +33,9 @@
 //  vds::async_series(
 //    vds::create_std::future(
 //      [&data, stream](
-//        const std::function<void(const vds::service_provider & sp)> & done,
+//        const std::function<void(const vds::service_provider * sp)> & done,
 //        const vds::error_handler & error,
-//        const vds::service_provider & sp) {
+//        const vds::service_provider * sp) {
 //        vds::mt_service::async(sp, [&data, stream, done, error, sp] {
 //          vds::dataflow(
 //            random_reader<uint8_t>(data.data(), data.size()),
@@ -46,9 +46,9 @@
 //    ),
 //    vds::create_std::future(
 //      [&data, stream](
-//        const std::function<void(const vds::service_provider & sp)> & done,
+//        const std::function<void(const vds::service_provider * sp)> & done,
 //        const vds::error_handler & error,
-//        const vds::service_provider & sp) {
+//        const vds::service_provider * sp) {
 //        vds::mt_service::async(sp, [&data, stream, done, error, sp] {
 //          vds::dataflow(
 //            vds::stream_read<vds::continuous_buffer<uint8_t >> (stream),
@@ -59,10 +59,10 @@
 //    )
 //  )
 //    .wait(
-//      [&b](const vds::service_provider & sp) {
+//      [&b](const vds::service_provider * sp) {
 //        b.set();
 //      },
-//      [&b, &err](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+//      [&b, &err](const vds::service_provider * sp, const std::shared_ptr<std::exception> & ex) {
 //        err = ex;
 //        b.set();
 //      },

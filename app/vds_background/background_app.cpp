@@ -35,7 +35,7 @@ vds::background_app::background_app()
 {
 }
 
-void vds::background_app::main(const service_provider & sp)
+void vds::background_app::main(const service_provider * sp)
 {
   if (this->current_command_set_ == &this->server_start_command_set_
     || &this->server_root_cmd_set_ == this->current_command_set_) {
@@ -45,9 +45,6 @@ void vds::background_app::main(const service_provider & sp)
       .wait();
 
     if (&this->server_root_cmd_set_ == this->current_command_set_) {
-      auto scope = sp.create_scope(__FUNCTION__);
-      imt_service::enable_async(scope);
-
       const auto data = file::read_all(filename("keys"));
       const_data_buffer root_private_key, common_news_write_private_key, common_news_admin_private_key;
       binary_deserializer s(data);
@@ -69,7 +66,8 @@ void vds::background_app::main(const service_provider & sp)
 
 
       auto user_mng = std::make_shared<user_manager>();
-      user_mng->reset(scope,
+      user_mng->reset(
+        sp,
         this->user_login_.value(),
         this->user_password_.value(),
         private_info);
@@ -124,7 +122,7 @@ void vds::background_app::register_command_line(command_line & cmd_line)
   //this->server_init_command_set_.optional(this->port_);
 }
 
-void vds::background_app::start_services(service_registrator & registrator, service_provider & sp)
+void vds::background_app::start_services(service_registrator & registrator, service_provider * sp)
 {
   if (&this->server_root_cmd_set_ == this->current_command_set_) {
     foldername folder(persistence::current_user(sp), ".vds");

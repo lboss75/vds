@@ -52,7 +52,7 @@
 //#endif // _DEBUG
 //      }
 //
-//      void async_get_data(const vds::service_provider & sp)
+//      void async_get_data(const vds::service_provider * sp)
 //      {
 //        this->sp_ = sp;
 //
@@ -78,7 +78,7 @@
 //#else//!_WIN32
 //        if (nullptr == this->event_) {
 //          this->event_ = event_new(
-//            static_cast<network_service *>(sp.get<inetwork_manager>())->base_,
+//            static_cast<network_service *>(sp->get<inetwork_manager>())->base_,
 //            this->s_,
 //            EV_READ,
 //            &handler::callback,
@@ -86,7 +86,7 @@
 //        }
 //        // Schedule client event
 //        event_add(this->event_, NULL);
-//        static_cast<network_service *>(sp.get<inetwork_manager>())->start_libevent_dispatch(sp);
+//        static_cast<network_service *>(sp->get<inetwork_manager>())->start_libevent_dispatch(sp);
 //#endif//_WIN32
 //      }
 //

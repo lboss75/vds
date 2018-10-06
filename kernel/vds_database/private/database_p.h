@@ -207,7 +207,7 @@ namespace vds {
       this->close();
     }
     
-    void open(const service_provider & sp, const filename & database_file)
+    void open(const service_provider * sp, const filename & database_file)
     {
       auto error = sqlite3_open(database_file.local_name().c_str(), &this->db_);
 
@@ -262,7 +262,7 @@ namespace vds {
     }
 
     std::future<void> async_read_transaction(
-      const service_provider & sp,
+      const service_provider * sp,
       const std::function<void(database_read_transaction & tr)> & callback) {
 
       auto r = std::make_shared<std::promise<void>>();
@@ -283,7 +283,7 @@ namespace vds {
     }
 
     std::future<void> async_transaction(
-      const service_provider & sp,
+      const service_provider * sp,
       const std::function<bool(database_transaction & tr)> & callback) {
       auto r = std::make_shared<std::promise<void>>();
 
@@ -315,7 +315,7 @@ namespace vds {
       return r->get_future();
     }
 
-    std::future<void> prepare_to_stop(const service_provider & sp){
+    std::future<void> prepare_to_stop(const service_provider * sp){
       co_return;
     }
 

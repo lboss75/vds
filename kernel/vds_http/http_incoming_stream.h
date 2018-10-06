@@ -19,7 +19,7 @@ namespace vds {
     }
    
     void push_data(
-      const service_provider & sp,
+      const service_provider * sp,
       const void * data,
       size_t len)
     {
@@ -45,7 +45,7 @@ namespace vds {
       }
       
       virtual void push_data(
-        const service_provider & sp,
+        const service_provider * sp,
         const void * data,
         size_t len
       ) = 0;

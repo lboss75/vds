@@ -37,21 +37,19 @@ public:
     return this->sp_.get<T>();
   }
 
-  const vds::service_provider & get_service_provider() const {
+  const vds::service_provider * get_service_provider() const {
     return this->sp_;
   }
 
   std::future<vds::server_statistic> get_statistic() const{
-	  auto scope = this->sp_.create_scope(__FUNCTION__);
-	  vds::mt_service::enable_async(scope);
-    return this->server_.get_statistic(scope);
+    return this->server_.get_statistic(this->sp_);
   }
   
 private:
   int index_;
   int tcp_port_;
   int udp_port_;
-  vds::service_provider sp_;
+  vds::service_provider * sp_;
 
   vds::service_registrator registrator_;
   vds::mt_service mt_service_;
@@ -64,7 +62,7 @@ private:
   void login(
     const std::string& root_login,
     const std::string& root_password,
-    const std::function<void(const vds::service_provider & sp, const std::shared_ptr<vds::user_manager> & user_mng)> & callback);
+    const std::function<void(const vds::service_provider * sp, const std::shared_ptr<vds::user_manager> & user_mng)> & callback);
 
 };
 
@@ -105,7 +103,7 @@ public:
 
   vds::user_channel create_channel(int index, const std::string &name);
 
-  vds::service_provider get_sp(int client_index);
+  const vds::service_provider * get_sp(int client_index);
 
 private:
   std::vector<std::unique_ptr<mock_server>> servers_;

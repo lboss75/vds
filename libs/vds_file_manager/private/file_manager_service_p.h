@@ -14,9 +14,9 @@ namespace vds {
     class _file_manager_service {
     public:
       void register_services(service_registrator &);
-      void start(const service_provider &);
-      void stop(const service_provider &);
-      std::future<void> prepare_to_stop(const service_provider &sp);
+      void start(const service_provider *);
+      void stop(const service_provider *);
+      std::future<void> prepare_to_stop(const service_provider *sp);
 
     private:
       file_manager::file_operations file_operations_;

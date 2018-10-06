@@ -34,7 +34,7 @@ namespace vds {
     }
 
     void update(
-        const service_provider &sp,
+        const service_provider *sp,
         class database_transaction &t);
 
 
@@ -68,19 +68,19 @@ namespace vds {
     }
 
     std::future<bool> approve_join_request(
-      const service_provider& sp,
+      const service_provider * sp,
       const const_data_buffer& data);
 
     const std::string& user_name() const;
 
     static bool parse_join_request(
-        const service_provider& sp,
+        const service_provider * sp,
         const const_data_buffer & data,
         std::string & userName,
         std::string & userEmail);
 
     std::future<user_channel> create_channel(
-      const service_provider& sp,
+      const service_provider * sp,
       const std::string& name) ;
 
   private:

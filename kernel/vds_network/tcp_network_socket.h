@@ -25,13 +25,13 @@ namespace vds {
     ~tcp_network_socket();
 
     static std::shared_ptr<tcp_network_socket> connect(
-      const service_provider & sp,
+      const service_provider * sp,
       const network_address & address);
 
     std::tuple<
       std::shared_ptr<vds::stream_input_async<uint8_t>>,
       std::shared_ptr<vds::stream_output_async<uint8_t>>> start(
-        const service_provider & sp);
+        const service_provider * sp);
 
     void close();
 

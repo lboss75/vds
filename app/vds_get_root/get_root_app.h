@@ -22,11 +22,11 @@ namespace vds {
   public:
     get_root_app();
 
-    void main(const service_provider & sp);
+    void main(const service_provider * sp);
 
     void register_services(service_registrator & registrator);
     void register_command_line(command_line & cmd_line);
-    void start_services(service_registrator & registrator, service_provider & sp);
+    void start_services(service_registrator & registrator, service_provider * sp);
 
   private:
     command_line_set key_generate_command_set_;
@@ -40,7 +40,5 @@ namespace vds {
     crypto_service crypto_service_;
   };
 }
-
-
 
 #endif//__VDS_GET_ROOT_GET_ROOT_APP_H__

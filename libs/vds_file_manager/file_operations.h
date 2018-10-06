@@ -31,14 +31,14 @@ namespace vds {
       file_operations();
 
 			std::future<transactions::user_message_transaction::file_info_t> upload_file(
-				const service_provider &sp,
+				const service_provider *sp,
         const std::shared_ptr<user_manager> & user_mng,
         const std::string & name,
         const std::string & mime_type,
         const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
       std::future<void> create_message(
-        const service_provider& sp,
+        const service_provider * sp,
         const std::shared_ptr<user_manager>& user_mng,
         const const_data_buffer& channel_id,
         const std::string& message,
@@ -46,7 +46,7 @@ namespace vds {
 
 
 			std::future<download_result_t> download_file(
-		    const service_provider &sp,
+		    const service_provider *sp,
         const std::shared_ptr<user_manager> & user_mng,
         const const_data_buffer & channel_id,
         const const_data_buffer & target_file,

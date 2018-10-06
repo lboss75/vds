@@ -11,7 +11,7 @@ public:
   : s_(s){
   }
   std::future<void> write_async(
-      const vds::service_provider & sp,
+      const vds::service_provider * sp,
       const vds::udp_datagram & data);
 
 private:
@@ -30,7 +30,7 @@ public:
   }
 
   std::future<void> process_message(
-      const vds::service_provider& sp,
+      const vds::service_provider * sp,
       const std::shared_ptr<mock_transport>& transport,
       uint8_t message_type,
       const vds::const_data_buffer & target_node,

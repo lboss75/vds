@@ -20,10 +20,10 @@ namespace vds {
         const std::string & password);
 
     std::future<void> load(
-      const service_provider & sp);
+      const service_provider * sp);
 
     const std::shared_ptr<user_manager> & get_secured_context(
-        const service_provider & sp) const {
+        const service_provider * sp) const {
       return this->user_mng_;
     }
 

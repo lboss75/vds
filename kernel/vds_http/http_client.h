@@ -20,18 +20,18 @@ namespace vds {
     http_client();
 
     std::future<void> start(
-      const vds::service_provider & sp,
+      const vds::service_provider * sp,
       const handler_type & handler);
 
     std::future<void> send(
-      const vds::service_provider & sp,
+      const vds::service_provider * sp,
       const std::shared_ptr<vds::http_message> & message);
 
   private:
     handler_type handler_;
 
     std::future<void> process_input_commands(
-      const vds::service_provider & sp,
+      const vds::service_provider * sp,
       const handler_type & handler);
   };
 }

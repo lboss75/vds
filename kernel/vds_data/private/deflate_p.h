@@ -29,7 +29,7 @@ namespace vds {
 		}
 
 		std::future<void> write_async(
-      const service_provider & sp,
+      const service_provider * sp,
       const uint8_t * input_data,
       size_t input_size)
 		{

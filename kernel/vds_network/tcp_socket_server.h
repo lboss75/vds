@@ -20,11 +20,11 @@ namespace vds {
     ~tcp_socket_server();
 
     std::future<void> start(
-      const service_provider & sp,
+      const service_provider * sp,
       const network_address & address,
       const std::function<std::future<void>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection);
     
-    void stop(const service_provider & sp);
+    void stop(const service_provider * sp);
     
   private:
     std::shared_ptr<_tcp_socket_server> impl_;

@@ -80,9 +80,9 @@ namespace vds {
       return std::shared_ptr<tcp_network_socket>(new tcp_network_socket(new _tcp_network_socket(handle)));
     }
     //
-    //    std::shared_ptr<vds::stream_input_async<uint8_t>> start(const service_provider & sp)
+    //    std::shared_ptr<vds::stream_input_async<uint8_t>> start(const service_provider * sp)
     //    {
-    //      sp.get<logger>()->trace("TCP", sp, "socket start");
+    //      sp->get<logger>()->trace("TCP", sp, "socket start");
     //      
     //#ifdef _WIN32
     //      this->socket_task_ = std::make_shared<_write_socket_task>(sp, this->s_);
@@ -186,7 +186,7 @@ namespace vds {
 
 
     std::future<size_t> read_async(
-      const service_provider &sp,
+      const service_provider *sp,
       uint8_t * buffer,
       size_t len) override {
       memset(&this->overlapped_, 0, sizeof(this->overlapped_));
@@ -196,7 +196,7 @@ namespace vds {
       auto r = std::make_shared<std::promise<size_t>>();
       this->result_ = r;
 
-      sp.get<logger>()->trace("TCP", sp, "WSARecv");
+      sp->get<logger>()->trace("TCP", sp, "WSARecv");
       DWORD flags = 0;
       DWORD numberOfBytesRecvd;
       if (NOERROR != WSARecv((*this->owner_)->handle(),
@@ -208,7 +208,7 @@ namespace vds {
         NULL)) {
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
-          sp.get<logger>()->trace("TCP", sp, "WSARecv error");
+          sp->get<logger>()->trace("TCP", sp, "WSARecv error");
           auto pthis = this->pthis_;
           this->pthis_.reset();
 
@@ -275,7 +275,7 @@ namespace vds {
     {
     }
 
-    std::future<void> write_async(const service_provider &/*sp*/, const uint8_t * data, size_t len) override
+    std::future<void> write_async(const service_provider */*sp*/, const uint8_t * data, size_t len) override
     {
       if (0 == len) {
         shutdown((*this->owner_)->handle(), SD_SEND);
@@ -337,9 +337,9 @@ namespace vds {
 
   public:
     _write_socket_task(
-      const service_provider & sp,
+      const service_provider * sp,
       const std::shared_ptr<socket_base> &owner)
-      : ns_(sp.get<network_service>()->operator->()),
+      : ns_(sp->get<network_service>()->operator->()),
         owner_(owner) {
     }
 
@@ -347,7 +347,7 @@ namespace vds {
     }
 
     std::future<void> write_async(
-        const service_provider & sp,
+        const service_provider * sp,
         const uint8_t *data,
         size_t size) override {
       if(0 == size){
@@ -417,9 +417,9 @@ namespace vds {
   {
   public:
     _read_socket_task(
-        const service_provider & sp,
+        const service_provider * sp,
         const std::shared_ptr<socket_base> &owner)
-        : ns_(sp.get<network_service>()->operator->()),
+        : ns_(sp->get<network_service>()->operator->()),
           owner_(owner) {
     }
 
@@ -427,7 +427,7 @@ namespace vds {
     }
 
     std::future<size_t> read_async(
-        const service_provider &sp,
+        const service_provider *sp,
         uint8_t * buffer,
         size_t buffer_size) override {
       int len = read(
@@ -449,14 +449,14 @@ namespace vds {
           co_return 0;
         }
 
-        sp.get<logger>()->trace("TCP", sp, "Read error %d", error);
+        sp->get<logger>()->trace("TCP", sp, "Read error %d", error);
         throw std::system_error(
             error,
             std::generic_category(),
             "Read");
       }
       else {
-        sp.get<logger>()->trace("TCP", sp, "Read %d bytes", len);
+        sp->get<logger>()->trace("TCP", sp, "Read %d bytes", len);
         co_return len;
       }
     }

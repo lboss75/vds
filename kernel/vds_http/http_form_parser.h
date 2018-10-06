@@ -27,14 +27,14 @@ namespace vds {
         std::shared_ptr<stream_input_async<uint8_t>> stream;
       };
       //To override
-//      void on_field(const vds::service_provider & sp, const simple_field_info & field) {
+//      void on_field(const vds::service_provider * sp, const simple_field_info & field) {
 //      }
 //
-//      std::future<void> on_file(const vds::service_provider & sp, const file_info & file) {
+//      std::future<void> on_file(const vds::service_provider * sp, const file_info & file) {
 //      }
 
       std::future<void> parse(
-        const service_provider& sp,
+        const service_provider * sp,
         const http_message & message);
 
 
@@ -46,7 +46,7 @@ namespace vds {
         }
 
         std::future<void> read_part(
-          const service_provider & sp,
+          const service_provider * sp,
           const http_message& part);
 
       private:
@@ -54,24 +54,24 @@ namespace vds {
         uint8_t buffer_[1024];
 
         std::future<void> read_string_body(
-            const service_provider & sp,
+            const service_provider * sp,
           const std::shared_ptr<std::string>& buffer,
           const http_message& part);
 
         std::future<void> read_file(
-          const service_provider & sp,
+          const service_provider * sp,
           const std::shared_ptr<stream_output_async<uint8_t>> & buffer,
           const http_message& part);
 
           std::future<void> skip_part(
-            const service_provider & sp,
+            const service_provider * sp,
           const vds::http_message& part);
 
       };
     };
 
     template <typename implementation_class>
-    std::future<void> form_parser<implementation_class>::parse(const service_provider& sp, const http_message& message) {
+    std::future<void> form_parser<implementation_class>::parse(const service_provider * sp, const http_message& message) {
       std::string content_type;
       if (message.get_header("Content-Type", content_type)) {
         static const char multipart_form_data[] = "multipart/form-data;";
@@ -103,7 +103,7 @@ namespace vds {
     }
 
     template <typename implementation_class>
-    std::future<void> form_parser<implementation_class>::_form_parser::read_part(const service_provider& sp,
+    std::future<void> form_parser<implementation_class>::_form_parser::read_part(const service_provider * sp,
       const http_message& part) {
       for(;;) {
         std::string content_disposition;
@@ -158,7 +158,7 @@ namespace vds {
                 static_cast<implementation_class *>(this->owner_.get())->on_file(
                     sp,
                     file_info{name, fname->second, content_type, part.body() });
-
+                co_return;
                 //if("application/x-zip-compressed" == content_type) {
                 //  auto stream = std::make_shared<continuous_buffer<uint8_t>>(sp);
                 //  auto buffer = std::make_shared<inflate_async>(*stream);
@@ -183,7 +183,7 @@ namespace vds {
 
     template <typename implementation_class>
     std::future<void> form_parser<implementation_class>::_form_parser::read_string_body(
-        const service_provider & sp,
+        const service_provider * sp,
       const std::shared_ptr<std::string>& buffer, const http_message& part) {
       for(;;){
         auto readed = co_await part.body()->read_async(sp, this->buffer_, sizeof(this->buffer_));
@@ -196,7 +196,7 @@ namespace vds {
 
     template <typename implementation_class>
     std::future<void> form_parser<implementation_class>::_form_parser::read_file(
-      const service_provider & sp,
+      const service_provider * sp,
       const std::shared_ptr<stream_output_async<uint8_t>>& buffer,
       const http_message& part) {
       for(;;){
@@ -213,7 +213,7 @@ namespace vds {
 
     template <typename implementation_class>
     std::future<void> form_parser<implementation_class>::_form_parser::skip_part(
-      const service_provider & sp,
+      const service_provider * sp,
       const vds::http_message& part) {
       for (;;) {
         auto readed = co_await part.body()->read_async(sp, this->buffer_, sizeof(this->buffer_));

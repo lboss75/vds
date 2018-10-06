@@ -12,11 +12,11 @@ All rights reserved
 
 void vds::logger::operator()(
   const std::string & module,
-  const service_provider & sp,
+  const service_provider * sp,
   log_level level,
   const std::string & message) const
 {
-  log_record record{ level, module, sp.full_name(), message };
+  log_record record{ level, module, message };
 
   this->log_writer_.write(sp, record);
 }
@@ -38,36 +38,36 @@ void vds::console_logger::register_services(service_registrator & registrator)
   registrator.add_service<logger>(this);
 }
 
-void vds::console_logger::start(const service_provider &)
+void vds::console_logger::start(const service_provider *)
 {
 }
 
-void vds::console_logger::stop(const service_provider &)
+void vds::console_logger::stop(const service_provider *)
 {
 }
 
-void vds::console_logger::write(const service_provider & sp, const log_record & record)
+void vds::console_logger::write(const service_provider * sp, const log_record & record)
 {
   switch (record.level)
   {
   case log_level::ll_trace:
-    std::cout << '[' << record.source << ']' << "TRACE: " << record.message << '\n';
+    std::cout << "TRACE: " << record.message << '\n';
     break;
 
   case log_level::ll_debug:
-    std::cout << '[' << record.source << ']' << "DEBUG: " << record.message << '\n';
+    std::cout << "DEBUG: " << record.message << '\n';
     break;
 
   case log_level::ll_info:
-    std::cout << '[' << record.source << ']' << "INFO: " << record.message << '\n';
+    std::cout << "INFO: " << record.message << '\n';
     break;
 
   case log_level::ll_warning:
-    std::cout << '[' << record.source << ']' << "WARNIG: " << record.message << '\n';
+    std::cout << "WARNIG: " << record.message << '\n';
     break;
 
   case log_level::ll_error:
-    std::cout << '[' << record.source << ']' << "ERROR: " << record.message << '\n';
+    std::cout << "ERROR: " << record.message << '\n';
     break;
   }
 }
@@ -89,7 +89,7 @@ void vds::file_logger::register_services(service_registrator & registrator)
   registrator.add_service<logger>(this);
 }
 
-void vds::file_logger::start(const service_provider & sp)
+void vds::file_logger::start(const service_provider * sp)
 {
   foldername folder(persistence::current_user(sp), ".vds");
   folder.create();
@@ -97,7 +97,7 @@ void vds::file_logger::start(const service_provider & sp)
   this->logger_thread_ = std::thread([this]() { this->logger_thread(); });
 }
 
-void vds::file_logger::stop(const service_provider &)
+void vds::file_logger::stop(const service_provider *)
 {
   this->log_mutex_.lock();
   this->is_stopping_ = true;
@@ -111,7 +111,7 @@ void vds::file_logger::stop(const service_provider &)
 }
 
 void vds::file_logger::write(
-  const service_provider & sp,
+  const service_provider * sp,
   const log_record & record)
 {
   std::string level_str;
@@ -142,14 +142,14 @@ void vds::file_logger::write(
   auto tm = std::localtime(&t);
 
   auto str = string_format(
-    "%04d/%02d/%0d %02d:%02d.%02d %-6d %-6s [%-10s] %s | %s\n",
+    "%04d/%02d/%0d %02d:%02d.%02d %-6d %-6s [%-10s] %s\n",
     tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec,
 #ifndef _WIN32
     syscall(SYS_gettid),
 #else
     GetCurrentThreadId(),
 #endif
-  level_str.c_str(), record.module.c_str(), record.message.c_str(), record.source.c_str());
+  level_str.c_str(), record.module.c_str(), record.message.c_str());
 
   std::lock_guard<std::mutex> lock(this->log_mutex_);
   this->log_ += str;

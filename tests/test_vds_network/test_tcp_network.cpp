@@ -18,7 +18,7 @@ All rights reserved
 #include "task_manager.h"
 
 std::future<void> copy_stream(
-  vds::service_provider sp,
+  vds::service_provider * sp,
   std::shared_ptr<vds::stream_input_async<uint8_t>> reader,
   std::shared_ptr<vds::stream_output_async<uint8_t>> writer) {
   auto buffer = std::shared_ptr<uint8_t>(new uint8_t[1024]);
@@ -48,10 +48,8 @@ TEST(network_tests, test_server)
   registrator.add(mt_service);
   registrator.add(network_service);
 
-  auto sp = registrator.build("network_tests::test_server");
+  auto sp = registrator.build();
   registrator.start(sp);
-
-  vds::imt_service::enable_async(sp);
 
   vds::tcp_socket_server server;
   server.start(
@@ -69,7 +67,7 @@ TEST(network_tests, test_server)
     sp,
     vds::network_address::ip4("localhost", 8000));
 
-  sp.get<vds::logger>()->debug("TCP", sp, "Connected");
+  sp->get<vds::logger>()->debug("TCP", sp, "Connected");
   auto [reader, writer] = s->start(sp);
 
   std::thread t1([sp, w = writer, &data]() {

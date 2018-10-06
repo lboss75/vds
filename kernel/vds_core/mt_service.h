@@ -15,25 +15,19 @@ namespace vds {
   {
   public:
 
-    static void async(const service_provider & sp, const std::function<void(void)> & handler)
+    static void async(const service_provider * sp, const std::function<void(void)> & handler)
     {
-      async_enabled_check(sp);
-      sp.get<imt_service>()->do_async(sp, handler);
+      sp->get<imt_service>()->do_async(sp, handler);
     }
 
-    static void async(const service_provider & sp, std::function<void(void)> && handler)
+    static void async(const service_provider * sp, std::function<void(void)> && handler)
     {
-      async_enabled_check(sp);
-      sp.get<imt_service>()->do_async(sp, std::move(handler));
+      sp->get<imt_service>()->do_async(sp, std::move(handler));
     }
-
-    static void enable_async(const service_provider & sp);
-    static void disable_async(const service_provider & sp);
-    static void async_enabled_check(const service_provider & sp);
 
   private:
-    void do_async(const service_provider & sp, const std::function<void(void)> & handler);
-    void do_async(const service_provider & sp, std::function<void(void)> && handler);
+    void do_async(const service_provider * sp, const std::function<void(void)> & handler);
+    void do_async(const service_provider * sp, std::function<void(void)> && handler);
 
   };
 
@@ -45,8 +39,8 @@ namespace vds {
     ~mt_service();
     
     void register_services(service_registrator &) override;
-    void start(const service_provider &) override;
-    void stop(const service_provider &) override;
+    void start(const service_provider *) override;
+    void stop(const service_provider *) override;
 
   private:
     friend class imt_service;

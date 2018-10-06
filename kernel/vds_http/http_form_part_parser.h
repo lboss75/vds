@@ -26,7 +26,7 @@ namespace vds {
     }
 
     std::future<void> start(
-      const service_provider &sp,
+      const service_provider *sp,
       const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
       for (;;) {
         auto len = co_await input_stream->read_async(sp, this->buffer_, sizeof(this->buffer_));
@@ -60,7 +60,6 @@ namespace vds {
 
             if (0 == this->parse_buffer_.length()) {
               this->current_message_body_ = std::make_shared<message_body_reader>(input_stream, data, len);
-              this->current_message_ = http_message(this->headers_, this->current_message_body_);
               this->current_message_ = http_message(this->headers_, this->current_message_body_);
               this->headers_.clear();
 
@@ -105,7 +104,7 @@ namespace vds {
         
       }
 
-      std::future<size_t> read_async(const service_provider& sp, uint8_t * buffer, size_t len) override {
+      std::future<size_t> read_async(const service_provider * sp, uint8_t * buffer, size_t len) override {
         vds_assert(!this->eof_);
 
         if (this->readed_ <= this->processed_) {

@@ -22,7 +22,7 @@ TEST(test_vds_crypto, test_symmetric)
   registrator.add(console_logger);
   registrator.add(crypto_service);
   {
-    auto sp = registrator.build("test_asymmetric");
+    auto sp = registrator.build();
 
     size_t len;
     do
@@ -63,7 +63,7 @@ TEST(test_vds_crypto, test_sign)
   registrator.add(mt_service);
   registrator.add(console_logger);
   registrator.add(crypto_service);
-  auto sp = registrator.build("test_sign");
+  auto sp = registrator.build();
   try
   {
     registrator.start(sp);

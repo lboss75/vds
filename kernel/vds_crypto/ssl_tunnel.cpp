@@ -15,7 +15,7 @@
 //
 //////////////////////////////////////////////////////////////////
 //vds::ssl_tunnel::ssl_tunnel(
-//  const service_provider & sp,
+//  const service_provider * sp,
 //  const stream_output_async<uint8_t> & crypted_output,
 //  const stream_output_async<uint8_t> & decrypted_output,
 //  bool is_client,
@@ -44,7 +44,7 @@
 //  return this->impl_->decrypted_input();
 //}
 //
-//void vds::ssl_tunnel::start(const service_provider & sp)
+//void vds::ssl_tunnel::start(const service_provider * sp)
 //{
 //  this->impl_->start(sp);
 //}
@@ -61,7 +61,7 @@
 //
 //////////////////////////////////////////////////////////////////
 //vds::_ssl_tunnel::_ssl_tunnel(
-//  const service_provider & sp,
+//  const service_provider * sp,
 //  const stream_output_async<uint8_t> & crypted_output,
 //  const stream_output_async<uint8_t> & decrypted_output,
 //  bool is_client,

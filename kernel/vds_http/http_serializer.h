@@ -27,7 +27,7 @@ namespace vds {
     }
 
     std::future<void> write_async(
-      const service_provider & sp,
+      const service_provider * sp,
       const http_message message)
     {
       auto pthis = this->shared_from_this();
@@ -38,7 +38,7 @@ namespace vds {
       for (auto & header : message.headers()) {
         stream << header << "\r\n";
       }
-      sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", logger::escape_string(stream.str()).c_str());
+      sp->get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", logger::escape_string(stream.str()).c_str());
       stream << "\r\n";
 
       auto data = std::make_shared<std::string>(stream.str());

@@ -1,25 +1,22 @@
 #include "stdafx.h"
 #include "db_model.h"
 
-std::future<void> vds::db_model::async_transaction(const vds::service_provider &sp,
+std::future<void> vds::db_model::async_transaction(const vds::service_provider *sp,
                                                    const std::function<void(vds::database_transaction &)> &handler) {
-  return this->db_.async_transaction(sp, [sp, handler](database_transaction & t)->bool{
+  return this->db_.async_transaction(sp, [&sp, handler](database_transaction & t)->bool{
       handler(t);
       return true;
   });
 }
 
 std::future<void> vds::db_model::async_read_transaction(
-    const vds::service_provider &sp,
+    const vds::service_provider *sp,
     const std::function<void(vds::database_read_transaction &)> &handler) {
   return this->db_.async_read_transaction(sp, handler);
 }
 
-void vds::db_model::start(const service_provider & scope)
+void vds::db_model::start(const service_provider * sp)
 {
-  auto sp = scope.create_scope("Init database model");
-  imt_service::enable_async(sp);
-
 	filename db_filename(foldername(persistence::current_user(sp), ".vds"), "local.db");
 
 	if (!file::exists(db_filename)) {
@@ -49,7 +46,7 @@ void vds::db_model::start(const service_provider & scope)
 	}
 }
 
-void vds::db_model::stop(const service_provider & sp)
+void vds::db_model::stop(const service_provider * sp)
 {
 	this->db_.close();
 }
@@ -222,6 +219,6 @@ void vds::db_model::migrate(
 	}
 }
 
-std::future<void> vds::db_model::prepare_to_stop(const vds::service_provider &sp) {
+std::future<void> vds::db_model::prepare_to_stop(const vds::service_provider *sp) {
   return this->db_.prepare_to_stop(sp);
 }

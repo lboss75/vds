@@ -20,7 +20,7 @@ TEST(test_zip, inflate_tests) {
   registrator.add(mt_service);
   registrator.add(console_logger);
   {
-    auto sp = registrator.build("test_symmetric");
+    auto sp = registrator.build();
     registrator.start(sp);
 
     random_buffer buffer;

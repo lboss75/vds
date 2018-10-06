@@ -46,35 +46,35 @@ namespace vds {
     _server(server * owner);
     ~_server();
     
-    void start(const service_provider &);
-    void stop(const service_provider &);
-    std::future<void> prepare_to_stop(const service_provider &sp);
+    void start(const service_provider *);
+    void stop(const service_provider *);
+    std::future<void> prepare_to_stop(const service_provider *sp);
 
-    std::future<server_statistic> get_statistic(const vds::service_provider &sp);
+    std::future<server_statistic> get_statistic(const vds::service_provider *sp);
 
     std::future<void> process_message(
-        const service_provider& scope,
+        const service_provider * scope,
         const message_info_t & message_info) override;
 
 
     std::future<void> on_new_session(
-      const service_provider& sp,
+      const service_provider * sp,
       const const_data_buffer& partner_id) override;
 
       std::future<void> apply_message(
-      const service_provider & sp,
+      const service_provider * sp,
       database_transaction & t,
       const dht::messages::transaction_log_state & message,
       const message_info_t & message_info);
 
     void apply_message(
-      const service_provider& sp,
+      const service_provider * sp,
       database_transaction& t,
       const dht::messages::transaction_log_request& message,
       const message_info_t & message_info);
 
     void apply_message(
-      const service_provider& sp,
+      const service_provider * sp,
       database_transaction& t,
       const dht::messages::transaction_log_record & message,
       const message_info_t & message_info);

@@ -21,12 +21,12 @@ namespace vds {
     ~inflate();
 
 	  static const_data_buffer decompress(
-      const service_provider & sp,
+      const service_provider * sp,
       const void * data,
       size_t size);
 
     std::future<void> write_async(
-        const service_provider &sp,
+        const service_provider *sp,
         const uint8_t * data,
         size_t len) override ;
 

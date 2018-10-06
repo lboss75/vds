@@ -14,7 +14,7 @@ vds::http_router::http_router()
 }
 
 std::future<vds::http_message> vds::http_router::route(
-  const service_provider & sp,
+  const service_provider * sp,
   const http_message message,
   const std::string local_path) const
 {
@@ -50,7 +50,7 @@ std::future<vds::http_message> vds::http_router::route(
       co_return http_response::simple_text_response(file::read_all_text(pf->second), content_type);
     }
 
-    sp.get<logger>()->debug("HTTP", sp, "File not found: %s", local_path.c_str());
+    sp->get<logger>()->debug("HTTP", sp, "File not found: %s", local_path.c_str());
     co_await message.ignore_empty_body(sp);
     co_return http_response::simple_text_response(
       std::string(),

@@ -35,7 +35,7 @@ vds::dht::network::dht_session::dht_session(
 }
 
 std::future<void> vds::dht::network::dht_session::ping_node(
-  const service_provider& sp,
+  const service_provider * sp,
   const const_data_buffer& node_id,
   const std::shared_ptr<iudp_transport>& transport) {
 
@@ -56,7 +56,7 @@ vds::session_statistic::session_info vds::dht::network::dht_session::get_statist
 }
 
 std::future<void> vds::dht::network::dht_session::process_message(
-  const service_provider& sp,
+  const service_provider * sp,
   const std::shared_ptr<iudp_transport>& transport,
   uint8_t message_type,
   const const_data_buffer & target_node,
@@ -74,7 +74,7 @@ std::future<void> vds::dht::network::dht_session::process_message(
   //    << std::to_string((message_type_t)message_type)
   //    << "\n";
   //}
-  sp.get<logger>()->trace(
+  sp->get<logger>()->trace(
     "dht_session",
     sp,
     "receive %d from %s to %s",
@@ -82,14 +82,14 @@ std::future<void> vds::dht::network::dht_session::process_message(
     base64::from_bytes(source_node).c_str(),
     base64::from_bytes(target_node).c_str());
 
-  (*sp.get<client>())->add_route(sp, source_node, hops, this->shared_from_this());
+  (*sp->get<client>())->add_route(sp, source_node, hops, this->shared_from_this());
 
   if (target_node != this->this_node_id()) {
     if (hops == std::numeric_limits<uint16_t>::max()) {
       co_return;
     }
 
-    sp.get<logger>()->trace(
+    sp->get<logger>()->trace(
       "dht_session",
       sp,
       "redirect %d from %s to %s",
@@ -97,7 +97,7 @@ std::future<void> vds::dht::network::dht_session::process_message(
       base64::from_bytes(source_node).c_str(),
       base64::from_bytes(target_node).c_str());
 
-    co_await (*sp.get<client>())->proxy_message(
+    co_await (*sp->get<client>())->proxy_message(
       sp,
       target_node,
       (message_type_t)message_type,
@@ -106,7 +106,7 @@ std::future<void> vds::dht::network::dht_session::process_message(
       hops + 1);
   }
   else {
-    co_await sp.get<imessage_map>()->process_message(
+    co_await sp->get<imessage_map>()->process_message(
       sp,
       imessage_map::message_info_t{
         this->shared_from_this(),

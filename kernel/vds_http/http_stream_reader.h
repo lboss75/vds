@@ -54,7 +54,7 @@ namespace vds {
         this->incoming_stream_.handler(nullptr);
       }
       
-      bool operator()(const service_provider & sp)
+      bool operator()(const service_provider * sp)
       {
         while(this->done_method_(sp)){
         }
@@ -63,7 +63,7 @@ namespace vds {
       }
       
       void push_data(
-        const service_provider & sp, 
+        const service_provider * sp, 
         const void * data,
         size_t len
       ) override
@@ -71,7 +71,7 @@ namespace vds {
         this->next(sp, data, len);
       }
       
-      void processed(const service_provider & sp)
+      void processed(const service_provider * sp)
       {
         while(this->done_method_(sp)){
         }        

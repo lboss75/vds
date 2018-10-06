@@ -41,11 +41,9 @@ void out_multiline(const std::string & value, std::size_t width = 80) {
   out_multiline(cert_control::member_name);\
   std::cout << ";\n";
 
-void vds::get_root_app::main(const service_provider & sp)
+void vds::get_root_app::main(const service_provider * sp)
 {
   if (&this->key_generate_command_set_ == this->current_command_set_) {
-    vds::imt_service::enable_async(sp);
-
     cert_control::private_info_t private_info;
     private_info.genereate_all();
 
@@ -90,7 +88,7 @@ void vds::get_root_app::register_command_line(command_line & cmd_line)
   this->key_generate_command_set_.required(this->user_password_);
 }
 
-void vds::get_root_app::start_services(service_registrator & registrator, service_provider & sp)
+void vds::get_root_app::start_services(service_registrator & registrator, service_provider * sp)
 {
   base_class::start_services(registrator, sp);
 }

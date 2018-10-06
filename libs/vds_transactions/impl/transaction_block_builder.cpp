@@ -16,7 +16,7 @@ All rights reserved
 #include "create_user_transaction.h"
 
 vds::const_data_buffer vds::transactions::transaction_block_builder::save(
-  const service_provider &sp,
+  const service_provider *sp,
   class vds::database_transaction &t,
   const std::shared_ptr<certificate> &write_cert,
   const std::shared_ptr<asymmetric_private_key> &write_private_key) {
@@ -74,7 +74,7 @@ vds::transactions::transaction_block_builder::transaction_block_builder()
 }
 
 vds::transactions::transaction_block_builder::transaction_block_builder(
-  const service_provider& sp,
+  const service_provider * sp,
   vds::database_transaction& t)
 : time_point_(std::chrono::system_clock::now()),
   balance_(data_coin_balance::load(t, this->time_point_, this->ancestors_)) {

@@ -20,7 +20,7 @@ All rights reserved
 #include "include/transaction_state_calculator.h"
 
 bool vds::transactions::transaction_log::save(
-	const service_provider & sp,
+	const service_provider * sp,
 	database_transaction & t,
 	const const_data_buffer & block_data)
 {
@@ -80,7 +80,7 @@ bool vds::transactions::transaction_log::save(
       write_cert = std::make_shared<certificate>(certificate::parse_der(t2.cert.get(st)));
     }
     else {
-      sp.get<logger>()->warning(
+      sp->get<logger>()->warning(
         ThisModule,
         sp,
         "Invalid certificate %s for block %s",
@@ -91,7 +91,7 @@ bool vds::transactions::transaction_log::save(
   }
 
   if(!block.validate(*write_cert)){
-    sp.get<logger>()->warning(
+    sp->get<logger>()->warning(
         ThisModule,
         sp,
         "Invalid signature record %s",
@@ -163,7 +163,7 @@ bool vds::transactions::transaction_log::save(
   }
 
   for (const auto &p : followers) {
-    sp.get<logger>()->trace(
+    sp->get<logger>()->trace(
       ThisModule,
       sp,
       "Apply follower %s for %s",

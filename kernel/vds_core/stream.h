@@ -18,7 +18,7 @@ namespace vds {
     virtual ~stream_output_async() {}
 
     virtual std::future<void> write_async(
-      const service_provider &sp,
+      const service_provider *sp,
         const item_type *data,
         size_t len) = 0;
   };
@@ -30,11 +30,11 @@ namespace vds {
   class stream_input_async : public std::enable_shared_from_this<stream_input_async<item_type>> {
   public:
     virtual std::future<size_t> read_async(
-      const service_provider &sp,
+      const service_provider *sp,
       item_type * buffer,
       size_t len) = 0;
 
-    std::future<const_data_buffer> read_all(const service_provider &sp) {
+    std::future<const_data_buffer> read_all(const service_provider *sp) {
       auto result = std::make_shared<resizable_data_buffer>();
       for(;;) {
         result->resize_data(result->size() + 1024);
@@ -61,7 +61,7 @@ namespace vds {
     }
 
     std::future<size_t> read_async(
-      const service_provider &sp,
+      const service_provider *sp,
       uint8_t * buffer,
       size_t len) override {
       if(this->readed_ > this->data_.size()) {
@@ -93,7 +93,7 @@ namespace vds {
     }
 
     std::future<size_t> read_async(
-      const service_provider &sp,
+      const service_provider *sp,
       uint8_t * buffer,
       size_t len) override {
       for (;;) {
@@ -138,7 +138,7 @@ namespace vds {
     }
 
     std::future<void> write_async(
-      const service_provider &/*sp*/,
+      const service_provider * /*sp*/,
       const item_type *data,
       size_t len) override {
         this->data_.add(data, len);

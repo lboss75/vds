@@ -20,16 +20,16 @@ namespace vds {
   class _mt_service
   {
   public:
-    _mt_service(const service_provider & sp);
+    _mt_service(const service_provider * sp);
     
     void start();
     void stop();
     
-    void do_async(const service_provider & sp, const std::function<void(void)> & handler);
-    void do_async(const service_provider & sp, std::function<void(void)> && handler);
+    void do_async(const service_provider * sp, const std::function<void(void)> & handler);
+    void do_async(const service_provider * sp, std::function<void(void)> && handler);
 
   private:
-    service_provider sp_;
+    const service_provider * sp_;
     std::list<std::thread> work_threads_;
     bool is_shuting_down_;
     
@@ -39,18 +39,6 @@ namespace vds {
     
     void work_thread();
   };
-
-  class async_enabled_property : public service_provider::property_holder
-  {
-  public:
-    async_enabled_property(bool is_enabled)
-      : is_enabled_(is_enabled)
-    {
-    }
-
-    bool is_enabled_;
-  };
-
 }
 
 #endif // __VDS_CORE_MT_SERVICE_P_H_

@@ -21,7 +21,7 @@ vds::http_message vds::http_response::simple_text_response(
   const std::string & message /*= "OK"*/)
 {
   std::list<std::string> headers;
-  headers.push_front("HTTP/1.0 " + std::to_string(result_code) + " " + message);
+  headers.push_back("HTTP/1.0 " + std::to_string(result_code) + " " + message);
   if (!content_type.empty()) {
     headers.push_back("Content-Type:" + content_type);
   }
@@ -32,7 +32,7 @@ vds::http_message vds::http_response::simple_text_response(
 
 vds::http_message vds::http_response::redirect(const std::string& location) {
   std::list<std::string> headers;
-  headers.push_front("HTTP/1.0 302 Found");
+  headers.push_back("HTTP/1.0 302 Found");
   headers.push_back("Location:" + location);
 
   return http_message(headers, std::make_shared<buffer_stream_input_async>(const_data_buffer()));
@@ -43,7 +43,7 @@ vds::http_message vds::http_response::status_response(
     const std::string & message)
 {
   std::list<std::string> headers;
-  headers.push_front("HTTP/1.0 " + std::to_string(result_code) + " " + message);
+  headers.push_back("HTTP/1.0 " + std::to_string(result_code) + " " + message);
 
   return http_message(headers, std::make_shared<buffer_stream_input_async>(const_data_buffer()));
 }
@@ -56,10 +56,10 @@ vds::http_message vds::http_response::file_response(
     const std::string & message /*= "OK"*/){
 
   std::list<std::string> headers;
-  headers.push_front("HTTP/1.0 " + std::to_string(result_code) + " " + message);
-  headers.push_front("Content-Type:" + content_type);
-  headers.push_front("Content-Length:" + std::to_string(file::length(body_file)));
-  headers.push_front("Content-Disposition:attachment; filename=\"" + out_filename + "\"");
+  headers.push_back("HTTP/1.0 " + std::to_string(result_code) + " " + message);
+  headers.push_back("Content-Type:" + content_type);
+  headers.push_back("Content-Length:" + std::to_string(file::length(body_file)));
+  headers.push_back("Content-Disposition:attachment; filename=\"" + out_filename + "\"");
   
   return http_message(headers, std::make_shared<file_stream_input_async>(body_file));
 }
@@ -73,10 +73,10 @@ vds::http_message vds::http_response::file_response(
   const std::string & message)
 {
   std::list<std::string> headers;
-  headers.push_front("HTTP/1.0 " + std::to_string(result_code) + " " + message);
-  headers.push_front("Content-Type:" + content_type);
-  headers.push_front("Content-Length:" + std::to_string(body_size));
-  headers.push_front("Content-Disposition:attachment; filename=\"" + filename + "\"");
+  headers.push_back("HTTP/1.0 " + std::to_string(result_code) + " " + message);
+  headers.push_back("Content-Type:" + content_type);
+  headers.push_back("Content-Length:" + std::to_string(body_size));
+  headers.push_back("Content-Disposition:attachment; filename=\"" + filename + "\"");
 
   return http_message(headers, body);
 }

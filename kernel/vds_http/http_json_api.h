@@ -13,7 +13,7 @@ namespace vds {
   {
   public:
     http_json_api(
-      const service_provider & scope,
+      const service_provider * scope,
       const handler_type & handler
     )
     : scope_(scope), handler_(handler)
@@ -35,7 +35,7 @@ namespace vds {
       {        
       }
       
-      bool operator()(const service_provider & sp, json_value * request)
+      bool operator()(const service_provider * sp, json_value * request)
       {
         try
         {

@@ -7,20 +7,34 @@ All rights reserved
 */
 
 #include <string>
+#include <unordered_map>
+#include <list>
 #include "types.h"
 #include "async_task.h"
+#include "shutdown_event.h"
+#include "foldername.h"
 
 namespace vds {
   class shutdown_event;
   class service_registrator;
-  class _service_provider;
-  class _service_registrator;
+  class foldername;
+
+  class iservice_factory
+  {
+  public:
+    virtual void register_services(service_registrator &) = 0;
+    virtual void start(const service_provider *) = 0;
+    virtual void stop(const service_provider *) = 0;
+    virtual std::future<void> prepare_to_stop(const service_provider *) {
+      co_return;
+    }
+  };
 
   class service_provider
   {
   public:
-
-    static service_provider empty();
+    service_provider(const service_provider *) = delete;
+    service_provider(service_provider && original) = delete;
 
     template <typename service_type>
     service_type * get(bool throw_error = true) const
@@ -33,105 +47,108 @@ namespace vds {
       return result;
     }
 
-    service_provider create_scope(const std::string & name) const;
+    const shutdown_event& get_shutdown_event() const;
+    const foldername & current_user() const;
+    const foldername & local_machine() const;
 
-    size_t id() const;
-    const std::string & name() const;
-    const std::string & full_name() const;
+  protected:
+    service_provider() {}
 
-    shutdown_event & get_shutdown_event() const;
+    private:
 
-    class property_holder
-    {
-    public:
-      virtual ~property_holder();
-    };
-
-    enum class property_scope
-    {
-      root_scope,
-      local_scope,
-      any_scope
-    };
-
-    template <typename property_type>
-    property_type * get_property(property_scope scope) const
-    {
-      return static_cast<property_type *>(this->get_property(scope, types::get_type_id<property_type>()));
-    }
-
-    template <typename property_type>
-    void set_property(property_scope scope, property_type * value) const
-    {
-      this->set_property(scope, types::get_type_id<property_type>(), value);
-    }
-
-    bool operator ! () const
-    {
-      return !this->impl_;
-    }
-    
-    void unhandled_exception(const std::exception_ptr & ex) const;
-  private:
-    friend class _service_provider;
-    friend class _service_registrator;
-
-    service_provider(std::shared_ptr<_service_provider> && impl);
-
-    std::shared_ptr<_service_provider> impl_;
-
-    void * get(size_t type_id) const;
-    property_holder * get_property(property_scope scope, size_t type_id) const;
-    void set_property(property_scope scope, size_t type_id, property_holder * value) const;
+    void* get(size_t type_id) const;
   };
 
-  class iservice_factory
+  class service_registrator : private service_provider
   {
   public:
-    virtual void register_services(service_registrator &) = 0;
-    virtual void start(const service_provider &) = 0;
-    virtual void stop(const service_provider &) = 0;
-    virtual std::future<void> prepare_to_stop(const service_provider &) {
-      co_return;
-    }
-  };
-  
-
-  class service_registrator
-  {
-  public:
-    service_registrator();
-
     template <typename service_type>
     void add_service(service_type * service)
     {
       this->add_service(types::get_type_id<service_type>(), service);
     }
 
-    void add(iservice_factory & factory);
-
-    void shutdown(service_provider & sp);
-
-    service_provider build(const std::string & name);
-    void start(const service_provider & sp);
-
-  private:
-    friend class _service_registrator;
-    std::shared_ptr<_service_registrator> impl_;
-
-    void add_service(size_t type_id, void * service);
-  };
-
-  class unhandled_exception_handler : public service_provider::property_holder
-  {
-  public:
-    unhandled_exception_handler(const std::function<void(const service_provider & sp, const std::exception_ptr & ex)> & handler)
-      : on_error(handler)
+    void add(iservice_factory & factory)
     {
+      this->factories_.push_back(&factory);
     }
 
-    std::function<void(const service_provider & sp, const std::exception_ptr & ex)> on_error;
+    void shutdown(service_provider * sp) {
+      this->shutdown_event_.set();
+      std::this_thread::sleep_for(std::chrono::seconds(5));
+
+      for (auto& p : this->factories_) {
+        p->prepare_to_stop(sp).get();
+      }
+
+      while (!this->factories_.empty()) {
+        this->factories_.back()->stop(sp);
+        this->factories_.pop_back();
+      }
+    }
+
+    service_provider * build() {
+      for (auto factory : this->factories_) {
+        factory->register_services(*this);
+      }
+
+      return this;
+    }
+
+    void start(const service_provider * sp) {
+      for (auto factory : this->factories_) {
+        factory->start(sp);
+      }
+    }
+
+    void current_user(const foldername & value) {
+      this->current_user_ = value;
+    }
+
+    void local_machine(const foldername & value) {
+      this->local_machine_ = value;
+    }
+
+  private:
+    friend class service_provider;
+
+    shutdown_event shutdown_event_;
+    std::unordered_map<size_t, void *> services_;
+    std::list<iservice_factory *> factories_;
+    foldername current_user_;
+    foldername local_machine_;
+
+    void add_service(size_t type_id, void* service) {
+      if (this->services_.find(type_id) != this->services_.end()) {
+        throw std::runtime_error("Invalid argument");
+      }
+
+      this->services_[type_id] = service;
+    }
   };
+
+  inline const vds::shutdown_event& vds::service_provider::get_shutdown_event() const {
+    return static_cast<const service_registrator *>(this)->shutdown_event_;
+  }
+
+  inline const foldername& service_provider::current_user() const {
+    return static_cast<const service_registrator *>(this)->current_user_;
+  }
+
+  inline const foldername& service_provider::local_machine() const {
+    return static_cast<const service_registrator *>(this)->local_machine_;
+  }
+
+  inline void * service_provider::get(size_t type_id) const {
+    auto p = static_cast<const service_registrator *>(this)->services_.find(type_id);
+    if (static_cast<const service_registrator *>(this)->services_.end() == p) {
+      return nullptr;
+    }
+    else {
+      return p->second;
+    }
+  }
+
 }
 
 

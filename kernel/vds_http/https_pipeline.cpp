@@ -26,19 +26,19 @@ vds::https_pipeline::~https_pipeline()
 {
 }
 
-void vds::https_pipeline::on_connected(const service_provider & sp)
+void vds::https_pipeline::on_connected(const service_provider * sp)
 {
 }
 
-void vds::https_pipeline::on_connection_closed(const service_provider & sp)
+void vds::https_pipeline::on_connection_closed(const service_provider * sp)
 {
 }
 
-void vds::https_pipeline::on_error(const service_provider & sp, const std::shared_ptr<std::exception> & / *error* /)
+void vds::https_pipeline::on_error(const service_provider * sp, const std::shared_ptr<std::exception> & / *error* /)
 {
 }
 
-void vds::https_pipeline::connect(const service_provider & sp)
+void vds::https_pipeline::connect(const service_provider * sp)
 {
   this->impl_->connect(sp);
 }
@@ -53,7 +53,7 @@ int vds::https_pipeline::port() const
   return this->impl_->port();
 }
 
-void vds::https_pipeline::run(const service_provider & sp, const std::string & body)
+void vds::https_pipeline::run(const service_provider * sp, const std::string & body)
 {
   this->impl_->run(sp, body);
 }
@@ -78,7 +78,7 @@ vds::_https_pipeline::~_https_pipeline()
 {
 }
 
-void vds::_https_pipeline::connect(const service_provider & parent_scope)
+void vds::_https_pipeline::connect(const service_provider * parent_scope)
 {
   auto sp = parent_scope.create_scope("_https_pipeline");
   dataflow(
@@ -86,8 +86,8 @@ void vds::_https_pipeline::connect(const service_provider & parent_scope)
     connection(this)
   )
   (
-   [this](const service_provider & sp){ this->owner_->on_connected(sp); },
-   [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { this->owner_->on_error(sp, ex); },
+   [this](const service_provider * sp){ this->owner_->on_connected(sp); },
+   [this](const service_provider * sp, const std::shared_ptr<std::exception> & ex) { this->owner_->on_error(sp, ex); },
    sp,
    this->address_,
    this->port_
@@ -100,7 +100,7 @@ vds::_https_pipeline::connection::connection(
 {
 }
 
-void vds::_https_pipeline::run(const service_provider & sp, const std::string & body)
+void vds::_https_pipeline::run(const service_provider * sp, const std::string & body)
 {
   this->output_command_stream_->run(sp, body);
 }

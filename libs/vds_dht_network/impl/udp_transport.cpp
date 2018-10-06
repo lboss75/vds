@@ -16,8 +16,11 @@ All rights reserved
 vds::dht::network::udp_transport::udp_transport() {
 }
 
+vds::dht::network::udp_transport::~udp_transport() {
+}
+
 void vds::dht::network::udp_transport::start(
-  const service_provider& sp,
+  const service_provider * sp,
   const std::shared_ptr<certificate> & node_cert,
   const std::shared_ptr<asymmetric_private_key> & node_key,
   uint16_t port) {
@@ -39,19 +42,19 @@ void vds::dht::network::udp_transport::start(
 
   std::thread([sp, this]() {
     try {
-      this->continue_read(sp.create_scope("vds::dht::network::udp_transport::continue_read")).get();
+      this->continue_read(sp).get();
     }
     catch (...) {
     }
   }).detach();
 }
 
-void vds::dht::network::udp_transport::stop(const service_provider& sp) {
+void vds::dht::network::udp_transport::stop(const service_provider * sp) {
   this->server_.stop(sp);
 }
 
 std::future<void>
-vds::dht::network::udp_transport::write_async(const service_provider& sp, const udp_datagram& datagram) {
+vds::dht::network::udp_transport::write_async(const service_provider * sp, const udp_datagram& datagram) {
   //  std::unique_lock<std::debug_mutex> lock(this->write_mutex_);
   //  while(this->write_in_progress_) {
   //    this->write_cond_.wait(*reinterpret_cast<std::unique_lock<std::mutex> *>(&lock));
@@ -67,7 +70,7 @@ vds::dht::network::udp_transport::write_async(const service_provider& sp, const 
   co_await this->writer_->write_async(sp, datagram);
 }
 
-std::future<void> vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
+std::future<void> vds::dht::network::udp_transport::try_handshake(const service_provider * sp,
                                                                   const std::string& address) {
 
   resizable_data_buffer out_message;
@@ -100,11 +103,11 @@ void vds::dht::network::udp_transport::get_session_statistics(session_statistic&
 
 
 std::future<void> vds::dht::network::udp_transport::continue_read(
-  const service_provider& sp) {
+  const service_provider * sp) {
   for (;;) {
     udp_datagram datagram = co_await this->reader_->read_async(sp);
 
-    if (sp.get_shutdown_event().is_shuting_down()) {
+    if (sp->get_shutdown_event().is_shuting_down()) {
       co_return;
     }
 
@@ -162,8 +165,8 @@ std::future<void> vds::dht::network::udp_transport::continue_read(
           partner_node_id,
           session_info.session_key_);
 
-        sp.get<logger>()->debug(ThisModule, sp, "Add session %s", datagram.address().to_string().c_str());
-        (*sp.get<client>())->add_session(sp, session_info.session_, 0);
+        sp->get<logger>()->debug(ThisModule, sp, "Add session %s", datagram.address().to_string().c_str());
+        (*sp->get<client>())->add_session(sp, session_info.session_, 0);
 
         resizable_data_buffer out_message;
         out_message.add(static_cast<uint8_t>(protocol_message_type_t::Welcome));
@@ -179,12 +182,12 @@ std::future<void> vds::dht::network::udp_transport::continue_read(
 
         out_message += bs.move_data();
         co_await this->write_async(sp, udp_datagram(datagram.address(), out_message.move_data(), false));
-        co_await (*sp.get<client>())->send_neighbors(
+        co_await (*sp->get<client>())->send_neighbors(
           sp,
           messages::dht_find_node_response({
           messages::dht_find_node_response::target_node(partner_node_id, datagram.address().to_string(), 0) }));
 
-        co_await sp.get<imessage_map>()->on_new_session(
+        co_await sp->get<imessage_map>()->on_new_session(
           sp,
           partner_node_id);
       }
@@ -220,10 +223,10 @@ std::future<void> vds::dht::network::udp_transport::continue_read(
           partner_id,
           key);
 
-        sp.get<logger>()->debug(ThisModule, sp, "Add session %s", datagram.address().to_string().c_str());
-        (*sp.get<client>())->add_session(sp, session_info.session_, 0);
+        sp->get<logger>()->debug(ThisModule, sp, "Add session %s", datagram.address().to_string().c_str());
+        (*sp->get<client>())->add_session(sp, session_info.session_, 0);
 
-        sp.get<imessage_map>()->on_new_session(
+        sp->get<imessage_map>()->on_new_session(
           sp,
           partner_id);
       }
@@ -235,7 +238,7 @@ std::future<void> vds::dht::network::udp_transport::continue_read(
     }
     case protocol_message_type_t::Failed: {
       session_info.blocked_ = true;
-      (*sp.get<client>())->remove_session(sp, session_info.session_);
+      (*sp->get<client>())->remove_session(sp, session_info.session_);
       session_info.session_.reset();
       session_info.update_time_ = std::chrono::steady_clock::now();
       break;
@@ -243,14 +246,13 @@ std::future<void> vds::dht::network::udp_transport::continue_read(
     default: {
       if (session_info.session_) {
         try {
-          auto scope = sp.create_scope("Process datagram");
           auto session = session_info.session_;
           lock.unlock();
 
           bool failed = false;
           try {
             co_await session->process_datagram(
-              scope,
+              sp,
               this->shared_from_this(),
               const_data_buffer(datagram.data(), datagram.data_size()));
           }
@@ -261,7 +263,7 @@ std::future<void> vds::dht::network::udp_transport::continue_read(
           if(failed) {
             session_info.session_mutex_.lock();
             session_info.blocked_ = true;
-            (*sp.get<client>())->remove_session(sp, session_info.session_);
+            (*sp->get<client>())->remove_session(sp, session_info.session_);
             session_info.session_.reset();
             session_info.update_time_ = std::chrono::steady_clock::now();
             session_info.session_mutex_.unlock();
@@ -274,7 +276,7 @@ std::future<void> vds::dht::network::udp_transport::continue_read(
         catch (...) {
           session_info.session_mutex_.lock();
           session_info.blocked_ = true;
-          (*sp.get<client>())->remove_session(sp, session_info.session_);
+          (*sp->get<client>())->remove_session(sp, session_info.session_);
           session_info.session_.reset();
           session_info.update_time_ = std::chrono::steady_clock::now();
           session_info.session_mutex_.unlock();
@@ -282,14 +284,13 @@ std::future<void> vds::dht::network::udp_transport::continue_read(
       }
       else {
         session_info.blocked_ = true;
-        (*sp.get<client>())->remove_session(sp, session_info.session_);
+        (*sp->get<client>())->remove_session(sp, session_info.session_);
         session_info.session_.reset();
         session_info.update_time_ = std::chrono::steady_clock::now();
 
         uint8_t out_message[] = { (uint8_t)protocol_message_type_t::Failed };
-        auto scope = sp.create_scope("Send Failed");
         try {
-          co_await this->write_async(scope, udp_datagram(datagram.address(),
+          co_await this->write_async(sp, udp_datagram(datagram.address(),
             const_data_buffer(out_message, sizeof(out_message))));
         }
         catch (...) {

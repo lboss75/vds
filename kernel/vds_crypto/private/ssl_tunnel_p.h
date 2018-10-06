@@ -15,7 +15,7 @@
 //  class _ssl_tunnel {
 //  public:
 //    _ssl_tunnel(
-//      const service_provider & sp,
+//      const service_provider * sp,
 //      const stream_output_async<uint8_t> & crypted_output,
 //      const stream_output_async<uint8_t> & decrypted_output,
 //      bool is_client,
@@ -33,7 +33,7 @@
 //    stream_output_async<uint8_t> & crypted_input()  { return this->crypted_input_; }
 //    stream_output_async<uint8_t> & decrypted_input() { return this->decrypted_input_; }
 //
-//    void start(const service_provider & sp)
+//    void start(const service_provider * sp)
 //    {
 //      this->start_crypted_input(sp);
 //      this->start_decrypted_input(sp);
@@ -81,7 +81,7 @@
 //    bool failed_state_;
 //    std::function<void(const std::shared_ptr<std::exception> &)> error_handler_;
 //
-//    void start_crypted_input(const service_provider & sp)
+//    void start_crypted_input(const service_provider * sp)
 //    {
 //      try
 //      {
@@ -93,7 +93,7 @@
 //        }
 //        else {
 //          this->crypted_input_eof_ = true;
-//          sp.get<logger>()->trace("SSL", sp, "SSL Crypted input closed");
+//          sp->get<logger>()->trace("SSL", sp, "SSL Crypted input closed");
 //        }
 //
 //        this->state_mutex_.unlock();
@@ -114,7 +114,7 @@
 //      }
 //    }
 //    
-//    void start_decrypted_input(const service_provider & sp)
+//    void start_decrypted_input(const service_provider * sp)
 //    {
 //      if(this->decrypted_input_eof_){
 //        throw std::runtime_error("Login error");
@@ -128,7 +128,7 @@
 //        }
 //        else {
 //          this->decrypted_input_eof_ = true;
-//          sp.get<logger>()->trace("SSL", sp, "SSL Decrypted input closed");
+//          sp->get<logger>()->trace("SSL", sp, "SSL Decrypted input closed");
 //        }
 //
 //        this->state_mutex_.unlock();
@@ -150,7 +150,7 @@
 //      }
 //    }
 //
-//    void process(const service_provider & sp)
+//    void process(const service_provider * sp)
 //    {
 //      std::unique_lock<std::mutex> lock(this->state_mutex_);
 //
@@ -210,7 +210,7 @@
 //                  .execute(
 //                    [this, sp](const std::shared_ptr<std::exception> & ex) {
 //                      if(!ex){
-//                        sp.get<logger>()->trace("SSL", sp, "SSL Decrypted output closed");
+//                        sp->get<logger>()->trace("SSL", sp, "SSL Decrypted output closed");
 //                      } else {
 //                        this->state_mutex_.lock();
 //                        if(this->failed_state_){
@@ -309,7 +309,7 @@
 //            tmp.write_async(nullptr, 0)
 //              .execute([this, sp](const std::shared_ptr<std::exception> & ex) {
 //                if(!ex){
-//                  sp.get<logger>()->trace("SSL", sp, "SSL Crypted output closed");
+//                  sp->get<logger>()->trace("SSL", sp, "SSL Crypted output closed");
 //                } else {
 //                  this->state_mutex_.lock();
 //                  if(this->failed_state_){

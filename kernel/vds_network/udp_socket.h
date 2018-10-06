@@ -55,12 +55,12 @@ namespace vds {
 
   class udp_datagram_reader : public std::enable_shared_from_this<udp_datagram_reader> {
   public:
-    std::future<udp_datagram> read_async(const service_provider & sp);
+    std::future<udp_datagram> read_async(const service_provider * sp);
   };
 
   class udp_datagram_writer : public std::enable_shared_from_this<udp_datagram_writer> {
   public:
-    std::future<void> write_async(const service_provider & sp, const udp_datagram & message);
+    std::future<void> write_async(const service_provider * sp, const udp_datagram & message);
   };
 
 
@@ -84,13 +84,13 @@ namespace vds {
     std::tuple<
         std::shared_ptr<udp_datagram_reader>,
         std::shared_ptr<udp_datagram_writer>>
-          start(const service_provider & sp);
+          start(const service_provider * sp);
 
     void stop();
 
     _udp_socket * operator -> () const { return this->impl_; }
 
-    static std::shared_ptr<udp_socket> create(const service_provider & sp, sa_family_t af);
+    static std::shared_ptr<udp_socket> create(const service_provider * sp, sa_family_t af);
 
 #ifndef _WIN32
     void process(uint32_t events) override;
@@ -114,11 +114,11 @@ namespace vds {
     ~udp_server();
 
     std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>> start(
-      const service_provider & sp,
+      const service_provider * sp,
       const network_address & address);
 
-    void prepare_to_stop(const service_provider & sp);
-    void stop(const service_provider & sp);
+    void prepare_to_stop(const service_provider * sp);
+    void stop(const service_provider * sp);
 
 	  const std::shared_ptr<udp_socket> & socket() const;
 
@@ -139,10 +139,10 @@ namespace vds {
     ~udp_client();
 
     std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>> start(
-      const service_provider & sp,
+      const service_provider * sp,
       sa_family_t af);
 
-    void stop(const service_provider & sp);
+    void stop(const service_provider * sp);
 
   private:
     _udp_client * impl_;

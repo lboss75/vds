@@ -27,17 +27,18 @@ namespace vds {
         udp_transport();
         udp_transport(const udp_transport&) = delete;
         udp_transport(udp_transport&&) = delete;
+        ~udp_transport();
 
         void start(
-          const service_provider& sp,
+          const service_provider * sp,
           const std::shared_ptr<certificate> & node_cert,
           const std::shared_ptr<asymmetric_private_key> & node_key,
           uint16_t port) override;
 
-        void stop(const service_provider& sp) override;
+        void stop(const service_provider * sp) override;
 
-        std::future<void> write_async(const service_provider& sp, const udp_datagram& datagram);
-        std::future<void> try_handshake(const service_provider& sp, const std::string& address);
+        std::future<void> write_async(const service_provider * sp, const udp_datagram& datagram);
+        std::future<void> try_handshake(const service_provider * sp, const std::string& address);
 
         const const_data_buffer& this_node_id() const {
           return this->this_node_id_;
@@ -77,7 +78,7 @@ namespace vds {
         mutable std::shared_mutex sessions_mutex_;
         std::map<network_address, session_state> sessions_;
 
-        std::future<void> continue_read(const service_provider& sp);
+        std::future<void> continue_read(const service_provider * sp);
       };
     }
   }

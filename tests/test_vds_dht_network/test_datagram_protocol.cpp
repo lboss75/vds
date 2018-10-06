@@ -4,7 +4,7 @@
 #include "private/cert_control_p.h"
 
 static void send_message_check(
-  const vds::service_provider & sp,
+  const vds::service_provider * sp,
   const vds::const_data_buffer & node1,
   const vds::const_data_buffer & node2,
   const std::shared_ptr<mock_session> & session1,
@@ -27,7 +27,7 @@ static void send_message_check(
 }
 
 static void proxy_message_check(
-  const vds::service_provider & sp,
+  const vds::service_provider * sp,
   const vds::const_data_buffer & node1,
   const vds::const_data_buffer & node2,
   const std::shared_ptr<mock_session> & session1,
@@ -99,10 +99,8 @@ TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
   registrator.add(logger);
   registrator.add(mt_service);
 
-  auto sp = registrator.build("test_async_stream");
+  auto sp = registrator.build();
   registrator.start(sp);
-
-  vds::mt_service::enable_async(sp);
 
   auto cert = vds::cert_control::get_storage_certificate();
   auto key = vds::cert_control::get_common_storage_private_key();
@@ -158,7 +156,7 @@ TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
 }
 
 std::future<void> mock_transport::write_async(
-    const vds::service_provider &sp,
+    const vds::service_provider *sp,
     const vds::udp_datagram &data) {
   return this->s_.process_datagram(
       sp,

@@ -12,11 +12,11 @@ All rights reserved
 #include <pwd.h>
 #endif
 
-vds::foldername vds::persistence::current_user(const service_provider & sp)
+vds::foldername vds::persistence::current_user(const service_provider * sp)
 {
-  auto props = sp.get_property<persistence_values>(service_provider::property_scope::any_scope);
-  if (nullptr != props && !props->current_user_.empty()) {
-    return props->current_user_;
+  auto props = sp->current_user();
+  if (!props.empty()) {
+    return props;
   }
 
 #ifndef _WIN32
@@ -42,11 +42,11 @@ vds::foldername vds::persistence::current_user(const service_provider & sp)
 #endif
 }
 
-vds::foldername vds::persistence::local_machine(const service_provider & sp)
+vds::foldername vds::persistence::local_machine(const service_provider * sp)
 {
-  auto props = sp.get_property<persistence_values>(service_provider::property_scope::any_scope);
-  if (nullptr != props && !props->local_machine_.empty()) {
-    return props->local_machine_;
+  auto props = sp->local_machine();
+  if (!props.empty()) {
+    return props;
   }
 
 #ifndef _WIN32

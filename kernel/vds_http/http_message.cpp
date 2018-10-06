@@ -25,18 +25,18 @@ bool vds::http_message::get_header(
   return false;
 }
 
-std::future<void> vds::http_message::ignore_empty_body(const service_provider &sp) const {
+std::future<void> vds::http_message::ignore_empty_body(const service_provider *sp) const {
   auto result = co_await this->body_->read_all(sp);
   vds_assert(0 == result.size());
 }
 
-std::future<void> vds::http_message::ignore_body(const service_provider &sp) const {
+std::future<void> vds::http_message::ignore_body(const service_provider *sp) const {
   auto buffer = std::make_shared<buffer_t>();
   co_await ignore_body(sp, this->body_, buffer);
 }
 
 std::future<void> vds::http_message::ignore_body(
-  const service_provider &sp,
+  const service_provider *sp,
   const std::shared_ptr<stream_input_async<uint8_t>> & body,
   const std::shared_ptr<buffer_t>& buffer) {
 

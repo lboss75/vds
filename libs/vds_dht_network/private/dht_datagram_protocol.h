@@ -45,7 +45,7 @@ namespace vds {
         }
 
         std::future<void> send_message(
-            const service_provider& sp,
+            const service_provider * sp,
             const std::shared_ptr<transport_type>& s,
             uint8_t message_type,
             const const_data_buffer& target_node,
@@ -53,7 +53,7 @@ namespace vds {
           vds_assert(message.size() <= 0xFFFF);
           vds_assert(target_node != this->this_node_id_);
 
-          sp.get<logger>()->trace(
+          sp->get<logger>()->trace(
               "dht_session",
               sp,
               "send %d from this node %s to %s",
@@ -72,7 +72,7 @@ namespace vds {
         }
 
         std::future<void> proxy_message(
-          const service_provider& sp,
+          const service_provider * sp,
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
           const const_data_buffer& target_node,
@@ -83,7 +83,7 @@ namespace vds {
           vds_assert(target_node != this->this_node_id_);
           vds_assert(source_node != this->partner_node_id_);
 
-          sp.get<logger>()->trace(
+          sp->get<logger>()->trace(
             "dht_session",
             sp,
             "send %d from %s to %s",
@@ -102,11 +102,10 @@ namespace vds {
         }
 
         std::future<void> process_datagram(
-          const service_provider& scope,
+          const service_provider * sp,
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
 
-          auto sp = scope.create_scope(__FUNCTION__);
           std::unique_lock<std::mutex> lock(this->input_mutex_);
           if (datagram.size() < 33) {
             throw std::runtime_error("Invalid data");
@@ -242,7 +241,7 @@ namespace vds {
 
 
         std::future<void> send_message_async(
-          const service_provider& sp,
+          const service_provider * sp,
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
           const const_data_buffer& target_node,
@@ -387,7 +386,7 @@ namespace vds {
         }
 
         std::future<void> continue_process_messages(
-          const service_provider& sp,
+          const service_provider * sp,
           const std::shared_ptr<transport_type>& s,
           std::unique_lock<std::mutex>& locker
         ) {
