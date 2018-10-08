@@ -289,11 +289,10 @@ namespace vds {
 
         template <typename message_type>
         void send_to_members(
-          
           database_read_transaction& t,
           const const_data_buffer& object_id,
           const message_type& message) const {
-          this->send_to_members(sp, t, object_id, message_type::message_id, message.serialize());
+          this->send_to_members(t, object_id, message_type::message_id, message.serialize());
         }
 
         enum class base_message_type {

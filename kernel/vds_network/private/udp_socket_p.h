@@ -328,7 +328,7 @@ namespace vds {
   {
   public:
     _udp_receive(
-        
+        const service_provider * sp,
         const std::shared_ptr<socket_base> & owner)
       : ns_(sp->get<network_service>()->operator->()),
         owner_(owner)
@@ -413,7 +413,7 @@ namespace vds {
   class _udp_send : public udp_datagram_writer {
   public:
     _udp_send(
-        
+        const service_provider * sp,
         const std::shared_ptr<socket_base> & owner)
         : ns_(sp->get<network_service>()->operator->()),
           owner_(owner) {

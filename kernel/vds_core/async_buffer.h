@@ -67,7 +67,7 @@ namespace vds {
             f();
           });
 #else
-          mt_service::async(sp, f);
+          mt_service::async(this->sp_, f);
 #endif
         }
 
@@ -305,7 +305,7 @@ namespace vds {
       
       const uint8_t *data,
       size_t len) override {
-      return this->buffer_->write_async(sp, data, len);
+      return this->buffer_->write_async(data, len);
     }
   private:
     std::shared_ptr<continuous_buffer<item_t>> buffer_;

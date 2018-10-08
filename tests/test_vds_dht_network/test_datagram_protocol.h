@@ -5,9 +5,9 @@
 
 class mock_session;
 
-class mock_transport : public std::enable_shared_from_this<mock_transport> {
+class mock_dg_transport : public std::enable_shared_from_this<mock_dg_transport> {
 public:
-  mock_transport(mock_session & s)
+  mock_dg_transport(mock_session & s)
   : s_(s){
   }
   std::future<void> write_async(
@@ -18,8 +18,8 @@ private:
   mock_session & s_;
 };
 
-class mock_session : public vds::dht::network::dht_datagram_protocol<mock_session, mock_transport> {
-  typedef vds::dht::network::dht_datagram_protocol<mock_session, mock_transport> base_class;
+class mock_session : public vds::dht::network::dht_datagram_protocol<mock_session, mock_dg_transport> {
+  typedef vds::dht::network::dht_datagram_protocol<mock_session, mock_dg_transport> base_class;
 public:
   mock_session(
     const vds::service_provider * sp,
@@ -32,7 +32,7 @@ public:
 
   std::future<void> process_message(
       
-      const std::shared_ptr<mock_transport>& transport,
+      const std::shared_ptr<mock_dg_transport>& transport,
       uint8_t message_type,
       const vds::const_data_buffer & target_node,
       const vds::const_data_buffer & source_node,

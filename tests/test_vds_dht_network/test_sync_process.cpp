@@ -403,7 +403,7 @@ void mock_server::add_sync_entry(
         t1.replica_hash = replica_hash,
         t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
       ));
-    (*client)->sync_process_.add_sync_entry(t, object_id, object_data.size());
+    (*client)->add_sync_entry(t, object_id, object_data.size());
   }).wait();
 
 }
@@ -437,7 +437,7 @@ std::future<void> mock_server::prepare_to_stop() {
   co_return;
 }
 
-void mock_transport::start(  
+void mock_transport::start(
   const vds::service_provider * /*sp*/,
   const std::shared_ptr<vds::certificate> & node_cert,
   const std::shared_ptr<vds::asymmetric_private_key> & /*node_key*/,
@@ -449,12 +449,11 @@ void mock_transport::stop() {
 }
 
 std::future<void> mock_transport::write_async(
-  
   const vds::udp_datagram& datagram) {
   return this->hab_->write_async(datagram, this->node_id_, this->owner_->address());
 }
 
-std::future<void> mock_transport::try_handshake(  
+std::future<void> mock_transport::try_handshake(
   const std::string & address) {
   co_return;
 }

@@ -12,7 +12,7 @@ namespace vds {
 }
 
 class test_server;
-class mock_transport;
+class mock_dg_transport;
 class mock_server;
 
 class message_log_t {
@@ -70,7 +70,7 @@ public:
 
   void stop() override;
 
-  std::future<void> write_async( const vds::udp_datagram& datagram) override;
+  std::future<void> write_async(const vds::udp_datagram& datagram) override;
   std::future<void> try_handshake( const std::string& address) override;
 
   const vds::const_data_buffer & node_id() const {

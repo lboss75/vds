@@ -192,9 +192,9 @@ namespace vds{
     {
     }
 
-    void on_exception( const std::exception_ptr & ex)
+    void on_exception(service_provider * sp, const std::exception_ptr & ex)
     {
-      sp->get<logger>()->error("VDS", sp, "Fatal error");
+      sp->get<logger>()->error("VDS", "Fatal error");
       sp->get<logger>()->flush();
 
       exit(1);
@@ -502,7 +502,7 @@ namespace vds{
     {
     }
     
-    void on_exception( const std::exception_ptr & ex)
+    void on_exception(service_provider * sp, const std::exception_ptr & ex)
     {
       std::cerr << "Fatal error\n";
       

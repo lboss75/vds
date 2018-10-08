@@ -16,11 +16,13 @@ namespace vds {
   class _web_server : public std::enable_shared_from_this<_web_server>
   {
   public:
-    _web_server();
+    _web_server(const service_provider * sp);
     ~_web_server();
 
-    std::future<void> start( const std::string & root_folder, uint16_t port);
-    std::future<void> prepare_to_stop(const service_provider *sp);
+    std::future<void> start(
+        const std::string & root_folder,
+        uint16_t port);
+    std::future<void> prepare_to_stop();
 
     std::future<http_message> route(
       
@@ -39,6 +41,7 @@ namespace vds {
       const std::string& session_id);
 
   private:
+    const service_provider * sp_;
     tcp_socket_server server_;
     http_middleware<_web_server> middleware_;
     http_router router_;

@@ -9,8 +9,8 @@ static void send_message_check(
   const vds::const_data_buffer & node2,
   const std::shared_ptr<mock_session> & session1,
   const std::shared_ptr<mock_session> & session2,
-  const std::shared_ptr<mock_transport> & transport12,
-  const std::shared_ptr<mock_transport> & transport21,
+  const std::shared_ptr<mock_dg_transport> & transport12,
+  const std::shared_ptr<mock_dg_transport> & transport21,
   size_t size) {
 
   vds::const_data_buffer message;
@@ -32,8 +32,8 @@ static void proxy_message_check(
   const vds::const_data_buffer & node2,
   const std::shared_ptr<mock_session> & session1,
   const std::shared_ptr<mock_session> & session2,
-  const std::shared_ptr<mock_transport> & transport12,
-  const std::shared_ptr<mock_transport> & transport21,
+  const std::shared_ptr<mock_dg_transport> & transport12,
+  const std::shared_ptr<mock_dg_transport> & transport21,
   size_t size) {
 
   vds::const_data_buffer message;
@@ -140,8 +140,8 @@ TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
     session_key);
   session1->set_mtu(20 * 1024);
 
-  auto transport12 = std::make_shared<mock_transport>(*session2);
-  auto transport21 = std::make_shared<mock_transport>(*session1);
+  auto transport12 = std::make_shared<mock_dg_transport>(*session2);
+  auto transport21 = std::make_shared<mock_dg_transport>(*session1);
 
   send_message_check(node1, node2, session1, session2, transport12, transport21, 10);
   send_message_check(node1, node2, session1, session2, transport12, transport21, 10 * 1024);
@@ -155,7 +155,7 @@ TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
   registrator.shutdown();
 }
 
-std::future<void> mock_transport::write_async(
+std::future<void> mock_dg_transport::write_async(
     
     const vds::udp_datagram &data) {
   return this->s_.process_datagram(

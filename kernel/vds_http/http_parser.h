@@ -171,14 +171,14 @@ namespace vds {
             this->parse_buffer_.clear();
           }
           else {
-            co_await static_cast<implementation_class *>(this->owner_.get())->finish_message(sp);
+            co_await static_cast<implementation_class *>(this->owner_.get())->finish_message();
             co_return 0;
           }
         }
 
         if (this->readed_ == this->processed_) {
           this->processed_ = 0;
-          this->readed_ = co_await this->input_stream_->read_async(sp, this->buffer_, sizeof(this->buffer_));
+          this->readed_ = co_await this->input_stream_->read_async(this->buffer_, sizeof(this->buffer_));
           if (0 == this->readed_) {
             this->eof_ = true;
             co_return 0;
@@ -223,12 +223,12 @@ namespace vds {
         for (;;) {
           switch (this->state_) {
           case StateEnum::STATE_PARSE_BODY: {
-            co_return co_await this->parse_body(sp, buffer, buffer_size);
+            co_return co_await this->parse_body(buffer, buffer_size);
           }
           case StateEnum::STATE_PARSE_SIZE: {
             if (this->readed_ == this->processed_) {
               this->processed_ = 0;
-              this->readed_ = co_await this->input_stream_->read_async(sp, this->buffer_, sizeof(this->buffer_));
+              this->readed_ = co_await this->input_stream_->read_async(this->buffer_, sizeof(this->buffer_));
               if (0 == this->readed_) {
                 this->eof_ = true;
                 co_return 0;
@@ -275,7 +275,7 @@ namespace vds {
             else if (this->buffer_[this->processed_] == '\n') {
               this->processed_++;
               this->state_ = StateEnum::STATE_PARSE_SIZE;
-              co_await static_cast<implementation_class *>(this->owner_.get())->continue_read_data(sp);
+              co_await static_cast<implementation_class *>(this->owner_.get())->continue_read_data();
             }
             else {
               throw std::runtime_error("Invalid data");

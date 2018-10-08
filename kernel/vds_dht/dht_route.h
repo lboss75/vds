@@ -471,7 +471,7 @@ namespace vds {
       std::future<void> ping_buckets( timer_arg_types && ... timer_args) {
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
         for (auto &p : this->buckets_) {
-          this->sp_->get<logger>()->trace("DHT", "Bucket %d", p.first);
+          logger::get(this->sp_)->trace("DHT", "Bucket %d", p.first);
           co_await p.second->on_timer(this->sp_, this, timer_args...);
         }
       }

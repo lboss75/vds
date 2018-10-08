@@ -270,6 +270,12 @@ namespace vds {
           
           const std::shared_ptr<dht_session>& session);
 
+        void add_sync_entry(
+            database_transaction& t,
+            const const_data_buffer& object_id,
+            uint32_t object_size) {
+          this->sync_process_.add_sync_entry(t, object_id, object_size);
+        }
       private:
         friend class sync_process;
         friend class dht_session;

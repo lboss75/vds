@@ -126,7 +126,7 @@ namespace vds {
             }
             
             //bind to address
-            sp->get<logger>()->trace("UDP", sp, "Starting UDP server on %s", address.to_string().c_str());
+            sp->get<logger>()->trace("UDP", "Starting UDP server on %s", address.to_string().c_str());
             if (0 > ::bind(this->s_, address, address.size())) {
               auto error = errno;
               throw std::system_error(error, std::system_category());

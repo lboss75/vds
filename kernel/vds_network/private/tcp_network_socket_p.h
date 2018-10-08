@@ -341,9 +341,10 @@ namespace vds {
 
   public:
     _write_socket_task(
-      
+      const service_provider * sp,
       const std::shared_ptr<socket_base> &owner)
-      : ns_(sp->get<network_service>()->operator->()),
+      : sp_(sp),
+        ns_(sp->get<network_service>()->operator->()),
         owner_(owner) {
     }
 
@@ -406,6 +407,7 @@ namespace vds {
     }
 
   private:
+    const service_provider * sp_;
     _network_service * ns_;
     std::shared_ptr<socket_base> owner_;
     std::shared_ptr<std::promise<void>> result_;
@@ -421,9 +423,10 @@ namespace vds {
   {
   public:
     _read_socket_task(
-        
+        const service_provider * sp,
         const std::shared_ptr<socket_base> &owner)
-        : ns_(sp->get<network_service>()->operator->()),
+        : sp_(sp),
+          ns_(sp->get<network_service>()->operator->()),
           owner_(owner) {
     }
 
@@ -453,14 +456,14 @@ namespace vds {
           co_return 0;
         }
 
-        sp->get<logger>()->trace("TCP", sp, "Read error %d", error);
+        this->sp_->get<logger>()->trace("TCP", "Read error %d", error);
         throw std::system_error(
             error,
             std::generic_category(),
             "Read");
       }
       else {
-        sp->get<logger>()->trace("TCP", sp, "Read %d bytes", len);
+        this->sp_->get<logger>()->trace("TCP", "Read %d bytes", len);
         co_return len;
       }
     }
@@ -500,6 +503,7 @@ namespace vds {
 
 
   private:
+    const service_provider * sp_;
     _network_service * ns_;
     std::shared_ptr<socket_base> owner_;
     std::shared_ptr<std::promise<size_t>> result_;

@@ -23,14 +23,14 @@ start_web_(
 {
 }
 
-void vds::web_server_app::main()
+void vds::web_server_app::main(const service_provider * sp)
 {
   if (this->current_command_set_ == &this->server_start_command_set_
     || this->current_command_set_ == &this->server_service_command_set_) {
     std::shared_ptr<std::exception> error;
 
     this->server_
-      .start_network(sp, (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10))).get();
+      .start_network((uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10))).get();
 
     if (this->current_command_set_ == &this->server_start_command_set_) {
       for (;;) {

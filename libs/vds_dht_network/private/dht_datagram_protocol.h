@@ -54,7 +54,7 @@ namespace vds {
           vds_assert(message.size() <= 0xFFFF);
           vds_assert(target_node != this->this_node_id_);
 
-          this->sp_->get<logger>()->trace(
+          logger::get(this->sp_)->trace(
             "dht_session",
             "send %d from this node %s to %s",
             message_type,
@@ -82,7 +82,7 @@ namespace vds {
           vds_assert(target_node != this->this_node_id_);
           vds_assert(source_node != this->partner_node_id_);
 
-          this->sp_->get<logger>()->trace(
+          logger::get(this->sp_)->trace(
             "dht_session",
             "send %d from %s to %s",
             message_type,

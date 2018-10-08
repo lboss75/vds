@@ -31,7 +31,7 @@ namespace vds {
       
       const http_message & request)
     {
-      return this->router_.route(sp, request);
+      return this->router_.route(request);
     }
 
   private:
