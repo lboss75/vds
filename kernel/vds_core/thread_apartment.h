@@ -15,18 +15,22 @@ namespace vds {
 
   class thread_apartment : public std::enable_shared_from_this<thread_apartment> {
   public:
+    thread_apartment(const service_provider * sp)
+      : sp_(sp) {      
+    }
+
     ~thread_apartment() {
       vds_assert(this->task_queue_.empty());
     }
 
-    void schedule(const service_provider * sp, const std::function<void(void)> & callback) {
+    void schedule(const std::function<void(void)> & callback) {
       std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
       const auto need_start = this->task_queue_.empty();
       this->task_queue_.push(callback);
       lock.unlock();
 
       if(need_start) {
-        mt_service::async(sp, [pthis = this->shared_from_this()]() {
+        mt_service::async(this->sp_, [pthis = this->shared_from_this()]() {
           for (;;) {
             std::unique_lock<std::mutex> lock(pthis->task_queue_mutex_);
             auto f = pthis->task_queue_.front();
@@ -50,9 +54,9 @@ namespace vds {
     }
 
   private:
+    const service_provider * sp_;
     std::mutex task_queue_mutex_;
     std::queue<std::function<void(void)>> task_queue_;
-
   };
 }
 

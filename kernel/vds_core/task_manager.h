@@ -21,9 +21,10 @@ namespace vds {
       const std::chrono::steady_clock::duration & period,
       const std::function<bool(void)> & callback);
     
-    void stop(const service_provider * sp);
+    void stop();
     
   private:
+    const service_provider * sp_;
     std::string name_;
 
     friend class task_manager;
@@ -39,8 +40,8 @@ namespace vds {
 	  };
     std::shared_ptr<state_machine<state_t>> current_state_;
 		bool is_shuting_down_;
-    void execute(const vds::service_provider * sp);
-    void schedule(const vds::service_provider * sp);
+    void execute();
+    void schedule();
   };
 
   class task_manager : public iservice_factory
@@ -51,11 +52,10 @@ namespace vds {
 
     void register_services(service_registrator &) override;
     void start(const service_provider * sp) override;
-    void stop(const service_provider * sp) override;
+    void stop() override;
       
   private:
     friend class timer;
-   
     const service_provider * sp_;
     std::list<timer *> scheduled_;
     std::condition_variable scheduled_changed_;

@@ -155,23 +155,23 @@ namespace vds{
         pthis->main(sp);
       }
       catch (const std::exception & ex) {
-        this->logger_.error("core", sp, "Application error %s", ex.what());
+        this->logger_.error("core", "Application error %s", ex.what());
         try {
-          registrator.shutdown(sp);
+          registrator.shutdown();
         }
         catch (...) { }        
         throw;
       }
       catch (...) {
-        this->logger_.error("core", sp, "Unexpected application error");
+        this->logger_.error("core", "Unexpected application error");
         try {
-          registrator.shutdown(sp);
+          registrator.shutdown();
         }
         catch (...) { }        
         throw;
       }
       
-      registrator.shutdown(sp);
+      registrator.shutdown();
     }
     void register_services(service_registrator & registrator)
     {
@@ -180,8 +180,8 @@ namespace vds{
 
     void start_services(service_registrator & registrator, service_provider * sp)
     {
-      registrator.start(sp);
-      this->logger_.debug("core", sp, "Start application");
+      registrator.start();
+      this->logger_.debug("core", "Start application");
     }
 
     void before_main(service_provider * sp)
@@ -192,7 +192,7 @@ namespace vds{
     {
     }
 
-    void on_exception(const service_provider * sp, const std::exception_ptr & ex)
+    void on_exception( const std::exception_ptr & ex)
     {
       sp->get<logger>()->error("VDS", sp, "Fatal error");
       sp->get<logger>()->flush();
@@ -502,7 +502,7 @@ namespace vds{
     {
     }
     
-    void on_exception(const service_provider * sp, const std::exception_ptr & ex)
+    void on_exception( const std::exception_ptr & ex)
     {
       std::cerr << "Fatal error\n";
       

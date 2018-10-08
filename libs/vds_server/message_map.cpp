@@ -28,11 +28,10 @@
 
 #define route_client(message_type)\
   case dht::network::message_type_t::message_type: {\
-      co_await sp->get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) {\
+      co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) {\
         binary_deserializer s(message_info.message_data());\
         dht::messages::message_type message(s);\
-        (*sp->get<dht::network::client>())->apply_message(\
-         sp,\
+        (*pthis->sp_->get<dht::network::client>())->apply_message(\
          t,\
          message,\
          message_info);\
@@ -42,20 +41,19 @@
     }
 
 std::future<void> vds::_server::process_message(
-  const service_provider * sp,
+  
   const message_info_t & message_info) {
 
-  if(sp->get_shutdown_event().is_shuting_down()) {
+  if(this->sp_->get_shutdown_event().is_shuting_down()) {
     co_return;
   }
 
   switch(message_info.message_type()){
   case dht::network::message_type_t::transaction_log_state: {
-    co_await sp->get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) -> std::future<void> {
+    co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) -> std::future<void> {
       binary_deserializer s(message_info.message_data());
       dht::messages::transaction_log_state message(s);
-      co_await (*sp->get<server>())->apply_message(
-          sp,
+      co_await (*pthis->sp_->get<server>())->apply_message(
           t,
           message,
           message_info);
@@ -63,13 +61,11 @@ std::future<void> vds::_server::process_message(
     break;
   }
   case dht::network::message_type_t::transaction_log_request: {
-    co_await sp->get<db_model>()->async_transaction(
-        sp,
-        [sp, message_info](database_transaction & t) {
+    co_await this->sp_->get<db_model>()->async_transaction(
+        [message_info, pthis = this->shared_from_this()](database_transaction & t) {
       binary_deserializer s(message_info.message_data());
       dht::messages::transaction_log_request message(s);
-      (*sp->get<server>())->apply_message(
-          sp,
+      (*pthis->sp_->get<server>())->apply_message(
           t,
           message,
           message_info);
@@ -77,11 +73,10 @@ std::future<void> vds::_server::process_message(
     break;
   }
   case dht::network::message_type_t::transaction_log_record: {
-    co_await sp->get<db_model>()->async_transaction(sp, [sp, message_info](database_transaction & t) {
+    co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) {
       binary_deserializer s(message_info.message_data());
       dht::messages::transaction_log_record message(s);
-      (*sp->get<server>())->apply_message(
-          sp,
+      (*pthis->sp_->get<server>())->apply_message(
           t,
           message,
           message_info);
@@ -93,8 +88,7 @@ std::future<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_find_node: {
       binary_deserializer s(message_info.message_data());
       dht::messages::dht_find_node message(s);
-      (*sp->get<dht::network::client>())->apply_message(
-          sp,
+      (*this->sp_->get<dht::network::client>())->apply_message(
           message,
           message_info);
       break;
@@ -103,8 +97,7 @@ std::future<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_find_node_response: {
       binary_deserializer s(message_info.message_data());
       dht::messages::dht_find_node_response message(s);
-      co_await (*sp->get<dht::network::client>())->apply_message(
-          sp,
+      co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
           message_info);
       break;
@@ -113,8 +106,7 @@ std::future<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_ping: {
       binary_deserializer s(message_info.message_data());
       dht::messages::dht_ping message(s);
-      (*sp->get<dht::network::client>())->apply_message(
-          sp,
+      (*this->sp_->get<dht::network::client>())->apply_message(
           message,
           message_info);
       break;
@@ -123,8 +115,7 @@ std::future<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_pong: {
       binary_deserializer s(message_info.message_data());
       dht::messages::dht_pong message(s);
-      (*sp->get<dht::network::client>())->apply_message(
-          sp,
+      (*this->sp_->get<dht::network::client>())->apply_message(
           message,
           message_info);
       break;

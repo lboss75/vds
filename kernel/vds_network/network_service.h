@@ -20,8 +20,8 @@ namespace vds {
       // Inherited via iservice
       void register_services(service_registrator &) override;
       void start(const service_provider *) override;
-      void stop(const service_provider *) override;
-      std::future<void> prepare_to_stop(const service_provider *) override;
+      void stop() override;
+      std::future<void> prepare_to_stop() override;
       
       static std::string to_string(const struct sockaddr & from, size_t from_len);
       static std::string to_string(const struct sockaddr_in & from);

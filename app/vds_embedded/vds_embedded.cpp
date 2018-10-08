@@ -41,7 +41,7 @@ void vds::vds_embedded::server_root(const std::string & /*login*/, const std::st
 
     auto sp = registrator.build();
     try {
-      registrator.start(sp);
+      registrator.start();
 
       vds::barrier b;
       //server
@@ -57,13 +57,13 @@ void vds::vds_embedded::server_root(const std::string & /*login*/, const std::st
 
     }
     catch (...) {
-      try { registrator.shutdown(sp); }
+      try { registrator.shutdown(); }
       catch (...) {}
 
       throw;
     }
 
-    registrator.shutdown(sp);
+    registrator.shutdown();
   }
   catch(const std::exception & ex){
     this->last_error_ = ex.what();

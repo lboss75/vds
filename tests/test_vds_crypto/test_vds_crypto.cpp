@@ -45,7 +45,7 @@ TEST(test_vds_crypto, test_symmetric)
       ASSERT_EQ(result[i], buffer[i]);
     }
 
-    registrator.shutdown(sp);
+    registrator.shutdown();
   }
 }
 
@@ -66,7 +66,7 @@ TEST(test_vds_crypto, test_sign)
   auto sp = registrator.build();
   try
   {
-    registrator.start(sp);
+    registrator.start();
     
     size_t len;
     do
@@ -81,22 +81,22 @@ TEST(test_vds_crypto, test_sign)
     auto key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
 
     auto s = std::make_shared<vds::asymmetric_sign>(vds::hash::sha256(), key);
-    s->write_async(sp, buffer.get(), len).get();
-    s->write_async(sp, nullptr, 0).get();
+    s->write_async(buffer.get(), len).get();
+    s->write_async(nullptr, 0).get();
     
     auto sign = s->signature();
     vds::asymmetric_public_key pkey(key);
 
     
     auto v = std::make_shared<vds::asymmetric_sign_verify>(vds::hash::sha256(), pkey, sign);
-    v->write_async(sp, buffer.get(), len).get();
-    v->write_async(sp, nullptr, 0).get();
+    v->write_async(buffer.get(), len).get();
+    v->write_async(nullptr, 0).get();
     GTEST_ASSERT_EQ(v->result(), true);
     
     auto sv = std::make_shared<vds::asymmetric_sign_verify>(vds::hash::sha256(), pkey, sign);
     auto rs = std::make_shared<random_stream<uint8_t>>(sv);
-    rs->write_async(sp, buffer.get(), len).get();
-    rs->write_async(sp, nullptr, 0).get();
+    rs->write_async(buffer.get(), len).get();
+    rs->write_async(nullptr, 0).get();
     GTEST_ASSERT_EQ(sv->result(), true);
 
     size_t index;
@@ -110,21 +110,21 @@ TEST(test_vds_crypto, test_sign)
 
     auto sv1 = std::make_shared<vds::asymmetric_sign_verify>(vds::hash::sha256(), pkey, sign);
     auto rs1 = std::make_shared<random_stream<uint8_t>>(sv1);
-    rs1->write_async(sp, buffer.get(), len).get();
-    rs1->write_async(sp, nullptr, 0).get();
+    rs1->write_async(buffer.get(), len).get();
+    rs1->write_async(nullptr, 0).get();
     GTEST_ASSERT_EQ(sv1->result(), false);
 
   } catch(const std::exception & ex){
-    try { registrator.shutdown(sp); } catch (...){}
+    try { registrator.shutdown(); } catch (...){}
 
     GTEST_FAIL() << ex.what();
 
   } catch(...){
-    try { registrator.shutdown(sp); } catch (...){}
+    try { registrator.shutdown(); } catch (...){}
     GTEST_FAIL() << "Unknown error";
   }
 
-  registrator.shutdown(sp);
+  registrator.shutdown();
 }
 
 int main(int argc, char **argv) {

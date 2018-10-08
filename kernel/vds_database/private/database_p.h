@@ -196,9 +196,9 @@ namespace vds {
   class _database : public std::enable_shared_from_this<_database>
   {
   public:
-    _database()
+    _database(const service_provider * sp)
     : db_(nullptr),
-      execute_queue_(std::make_shared<thread_apartment>())
+      execute_queue_(std::make_shared<thread_apartment>(sp))
     {
     }
 
@@ -207,7 +207,7 @@ namespace vds {
       this->close();
     }
     
-    void open(const service_provider * sp, const filename & database_file)
+    void open(const filename & database_file)
     {
       auto error = sqlite3_open(database_file.local_name().c_str(), &this->db_);
 
@@ -262,11 +262,11 @@ namespace vds {
     }
 
     std::future<void> async_read_transaction(
-      const service_provider * sp,
+      
       const std::function<void(database_read_transaction & tr)> & callback) {
 
       auto r = std::make_shared<std::promise<void>>();
-      this->execute_queue_->schedule(sp, [pthis = this->shared_from_this(), r, callback]() {
+      this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback]() {
         database_read_transaction tr(pthis);
         try {
           callback(tr);
@@ -283,11 +283,11 @@ namespace vds {
     }
 
     std::future<void> async_transaction(
-      const service_provider * sp,
+      
       const std::function<bool(database_transaction & tr)> & callback) {
       auto r = std::make_shared<std::promise<void>>();
 
-      this->execute_queue_->schedule(sp, [pthis = this->shared_from_this(), r, callback]() {
+      this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback]() {
         pthis->execute("BEGIN TRANSACTION");
 
         database_transaction tr(pthis);
@@ -315,7 +315,7 @@ namespace vds {
       return r->get_future();
     }
 
-    std::future<void> prepare_to_stop(const service_provider * sp){
+    std::future<void> prepare_to_stop(){
       co_return;
     }
 

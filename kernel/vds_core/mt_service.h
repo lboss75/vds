@@ -17,17 +17,17 @@ namespace vds {
 
     static void async(const service_provider * sp, const std::function<void(void)> & handler)
     {
-      sp->get<imt_service>()->do_async(sp, handler);
+      sp->get<imt_service>()->do_async(handler);
     }
 
     static void async(const service_provider * sp, std::function<void(void)> && handler)
     {
-      sp->get<imt_service>()->do_async(sp, std::move(handler));
+      sp->get<imt_service>()->do_async(std::move(handler));
     }
 
   private:
-    void do_async(const service_provider * sp, const std::function<void(void)> & handler);
-    void do_async(const service_provider * sp, std::function<void(void)> && handler);
+    void do_async(const std::function<void(void)> & handler);
+    void do_async(std::function<void(void)> && handler);
 
   };
 
@@ -40,7 +40,7 @@ namespace vds {
     
     void register_services(service_registrator &) override;
     void start(const service_provider *) override;
-    void stop(const service_provider *) override;
+    void stop() override;
 
   private:
     friend class imt_service;

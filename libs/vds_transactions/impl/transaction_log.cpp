@@ -80,22 +80,11 @@ bool vds::transactions::transaction_log::save(
       write_cert = std::make_shared<certificate>(certificate::parse_der(t2.cert.get(st)));
     }
     else {
-      sp->get<logger>()->warning(
-        ThisModule,
-        sp,
-        "Invalid certificate %s for block %s",
-        block.write_cert_id().c_str(),
-        base64::from_bytes(block.id()).c_str());
       return false;
     }
   }
 
   if(!block.validate(*write_cert)){
-    sp->get<logger>()->warning(
-        ThisModule,
-        sp,
-        "Invalid signature record %s",
-        base64::from_bytes(block.id()).c_str());
     return false;
   }  
 
@@ -108,7 +97,7 @@ bool vds::transactions::transaction_log::save(
         t1.order_no = block.order_no()));
   }
   else {
-    update_consensus(t, block, block.write_cert_id());
+    update_consensus(sp, t, block, block.write_cert_id());
 
     if(block.ancestors().empty()) {//Root
         transaction_record_state state(block.id(), cert_control::get_root_certificate()->subject());
@@ -163,13 +152,6 @@ bool vds::transactions::transaction_log::save(
   }
 
   for (const auto &p : followers) {
-    sp->get<logger>()->trace(
-      ThisModule,
-      sp,
-      "Apply follower %s for %s",
-      base64::from_bytes(p).c_str(),
-      base64::from_bytes(block.id()).c_str());
-
     st = t.get_reader(t1.select(t1.data).where(t1.id == p));
     if (!st.execute()) {
       throw std::runtime_error("Invalid data");
@@ -185,6 +167,7 @@ bool vds::transactions::transaction_log::save(
 }
 
 void vds::transactions::transaction_log::update_consensus(
+  const service_provider * sp, 
   database_transaction& t,
   const transactions::transaction_block& block,
   const std::string & account) {
@@ -202,7 +185,7 @@ void vds::transactions::transaction_log::update_consensus(
 
       if(state.update_consensus(account)) {
         transactions::transaction_block ancestor(t1.data.get(st));
-        update_consensus(t, ancestor, account);
+        update_consensus(sp, t, ancestor, account);
       }
     }
   }

@@ -12,13 +12,12 @@ All rights reserved
 
 void vds::logger::operator()(
   const std::string & module,
-  const service_provider * sp,
   log_level level,
   const std::string & message) const
 {
   log_record record{ level, module, message };
 
-  this->log_writer_.write(sp, record);
+  this->log_writer_.write(record);
 }
 
 /////////////////////////////////////////////////////////
@@ -42,11 +41,11 @@ void vds::console_logger::start(const service_provider *)
 {
 }
 
-void vds::console_logger::stop(const service_provider *)
+void vds::console_logger::stop()
 {
 }
 
-void vds::console_logger::write(const service_provider * sp, const log_record & record)
+void vds::console_logger::write( const log_record & record)
 {
   switch (record.level)
   {
@@ -91,13 +90,15 @@ void vds::file_logger::register_services(service_registrator & registrator)
 
 void vds::file_logger::start(const service_provider * sp)
 {
+  this->sp_ = sp;
+
   foldername folder(persistence::current_user(sp), ".vds");
   folder.create();
   this->f_.reset(new file(filename(folder, "vds.log"), file::file_mode::append));
   this->logger_thread_ = std::thread([this]() { this->logger_thread(); });
 }
 
-void vds::file_logger::stop(const service_provider *)
+void vds::file_logger::stop()
 {
   this->log_mutex_.lock();
   this->is_stopping_ = true;
@@ -110,9 +111,7 @@ void vds::file_logger::stop(const service_provider *)
   this->f_.reset();
 }
 
-void vds::file_logger::write(
-  const service_provider * sp,
-  const log_record & record)
+void vds::file_logger::write(  const log_record & record)
 {
   std::string level_str;
   switch (record.level) {

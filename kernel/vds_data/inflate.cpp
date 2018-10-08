@@ -17,20 +17,20 @@ vds::inflate::~inflate() {
 }
 
 vds::const_data_buffer vds::inflate::decompress(
-  const service_provider * sp,
+  
   const void * data,
   size_t size)
 {
 	auto result = std::make_shared<collect_data<uint8_t>>();
   _inflate_handler inf(result);
 
-	inf.write_async(sp, (const uint8_t *)data, size).get();
-	inf.write_async(sp, nullptr, 0).get();
+	inf.write_async((const uint8_t *)data, size).get();
+	inf.write_async(nullptr, 0).get();
 
 	return result->move_data();
 }
 
-std::future<void> vds::inflate::write_async(const vds::service_provider *sp, const uint8_t *data, size_t len) {
-  return this->impl_->write_async(sp, data, len);
+std::future<void> vds::inflate::write_async( const uint8_t *data, size_t len) {
+  return this->impl_->write_async(data, len);
 }
 

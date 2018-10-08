@@ -90,6 +90,6 @@ TEST(test_json_parser, test_parser) {
       test_json_parser_validate(value);
     }
   );
-  parser->write_async(nullptr, (const uint8_t *)test_data, sizeof(test_data) - 1).get();
-  parser->write_async(nullptr, nullptr, 0).get();
+  parser->write_async((const uint8_t *)test_data, sizeof(test_data) - 1).get();
+  parser->write_async(nullptr, 0).get();
 }

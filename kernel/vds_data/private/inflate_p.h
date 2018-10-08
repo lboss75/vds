@@ -25,11 +25,11 @@ namespace vds {
       }
     }
 
-    std::future<void> write_async(const service_provider * sp, const uint8_t * input_data, size_t input_size)
+    std::future<void> write_async( const uint8_t * input_data, size_t input_size)
     {
       if(0 == input_size){
         inflateEnd(&this->strm_);
-        co_await this->target_->write_async(sp, input_data, input_size);
+        co_await this->target_->write_async(input_data, input_size);
         co_return;
       }
       
@@ -47,7 +47,7 @@ namespace vds {
         }
 
         auto written = sizeof(buffer) - this->strm_.avail_out;
-        co_await this->target_->write_async(sp, buffer, written);
+        co_await this->target_->write_async(buffer, written);
       } while(0 == this->strm_.avail_out);
     }
 

@@ -21,7 +21,7 @@ TEST(test_zip, inflate_tests) {
   registrator.add(console_logger);
   {
     auto sp = registrator.build();
-    registrator.start(sp);
+    registrator.start();
 
     random_buffer buffer;
     
@@ -30,9 +30,9 @@ TEST(test_zip, inflate_tests) {
     auto dl = std::make_shared<vds::deflate>(il);
     auto rs = std::make_shared<random_stream<uint8_t>>(dl);
     
-    rs->write_async(sp, buffer.data(), buffer.size()).get();
-    rs->write_async(sp, nullptr, 0).get();
+    rs->write_async(buffer.data(), buffer.size()).get();
+    rs->write_async(nullptr, 0).get();
 
-    registrator.shutdown(sp);
+    registrator.shutdown();
   }
 }

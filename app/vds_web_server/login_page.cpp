@@ -14,12 +14,12 @@ All rights reserved
 #include "dht_object_id.h"
 
 std::future<vds::http_message> vds::login_page::register_request_post(
-  const service_provider * sp,
+  const vds::service_provider * sp,
   const std::shared_ptr<_web_server>& owner,
   const http_message& message) {
-  auto parser = std::make_shared<http::simple_form_parser>();
+  auto parser = std::make_shared<http::simple_form_parser>(sp);
 
-  co_await parser->parse(sp, message);
+  co_await parser->parse(message);
   
     auto userName = parser->values().find("userName");
     auto userEmail = parser->values().find("userEmail");

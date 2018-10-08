@@ -33,14 +33,14 @@ void vds::network_service::start(const service_provider * sp)
   this->impl_->start(sp);
 }
 
-void vds::network_service::stop(const service_provider * sp)
+void vds::network_service::stop()
 {
-  this->impl_->stop(sp);
+  this->impl_->stop();
 }
 
-std::future<void> vds::network_service::prepare_to_stop(const service_provider *sp)
+std::future<void> vds::network_service::prepare_to_stop()
 {
-  return this->impl_->prepare_to_stop(sp);
+  return this->impl_->prepare_to_stop();
 }
 
 
@@ -48,7 +48,7 @@ std::string vds::network_service::to_string(const sockaddr & from, size_t from_l
 {
   char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
   
-  auto result = getnameinfo(&from, (socklen_t)from_len,
+  getnameinfo(&from, (socklen_t)from_len,
     hbuf, sizeof hbuf,
     sbuf, sizeof sbuf,
     NI_NUMERICHOST | NI_NUMERICSERV);
@@ -87,6 +87,8 @@ vds::_network_service::~_network_service()
 
 void vds::_network_service::start(const service_provider * sp)
 {
+  this->sp_ = sp;
+
 #ifdef _WIN32
     //Initialize Winsock
     WSADATA wsaData;
@@ -104,7 +106,7 @@ void vds::_network_service::start(const service_provider * sp)
 
     //Create worker threads
     for (unsigned int i = 0; i < 2 * std::thread::hardware_concurrency(); ++i) {
-        this->work_threads_.push_back(new std::thread([this, sp] { this->thread_loop(sp); }));
+        this->work_threads_.push_back(new std::thread([this, sp] { this->thread_loop(); }));
     }
 
 #else
@@ -159,10 +161,10 @@ void vds::_network_service::start(const service_provider * sp)
  
 }
 
-void vds::_network_service::stop(const service_provider * sp)
+void vds::_network_service::stop()
 {
     try {
-      sp->get<logger>()->trace("network", sp, "Stopping network service");
+      this->sp_->get<logger>()->trace("network", "Stopping network service");
       
 #ifndef _WIN32
       this->tasks_cond_.notify_one();
@@ -189,14 +191,14 @@ void vds::_network_service::stop(const service_provider * sp)
 #endif
     }
     catch (const std::exception & ex) {
-      sp->get<logger>()->error("network", sp, "Failed stop network service %s", ex.what());
+      this->sp_->get<logger>()->error("network", "Failed stop network service %s", ex.what());
     }
     catch (...) {
-      sp->get<logger>()->error("network", sp, "Unhandled error at stopping network service");
+      this->sp_->get<logger>()->error("network", "Unhandled error at stopping network service");
     }
 }
 
-std::future<void> vds::_network_service::prepare_to_stop(const service_provider *sp)
+std::future<void> vds::_network_service::prepare_to_stop()
 {
   co_return;
   /*
@@ -239,9 +241,9 @@ void vds::_network_service::associate(SOCKET_HANDLE s)
   }
 }
 
-void vds::_network_service::thread_loop(const service_provider * sp)
+void vds::_network_service::thread_loop()
 {
-  while (!sp->get_shutdown_event().is_shuting_down()) {
+  while (!this->sp_->get_shutdown_event().is_shuting_down()) {
     DWORD dwBytesTransfered = 0;
     ULONG_PTR lpContext;
     OVERLAPPED * pOverlapped = NULL;
@@ -258,12 +260,12 @@ void vds::_network_service::thread_loop(const service_provider * sp)
       }
 
       if (pOverlapped != NULL) {
-        sp->get<logger>()->error("network", sp, "GetQueuedCompletionStatus %d error %s", errorCode, std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus").what());
+        this->sp_->get<logger>()->error("network", "GetQueuedCompletionStatus %d error %s", errorCode, std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus").what());
         _socket_task::from_overlapped(pOverlapped)->error(errorCode);
         continue;
       }
       else {
-        sp->get<logger>()->error("network", sp, "GetQueuedCompletionStatus %d error %s", errorCode, std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus").what());
+        this->sp_->get<logger>()->error("network", "GetQueuedCompletionStatus %d error %s", errorCode, std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus").what());
         return;
       }
     }

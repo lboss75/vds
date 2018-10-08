@@ -23,7 +23,7 @@ start_web_(
 {
 }
 
-void vds::web_server_app::main(const service_provider * sp)
+void vds::web_server_app::main()
 {
   if (this->current_command_set_ == &this->server_start_command_set_
     || this->current_command_set_ == &this->server_service_command_set_) {

@@ -22,11 +22,6 @@ vds::background_app::background_app()
       "password",
       "Password",
       "User password"),
-  node_name_(
-    "n",
-    "name",
-    "Node name",
-    "Node name"),
   port_(
     "P",
     "port",
@@ -41,7 +36,7 @@ void vds::background_app::main(const service_provider * sp)
     || &this->server_root_cmd_set_ == this->current_command_set_) {
 
     this->server_
-      .start_network(sp, (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
+      .start_network((uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
       .wait();
 
     if (&this->server_root_cmd_set_ == this->current_command_set_) {
@@ -65,9 +60,8 @@ void vds::background_app::main(const service_provider * sp)
         asymmetric_private_key::parse_der(common_news_admin_private_key, this->user_password_.value()));
 
 
-      auto user_mng = std::make_shared<user_manager>();
+      auto user_mng = std::make_shared<user_manager>(sp);
       user_mng->reset(
-        sp,
         this->user_login_.value(),
         this->user_password_.value(),
         private_info);
@@ -108,11 +102,11 @@ void vds::background_app::register_command_line(command_line & cmd_line)
   base_class::register_command_line(cmd_line);
 
   cmd_line.add_command_set(this->server_start_command_set_);
+  this->server_start_command_set_.optional(this->port_);
 
   cmd_line.add_command_set(this->server_root_cmd_set_);
   this->server_root_cmd_set_.required(this->user_login_);
   this->server_root_cmd_set_.required(this->user_password_);
-  this->server_root_cmd_set_.optional(this->node_name_);
   this->server_root_cmd_set_.optional(this->port_);
 
   //cmd_line.add_command_set(this->server_init_command_set_);
@@ -128,7 +122,7 @@ void vds::background_app::start_services(service_registrator & registrator, serv
     foldername folder(persistence::current_user(sp), ".vds");
     folder.delete_folder(true);
     folder.create();
-    registrator.start(sp);
+    registrator.start();
   //} else if (&this->server_init_command_set_ == this->current_command_set_) {
   //  foldername folder(persistence::current_user(sp), ".vds");
   //  folder.delete_folder(true);

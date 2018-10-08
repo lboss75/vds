@@ -18,17 +18,16 @@ All rights reserved
 #include "task_manager.h"
 
 std::future<void> copy_stream(
-  vds::service_provider * sp,
   std::shared_ptr<vds::stream_input_async<uint8_t>> reader,
   std::shared_ptr<vds::stream_output_async<uint8_t>> writer) {
   auto buffer = std::shared_ptr<uint8_t>(new uint8_t[1024]);
   for (;;) {
-    auto readed = co_await reader->read_async(sp, buffer.get(), 1024);
+    auto readed = co_await reader->read_async(buffer.get(), 1024);
     if (0 == readed) {
-      co_await writer->write_async(sp, nullptr, 0);
+      co_await writer->write_async(nullptr, 0);
       co_return;
     }
-    co_await writer->write_async(sp, buffer.get(), readed);
+    co_await writer->write_async(buffer.get(), readed);
   }
 }
 
@@ -49,7 +48,7 @@ TEST(network_tests, test_server)
   registrator.add(network_service);
 
   auto sp = registrator.build();
-  registrator.start(sp);
+  registrator.start();
 
   vds::tcp_socket_server server;
   server.start(
@@ -57,7 +56,7 @@ TEST(network_tests, test_server)
     vds::network_address::any_ip4(8000),
     [sp](const std::shared_ptr<vds::tcp_network_socket> & s) -> std::future<void> {
       auto[reader, writer] = s->start(sp);
-      return copy_stream(sp, reader, writer);
+      return copy_stream(reader, writer);
   }).get();
   
   std::string answer;
@@ -67,23 +66,23 @@ TEST(network_tests, test_server)
     sp,
     vds::network_address::ip4("localhost", 8000));
 
-  sp->get<vds::logger>()->debug("TCP", sp, "Connected");
+  sp->get<vds::logger>()->debug("TCP", "Connected");
   auto [reader, writer] = s->start(sp);
 
   std::thread t1([sp, w = writer, &data]() {
     auto rs = std::make_shared<random_stream<uint8_t>>(w);
-    rs->write_async(sp, data.data(), data.size()).get();
-    rs->write_async(sp, nullptr, 0).get();
+    rs->write_async(data.data(), data.size()).get();
+    rs->write_async(nullptr, 0).get();
   });
 
   std::thread t2([sp, r = reader, &data]() {
     const auto cd = std::make_shared<compare_data_async<uint8_t>>(data.data(), data.size());
-    copy_stream(sp, r, cd).get();
+    copy_stream(r, cd).get();
   });
 
   t1.join();
   t2.join();
 
   //Wait
-  registrator.shutdown(sp);
+  registrator.shutdown();
 }

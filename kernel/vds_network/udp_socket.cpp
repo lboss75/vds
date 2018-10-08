@@ -7,13 +7,22 @@ vds::udp_datagram::udp_datagram()
 {
 }
 
+vds::udp_datagram::udp_datagram(const udp_datagram& other)
+: impl_(new _udp_datagram(*other.impl_)){
+}
+
+vds::udp_datagram::udp_datagram(udp_datagram && other)
+  : impl_(other.impl_) {
+  other.impl_ = nullptr;
+}
+
 vds::udp_datagram::udp_datagram(vds::_udp_datagram* impl)
   : impl_(impl)
 {
 }
 
-std::future<vds::udp_datagram> vds::udp_datagram_reader::read_async(const service_provider * sp) {
-  return static_cast<_udp_receive *>(this)->read_async(sp);
+std::future<vds::udp_datagram> vds::udp_datagram_reader::read_async() {
+  return static_cast<_udp_receive *>(this)->read_async();
 }
 
 vds::udp_datagram::udp_datagram(
@@ -68,8 +77,24 @@ size_t vds::udp_datagram::data_size() const
   return this->impl_ ? this->impl_->data_size() : 0;
 }
 
-std::future<void> vds::udp_datagram_writer::write_async(const service_provider * sp, const udp_datagram& message) {
-  return static_cast<_udp_send *>(this)->write_async(sp, message);
+vds::udp_datagram& vds::udp_datagram::operator=(const udp_datagram& other) {
+  delete this->impl_;
+  this->impl_ = new _udp_datagram(*other.impl_);
+  return *this;
+}
+
+vds::udp_datagram& vds::udp_datagram::operator=(udp_datagram&& other) {
+  if (this != &other) {
+    delete this->impl_;
+    this->impl_ = other.impl_;
+    other.impl_ = nullptr;
+  }
+  return *this;
+
+}
+
+std::future<void> vds::udp_datagram_writer::write_async( const udp_datagram& message) {
+  return static_cast<_udp_send *>(this)->write_async(message);
 }
 
 vds::udp_socket::udp_socket()
@@ -95,7 +120,7 @@ void vds::udp_socket::stop()
 }
 
 std::shared_ptr<vds::udp_socket> vds::udp_socket::create(
-    const service_provider * sp,
+  const service_provider * sp,
     sa_family_t af)
 {
 #ifdef _WIN32
@@ -204,9 +229,9 @@ std::tuple<std::shared_ptr<vds::udp_datagram_reader>, std::shared_ptr<vds::udp_d
   return this->impl_->start(sp);
 }
 
-void vds::udp_server::stop(const service_provider * sp)
+void vds::udp_server::stop()
 {
-  this->impl_->stop(sp);
+  this->impl_->stop();
   delete this->impl_;
   this->impl_ = nullptr;
 }
@@ -220,8 +245,8 @@ const vds::network_address& vds::udp_server::address() const {
   return this->impl_->address();
 }
 
-void vds::udp_server::prepare_to_stop(const service_provider * sp) {
-  this->impl_->prepare_to_stop(sp);
+void vds::udp_server::prepare_to_stop() {
+  this->impl_->prepare_to_stop();
 }
 
 vds::udp_client::udp_client()
@@ -233,13 +258,13 @@ vds::udp_client::~udp_client()
 }
 
 std::tuple<std::shared_ptr<vds::udp_datagram_reader>, std::shared_ptr<vds::udp_datagram_writer>>  vds::udp_client::start(
-    const service_provider * sp,
+  const service_provider * sp,
     sa_family_t af) {
   vds_assert(nullptr == this->impl_);
   this->impl_ = new _udp_client();
   return this->impl_->start(sp, af);
 }
 
-void vds::udp_client::stop(const service_provider * sp)
+void vds::udp_client::stop()
 {
 }

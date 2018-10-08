@@ -46,7 +46,7 @@ namespace vds {
     const_data_buffer result_hash_;
 
     std::future<void> continue_read(
-        const service_provider * sp,
+      const service_provider * sp,
         dht::network::client * network_client,
         const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 

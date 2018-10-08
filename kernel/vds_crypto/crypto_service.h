@@ -15,7 +15,7 @@ namespace vds {
   public:
     void register_services(service_registrator &) override;
     void start(const service_provider *) override;
-    void stop(const service_provider *) override;
+    void stop() override;
 
     static void rand_bytes(void * buffer, size_t buffer_size);
 

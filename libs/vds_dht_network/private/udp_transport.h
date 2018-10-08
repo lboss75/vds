@@ -11,6 +11,7 @@ All rights reserved
 #include "legacy.h"
 #include "debug_mutex.h"
 #include "iudp_transport.h"
+#include "thread_apartment.h"
 
 namespace vds {
   struct session_statistic;
@@ -35,10 +36,10 @@ namespace vds {
           const std::shared_ptr<asymmetric_private_key> & node_key,
           uint16_t port) override;
 
-        void stop(const service_provider * sp) override;
+        void stop() override;
 
-        std::future<void> write_async(const service_provider * sp, const udp_datagram& datagram);
-        std::future<void> try_handshake(const service_provider * sp, const std::string& address);
+        std::future<void> write_async( const udp_datagram& datagram);
+        std::future<void> try_handshake( const std::string& address);
 
         const const_data_buffer& this_node_id() const {
           return this->this_node_id_;
@@ -47,6 +48,7 @@ namespace vds {
         void get_session_statistics(session_statistic& session_statistic);
 
       private:
+        const service_provider * sp_;
         const_data_buffer this_node_id_;
         std::shared_ptr<certificate> node_cert_;
         std::shared_ptr<asymmetric_private_key> node_key_;
@@ -54,6 +56,8 @@ namespace vds {
 
         std::shared_ptr<vds::udp_datagram_reader> reader_;
         std::shared_ptr<vds::udp_datagram_writer> writer_;
+
+        std::shared_ptr<thread_apartment> send_thread_;
 
 #ifdef _DEBUG
 #ifndef _WIN32
@@ -78,7 +82,7 @@ namespace vds {
         mutable std::shared_mutex sessions_mutex_;
         std::map<network_address, session_state> sessions_;
 
-        std::future<void> continue_read(const service_provider * sp);
+        std::future<void> continue_read();
       };
     }
   }

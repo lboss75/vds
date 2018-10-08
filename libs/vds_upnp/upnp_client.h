@@ -16,7 +16,7 @@ namespace vds {
     ~upnp_client();
     
     bool open_port(
-      const service_provider * sp,
+      
       uint16_t internal_port,
       uint16_t external_port,
       const std::string & protocol,
@@ -24,7 +24,7 @@ namespace vds {
     );
     
     void close_port(
-      const service_provider * sp,
+      
       uint16_t external_port,
       const std::string & protocol
     );

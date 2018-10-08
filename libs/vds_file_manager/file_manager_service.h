@@ -23,9 +23,9 @@ namespace vds {
       ~file_manager_service();
 
       void register_services(service_registrator &);
-      void start(const service_provider *);
-      void stop(const service_provider *);
-      std::future<void> prepare_to_stop(const service_provider *sp);
+      void start(const service_provider * sp);
+      void stop();
+      std::future<void> prepare_to_stop();
 
       operator bool() const {
         return nullptr != this->impl_;

@@ -43,7 +43,8 @@ mkdir build
 cd build
 cmake ..
 make
-
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
+./vds_web_server server service --root-folder /home/vadim/projects/vds/build/app/vds_web_server  --web /home/vadim/projects/vds/www
  
 
 =======

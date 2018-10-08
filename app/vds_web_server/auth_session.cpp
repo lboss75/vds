@@ -4,20 +4,20 @@
 #include "dht_object_id.h"
 #include "dht_network_client.h"
 
-vds::auth_session::auth_session(const std::string &login, const std::string &password)
+vds::auth_session::auth_session(
+  const service_provider * sp,
+  const std::string &login, const std::string &password)
 : login_(login),
   password_(password),
-  user_mng_(new user_manager()) {
+  user_mng_(new user_manager(sp)) {
 
 }
 
 
-std::future<void> vds::auth_session::load(
-  const service_provider * sp) {
+std::future<void> vds::auth_session::load(const service_provider * sp) {
 
-  return sp->get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this()](database_transaction & t) {
+  return sp->get<db_model>()->async_transaction([sp, pthis = this->shared_from_this()](database_transaction & t) {
     pthis->user_mng_->load(
-      sp,
       t,
       pthis->login_,
       pthis->password_);

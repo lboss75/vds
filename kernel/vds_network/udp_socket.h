@@ -25,6 +25,8 @@ namespace vds {
     static const size_t max_safe_data_size = 508;
 
     udp_datagram();
+    udp_datagram(const udp_datagram & other);
+    udp_datagram(udp_datagram && other);
 
     udp_datagram(
       const network_address & address,
@@ -43,7 +45,10 @@ namespace vds {
 
     const uint8_t * data() const;
     size_t data_size() const;
-    
+
+    udp_datagram & operator = (const udp_datagram & other);
+    udp_datagram & operator = (udp_datagram && other);
+
     _udp_datagram * operator -> () const { return this->impl_; }
 
   private:
@@ -55,12 +60,12 @@ namespace vds {
 
   class udp_datagram_reader : public std::enable_shared_from_this<udp_datagram_reader> {
   public:
-    std::future<udp_datagram> read_async(const service_provider * sp);
+    std::future<udp_datagram> read_async();
   };
 
   class udp_datagram_writer : public std::enable_shared_from_this<udp_datagram_writer> {
   public:
-    std::future<void> write_async(const service_provider * sp, const udp_datagram & message);
+    std::future<void> write_async( const udp_datagram & message);
   };
 
 
@@ -117,8 +122,8 @@ namespace vds {
       const service_provider * sp,
       const network_address & address);
 
-    void prepare_to_stop(const service_provider * sp);
-    void stop(const service_provider * sp);
+    void prepare_to_stop();
+    void stop();
 
 	  const std::shared_ptr<udp_socket> & socket() const;
 
@@ -142,7 +147,7 @@ namespace vds {
       const service_provider * sp,
       sa_family_t af);
 
-    void stop(const service_provider * sp);
+    void stop();
 
   private:
     _udp_client * impl_;

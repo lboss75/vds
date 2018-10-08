@@ -16,14 +16,14 @@ namespace vds {
   class auth_session : public std::enable_shared_from_this<auth_session> {
   public:
     auth_session(
+        const service_provider * sp,
         const std::string & login,
         const std::string & password);
 
-    std::future<void> load(
-      const service_provider * sp);
+    std::future<void> load(const service_provider * sp);
 
     const std::shared_ptr<user_manager> & get_secured_context(
-        const service_provider * sp) const {
+        ) const {
       return this->user_mng_;
     }
 

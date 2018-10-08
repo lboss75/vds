@@ -22,10 +22,10 @@ namespace vds {
           const std::shared_ptr<asymmetric_private_key> & node_key,
           uint16_t port) = 0;
 
-        virtual void stop(const service_provider * sp) = 0;
+        virtual void stop() = 0;
 
-        virtual std::future<void> write_async(const service_provider * sp, const udp_datagram& datagram) = 0;
-        virtual std::future<void> try_handshake(const service_provider * sp, const std::string& address) = 0;
+        virtual std::future<void> write_async( const udp_datagram& datagram) = 0;
+        virtual std::future<void> try_handshake( const std::string& address) = 0;
       };
     }
   }

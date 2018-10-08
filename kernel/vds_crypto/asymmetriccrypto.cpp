@@ -317,13 +317,13 @@ vds::const_data_buffer vds::asymmetric_sign::signature(
   size_t data_size)
 {
   _asymmetric_sign s(hash_info, key);
-  s.write_async(nullptr, reinterpret_cast<const uint8_t *>(data), data_size).get();
-  s.write_async(nullptr, nullptr, 0).get();
+  s.write_async(reinterpret_cast<const uint8_t *>(data), data_size).get();
+  s.write_async(nullptr, 0).get();
   return s.signature();
 }
 
-std::future<void> vds::asymmetric_sign::write_async(const service_provider * sp, const uint8_t* data, size_t len) {
-  return this->impl_->write_async(sp, data, len);
+std::future<void> vds::asymmetric_sign::write_async( const uint8_t* data, size_t len) {
+  return this->impl_->write_async(data, len);
 }
 
 
@@ -364,7 +364,6 @@ vds::_asymmetric_sign::~_asymmetric_sign()
 }
 
 std::future<void> vds::_asymmetric_sign::write_async(
-  const service_provider */*sp*/,
   const uint8_t * data,
   size_t data_size) {
 	if (0 == data_size) {
@@ -419,8 +418,8 @@ bool vds::asymmetric_sign_verify::verify(
     size_t data_size)
 {
   _asymmetric_sign_verify s(hash_info, key, signature);
-  s.write_async(nullptr, reinterpret_cast<const uint8_t *>(data), data_size).get();
-  s.write_async(nullptr, nullptr, 0).get();
+  s.write_async(reinterpret_cast<const uint8_t *>(data), data_size).get();
+  s.write_async(nullptr, 0).get();
   return s.result();
 }
 
@@ -433,9 +432,8 @@ bool vds::asymmetric_sign_verify::verify(
   return verify(hash_info, key, signature, data.data(), data.size());
 }
 
-std::future<void> vds::asymmetric_sign_verify::
-write_async(const service_provider * sp, const uint8_t* data, size_t len) {
-  return this->impl_->write_async(sp, data, len);
+std::future<void> vds::asymmetric_sign_verify::write_async(const uint8_t* data, size_t len) {
+  return this->impl_->write_async(data, len);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -476,7 +474,6 @@ vds::_asymmetric_sign_verify::~_asymmetric_sign_verify()
 }
 
 std::future<void> vds::_asymmetric_sign_verify::write_async(
-  const service_provider */*sp*/,
   const uint8_t *data,
   size_t len) {
 	if (0 == len) {

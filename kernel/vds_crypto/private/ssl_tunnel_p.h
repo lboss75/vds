@@ -15,7 +15,7 @@
 //  class _ssl_tunnel {
 //  public:
 //    _ssl_tunnel(
-//      const service_provider * sp,
+//      
 //      const stream_output_async<uint8_t> & crypted_output,
 //      const stream_output_async<uint8_t> & decrypted_output,
 //      bool is_client,
@@ -33,7 +33,7 @@
 //    stream_output_async<uint8_t> & crypted_input()  { return this->crypted_input_; }
 //    stream_output_async<uint8_t> & decrypted_input() { return this->decrypted_input_; }
 //
-//    void start(const service_provider * sp)
+//    void start()
 //    {
 //      this->start_crypted_input(sp);
 //      this->start_decrypted_input(sp);
@@ -81,7 +81,7 @@
 //    bool failed_state_;
 //    std::function<void(const std::shared_ptr<std::exception> &)> error_handler_;
 //
-//    void start_crypted_input(const service_provider * sp)
+//    void start_crypted_input()
 //    {
 //      try
 //      {
@@ -114,7 +114,7 @@
 //      }
 //    }
 //    
-//    void start_decrypted_input(const service_provider * sp)
+//    void start_decrypted_input()
 //    {
 //      if(this->decrypted_input_eof_){
 //        throw std::runtime_error("Login error");
@@ -150,7 +150,7 @@
 //      }
 //    }
 //
-//    void process(const service_provider * sp)
+//    void process()
 //    {
 //      std::unique_lock<std::mutex> lock(this->state_mutex_);
 //

@@ -37,7 +37,7 @@ namespace vds {
     public:
       log_writer(log_level level);
 
-      virtual void write(const service_provider * sp, const log_record & record) = 0;
+      virtual void write( const log_record & record) = 0;
       virtual void flush() = 0;
 
       log_level level() const {
@@ -50,58 +50,62 @@ namespace vds {
 
     class logger {
     public:
-      logger(log_writer & log_writer, log_level min_log_level, const std::unordered_set<std::string> & modules)
-        : log_writer_(log_writer), min_log_level_(min_log_level),
+      logger(
+        log_writer & log_writer,
+        log_level min_log_level,
+        const std::unordered_set<std::string> & modules)
+        : sp_(nullptr),
+          log_writer_(log_writer), min_log_level_(min_log_level),
           all_modules_(modules.end() != modules.find("*")),
           modules_(modules)
       {
       }
 
       template <typename... arg_types>
-      void operator () (const std::string & module, const service_provider * sp, log_level level, const std::string & format, arg_types... args) const
+      void operator () (const std::string & module,  log_level level, const std::string & format, arg_types... args) const
       {
-        if (this->check(module, sp, level)) {
-          (*this)(module, sp, level, string_format(format, args...));
+        if (this->check(module, level)) {
+          (*this)(module, level, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void trace(const std::string & module, const service_provider * sp, const std::string & format, arg_types... args) const
+      void trace(const std::string & module,  const std::string & format, arg_types... args) const
       {
-        if(this->check(module, sp, log_level::ll_trace)) {
-          (*this)(module, sp, log_level::ll_trace, string_format(format, args...));
+        if(this->check(module, log_level::ll_trace)) {
+          (*this)(module, log_level::ll_trace, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void debug(const std::string & module, const service_provider * sp, const std::string & format, arg_types... args) const
+      void debug(const std::string & module,  const std::string & format, arg_types... args) const
       {
-        if (this->check(module, sp, log_level::ll_debug)) {
-          (*this)(module, sp, log_level::ll_debug, string_format(format, args...));
+        if (this->check(module, log_level::ll_debug)) {
+          (*this)(module, log_level::ll_debug, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void info(const std::string & module, const service_provider * sp, const std::string & format, arg_types... args) const
+      void info(const std::string & module,  const std::string & format, arg_types... args) const
       {
-        if (this->check(module, sp, log_level::ll_info)) {
-          (*this)(module, sp, log_level::ll_info, string_format(format, args...));
+        if (this->check(module, log_level::ll_info)) {
+          (*this)(module, log_level::ll_info, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void warning(const std::string & module, const service_provider * sp, const std::string & format, arg_types... args) const
+      void warning(const std::string & module,  const std::string & format, arg_types... args) const
       {
-        if (this->check(module, sp, log_level::ll_warning)) {
-          (*this)(module, sp, log_level::ll_warning, string_format(format, args...));
+        if (this->check(module, log_level::ll_warning)) {
+          (*this)(module, log_level::ll_warning, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void error(const std::string & module, const service_provider * sp, const std::string & format, arg_types... args) const
+      void error(const std::string & module,  const std::string & format, arg_types... args) const
       {
-        if (this->check(module, sp, log_level::ll_error)) {
-          (*this)(module, sp, log_level::ll_error, string_format(format, args...));
+        if (this->check(module, log_level::ll_error)) {
+          (*this)(module, log_level::ll_error, string_format(format, args...));
         }
       }
 
@@ -137,7 +141,7 @@ namespace vds {
         }
       }
       
-      bool check(const std::string & module, const service_provider * /*sp*/, log_level level) const
+      bool check(const std::string & module, log_level level) const
       {
         if(log_level::ll_error <= level) {
           return true;
@@ -173,6 +177,8 @@ namespace vds {
         this->log_writer_.flush();
       }
 
+    protected:
+      const service_provider * sp_;
     private:
       log_writer & log_writer_;
       log_level min_log_level_;
@@ -185,7 +191,7 @@ namespace vds {
       
       void operator () (
         const std::string & module,
-        const service_provider * sp,
+        
         log_level level,
         const std::string & message) const;
     };
@@ -198,10 +204,10 @@ namespace vds {
       //iservice_factory
       void register_services(service_registrator &) override;
       void start(const service_provider *) override;
-      void stop(const service_provider *) override;
+      void stop() override;
 
       //log_writer
-      void write(const service_provider * sp, const log_record & record) override;
+      void write( const log_record & record) override;
       void flush() override;
     };
 
@@ -214,10 +220,10 @@ namespace vds {
       //iservice_factory
       void register_services(service_registrator &) override;
       void start(const service_provider * sp) override;
-      void stop(const service_provider * sp) override;
+      void stop() override;
 
       //log_writer
-      void write(const service_provider * sp, const log_record & record) override;
+      void write(const log_record & record) override;
       void flush() override;
 
     private:

@@ -558,14 +558,12 @@ vds::const_data_buffer vds_mock::upload_file(
 
   auto sp = this->servers_[client_index]->get_service_provider();
 
-  auto user_mng = std::make_shared<vds::user_manager>();
+  auto user_mng = std::make_shared<vds::user_manager>(sp);
 
   sp->get<vds::db_model>()->async_transaction(
-    sp,
-    [this, sp, user_mng](vds::database_transaction & t) -> bool {
+    [this, user_mng](vds::database_transaction & t) -> bool {
 
     user_mng->load(
-      sp,
       t,
       this->root_login_,
       this->root_password_);
@@ -574,7 +572,6 @@ vds::const_data_buffer vds_mock::upload_file(
   }).get();
 
   auto file_info = sp->get<vds::file_manager::file_operations>()->upload_file(
-    sp,
     user_mng,
     name,
     mimetype,
@@ -582,7 +579,6 @@ vds::const_data_buffer vds_mock::upload_file(
 
   std::list<vds::transactions::user_message_transaction::file_info_t> files{ file_info };
   sp->get<vds::file_manager::file_operations>()->create_message(
-    sp,
     user_mng,
     channel_id,
     "test message",
@@ -600,14 +596,12 @@ vds_mock::download_data(
   const std::shared_ptr<vds::stream_output_async<uint8_t>> & output_stream) {
   auto sp = this->servers_[client_index]->get_service_provider();
 
-  auto user_mng = std::make_shared<vds::user_manager>();
+  auto user_mng = std::make_shared<vds::user_manager>(sp);
 
   co_await sp->get<vds::db_model>()->async_transaction(
-    sp,
-    [this, sp, user_mng, name, channel_id, file_hash](vds::database_transaction &t) {
+    [this, user_mng, name, channel_id, file_hash](vds::database_transaction &t) {
 
     user_mng->load(
-      sp,
       t,
       this->root_login_,
       this->root_password_);
@@ -617,7 +611,6 @@ vds_mock::download_data(
 
 
   co_return co_await sp->get<vds::file_manager::file_operations>()->download_file(
-    sp,
     user_mng,
     channel_id,
     file_hash,
@@ -630,14 +623,12 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
 
   auto sp = this->servers_[index]->get_service_provider();
 
-  auto user_mng = std::make_shared<vds::user_manager>();
+  auto user_mng = std::make_shared<vds::user_manager>(sp);
 
   sp->get<vds::db_model>()->async_transaction(
-    sp,
-    [this, sp, user_mng](vds::database_transaction &t) -> bool {
+    [this, user_mng](vds::database_transaction &t) -> bool {
 
     user_mng->load(
-      sp,
       t,
       this->root_login_,
       this->root_password_);
@@ -646,7 +637,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
     return true;
   }).get();
 
-  return user_mng->create_channel(sp, name).get();
+  return user_mng->create_channel(name).get();
 }
 
 const vds::service_provider * vds_mock::get_sp(int client_index) {
@@ -671,16 +662,14 @@ void mock_server::init_root(
   private_info.genereate_all();
   vds::cert_control::genereate_all(root_user_name, root_password, private_info);
 
-  auto user_mng = std::make_shared<vds::user_manager>();
-
   const auto sp = this->get_service_provider();
-
-  user_mng->reset(sp, root_user_name, root_password, private_info);
+  auto user_mng = std::make_shared<vds::user_manager>(sp);
+  user_mng->reset(root_user_name, root_password, private_info);
 }
 
 //
 //void mock_server::allocate_storage(const std::string& root_login, const std::string& root_password) {
-//  this->login(root_login, root_password,[](const vds::service_provider * sp, const std::shared_ptr<vds::user_manager> & user_mng) {
+//  this->login(root_login, root_password,[]( const std::shared_ptr<vds::user_manager> & user_mng) {
 //    return sp->get<db_model>()->async_transaction(sp, [sp, user_mng](database_transaction & t) {
 //      auto client = sp->get<dht::network::client>();
 //      auto current_node = client->current_node_id();
@@ -704,18 +693,15 @@ void mock_server::init_root(
 void mock_server::login(
   const std::string& root_login,
   const std::string& root_password,
-  const std::function<void(const vds::service_provider * sp, const std::shared_ptr<vds::user_manager> & user_mng)> & callback) {
+  const std::function<void( const std::shared_ptr<vds::user_manager> & user_mng)> & callback) {
 
 auto sp = this->get_service_provider();
-
-auto user_mng = std::make_shared<vds::user_manager>();
+auto user_mng = std::make_shared<vds::user_manager>(sp);
 
   sp->get<vds::db_model>()->async_transaction(
-    sp,
-    [sp, user_mng, root_login, root_password](vds::database_transaction &t) {
+    [user_mng, root_login, root_password](vds::database_transaction &t) {
 
     user_mng->load(
-      sp,
       t,
       root_login,
       root_password);
@@ -723,7 +709,6 @@ auto user_mng = std::make_shared<vds::user_manager>();
   }).get();
 
   callback(
-    sp,
     user_mng);
 
 }
@@ -748,16 +733,16 @@ void mock_server::start()
   this->registrator_.local_machine(folder);
 
   this->sp_ = this->registrator_.build();
-  this->registrator_.start(this->sp_);
+  this->registrator_.start();
 
   std::shared_ptr<std::exception> error;
   vds::barrier b;
-  this->server_.start_network(this->sp_, this->udp_port_).get();
+  this->server_.start_network(this->udp_port_).get();
 }
 
 void mock_server::stop()
 {
-  this->registrator_.shutdown(this->sp_);
+  this->registrator_.shutdown();
 }
 
 void mock_server::init(
@@ -794,16 +779,15 @@ void mock_server::init(
 
   auto sp = registrator.build();
   try {
-    registrator.start(sp);
+    registrator.start();
 
-    server.start_network(sp, udp_port).get();
+    server.start_network(udp_port).get();
 
-        auto user_mng = std::make_shared<vds::user_manager>();
+        auto user_mng = std::make_shared<vds::user_manager>(sp);
 
-              sp->get<vds::db_model>()->async_transaction(sp, [sp, user_mng, user_login, user_password](
+              sp->get<vds::db_model>()->async_transaction([user_mng, user_login, user_password](
                   vds::database_transaction &t) {
                 user_mng->load(
-                    sp,
                     t,
                     user_login,
                   user_password);
@@ -811,11 +795,11 @@ void mock_server::init(
 
   }
   catch (...) {
-    try { registrator.shutdown(sp); }
+    try { registrator.shutdown(); }
     catch (...) {}
 
     throw;
   }
 
-  registrator.shutdown(sp);
+  registrator.shutdown();
 }

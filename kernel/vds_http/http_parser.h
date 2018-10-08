@@ -28,11 +28,11 @@ namespace vds {
     }
 
     std::future<void> process(
-      const service_provider * sp,
+      
       const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
 
       while (!this->eof_) {
-        auto len = co_await input_stream->read_async(sp, this->buffer_, sizeof(this->buffer_));
+        auto len = co_await input_stream->read_async(this->buffer_, sizeof(this->buffer_));
         if (0 == len) {
           this->eof_ = true;
           break;
@@ -117,11 +117,11 @@ namespace vds {
 
     
 
-    std::future<void> continue_read_data(const service_provider * sp) {
+    std::future<void> continue_read_data() {
       co_return;
     }
 
-    std::future<void> finish_message(const service_provider * sp) {
+    std::future<void> finish_message() {
       co_return;
     }
     
@@ -162,7 +162,7 @@ namespace vds {
 
 
       std::future<size_t> parse_body(
-        const service_provider * sp,
+        
         uint8_t* buffer,
         size_t buffer_size) {
         if (0 == this->content_length_) {
@@ -217,7 +217,7 @@ namespace vds {
       }
 
       std::future<size_t> read_async(
-        const service_provider * sp,
+        
         uint8_t* buffer,
         size_t buffer_size) override {
         for (;;) {

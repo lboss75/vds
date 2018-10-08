@@ -19,7 +19,7 @@ namespace vds {
     }
    
     void push_data(
-      const service_provider * sp,
+      
       const void * data,
       size_t len)
     {
@@ -30,7 +30,6 @@ namespace vds {
       }
       else {
         this->handler_->push_data(
-          sp,
           data,
           len
         );
@@ -45,7 +44,7 @@ namespace vds {
       }
       
       virtual void push_data(
-        const service_provider * sp,
+        
         const void * data,
         size_t len
       ) = 0;

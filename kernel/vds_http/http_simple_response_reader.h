@@ -36,7 +36,7 @@ namespace vds {
       }
 
       bool operator()(
-        const service_provider * sp,
+        
         http_response * response,
         http_incoming_stream * response_stream
         )
@@ -53,7 +53,7 @@ namespace vds {
             stream_to_string()
           )
           (
-            [this](const service_provider * sp, const std::string & value){
+            [this]( const std::string & value){
               if(this->next(sp, value)){
                 this->prev(sp);
               }

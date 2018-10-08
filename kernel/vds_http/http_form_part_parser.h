@@ -26,12 +26,12 @@ namespace vds {
     }
 
     std::future<void> start(
-      const service_provider *sp,
+      const service_provider * sp,
       const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
       for (;;) {
-        auto len = co_await input_stream->read_async(sp, this->buffer_, sizeof(this->buffer_));
+        auto len = co_await input_stream->read_async(this->buffer_, sizeof(this->buffer_));
         if (0 == len) {
-          logger::get(sp)->debug("HTTP", sp, "HTTP end");
+          logger::get(sp)->debug("HTTP", "HTTP end");
           co_return;
         }
         else {
@@ -104,12 +104,12 @@ namespace vds {
         
       }
 
-      std::future<size_t> read_async(const service_provider * sp, uint8_t * buffer, size_t len) override {
+      std::future<size_t> read_async( uint8_t * buffer, size_t len) override {
         vds_assert(!this->eof_);
 
         if (this->readed_ <= this->processed_) {
           this->processed_ = 0;
-          this->readed_ = co_await this->source_->read_async(sp, this->buffer_, sizeof(this->buffer_));
+          this->readed_ = co_await this->source_->read_async(this->buffer_, sizeof(this->buffer_));
           if (this->readed_ == 0) {
             this->eof_ = true;
             co_return 0;

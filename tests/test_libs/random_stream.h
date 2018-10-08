@@ -16,10 +16,10 @@ public:
     : target_(target) {
   }
 
-  std::future<void> write_async(const vds::service_provider * sp, const item_type *data, size_t len) override {
+  std::future<void> write_async( const item_type *data, size_t len) override {
     for (;;) {
       if (0 == len) {
-        co_await this->target_->write_async(sp, data, len);
+        co_await this->target_->write_async(data, len);
         co_return;
       }
       else {
@@ -32,11 +32,11 @@ public:
         }
 
         if (n == len) {
-          co_await this->target_->write_async(sp, data, n);
+          co_await this->target_->write_async(data, n);
           co_return;
         }
         else {
-          co_await this->target_->write_async(sp, data, n);
+          co_await this->target_->write_async(data, n);
 
           data += n;
           len -= n;

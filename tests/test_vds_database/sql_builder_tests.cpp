@@ -17,7 +17,6 @@ vds::mock_database::~mock_database()
 }
 
 std::future<void> vds::mock_database::async_transaction(
-  const service_provider * /*sp*/,
   const std::function<bool (vds::mock_database_transaction & t)> & callback)
 {
   mock_database_transaction t{ std::shared_ptr<_database>() };
@@ -26,7 +25,6 @@ std::future<void> vds::mock_database::async_transaction(
 }
 
 std::future<void>  vds::mock_database::async_read_transaction(
-  const service_provider * /*sp*/,
   const std::function<void(vds::mock_database_read_transaction & t)> & callback)
 {
   mock_database_read_transaction t{ std::shared_ptr<_database>() };
@@ -89,7 +87,7 @@ vds::mock_sql_statement vds::mock_database_read_transaction::parse(const char * 
 TEST(sql_builder_tests, test_select) {
 
   vds::database db;
-  db.async_transaction(nullptr, [](vds::database_transaction & trans) {
+  db.async_transaction([](vds::database_transaction & trans) {
 
     test_table1 t1;
     test_table2 t2;
@@ -117,7 +115,7 @@ TEST(sql_builder_tests, test_select) {
 TEST(sql_builder_tests, test_insert) {
 
   vds::database db;
-  db.async_transaction(nullptr, [](vds::database_transaction & trans) {
+  db.async_transaction([](vds::database_transaction & trans) {
     test_table1 t1;
 
     trans.execute(
@@ -137,7 +135,7 @@ TEST(sql_builder_tests, test_insert) {
 TEST(sql_builder_tests, test_update) {
 
   vds::database db;
-  db.async_transaction(nullptr, [](vds::database_transaction & trans) {
+  db.async_transaction([](vds::database_transaction & trans) {
   test_table1 t1;
 
   trans.execute(
@@ -157,7 +155,7 @@ TEST(sql_builder_tests, test_update) {
 TEST(sql_builder_tests, test_insert_from) {
 
   vds::database db;
-  db.async_transaction(nullptr, [](vds::database_transaction & trans) {
+  db.async_transaction([](vds::database_transaction & trans) {
   test_table1 t1;
   test_table2 t2;
 
@@ -179,7 +177,7 @@ TEST(sql_builder_tests, test_insert_from) {
 TEST(sql_builder_tests, test_delete) {
 
   vds::database db;
-  db.async_transaction(nullptr, [](vds::database_transaction & trans) {
+  db.async_transaction([](vds::database_transaction & trans) {
   test_table1 t1;
 
   trans.execute(

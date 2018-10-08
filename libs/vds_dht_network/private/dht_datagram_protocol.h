@@ -28,41 +28,40 @@ namespace vds {
       class dht_datagram_protocol : public std::enable_shared_from_this<implementation_class> {
       public:
         dht_datagram_protocol(
+          const service_provider * sp,
           const network_address& address,
           const const_data_buffer& this_node_id,
           const const_data_buffer& partner_node_id,
           const const_data_buffer& session_key)
-          : address_(address),
-            this_node_id_(this_node_id),
-            partner_node_id_(partner_node_id),
-            session_key_(session_key),
-            mtu_(65507),
-            next_sequence_number_(0) {
+          : sp_(sp),
+          address_(address),
+          this_node_id_(this_node_id),
+          partner_node_id_(partner_node_id),
+          session_key_(session_key),
+          mtu_(65507),
+          next_sequence_number_(0) {
         }
 
-        void set_mtu(uint16_t value){
+        void set_mtu(uint16_t value) {
           this->mtu_ = value;
         }
 
         std::future<void> send_message(
-            const service_provider * sp,
-            const std::shared_ptr<transport_type>& s,
-            uint8_t message_type,
-            const const_data_buffer& target_node,
-            const const_data_buffer& message) {
+          const std::shared_ptr<transport_type>& s,
+          uint8_t message_type,
+          const const_data_buffer& target_node,
+          const const_data_buffer& message) {
           vds_assert(message.size() <= 0xFFFF);
           vds_assert(target_node != this->this_node_id_);
 
-          sp->get<logger>()->trace(
-              "dht_session",
-              sp,
-              "send %d from this node %s to %s",
-              message_type,
-              base64::from_bytes(this->this_node_id_).c_str(),
-              base64::from_bytes(target_node).c_str());
+          this->sp_->get<logger>()->trace(
+            "dht_session",
+            "send %d from this node %s to %s",
+            message_type,
+            base64::from_bytes(this->this_node_id_).c_str(),
+            base64::from_bytes(target_node).c_str());
 
           co_await this->send_message_async(
-            sp,
             s,
             message_type,
             target_node,
@@ -72,7 +71,7 @@ namespace vds {
         }
 
         std::future<void> proxy_message(
-          const service_provider * sp,
+          
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
           const const_data_buffer& target_node,
@@ -83,16 +82,14 @@ namespace vds {
           vds_assert(target_node != this->this_node_id_);
           vds_assert(source_node != this->partner_node_id_);
 
-          sp->get<logger>()->trace(
+          this->sp_->get<logger>()->trace(
             "dht_session",
-            sp,
             "send %d from %s to %s",
             message_type,
             base64::from_bytes(source_node).c_str(),
             base64::from_bytes(target_node).c_str());
 
           co_await this->send_message_async(
-            sp,
             s,
             message_type,
             target_node,
@@ -102,12 +99,13 @@ namespace vds {
         }
 
         std::future<void> process_datagram(
-          const service_provider * sp,
+          
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
 
-          std::unique_lock<std::mutex> lock(this->input_mutex_);
+          this->input_mutex_.lock();
           if (datagram.size() < 33) {
+            this->input_mutex_.unlock();
             throw std::runtime_error("Invalid data");
           }
 
@@ -116,6 +114,8 @@ namespace vds {
             hash::sha256(),
             datagram.data(), datagram.size() - 32,
             datagram.data() + datagram.size() - 32, 32)) {
+            this->input_mutex_.unlock();
+
             throw std::runtime_error("Invalid signature");
           }
 
@@ -160,8 +160,9 @@ namespace vds {
             }
             }
 
+            this->input_mutex_.unlock();
+
             co_await static_cast<implementation_class *>(this)->process_message(
-              sp,
               s,
               message_type,
               target_node,
@@ -175,33 +176,44 @@ namespace vds {
           case protocol_message_type_t::RouteData:
           case protocol_message_type_t::ProxyData: {
             if (datagram.size() < 33) {
+              this->input_mutex_.unlock();
+
               throw std::runtime_error("Invalid data");
             }
 
             this->last_input_message_id_ = const_data_buffer(datagram.data() + 1, 32);
             this->input_messages_.clear();
             this->input_messages_[0] = datagram;
+            this->input_mutex_.unlock();
 
             co_return;
           }
           default: {
             if (datagram.data()[0] == (uint8_t)protocol_message_type_t::ContinueData) {
               if (datagram.size() < 34) {
+                this->input_mutex_.unlock();
+
                 throw std::runtime_error("Invalid data");
               }
 
               const auto message_id = const_data_buffer(datagram.data() + 1, 32);
               if (this->last_input_message_id_ != message_id) {
+                this->input_mutex_.unlock();
+
                 throw std::runtime_error("Invalid message_id");
               }
               this->input_messages_[datagram.data()[1 + 32]] = datagram;
-              co_await this->continue_process_messages(sp, s, lock);
+
+              co_await this->continue_process_messages(s);
+              co_return;
             }
             else {
+              this->input_mutex_.unlock();
               throw std::runtime_error("Invalid data");
             }
           }
           }
+          this->input_mutex_.unlock();
         }
 
         const network_address& address() const {
@@ -216,9 +228,11 @@ namespace vds {
           return this->partner_node_id_;
         }
 
+      protected:
+        const service_provider * sp_;
+
       private:
         struct send_queue_item_t {
-          service_provider sp;
           std::shared_ptr<transport_type> transport;
           uint8_t message_type;
           const_data_buffer target_node;
@@ -234,14 +248,14 @@ namespace vds {
 
         uint32_t mtu_;
 
-        std::mutex input_mutex_;
+        not_mutex input_mutex_;
         const_data_buffer last_input_message_id_;
         std::map<uint32_t, const_data_buffer> input_messages_;
         uint32_t next_sequence_number_;
 
 
         std::future<void> send_message_async(
-          const service_provider * sp,
+          
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
           const const_data_buffer& target_node,
@@ -277,7 +291,7 @@ namespace vds {
 
               const_data_buffer datagram = buffer.move_data();
               try {
-                s->write_async(sp, udp_datagram(this->address_, datagram, false));
+                s->write_async( udp_datagram(this->address_, datagram, false));
               }
               catch (const udp_datagram_size_exception & ex) {
                 this->mtu_ /= 2;
@@ -338,9 +352,9 @@ namespace vds {
                 buffer.size());
               const_data_buffer datagram = buffer.move_data();
               try {
-                s->write_async(sp, udp_datagram(this->address_, datagram, false));
+                s->write_async(udp_datagram(this->address_, datagram, false));
               }
-              catch (const udp_datagram_size_exception & ) {
+              catch (const udp_datagram_size_exception &) {
                 this->mtu_ /= 2;
                 continue;
               }
@@ -366,9 +380,9 @@ namespace vds {
 
                 const_data_buffer datagram = buffer.move_data();
                 try {
-                  co_await s->write_async(sp, udp_datagram(this->address_, datagram, false));
+                  co_await s->write_async(udp_datagram(this->address_, datagram, false));
                 }
-                catch (const udp_datagram_size_exception & ) {
+                catch (const udp_datagram_size_exception &) {
                   this->mtu_ /= 2;
                   continue;
                 }
@@ -386,12 +400,12 @@ namespace vds {
         }
 
         std::future<void> continue_process_messages(
-          const service_provider * sp,
-          const std::shared_ptr<transport_type>& s,
-          std::unique_lock<std::mutex>& locker
-        ) {
+          
+          const std::shared_ptr<transport_type>& s) {
           auto p = this->input_messages_.find(0);
           if (p == this->input_messages_.end()) {
+            this->input_mutex_.unlock();
+
             co_return;
           }
 
@@ -462,10 +476,14 @@ namespace vds {
               }
 
               if ((uint8_t)protocol_message_type_t::ContinueData != p1->second.data()[0]) {
+                this->input_mutex_.unlock();
+
                 throw std::runtime_error("Invalid data");
               }
 
               if (size < p1->second.size() - (1 + 32 + 1 + 32)) {
+                this->input_mutex_.unlock();
+
                 throw std::runtime_error("Invalid data");
               }
 
@@ -475,10 +493,9 @@ namespace vds {
               if (0 == size) {
                 this->last_input_message_id_.clear();
                 this->input_messages_.clear();
-                locker.unlock();
+                this->input_mutex_.unlock();
 
                 co_await static_cast<implementation_class *>(this)->process_message(
-                  sp,
                   s,
                   message_type,
                   target_node,
@@ -497,8 +514,8 @@ namespace vds {
             break;
           }
           }
+          this->input_mutex_.unlock();
         }
-
       };
     }
   }

@@ -15,7 +15,7 @@
 //  class ssl_tunnel {
 //  public:
 //    ssl_tunnel(
-//      const service_provider * sp,
+//      
 //      const stream_output_async<uint8_t> & crypted_output,
 //      const stream_output_async<uint8_t> & decrypted_output,
 //      bool is_client,
@@ -30,7 +30,7 @@
 //    vds::stream_output_async<uint8_t> & crypted_input();
 //    vds::stream_output_async<uint8_t> & decrypted_input();
 //
-//    void start(const service_provider * sp);
+//    void start();
 //    certificate get_peer_certificate() const;
 //
 //    void on_error(const std::function<void(const std::exception_ptr &)> & handler);

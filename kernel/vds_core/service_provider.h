@@ -24,8 +24,8 @@ namespace vds {
   public:
     virtual void register_services(service_registrator &) = 0;
     virtual void start(const service_provider *) = 0;
-    virtual void stop(const service_provider *) = 0;
-    virtual std::future<void> prepare_to_stop(const service_provider *) {
+    virtual void stop() = 0;
+    virtual std::future<void> prepare_to_stop() {
       co_return;
     }
   };
@@ -73,16 +73,16 @@ namespace vds {
       this->factories_.push_back(&factory);
     }
 
-    void shutdown(service_provider * sp) {
+    void shutdown() {
       this->shutdown_event_.set();
       std::this_thread::sleep_for(std::chrono::seconds(5));
 
       for (auto& p : this->factories_) {
-        p->prepare_to_stop(sp).get();
+        p->prepare_to_stop().get();
       }
 
       while (!this->factories_.empty()) {
-        this->factories_.back()->stop(sp);
+        this->factories_.back()->stop();
         this->factories_.pop_back();
       }
     }
@@ -95,9 +95,9 @@ namespace vds {
       return this;
     }
 
-    void start(const service_provider * sp) {
+    void start() {
       for (auto factory : this->factories_) {
-        factory->start(sp);
+        factory->start(this);
       }
     }
 

@@ -36,10 +36,10 @@ TEST(test_vds, test_initial)
     mock.allow_write_channel(3, channel.id());
 
     auto sp = mock.get_sp(3);
-    auto input_stream = std::make_shared<vds::continuous_buffer<uint8_t>>();
+    auto input_stream = std::make_shared<vds::continuous_buffer<uint8_t>>(sp);
     vds::mt_service::async(sp, [sp, input_stream, &buffer, len] {
-      input_stream->write_async(sp, buffer.get(), len).get();
-      input_stream->write_async(sp, nullptr, 0).get();
+      input_stream->write_async(buffer.get(), len).get();
+      input_stream->write_async(nullptr, 0).get();
     });
 
     std::cout << "Upload local file...\n";

@@ -7,7 +7,6 @@ All rights reserved
 #include "private/database_p.h"
 
 vds::database::database()
-  : impl_(std::make_shared<_database>())
 {
 }
 
@@ -17,7 +16,8 @@ vds::database::~database()
 
 void vds::database::open(const service_provider * sp, const filename & fn)
 {
-  this->impl_->open(sp, fn);
+  this->impl_ = std::make_shared<_database>(sp);
+  this->impl_->open(fn);
 }
 
 void vds::database::close()
@@ -26,19 +26,18 @@ void vds::database::close()
 }
 
 std::future<void> vds::database::async_transaction(
-  const service_provider * sp,
   const std::function<bool(database_transaction & tr)> & callback)
 {
-  return this->impl_->async_transaction(sp, callback);
+  return this->impl_->async_transaction(callback);
 }
 
-std::future<void> vds::database::async_read_transaction(const service_provider * sp,
+std::future<void> vds::database::async_read_transaction(
   const std::function<void(database_read_transaction& tr)>& callback) {
-  return this->impl_->async_read_transaction(sp, callback);
+  return this->impl_->async_read_transaction(callback);
 }
 
-std::future<void> vds::database::prepare_to_stop(const vds::service_provider *sp) {
-  return this->impl_->prepare_to_stop(sp);
+std::future<void> vds::database::prepare_to_stop() {
+  return this->impl_->prepare_to_stop();
 }
 
 void vds::database_transaction::execute(const char * sql)

@@ -24,42 +24,54 @@ vds::file_manager::file_operations::file_operations()
   : impl_(new file_manager_private::_file_operations()) {
 }
 
+void vds::file_manager::file_operations::start(const service_provider* sp) {
+  this->impl_->start(sp);
+}
+
+void vds::file_manager::file_operations::stop() {
+  this->impl_->stop();
+}
+
+std::future<void> vds::file_manager::file_operations::prepare_to_stop() {
+  return this->impl_->prepare_to_stop();
+}
+
 std::future<vds::file_manager::file_operations::download_result_t>
 vds::file_manager::file_operations::download_file(
-  const service_provider * sp,
+  
   const std::shared_ptr<user_manager> & user_mng,
   const const_data_buffer & channel_id,
   const const_data_buffer & target_file,
   const std::shared_ptr<stream_output_async<uint8_t>> & output_stream) {
-  return this->impl_->download_file(sp, user_mng, channel_id, target_file, output_stream);
+  return this->impl_->download_file(user_mng, channel_id, target_file, output_stream);
 }
 
 std::future<vds::transactions::user_message_transaction::file_info_t>
 vds::file_manager::file_operations::upload_file(
-  const service_provider * sp,
+  
   const std::shared_ptr<user_manager>& user_mng,
   const std::string & name,
   const std::string & mime_type,
   const std::shared_ptr<stream_input_async<uint8_t>>& input_stream) {
-  return this->impl_->upload_file(sp, user_mng, name, mime_type, input_stream);
+  return this->impl_->upload_file(user_mng, name, mime_type, input_stream);
 }
 
-std::future<void> vds::file_manager::file_operations::create_message(const service_provider * sp,
+std::future<void> vds::file_manager::file_operations::create_message(
   const std::shared_ptr<user_manager>& user_mng, const const_data_buffer& channel_id, const std::string& message,
   const std::list<transactions::user_message_transaction::file_info_t>& files) {
-  return this->impl_->create_message(sp, user_mng, channel_id, message, files);
+  return this->impl_->create_message(user_mng, channel_id, message, files);
 
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 std::future<vds::transactions::user_message_transaction::file_info_t> vds::file_manager_private::_file_operations::upload_file(
-  const service_provider * sp,
+  
   const std::shared_ptr<user_manager>& user_mng,
   const std::string & name,
   const std::string & mime_type,
   const std::shared_ptr<stream_input_async<uint8_t>>& input_stream) {
 
-  auto file_info = co_await this->pack_file(sp, input_stream);
+  auto file_info = co_await this->pack_file(input_stream);
 
   co_return transactions::user_message_transaction::file_info_t{
         name,
@@ -70,31 +82,29 @@ std::future<vds::transactions::user_message_transaction::file_info_t> vds::file_
 }
 
 std::future<vds::file_manager::file_operations::download_result_t> vds::file_manager_private::_file_operations::download_file(
-  const service_provider * sp,
+  
   const std::shared_ptr<user_manager> & user_mng,
   const const_data_buffer & channel_id,
   const const_data_buffer & target_file,
   const std::shared_ptr<stream_output_async<uint8_t>> & output_stream) {
 
   auto result = std::make_shared<file_manager::file_operations::download_result_t>();
-  co_await sp->get<db_model>()->async_transaction(
-      sp,
-      [pthis = this->shared_from_this(), sp, user_mng, channel_id, target_file, output_stream, result](database_transaction &t) -> bool {
-        auto channel = user_mng->get_channel(sp, channel_id);
+  co_await this->sp_->get<db_model>()->async_transaction(
+      [pthis = this->shared_from_this(), user_mng, channel_id, target_file, output_stream, result](database_transaction &t) -> bool {
+        auto channel = user_mng->get_channel(channel_id);
 
         user_mng->walk_messages(
-            sp,
             channel_id,
             t,
-            [sp, pthis, result, target_file, output_stream](const transactions::user_message_transaction &message) -> bool {
+            [pthis, result, target_file, output_stream](const transactions::user_message_transaction &message) -> bool {
           for (const auto & file : message.files) {
             if (target_file == file.file_id) {
               result->name = file.name;
               result->mime_type = file.mime_type;
               result->size = file.size;
-              mt_service::async(sp, [pthis, sp, output_stream, fb = file.file_blocks]() {
+              mt_service::async(pthis->sp_, [pthis, output_stream, fb = file.file_blocks]() {
                 try {
-                  pthis->download_stream(sp, output_stream, fb).get();
+                  pthis->download_stream(output_stream, fb).get();
                 }
                 catch(...){}
               });
@@ -114,31 +124,28 @@ std::future<vds::file_manager::file_operations::download_result_t> vds::file_man
 }
 
 std::future<void> vds::file_manager_private::_file_operations::create_message(
-  const service_provider * sp,
+  
   const std::shared_ptr<user_manager>& user_mng,
   const const_data_buffer& channel_id,
   const std::string& message,
   const std::list<transactions::user_message_transaction::file_info_t>& files) {
-  return sp->get<db_model>()->async_transaction(
-    sp,
+  return this->sp_->get<db_model>()->async_transaction(
     [pthis = this->shared_from_this(),
-    sp,
     user_mng,
     channel_id,
     message,
     files](database_transaction& t) {
 
-    auto channel = user_mng->get_channel(sp, channel_id);
+    auto channel = user_mng->get_channel(channel_id);
     if (!channel->write_cert()) {
-      sp->get<logger>()->error(
+      pthis->sp_->get<logger>()->error(
         ThisModule,
-        sp,
         "Channel %s don't have write cert",
         base64::from_bytes(channel_id).c_str());
       throw vds_exceptions::access_denied_error("User don't have write permission");
     }
 
-    transactions::transaction_block_builder log(sp, t);
+    transactions::transaction_block_builder log(pthis->sp_, t);
     channel->add_log(
       log,
       message_create<transactions::user_message_transaction>(
@@ -147,7 +154,6 @@ std::future<void> vds::file_manager_private::_file_operations::create_message(
         std::string()));
 
     log.save(
-      sp,
       t,
       user_mng->get_current_user().user_certificate(),
       user_mng->get_current_user_private_key());
@@ -156,22 +162,33 @@ std::future<void> vds::file_manager_private::_file_operations::create_message(
   });
 }
 
+void vds::file_manager_private::_file_operations::start(const service_provider* sp) {
+  this->sp_ = sp;
+}
+
+void vds::file_manager_private::_file_operations::stop() {
+}
+
+std::future<void> vds::file_manager_private::_file_operations::prepare_to_stop() {
+  co_return;
+}
+
 struct buffer_data : public std::enable_shared_from_this<buffer_data> {
   uint8_t buffer[vds::dht::network::service::BLOCK_SIZE];
 };
 
 std::future<vds::file_manager_private::_file_operations::pack_file_result>
 vds::file_manager_private::_file_operations::pack_file(
-  const service_provider * sp,
+  
   const std::shared_ptr<stream_input_async<uint8_t>>& input_stream) const {
   auto task = std::make_shared<_upload_stream_task>();
-  auto file_blocks = co_await task->start(sp, input_stream);
+  auto file_blocks = co_await task->start(this->sp_, input_stream);
   
   co_return pack_file_result{ task->result_hash(), task->total_size(), file_blocks };
 }
 
 std::future<void> vds::file_manager_private::_file_operations::download_stream(
-  const vds::service_provider *sp,
+  
   const std::shared_ptr<vds::stream_output_async<uint8_t>> & target_stream_param,
   const std::list<vds::transactions::user_message_transaction::file_block_t> &file_blocks_param) {
 
@@ -179,19 +196,19 @@ std::future<void> vds::file_manager_private::_file_operations::download_stream(
   std::list<vds::transactions::user_message_transaction::file_block_t> file_blocks = file_blocks_param;
 
   while (!file_blocks.empty()) {
-    auto network_client = sp->get<dht::network::client>();
+    auto network_client = this->sp_->get<dht::network::client>();
 
-    const_data_buffer data = co_await network_client->restore(sp, dht::network::client::chunk_info{
+    const_data_buffer data = co_await network_client->restore(dht::network::client::chunk_info{
         file_blocks.begin()->block_id,
         file_blocks.begin()->block_key,
         file_blocks.begin()->replica_hashes });
 
     vds_assert(data.size() == file_blocks.begin()->block_size);
     auto buffer = std::make_shared<const_data_buffer>(data);
-    co_await target_stream->write_async(sp, buffer->data(), buffer->size());
+    co_await target_stream->write_async(buffer->data(), buffer->size());
 
     file_blocks.pop_front();
   }
 
-  co_await target_stream->write_async(sp, nullptr, 0);
+  co_await target_stream->write_async(nullptr, 0);
 }

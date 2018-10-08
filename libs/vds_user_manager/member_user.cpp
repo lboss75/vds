@@ -42,9 +42,9 @@ const std::shared_ptr<vds::asymmetric_private_key> & vds::member_user::private_k
   return this->impl_->private_key();
 }
 
-vds::user_channel vds::member_user::create_channel(const service_provider * sp,
+vds::user_channel vds::member_user::create_channel(
   transactions::transaction_block_builder& log, const std::string& name) {
-  return this->impl_->create_channel(sp, log, name);
+  return this->impl_->create_channel(log, name);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -72,7 +72,7 @@ vds::member_user vds::_member_user::create_user(
 }
 
 vds::user_channel vds::_member_user::create_channel(
-  const service_provider * sp,
+  
   transactions::transaction_block_builder& log,
   const std::string& name) {
 
@@ -80,9 +80,6 @@ vds::user_channel vds::_member_user::create_channel(
   auto write_private_key = std::make_shared<asymmetric_private_key>(asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
 
   auto channel_id = hash::signature(hash::sha256(), read_private_key->der(std::string()));
-  sp->get<logger>()->info(ThisModule, sp, "Create channel %s(%s)",
-    base64::from_bytes(channel_id).c_str(),
-    name.c_str());
 
   auto read_cert = std::make_shared<certificate>(_cert_control::create_cert(
     base64::from_bytes(channel_id) + "(Read)",
@@ -119,7 +116,7 @@ vds::user_channel vds::_member_user::create_channel(
 }
 
 vds::member_user vds::_member_user::create_root_user(
-  const service_provider * sp,
+  
   transactions::transaction_block_builder& playback,
   database_transaction& t,
   const std::string& root_user_name,
@@ -134,9 +131,6 @@ vds::member_user vds::_member_user::create_root_user(
       root_user_cert,
       root_user_name,
       root_private_key->der(root_password)));
-
-  sp->get<logger>()->info(ThisModule, sp, "Create root user %s",
-    root_user_cert->subject().c_str());
 
   return member_user(root_user_cert, root_private_key);
 }

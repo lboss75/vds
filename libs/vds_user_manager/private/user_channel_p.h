@@ -92,7 +92,7 @@ namespace vds {
     }
 
     static std::shared_ptr <user_channel> import_personal_channel(
-      const service_provider * sp,
+      
       const std::shared_ptr<certificate> & user_cert,
       const std::shared_ptr<asymmetric_private_key> & user_private_key);
 

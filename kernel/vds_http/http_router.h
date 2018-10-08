@@ -17,7 +17,7 @@ namespace vds {
     http_router();
 
     std::future<http_message> route(
-      const service_provider * sp,
+      
       const http_message request,
       const std::string local_path) const;
     

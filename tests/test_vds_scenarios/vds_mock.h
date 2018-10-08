@@ -34,7 +34,7 @@ public:
 
   template <typename T>
   T * get() const {
-    return this->sp_.get<T>();
+    return this->sp_->get<T>();
   }
 
   const vds::service_provider * get_service_provider() const {
@@ -42,7 +42,7 @@ public:
   }
 
   std::future<vds::server_statistic> get_statistic() const{
-    return this->server_.get_statistic(this->sp_);
+    return this->server_.get_statistic();
   }
   
 private:
@@ -62,7 +62,7 @@ private:
   void login(
     const std::string& root_login,
     const std::string& root_password,
-    const std::function<void(const vds::service_provider * sp, const std::shared_ptr<vds::user_manager> & user_mng)> & callback);
+    const std::function<void( const std::shared_ptr<vds::user_manager> & user_mng)> & callback);
 
 };
 

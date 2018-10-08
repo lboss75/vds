@@ -58,11 +58,10 @@ namespace vds {
         };
 
         virtual std::future<void> process_message(
-          const service_provider * scope,
           const message_info_t& message_info) = 0;
 
         virtual std::future<void> on_new_session(
-          const service_provider * sp,
+          
           const const_data_buffer & partner_id) = 0;
       };
     }

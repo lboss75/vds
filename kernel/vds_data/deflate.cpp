@@ -22,26 +22,26 @@ vds::deflate::~deflate() {
 }
 
 vds::const_data_buffer vds::deflate::compress(
-  const service_provider * sp,
+  
   const uint8_t * data,
   size_t len)
 {
   auto result = std::make_shared<collect_data<uint8_t>>();
   _deflate_handler df(result, Z_DEFAULT_COMPRESSION);
   
-  df.write_async(sp, data, len).get();
-  df.write_async(sp, nullptr, 0).get();
+  df.write_async(data, len).get();
+  df.write_async(nullptr, 0).get();
   
   return result->move_data();  
 }
 
 vds::const_data_buffer vds::deflate::compress(
-  const service_provider * sp,
+  
   const const_data_buffer & data)
 {
-  return compress(sp, data.data(), data.size());
+  return compress(data.data(), data.size());
 }
 
-std::future<void> vds::deflate::write_async(const vds::service_provider *sp, const uint8_t *data, size_t len) {
-  return this->impl_->write_async(sp, data, len);
+std::future<void> vds::deflate::write_async( const uint8_t *data, size_t len) {
+  return this->impl_->write_async(data, len);
 }

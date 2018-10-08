@@ -52,7 +52,7 @@
 //#endif // _DEBUG
 //      }
 //
-//      void async_get_data(const vds::service_provider * sp)
+//      void async_get_data()
 //      {
 //        this->sp_ = sp;
 //

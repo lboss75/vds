@@ -24,7 +24,7 @@ TEST(test_certificates, test_pem)
 
     {
       auto sp = registrator.build();
-      registrator.start(sp);
+      registrator.start();
 
       //Generate CA certificate
       std::string ca_certificate_text;
@@ -175,7 +175,7 @@ TEST(test_certificates, test_pem)
         ASSERT_TRUE(sub_certificate.is_ca_cert());
         ASSERT_TRUE(ca_certificate.is_ca_cert());
       }
-      registrator.shutdown(sp);
+      registrator.shutdown();
     }
     
 }
@@ -193,7 +193,7 @@ TEST(test_certificates, test_der)
   registrator.add(crypto_service);
   {
     auto sp = registrator.build();
-    registrator.start(sp);
+    registrator.start();
 
     const std::string der_password("123qwe");
     //Generate CA certificate
@@ -339,7 +339,8 @@ TEST(test_certificates, test_der)
       ASSERT_TRUE(sub_certificate.is_ca_cert());
       ASSERT_TRUE(ca_certificate.is_ca_cert());
     }
-    registrator.shutdown(sp);
+
+    registrator.shutdown();
   }
 
 }

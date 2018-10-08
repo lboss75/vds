@@ -18,7 +18,7 @@
 //      }
 //
 //    async_task<> start(
-//      const vds::service_provider * sp,
+//      
 //      const http_server::handler_type & handler)
 //    {
 //      throw std::runtime_error("Not implemented");
@@ -36,7 +36,7 @@
 //
 ///*
 //    async_task<> send(
-//      const vds::service_provider * sp,
+//      
 //      const std::shared_ptr<vds::http_message> & message)
 //    {
 //      if (!message) {
@@ -50,7 +50,7 @@
 //
 ///*
 //    async_task<> process_input(
-//      const vds::service_provider * sp,
+//      
 //      const std::shared_ptr<_http_server> & pthis,
 //      const http_server::handler_type & handler)
 //    {

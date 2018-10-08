@@ -22,12 +22,12 @@ All rights reserved
 #include "messages/transaction_log_record.h"
 #include "messages/offer_replica.h"
 
-void vds::transaction_log::sync_process::do_sync(const service_provider * sp, database_transaction& t) {
-  this->sync_local_channels(sp, t, const_data_buffer());
-  this->query_unknown_records(sp, t);
+void vds::transaction_log::sync_process::do_sync( database_transaction& t) {
+  this->sync_local_channels(t, const_data_buffer());
+  this->query_unknown_records(t);
 }
 
-void vds::transaction_log::sync_process::query_unknown_records(const service_provider * sp, database_transaction& t) {
+void vds::transaction_log::sync_process::query_unknown_records( database_transaction& t) {
   std::set<const_data_buffer> record_ids;
   orm::transaction_log_unknown_record_dbo t1;
   orm::transaction_log_unknown_record_dbo t2;
@@ -55,29 +55,26 @@ void vds::transaction_log::sync_process::query_unknown_records(const service_pro
     }
 
     if(!current_state.empty()) {
-        auto client = sp->get<vds::dht::network::client>();
+        auto client = this->sp_->get<vds::dht::network::client>();
         (*client)->send_neighbors(
-          sp,
           dht::messages::transaction_log_state(
                 current_state,
                 client->current_node_id()));
     }
   }
   else {
-    auto &client = *sp->get<dht::network::client>();
+    auto &client = *this->sp_->get<dht::network::client>();
     for (const auto & p : record_ids) {
-      sp->get<logger>()->trace(
+      this->sp_->get<logger>()->trace(
           ThisModule,
-          sp,
           "Query log records %s",
           base64::from_bytes(p).c_str());
 
       std::list<std::shared_ptr<dht::dht_route<std::shared_ptr<dht::network::dht_session>>::node>> neighbors;
-      client->get_neighbors(sp, neighbors);
+      client->get_neighbors(neighbors);
 
       for (const auto& neighbor : neighbors) {
         client->send(
-          sp,
           neighbor->node_id_,
           dht::messages::transaction_log_request(
             p,
@@ -89,7 +86,7 @@ void vds::transaction_log::sync_process::query_unknown_records(const service_pro
 
 
 std::future<void> vds::transaction_log::sync_process::apply_message(
-  const service_provider * sp,
+  
   database_transaction& t,
   const dht::messages::transaction_log_state& message,
   const dht::network::imessage_map::message_info_t & message_info) {
@@ -108,9 +105,8 @@ std::future<void> vds::transaction_log::sync_process::apply_message(
   if (!requests.empty()) {
     orm::transaction_log_unknown_record_dbo t3;
     for (const auto & p : requests) {
-      auto & client = *sp->get<vds::dht::network::client>();
+      auto & client = *this->sp_->get<vds::dht::network::client>();
       co_await client->send(
-        sp,
         message.source_node(),
         dht::messages::transaction_log_request(
           p,
@@ -141,9 +137,8 @@ std::future<void> vds::transaction_log::sync_process::apply_message(
     }
 
     if (!current_state.empty()) {
-      auto & client = *sp->get<vds::dht::network::client>();
+      auto & client = *this->sp_->get<vds::dht::network::client>();
       co_await client->send_neighbors(
-        sp,
         dht::messages::transaction_log_state(
           current_state,
           client->current_node_id()));
@@ -152,7 +147,7 @@ std::future<void> vds::transaction_log::sync_process::apply_message(
 }
 
 void vds::transaction_log::sync_process::apply_message(
-    const service_provider * sp,
+    
     database_transaction& t,
     const dht::messages::transaction_log_request& message,
     const dht::network::imessage_map::message_info_t & message_info) {
@@ -164,16 +159,14 @@ void vds::transaction_log::sync_process::apply_message(
           .where(t1.id == message.transaction_id()));
   if (st.execute()) {
 
-    sp->get<logger>()->trace(
+    this->sp_->get<logger>()->trace(
         ThisModule,
-        sp,
         "Provide log record %s",
         base64::from_bytes(message.transaction_id()).c_str());
 
-    mt_service::async(sp, [sp, message, data = t1.data.get(st)]() {
+    mt_service::async(this->sp_, [sp = this->sp_, message, data = t1.data.get(st)]() {
       auto client = sp->get<vds::dht::network::client>();
       (*client)->send(
-          sp,
           message.source_node(),
           dht::messages::transaction_log_record(
               message.transaction_id(),
@@ -183,38 +176,37 @@ void vds::transaction_log::sync_process::apply_message(
 }
 
 void vds::transaction_log::sync_process::apply_message(
-    const service_provider * sp,
+    
     database_transaction& t,
     const dht::messages::transaction_log_record& message,
     const dht::network::imessage_map::message_info_t & message_info) {
 
-  sp->get<logger>()->trace(
+  this->sp_->get<logger>()->trace(
     ThisModule,
-    sp,
     "Save log record %s",
     base64::from_bytes(message.record_id()).c_str());
 
   if(transactions::transaction_log::save(
-    sp,
+    this->sp_,
     t,
     message.data())) {
-    this->sync_local_channels(sp, t, const_data_buffer());
+    this->sync_local_channels(t, const_data_buffer());
   }
 }
 
 void vds::transaction_log::sync_process::on_new_session(
-  const service_provider * sp,
+  
   database_read_transaction & t,
   const const_data_buffer& partner_id) {
-  this->sync_local_channels(sp, t, partner_id);
+  this->sync_local_channels(t, partner_id);
 }
 
 void vds::transaction_log::sync_process::sync_local_channels(
-  const service_provider * sp,
+  
   database_read_transaction& t,
   const const_data_buffer& partner_id) {
 
-  auto & client = *sp->get<dht::network::client>();
+  auto & client = *this->sp_->get<dht::network::client>();
 
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
@@ -236,23 +228,20 @@ void vds::transaction_log::sync_process::sync_local_channels(
     log_message += ' ';
   }
 
-  sp->get<logger>()->trace(
+  this->sp_->get<logger>()->trace(
     ThisModule,
-    sp,
     "state is %s",
     log_message.c_str());
 
-  sp->get<logger>()->trace(ThisModule, sp, "Send transaction_log_state");
+  this->sp_->get<logger>()->trace(ThisModule, "Send transaction_log_state");
   if (!partner_id) {
     client->send_neighbors(
-      sp,
       dht::messages::transaction_log_state(
         leafs,
         client->current_node_id()));
   }
   else {
     client->send(
-      sp,
       partner_id,
       dht::messages::transaction_log_state(
         leafs,

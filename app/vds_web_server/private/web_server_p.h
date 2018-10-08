@@ -16,14 +16,14 @@ namespace vds {
   class _web_server : public std::enable_shared_from_this<_web_server>
   {
   public:
-    _web_server(const service_provider * sp);
+    _web_server();
     ~_web_server();
 
-    std::future<void> start(const service_provider * sp, const std::string & root_folder, uint16_t port);
+    std::future<void> start( const std::string & root_folder, uint16_t port);
     std::future<void> prepare_to_stop(const service_provider *sp);
 
     std::future<http_message> route(
-      const service_provider * sp,
+      
       const http_message request);
 
     void add_auth_session(
@@ -31,11 +31,11 @@ namespace vds {
         const std::shared_ptr<auth_session> & session);
 
     std::shared_ptr<auth_session> get_session(
-      const service_provider * sp,
+      
       const std::string & session_id) const;
 
     void kill_session(
-      const service_provider * sp,
+      
       const std::string& session_id);
 
   private:
@@ -49,7 +49,7 @@ namespace vds {
     void load_web(const std::string& path, const foldername & folder);
 
     std::shared_ptr<user_manager> get_secured_context(
-        const service_provider * sp,
+        
       const std::string & session_id) const;
 
   };

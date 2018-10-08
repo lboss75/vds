@@ -26,11 +26,11 @@ namespace vds {
     public:
 
       transaction_block_builder(
-        const service_provider *sp,
+        const service_provider * sp,
         class vds::database_transaction &t);
 
-      static transaction_block_builder create_root_block() {
-        return transaction_block_builder();
+      static transaction_block_builder create_root_block(const service_provider * sp) {
+        return transaction_block_builder(sp);
       }
       
       void add(const root_user_transaction & item);
@@ -39,20 +39,22 @@ namespace vds {
       void add(const channel_message & item);
 
       const_data_buffer save(
-          const service_provider *sp,
+          
           class vds::database_transaction &t,
           const std::shared_ptr<certificate> &write_cert,
           const std::shared_ptr<asymmetric_private_key> &write_private_key);
 
       private:
         friend class _user_channel;
+
+        const service_provider * sp_;
         std::chrono::system_clock::time_point time_point_;
 
         std::set<const_data_buffer> ancestors_;
         data_coin_balance balance_;
         binary_serializer data_;
 
-        transaction_block_builder();
+        transaction_block_builder(const service_provider * sp);
 
     };
   }

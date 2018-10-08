@@ -38,7 +38,7 @@ vds::upnp_client::~upnp_client()
 
 
 bool vds::upnp_client::open_port(
-  const service_provider * sp,
+  
   uint16_t internal_port,
   uint16_t external_port,
   const std::string & protocol,
@@ -145,7 +145,7 @@ bool vds::upnp_client::open_port(
 }
 
 void vds::upnp_client::close_port(
-  const service_provider * sp,
+  
   uint16_t external_port,
   const std::string& protocol)
 {

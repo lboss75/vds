@@ -31,8 +31,8 @@ namespace vds {
 
         // Inherited via iservice
         void start(const service_provider *);
-        void stop(const service_provider *);
-        std::future<void> prepare_to_stop(const service_provider *);
+        void stop();
+        std::future<void> prepare_to_stop();
         
         void remove(socket_base * socket);
 
@@ -60,12 +60,13 @@ namespace vds {
         friend class _read_socket_task;
         friend class _write_socket_task;
         
+        const service_provider * sp_;
         std::mutex tasks_mutex_;
         std::condition_variable tasks_cond_;
 
 #ifdef _WIN32
         HANDLE handle_;
-        void thread_loop(const service_provider * provider);
+        void thread_loop();
         std::list<std::thread *> work_threads_;
 #else
         std::map<SOCKET_HANDLE, std::shared_ptr<socket_base>> tasks_;

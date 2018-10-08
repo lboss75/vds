@@ -32,12 +32,12 @@ namespace vds {
     }
 
     user_channel create_channel(
-      const service_provider * sp,
+      
       transactions::transaction_block_builder& log,
       const std::string& name);
 
     static member_user create_root_user(
-      const service_provider * sp,
+      
       transactions::transaction_block_builder &playback,
       database_transaction & t,
       const std::string &root_user_name,

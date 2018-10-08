@@ -24,11 +24,11 @@ namespace vds {
         return true;
       }
 
-      virtual bool visit(const channel_message &message) {
+      virtual bool visit(const channel_message & /*message*/) {
         return true;
       }
 
-      virtual bool visit(const create_user_transaction &message) {
+      virtual bool visit(const create_user_transaction & /*message*/) {
         return true;
       }
 

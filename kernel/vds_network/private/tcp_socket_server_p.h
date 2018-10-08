@@ -88,7 +88,7 @@ namespace vds {
 
               auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
               if (INVALID_SOCKET != socket) {
-                sp->get<logger>()->trace("TCP", sp, "Connection from %s", network_service::to_string(client_address).c_str());
+                sp->get<logger>()->trace("TCP", "Connection from %s", network_service::to_string(client_address).c_str());
                 (*sp->get<network_service>())->associate(socket);
                 auto s = _tcp_network_socket::from_handle(socket);
                 connections.push_back(std::move(new_connection(s)));
@@ -191,7 +191,7 @@ namespace vds {
             co_return;
     }
     
-    void stop(const service_provider * sp)
+    void stop()
     {
     }
     

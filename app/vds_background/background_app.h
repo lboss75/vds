@@ -29,7 +29,6 @@ namespace vds {
     command_line_value user_login_;
     command_line_value user_password_;
 
-    command_line_value node_name_;
     command_line_value port_;
 
     task_manager task_manager_;

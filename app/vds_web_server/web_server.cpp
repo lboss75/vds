@@ -32,16 +32,16 @@ vds::web_server::~web_server() {
 void vds::web_server::register_services(service_registrator&) {
 }
 
-void vds::web_server::start(const service_provider * sp) {
+void vds::web_server::start() {
   this->impl_ = std::make_shared<_web_server>(sp);
   this->impl_->start(sp, this->root_folder_, this->port_);
 }
 
-void vds::web_server::stop(const service_provider * sp) {
+void vds::web_server::stop() {
   this->impl_.reset();
 }
 
-std::future<void> vds::web_server::prepare_to_stop(const service_provider * sp) {
+std::future<void> vds::web_server::prepare_to_stop() {
   return this->impl_->prepare_to_stop(sp);
 }
 
@@ -49,7 +49,7 @@ vds::_web_server * vds::web_server::operator->() const {
   return this->impl_.get();
 }
 /////////////////////////////////////////////////////////////
-vds::_web_server::_web_server(const service_provider * sp) 
+vds::_web_server::_web_server() 
 : middleware_(*this) {
 
 }
@@ -69,7 +69,7 @@ struct session_data : public std::enable_shared_from_this<session_data> {
 };
 
 std::future<void> vds::_web_server::start(
-    const service_provider * sp,
+    
     const std::string & root_folder,
     uint16_t port) {
   this->load_web("/", foldername(root_folder));
@@ -100,12 +100,12 @@ std::future<void> vds::_web_server::start(
   });
 }
 
-std::future<void> vds::_web_server::prepare_to_stop(const service_provider * sp) {
+std::future<void> vds::_web_server::prepare_to_stop() {
   co_return;
 }
 
 std::future<vds::http_message> vds::_web_server::route(
-  const service_provider * sp,
+  
   const http_message message) {
    
   http_request request(message);
@@ -413,7 +413,7 @@ void vds::_web_server::add_auth_session(
 }
 
 std::shared_ptr<vds::auth_session> vds::_web_server::get_session(
-  const service_provider * sp,
+  
   const std::string & session_id) const {
 
   std::shared_lock<std::shared_mutex> lock(this->auth_session_mutex_);
@@ -425,7 +425,7 @@ std::shared_ptr<vds::auth_session> vds::_web_server::get_session(
   return nullptr;
 }
 
-void vds::_web_server::kill_session(const service_provider * sp, const std::string& session_id) {
+void vds::_web_server::kill_session( const std::string& session_id) {
   std::shared_lock<std::shared_mutex> lock(this->auth_session_mutex_);
   const auto p = this->auth_sessions_.find(session_id);
   if (this->auth_sessions_.end() != p) {
@@ -434,7 +434,7 @@ void vds::_web_server::kill_session(const service_provider * sp, const std::stri
 }
 
 std::shared_ptr<vds::user_manager> vds::_web_server::get_secured_context(
-  const service_provider * sp,
+  
   const std::string & session_id) const {
 
   auto session = this->get_session(sp, session_id);

@@ -24,7 +24,7 @@ namespace vds {
       const network_address & address,
       const std::function<std::future<void>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection);
     
-    void stop(const service_provider * sp);
+    void stop();
     
   private:
     std::shared_ptr<_tcp_socket_server> impl_;

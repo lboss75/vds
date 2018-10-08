@@ -28,7 +28,7 @@ std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
 
 std::shared_ptr<vds::json_value>
 vds::api_controller::get_channels(
-    const vds::service_provider *sp,
+    
     user_manager & user_mng,
     const std::shared_ptr<vds::_web_server> &owner,
     const vds::http_message &message) {
@@ -41,14 +41,14 @@ vds::api_controller::get_channels(
 }
 
 std::future<vds::http_message> vds::api_controller::get_login_state(
-  const service_provider * sp,
+  const vds::service_provider * sp,
   const std::string & login,
   const std::string & password,
   const std::shared_ptr<_web_server>& owner,
   const http_message& message) {
 
   auto session_id = std::to_string(std::rand()) + "." + std::to_string(std::rand()) + "." + std::to_string(std::rand());
-  auto session = std::make_shared<auth_session>(login, password);
+  auto session = std::make_shared<auth_session>(sp, login, password);
   co_await session->load(sp);
 
   auto item = std::make_shared<json_object>();
@@ -81,11 +81,11 @@ std::future<vds::http_message> vds::api_controller::get_login_state(
 
 std::future<vds::http_message>
 vds::api_controller::create_channel(
-  const vds::service_provider *sp,
+  
   const std::shared_ptr<vds::user_manager> &user_mng,
   const std::string & name) {
 
-  auto channel = co_await user_mng->create_channel(sp, name);
+  auto channel = co_await user_mng->create_channel(name);
   
   co_return http_response::simple_text_response(
         channel_serialize(channel)->json_value::str(),
@@ -93,14 +93,13 @@ vds::api_controller::create_channel(
 }
 
 std::future<std::shared_ptr<vds::json_value>> vds::api_controller::channel_feed(
-  const service_provider * sp,
+  const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
   const std::shared_ptr<_web_server>& owner,
   const const_data_buffer & channel_id) {
   auto result = std::make_shared<json_array>();
-  co_await sp->get<db_model>()->async_transaction(sp, [sp, user_mng, channel_id, result](database_transaction & t)->bool {
+  co_await sp->get<db_model>()->async_transaction([user_mng, channel_id, result](database_transaction & t)->bool {
     user_mng->walk_messages(
-      sp,
       channel_id,
       t,
       [result](const transactions::user_message_transaction& message)-> bool {
@@ -127,24 +126,24 @@ std::future<std::shared_ptr<vds::json_value>> vds::api_controller::channel_feed(
 
 std::future<vds::file_manager::file_operations::download_result_t>
 vds::api_controller::download_file(
-  const service_provider * sp,
+  const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
   const std::shared_ptr<_web_server>& owner,
   const const_data_buffer& channel_id,
   const const_data_buffer& file_hash,
   const std::shared_ptr<stream_output_async<uint8_t>> & output_stream) {
 
-  co_return co_await sp->get<file_manager::file_operations>()->download_file(sp, user_mng, channel_id, file_hash, output_stream);
+  co_return co_await sp->get<file_manager::file_operations>()->download_file(user_mng, channel_id, file_hash, output_stream);
 }
 
 std::future<std::shared_ptr<vds::json_value>>
 vds::api_controller::user_devices(
-    const vds::service_provider *sp,
+  const vds::service_provider * sp,
     const std::shared_ptr<vds::user_manager> &user_mng,
     const std::shared_ptr<vds::_web_server> &owner) {
   auto result = std::make_shared<json_array>();
 
-  co_await sp->get<db_model>()->async_read_transaction(sp, [sp, user_mng, result](database_read_transaction & t){
+  co_await sp->get<db_model>()->async_read_transaction([sp, user_mng, result](database_read_transaction & t){
     auto client = sp->get<dht::network::client>();
     auto current_node = client->current_node_id();
 
@@ -181,7 +180,7 @@ vds::api_controller::user_devices(
 
 std::future<std::shared_ptr<vds::json_value>>
 vds::api_controller::offer_device(
-    const vds::service_provider *sp,
+  const vds::service_provider * sp,
     const std::shared_ptr<vds::user_manager> &user_mng,
     const std::shared_ptr<vds::_web_server> &owner) {
   auto result = std::make_shared<json_object>();
@@ -218,15 +217,15 @@ vds::api_controller::offer_device(
 }
 
 std::future<std::shared_ptr<vds::json_value>> vds::api_controller::get_statistics(
-  const service_provider * sp,
+  const vds::service_provider * sp,
   const std::shared_ptr<_web_server>& owner,
   const http_message& message) {
 
-  auto statistic = co_await sp->get<server>()->get_statistic(sp);
+  auto statistic = co_await sp->get<server>()->get_statistic();
   co_return statistic.serialize();
 }
 
-std::shared_ptr<vds::json_value> vds::api_controller::get_invite(const service_provider * sp, user_manager& user_mng,
+std::shared_ptr<vds::json_value> vds::api_controller::get_invite( user_manager& user_mng,
   const std::shared_ptr<_web_server>& owner, const http_message& message) {
 
   auto result = std::make_shared<json_object>();
@@ -235,9 +234,13 @@ std::shared_ptr<vds::json_value> vds::api_controller::get_invite(const service_p
 }
 
 std::future<void>
-vds::api_controller::lock_device(const vds::service_provider *sp, const std::shared_ptr<vds::user_manager> &user_mng,
-                                 const std::shared_ptr<vds::_web_server> &owner, const std::string &device_name,
-                                 const std::string &local_path, uint64_t reserved_size) {
+vds::api_controller::lock_device(
+  const vds::service_provider * sp,
+  const std::shared_ptr<vds::user_manager> &user_mng,
+  const std::shared_ptr<vds::_web_server> &owner,
+  const std::string &device_name,
+  const std::string &local_path,
+  uint64_t reserved_size) {
   if(local_path.empty() || reserved_size < 1) {
     throw vds_exceptions::invalid_operation();
   }
@@ -248,7 +251,7 @@ vds::api_controller::lock_device(const vds::service_provider *sp, const std::sha
   }
   fl.create();
 
-  return sp->get<db_model>()->async_transaction(sp, [sp, user_mng, device_name, local_path, reserved_size](database_transaction & t) {
+  return sp->get<db_model>()->async_transaction([sp, user_mng, device_name, local_path, reserved_size](database_transaction & t) {
     auto client = sp->get<dht::network::client>();
     auto current_node = client->current_node_id();
 
@@ -265,12 +268,12 @@ vds::api_controller::lock_device(const vds::service_provider *sp, const std::sha
 
 std::future<std::shared_ptr<vds::json_value>>
 vds::api_controller::get_register_requests(
-  const vds::service_provider *sp,
+  const vds::service_provider * sp,
   const std::shared_ptr<vds::_web_server> &owner) {
 
   auto result = std::make_shared<json_array>();
 
-  co_await sp->get<db_model>()->async_transaction(sp, [sp, result](database_transaction & t) {
+  co_await sp->get<db_model>()->async_transaction([result](database_transaction & t) {
     orm::register_request t1;
     auto st = t.get_reader(t1.select(t1.id, t1.name, t1.email, t1.create_time));
     while(st.execute()){
@@ -288,13 +291,13 @@ vds::api_controller::get_register_requests(
 
 std::future<std::shared_ptr<vds::json_value>>
 vds::api_controller::get_register_request(
-  const vds::service_provider *sp,
+  const vds::service_provider * sp,
   const std::shared_ptr<vds::_web_server> &owner,
   const const_data_buffer & request_id) {
 
   auto result = std::make_shared<json_array>();
 
-  co_await sp->get<db_model>()->async_transaction(sp, [sp, result, request_id](database_transaction & t) {
+  co_await sp->get<db_model>()->async_transaction([result, request_id](database_transaction & t) {
     orm::register_request t1;
     auto st = t.get_reader(t1.select(t1.id, t1.name, t1.email, t1.create_time).where(t1.id == request_id));
     while (st.execute()) {
@@ -311,13 +314,13 @@ vds::api_controller::get_register_request(
 }
 
 std::future<vds::const_data_buffer> vds::api_controller::get_register_request_body(
-  const service_provider * sp,
+  const vds::service_provider * sp,
   const std::shared_ptr<_web_server>& owner,
   const const_data_buffer & request_id) {
 
   auto result = std::make_shared<const_data_buffer>();
 
-  co_await sp->get<db_model>()->async_read_transaction(sp, [sp, request_id, result](database_read_transaction & t) {
+  co_await sp->get<db_model>()->async_read_transaction([request_id, result](database_read_transaction & t) {
     orm::register_request t1;
     auto st = t.get_reader(t1.select(t1.data).where(t1.id == request_id));
     if (!st.execute()) {
@@ -333,10 +336,10 @@ std::future<vds::const_data_buffer> vds::api_controller::get_register_request_bo
 }
 
 std::future<vds::http_message> vds::api_controller::get_session(
-  const service_provider * sp,
+  
   const std::shared_ptr<_web_server>& owner,
   const std::string& session_id) {
-  auto session = owner->get_session(sp, session_id);
+  auto session = owner->get_session(session_id);
 
   auto result = std::make_shared<json_object>();
 
@@ -354,9 +357,9 @@ std::future<vds::http_message> vds::api_controller::get_session(
       "application/json; charset=utf-8");
 }
 
-std::future<vds::http_message> vds::api_controller::logout(const service_provider * sp,
+std::future<vds::http_message> vds::api_controller::logout(
   const std::shared_ptr<_web_server>& owner, const std::string & session_id) {
-  owner->kill_session(sp, session_id);
+  owner->kill_session(session_id);
 
   co_return http_response::redirect("/");
 }

@@ -1,18 +1,17 @@
 #include "stdafx.h"
 #include "db_model.h"
 
-std::future<void> vds::db_model::async_transaction(const vds::service_provider *sp,
-                                                   const std::function<void(vds::database_transaction &)> &handler) {
-  return this->db_.async_transaction(sp, [&sp, handler](database_transaction & t)->bool{
+std::future<void> vds::db_model::async_transaction(const std::function<void(vds::database_transaction &)> &handler) {
+  return this->db_.async_transaction([handler](database_transaction & t)->bool{
       handler(t);
       return true;
   });
 }
 
 std::future<void> vds::db_model::async_read_transaction(
-    const vds::service_provider *sp,
+    
     const std::function<void(vds::database_read_transaction &)> &handler) {
-  return this->db_.async_read_transaction(sp, handler);
+  return this->db_.async_read_transaction(handler);
 }
 
 void vds::db_model::start(const service_provider * sp)
@@ -22,7 +21,7 @@ void vds::db_model::start(const service_provider * sp)
 	if (!file::exists(db_filename)) {
 		this->db_.open(sp, db_filename);
 
-		this->db_.async_transaction(sp, [this](database_transaction & t) {
+		this->db_.async_transaction([this](database_transaction & t) {
 			this->migrate(t, 0);
 			return true;
 		});
@@ -30,7 +29,7 @@ void vds::db_model::start(const service_provider * sp)
 	else {
 		this->db_.open(sp, db_filename);
 
-		this->db_.async_transaction(sp, [this](database_transaction & t) {
+		this->db_.async_transaction([this](database_transaction & t) {
 			auto st = t.parse("SELECT version FROM module WHERE id='kernel'");
 			if (!st.execute()) {
 				throw std::runtime_error("Database has been corrupted");
@@ -46,7 +45,7 @@ void vds::db_model::start(const service_provider * sp)
 	}
 }
 
-void vds::db_model::stop(const service_provider * sp)
+void vds::db_model::stop()
 {
 	this->db_.close();
 }
@@ -219,6 +218,6 @@ void vds::db_model::migrate(
 	}
 }
 
-std::future<void> vds::db_model::prepare_to_stop(const vds::service_provider *sp) {
-  return this->db_.prepare_to_stop(sp);
+std::future<void> vds::db_model::prepare_to_stop() {
+  return this->db_.prepare_to_stop();
 }

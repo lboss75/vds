@@ -4,7 +4,7 @@
 #include "private/cert_control_p.h"
 
 static void send_message_check(
-  const vds::service_provider * sp,
+  
   const vds::const_data_buffer & node1,
   const vds::const_data_buffer & node2,
   const std::shared_ptr<mock_session> & session1,
@@ -19,15 +19,15 @@ static void send_message_check(
     message[i] = static_cast<uint8_t>(std::rand());
   }
 
-  session1->send_message(sp, transport12, 10, node2, message);
+  session1->send_message(transport12, 10, node2, message);
   session2->check_message(10, message);
 
-  session2->send_message(sp, transport21, 10, node1, message);
+  session2->send_message(transport21, 10, node1, message);
   session1->check_message(10, message);
 }
 
 static void proxy_message_check(
-  const vds::service_provider * sp,
+  
   const vds::const_data_buffer & node1,
   const vds::const_data_buffer & node2,
   const std::shared_ptr<mock_session> & session1,
@@ -47,7 +47,6 @@ static void proxy_message_check(
 
   vds::crypto_service::rand_bytes(node3.data(), node3.size());
   session1->proxy_message(
-    sp,
     transport12,
     10,
     node3,
@@ -62,7 +61,6 @@ static void proxy_message_check(
     0);
 
   session1->proxy_message(
-    sp,
     transport12,
     10,
     node2,
@@ -100,7 +98,7 @@ TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
   registrator.add(mt_service);
 
   auto sp = registrator.build();
-  registrator.start(sp);
+  registrator.start();
 
   auto cert = vds::cert_control::get_storage_certificate();
   auto key = vds::cert_control::get_common_storage_private_key();
@@ -127,6 +125,7 @@ TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
   vds::crypto_service::rand_bytes(session_key.data(), session_key.size());
 
   auto session1 = std::make_shared<mock_session>(
+    sp,
     vds::network_address(AF_INET, "8.8.8.8", 8050),
     node1,
     node2,
@@ -134,6 +133,7 @@ TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
   session1->set_mtu(3 * 1024);
 
   auto session2 = std::make_shared<mock_session>(
+    sp,
     vds::network_address(AF_INET, "8.8.8.8", 8051),
     node2,
     node1,
@@ -143,23 +143,22 @@ TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
   auto transport12 = std::make_shared<mock_transport>(*session2);
   auto transport21 = std::make_shared<mock_transport>(*session1);
 
-  send_message_check(sp, node1, node2, session1, session2, transport12, transport21, 10);
-  send_message_check(sp, node1, node2, session1, session2, transport12, transport21, 10 * 1024);
-  send_message_check(sp, node1, node2, session1, session2, transport12, transport21, 0xFFFF);
+  send_message_check(node1, node2, session1, session2, transport12, transport21, 10);
+  send_message_check(node1, node2, session1, session2, transport12, transport21, 10 * 1024);
+  send_message_check(node1, node2, session1, session2, transport12, transport21, 0xFFFF);
 
 
-  proxy_message_check(sp, node1, node2, session1, session2, transport12, transport21, 10);
-  proxy_message_check(sp, node1, node2, session1, session2, transport12, transport21, 10 * 1024);
-  proxy_message_check(sp, node1, node2, session1, session2, transport12, transport21, 0xFFFF);
+  proxy_message_check(node1, node2, session1, session2, transport12, transport21, 10);
+  proxy_message_check(node1, node2, session1, session2, transport12, transport21, 10 * 1024);
+  proxy_message_check(node1, node2, session1, session2, transport12, transport21, 0xFFFF);
 
-  registrator.shutdown(sp);
+  registrator.shutdown();
 }
 
 std::future<void> mock_transport::write_async(
-    const vds::service_provider *sp,
+    
     const vds::udp_datagram &data) {
   return this->s_.process_datagram(
-      sp,
       this->shared_from_this(),
       vds::const_data_buffer(data.data(), data.data_size()));
 }

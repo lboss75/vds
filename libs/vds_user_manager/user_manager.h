@@ -26,42 +26,42 @@ namespace vds {
       login_failed
     };
 
-    user_manager();
+    user_manager(const service_provider * sp);
     ~user_manager();
 
     login_state_t get_login_state() const;
 
-    std::future<void> update(const service_provider * sp);
+    std::future<void> update();
 
     void load(
-      const service_provider * sp,
+      
       class database_transaction &t,
       const std::string & user_login,
       const std::string & user_password);
 
     std::future<vds::user_channel> create_channel(
-      const service_provider *sp,
+      
       const std::string &name) const;
 
     void reset(
-        const service_provider *sp,
+        
         const std::string &root_user_name,
         const std::string &root_password,
         const cert_control::private_info_t & private_info);
 
     //std::future<void> init_server(
-    //  const vds::service_provider *sp,
+    //  
     //  const std::string & root_user_name,
     //  const std::string & user_password,
     //  const std::string & device_name,
     //  int port);
 
-    std::shared_ptr<user_channel> get_channel(const service_provider * sp, const const_data_buffer &channel_id) const;
+    std::shared_ptr<user_channel> get_channel( const const_data_buffer &channel_id) const;
     std::map<const_data_buffer, std::shared_ptr<user_channel>> get_channels() const;
 
     template <typename... handler_types>
     void walk_messages(
-      const service_provider * sp,
+      
       const const_data_buffer & channel_id,
       database_transaction & t,
       handler_types && ... handlers) const {
@@ -79,10 +79,10 @@ namespace vds {
       while (st.execute()) {
         transactions::transaction_block block(t1.data.get(st));
         if (!block.walk_messages(
-          [this, sp, channel_id, &channel_handlers](const transactions::channel_message & message)->bool {
+          [this, channel_id, &channel_handlers](const transactions::channel_message & message)->bool {
           if (channel_id == message.channel_id()) {
 
-            auto read_cert_key = this->get_channel(sp, channel_id)->read_cert_private_key(message.channel_read_cert_subject());
+            auto read_cert_key = this->get_channel(channel_id)->read_cert_private_key(message.channel_read_cert_subject());
             const auto key_data = read_cert_key->decrypt(message.crypted_key());
             const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
             const auto data = symmetric_decrypt::decrypt(key, message.crypted_data());
@@ -97,10 +97,10 @@ namespace vds {
     }
 
     bool validate_and_save(
-        const service_provider * sp,
+        
         const std::list<std::shared_ptr<certificate>> &cert_chain);
 
-    void save_certificate(const service_provider *sp, database_transaction &t, const certificate &cert);
+    void save_certificate( database_transaction &t, const certificate &cert);
 
     member_user get_current_user() const;
     const std::shared_ptr<asymmetric_private_key> & get_current_user_private_key() const;
@@ -113,19 +113,20 @@ namespace vds {
       const std::string& userPassword);
 
     static bool parse_join_request(
-        const service_provider * sp,
+        
         const const_data_buffer & data,
         std::string & userName,
         std::string & userEmail);
 
     std::future<bool> approve_join_request(
-      const service_provider * sp,
+      
       const const_data_buffer & data);
 
   private:
+    const service_provider * sp_;
     std::shared_ptr<_user_manager> impl_;
 
-    std::future<void> save_certificate(const service_provider *sp, const std::shared_ptr<certificate> &cert);
+    std::future<void> save_certificate( const std::shared_ptr<certificate> &cert);
   };
 }
 

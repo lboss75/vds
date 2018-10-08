@@ -327,7 +327,7 @@ inline void vds::chunk_restore<cell_type>::restore(
   auto padding = uint16_t(chunks.begin()->data()[size - 2] << 8) | chunks.begin()->data()[size - 1];
   for (cell_type j = 1; j < this->k_; ++j) {
     vds_assert(size == chunks[j].size());
-    vds_assert(padding == uint16_t(chunks[j].data()[size - 2] << 8) | chunks[j].data()[size - 1]);
+    vds_assert(padding == (uint16_t(chunks[j].data()[size - 2] << 8) | chunks[j].data()[size - 1]));
   }
 
   auto expected_size = (size - 2) * this->k_;

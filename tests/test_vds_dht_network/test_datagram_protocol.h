@@ -11,7 +11,7 @@ public:
   : s_(s){
   }
   std::future<void> write_async(
-      const vds::service_provider * sp,
+      
       const vds::udp_datagram & data);
 
 private:
@@ -22,15 +22,16 @@ class mock_session : public vds::dht::network::dht_datagram_protocol<mock_sessio
   typedef vds::dht::network::dht_datagram_protocol<mock_session, mock_transport> base_class;
 public:
   mock_session(
+    const vds::service_provider * sp,
     const vds::network_address& address,
     const vds::const_data_buffer& this_node_id,
     const vds::const_data_buffer& partner_node_id,
     const vds::const_data_buffer& session_key)
-    : base_class(address, this_node_id, partner_node_id, session_key) {
+    : base_class(sp, address, this_node_id, partner_node_id, session_key) {
   }
 
   std::future<void> process_message(
-      const vds::service_provider * sp,
+      
       const std::shared_ptr<mock_transport>& transport,
       uint8_t message_type,
       const vds::const_data_buffer & target_node,

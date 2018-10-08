@@ -47,8 +47,8 @@ namespace vds {
       return this->body_.get() != nullptr;
     }
 
-    std::future<void> ignore_empty_body(const service_provider *sp) const;
-    std::future<void> ignore_body(const service_provider *sp) const;
+    std::future<void> ignore_empty_body() const;
+    std::future<void> ignore_body() const;
 
   private:
     std::list<std::string> headers_;
@@ -58,7 +58,7 @@ namespace vds {
       uint8_t data_[1024];
     };
     static std::future<void> ignore_body(
-      const service_provider *sp,
+      
       const std::shared_ptr<stream_input_async<uint8_t>> & body,
       const std::shared_ptr<buffer_t> & buffer);
 

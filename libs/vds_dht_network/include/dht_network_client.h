@@ -25,15 +25,13 @@ namespace vds {
 
       class client {
       public:
-        static bool is_debug;
-
         void start(
           const service_provider * sp,
           const std::shared_ptr<certificate> & node_cert,
           const std::shared_ptr<asymmetric_private_key> & node_key,
           const std::shared_ptr<iudp_transport> & udp_transport);
 
-        void stop(const service_provider * sp);
+        void stop();
 
         struct chunk_info {
           const_data_buffer id;
@@ -42,12 +40,12 @@ namespace vds {
         };
 
         chunk_info save(
-          const service_provider * sp,
+          
           database_transaction& t,
           const const_data_buffer& value);
 
         std::future<const_data_buffer> restore(
-          const service_provider * sp,
+          
           const chunk_info& block_id);
 
         const const_data_buffer& current_node_id() const;

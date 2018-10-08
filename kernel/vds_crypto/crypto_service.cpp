@@ -51,7 +51,7 @@ void vds::crypto_service::start(const service_provider *)
   static openssl_initializer openssl_instance;
 }
 
-void vds::crypto_service::stop(const service_provider *)
+void vds::crypto_service::stop()
 {
 }
 

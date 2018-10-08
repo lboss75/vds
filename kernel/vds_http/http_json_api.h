@@ -35,7 +35,7 @@ namespace vds {
       {        
       }
       
-      bool operator()(const service_provider * sp, json_value * request)
+      bool operator()( json_value * request)
       {
         try
         {

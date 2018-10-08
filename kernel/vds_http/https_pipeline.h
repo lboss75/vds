@@ -16,7 +16,7 @@ namespace vds {
       asymmetric_private_key * client_private_key);
     ~https_pipeline();
     
-    void connect(const service_provider * sp);
+    void connect();
    
     const std::string & address() const;
     int port() const;
@@ -24,14 +24,14 @@ namespace vds {
   protected:
     friend class _https_pipeline;
     
-    virtual void on_connected(const service_provider * sp);
-    virtual void on_connection_closed(const service_provider * sp);
-    virtual void on_error(const service_provider * sp, const std::shared_ptr<std::exception> & error);
+    virtual void on_connected();
+    virtual void on_connection_closed();
+    virtual void on_error( const std::shared_ptr<std::exception> & error);
     
-    virtual bool on_response(const service_provider * sp, json_value * response) = 0;
-    virtual void get_commands(const service_provider * sp) = 0;
+    virtual bool on_response( json_value * response) = 0;
+    virtual void get_commands() = 0;
 
-    void run(const service_provider * sp, const std::string & body);
+    void run( const std::string & body);
     
   private
     const std::unique_ptr<class _https_pipeline> impl_;

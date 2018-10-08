@@ -11,8 +11,11 @@ namespace vds {
   namespace http {
     class simple_form_parser : public std::enable_shared_from_this<simple_form_parser> {
     public:
-      std::future<void> parse(
-        const service_provider * sp,
+      simple_form_parser(const service_provider * sp)
+      : sp_(sp) {        
+      }
+
+      std::future<void> parse(        
         const http_message& message);
 
       const std::map<std::string, std::string> & values() const {
@@ -20,6 +23,7 @@ namespace vds {
       }
 
     private:
+      const service_provider * sp_;
       std::map<std::string, std::string> values_;
 
       class form_parser : public std::enable_shared_from_this<form_parser> {
@@ -27,11 +31,11 @@ namespace vds {
         form_parser(const std::shared_ptr<simple_form_parser> & owner);
 
         std::future<void> read_part(
-          const service_provider * sp,
+          
           const http_message& part);
 
         std::future<void> read_form_urlencoded(
-          const service_provider * sp, 
+           
           const http_message& message);
 
       private:
@@ -39,11 +43,11 @@ namespace vds {
         uint8_t buffer_[1024];
 
         std::future<std::string> read_string_body(
-          const service_provider * sp,
+          
           const http_message& part);
 
         std::future<void> skip_part(
-          const service_provider * sp,
+          
           const vds::http_message& part);
 
       };

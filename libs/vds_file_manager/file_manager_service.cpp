@@ -18,16 +18,16 @@ void vds::file_manager::file_manager_service::register_services(vds::service_reg
   this->impl_->register_services(registrator);
 }
 
-void vds::file_manager::file_manager_service::start(const vds::service_provider * sp) {
+void vds::file_manager::file_manager_service::start(const service_provider * sp) {
   this->impl_->start(sp);
 }
 
-void vds::file_manager::file_manager_service::stop(const vds::service_provider * sp) {
-  this->impl_->stop(sp);
+void vds::file_manager::file_manager_service::stop() {
+  this->impl_->stop();
 }
 
-std::future<void> vds::file_manager::file_manager_service::prepare_to_stop(const vds::service_provider *sp) {
-  return this->impl_->prepare_to_stop(sp);
+std::future<void> vds::file_manager::file_manager_service::prepare_to_stop() {
+  return this->impl_->prepare_to_stop();
 }
 
 /////////////////////////////////
@@ -35,13 +35,15 @@ void vds::file_manager_private::_file_manager_service::register_services(vds::se
   registrator.add_service<file_manager::file_operations>(&this->file_operations_);
 }
 
-void vds::file_manager_private::_file_manager_service::start(const vds::service_provider * sp) {
+void vds::file_manager_private::_file_manager_service::start(const service_provider * sp) {
+  this->file_operations_.start(sp);
 }
 
-void vds::file_manager_private::_file_manager_service::stop(const vds::service_provider * sp) {
+void vds::file_manager_private::_file_manager_service::stop() {
+  this->file_operations_.stop();
 }
 
-std::future<void> vds::file_manager_private::_file_manager_service::prepare_to_stop(const vds::service_provider *sp) {
-  co_return;
+std::future<void> vds::file_manager_private::_file_manager_service::prepare_to_stop() {
+  return this->file_operations_.prepare_to_stop();
 }
 

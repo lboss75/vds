@@ -109,7 +109,7 @@ namespace vds {
     }
     
     std::future<void> write_async(
-      const service_provider * sp,
+      
         const uint8_t * input_buffer,
         size_t input_buffer_size) {
       if (0 < input_buffer_size) {
@@ -137,7 +137,7 @@ namespace vds {
             }
 
             if(0 < len) {
-              co_await this->target_->write_async(sp, this->output_buffer_, len);
+              co_await this->target_->write_async(this->output_buffer_, len);
             }
 
             this->input_buffer_offset_ = 0;
@@ -158,7 +158,7 @@ namespace vds {
           }
 
           if(0 < len) {
-            co_await this->target_->write_async(sp, this->output_buffer_, len);
+            co_await this->target_->write_async(this->output_buffer_, len);
           }
         }
 
@@ -171,10 +171,10 @@ namespace vds {
         }
 
         if(0 < len) {
-          co_await this->target_->write_async(sp, this->output_buffer_, len);
+          co_await this->target_->write_async(this->output_buffer_, len);
         }
 
-        co_await this->target_->write_async(sp, nullptr, 0);
+        co_await this->target_->write_async(nullptr, 0);
       }
     }
 
@@ -226,7 +226,7 @@ namespace vds {
     }
 
     std::future<void> write_async(
-      const service_provider * sp,
+      
         const uint8_t * input_buffer,
         size_t input_buffer_size)
     {
@@ -255,7 +255,7 @@ namespace vds {
             }
 
             if(0 < len) {
-              co_await this->target_->write_async(sp, this->output_buffer_, len);
+              co_await this->target_->write_async(this->output_buffer_, len);
             }
 
             this->input_buffer_offset_ = 0;
@@ -276,7 +276,7 @@ namespace vds {
           }
 
           if(0 < len) {
-            co_await this->target_->write_async(sp, this->output_buffer_, len);
+            co_await this->target_->write_async(this->output_buffer_, len);
           }
         }
 
@@ -289,10 +289,10 @@ namespace vds {
         }
 
         if(0 < len) {
-          co_await this->target_->write_async(sp, this->output_buffer_, len);
+          co_await this->target_->write_async(this->output_buffer_, len);
         }
 
-        co_await this->target_->write_async(sp, nullptr, 0);
+        co_await this->target_->write_async(nullptr, 0);
       }
     }
 

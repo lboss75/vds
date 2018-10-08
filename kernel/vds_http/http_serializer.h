@@ -27,7 +27,6 @@ namespace vds {
     }
 
     std::future<void> write_async(
-      const service_provider * sp,
       const http_message message)
     {
       auto pthis = this->shared_from_this();
@@ -38,20 +37,19 @@ namespace vds {
       for (auto & header : message.headers()) {
         stream << header << "\r\n";
       }
-      sp->get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", logger::escape_string(stream.str()).c_str());
       stream << "\r\n";
 
       auto data = std::make_shared<std::string>(stream.str());
-      co_await this->target_->write_async(sp, reinterpret_cast<const uint8_t *>(data->c_str()), data->length());
+      co_await this->target_->write_async(reinterpret_cast<const uint8_t *>(data->c_str()), data->length());
 
       for (;;) {
-        auto readed = co_await message.body()->read_async(sp, this->output_buffer_, sizeof(this->output_buffer_));
+        auto readed = co_await message.body()->read_async(this->output_buffer_, sizeof(this->output_buffer_));
         if (0 == readed) {
-          co_await this->target_->write_async(sp, nullptr, 0);
+          co_await this->target_->write_async(nullptr, 0);
           break;
         }
 
-        co_await this->target_->write_async(sp, this->output_buffer_, readed);
+        co_await this->target_->write_async(this->output_buffer_, readed);
       }
     }
 

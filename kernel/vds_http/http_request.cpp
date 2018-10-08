@@ -55,7 +55,7 @@ void vds::http_request::parse_parameters()
 }
 
 vds::http_message vds::http_request::simple_request(
-  const service_provider * sp,
+  
   const std::string& method,
   const std::string& url,
   const std::string& body)

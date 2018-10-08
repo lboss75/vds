@@ -17,7 +17,7 @@ void vds::dht::network::service::start(
   const service_provider * sp,
   const std::shared_ptr<iudp_transport> & udp_transport,
   const uint16_t port) {
-  sp->get<db_model>()->async_transaction(sp, [this, sp, udp_transport, port](database_transaction& t) {
+  sp->get<db_model>()->async_transaction([this, sp, udp_transport, port](database_transaction& t) {
     std::shared_ptr<certificate> node_cert;
     std::shared_ptr<asymmetric_private_key> node_key;
 
@@ -65,14 +65,14 @@ void vds::dht::network::service::start(
         node_key,
         udp_transport);
     return true;
-  });
+  }).get();
 }
 
-void vds::dht::network::service::stop(const service_provider * sp) {
-  this->client_.stop(sp);
+void vds::dht::network::service::stop() {
+  this->client_.stop();
 }
 
-std::future<void> vds::dht::network::service::prepare_to_stop(const service_provider * /*sp*/) {
+std::future<void> vds::dht::network::service::prepare_to_stop() {
   co_return;
 }
 

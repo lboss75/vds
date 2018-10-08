@@ -43,7 +43,7 @@ public:
   void attach(const std::shared_ptr<test_server> & server1, const std::shared_ptr<test_server>& server2);
 
   void register_message(
-    const vds::service_provider * sp,
+    
     const vds::const_data_buffer& target_node_id,
     const vds::dht::network::imessage_map::message_info_t& message_info);
 
@@ -68,10 +68,10 @@ public:
     const std::shared_ptr<vds::asymmetric_private_key> & node_key,
     uint16_t port) override;
 
-  void stop(const vds::service_provider * sp) override;
+  void stop() override;
 
-  std::future<void> write_async(const vds::service_provider * sp, const vds::udp_datagram& datagram) override;
-  std::future<void> try_handshake(const vds::service_provider * sp, const std::string& address) override;
+  std::future<void> write_async( const vds::udp_datagram& datagram) override;
+  std::future<void> try_handshake( const std::string& address) override;
 
   const vds::const_data_buffer & node_id() const {
     return this->node_id_;
@@ -96,31 +96,31 @@ public:
 
   void register_services(vds::service_registrator &) override;
   void start(const vds::service_provider *) override;
-  void stop(const vds::service_provider *) override;
-  std::future<void> prepare_to_stop(const vds::service_provider *sp) override;
+  void stop() override;
+  std::future<void> prepare_to_stop() override;
 
   std::future<void> process_datagram(
-    const vds::service_provider * sp,
+    
     const vds::udp_datagram& datagram,
     const vds::const_data_buffer& source_node_id,
     const vds::network_address & source_address);
 
   void add_session(
-    const vds::service_provider * sp,
+    
     const std::shared_ptr<vds::dht::network::dht_session> & session);
 
   const vds::network_address & address() const;
 
   void add_sync_entry(
-    const vds::service_provider * sp,
+    
     const vds::const_data_buffer& object_id,
     const vds::const_data_buffer& object_data);
 
 
-  std::future<void> process_message(const vds::service_provider * scope, const message_info_t& message_info) override;
-  std::future<void> on_new_session(const vds::service_provider * sp, const vds::const_data_buffer& partner_id) override;
+  std::future<void> process_message(const message_info_t& message_info) override;
+  std::future<void> on_new_session(const vds::const_data_buffer& partner_id) override;
 private:
-
+  const vds::service_provider * sp_;
   vds::db_model db_model_;
   vds::dht::network::service client_;
 
@@ -152,6 +152,8 @@ public:
   void add_session(
     const std::shared_ptr<vds::dht::network::dht_session> & session);
 
+  vds::service_provider * sp_;
+
 private:
 
   vds::service_registrator registrator_;
@@ -160,7 +162,6 @@ private:
   vds::task_manager task_manager_;
   mock_server server_;
 
-  vds::service_provider * sp_;
 };
 
 

@@ -31,7 +31,7 @@ namespace vds {
       const options &parse_options = options());
 
     std::future<void> write_async(
-      const service_provider * sp,
+      
       const unsigned char* data,
       size_t len) override {
       this->write(data, len);
