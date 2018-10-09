@@ -137,7 +137,7 @@ void vds::task_manager::work_thread()
         this->scheduled_.remove(task);
         ++b;
         
-        imt_service::async(this->sp_, [this, task, &b](){
+        imt_service::async(this->sp_, [task, &b](){
           try{
             task->execute();
             

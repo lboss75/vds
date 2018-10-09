@@ -132,10 +132,6 @@ void vds::_mt_service::do_async( std::function<void(void)> && handler)
 
 void vds::_mt_service::work_thread()
 {
-#ifndef _WIN32
-  auto thread_id = syscall(SYS_gettid);
-#endif
-
   while(!this->is_shuting_down_){
     std::function<void(void)> handler;
     {

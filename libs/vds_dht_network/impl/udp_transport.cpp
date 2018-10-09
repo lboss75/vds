@@ -56,12 +56,18 @@ void vds::dht::network::udp_transport::stop() {
 
 std::future<void>
 vds::dht::network::udp_transport::write_async( const udp_datagram& datagram) {
-  auto result = std::make_shared<std::packaged_task<void(void)>>([this, datagram]() {
-    this->writer_->write_async(datagram).get();
+  auto result = std::make_shared<std::promise<void>>();
+  this->send_thread_->schedule([result, this, datagram]() {
+    try{
+      this->writer_->write_async(datagram).get();
+    }
+    catch (...){
+      result->set_exception(std::current_exception());
+      return;
+    }
+    result->set_value();
   });
-  this->send_thread_->schedule([result]() {
-    (*result)();
-  });
+
   return result->get_future();
 
   //  std::unique_lock<std::debug_mutex> lock(this->write_mutex_);

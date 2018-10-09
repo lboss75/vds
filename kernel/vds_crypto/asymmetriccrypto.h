@@ -301,7 +301,7 @@ inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, std
 {
 	vds::const_data_buffer cert_data;
 	s >> cert_data;
-	cert = std::make_shared<vds::certificate>(std::move(vds::certificate::parse_der(cert_data)));
+	cert = std::make_shared<vds::certificate>(vds::certificate::parse_der(cert_data));
 	return s;
 }
 
@@ -314,7 +314,7 @@ inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, std
 {
   vds::const_data_buffer key_data;
   s >> key_data;
-  key = std::make_shared<vds::asymmetric_private_key>(std::move(vds::asymmetric_private_key::parse_der(key_data, std::string())));
+  key = std::make_shared<vds::asymmetric_private_key>(vds::asymmetric_private_key::parse_der(key_data, std::string()));
   return s;
 }
 
