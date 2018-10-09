@@ -243,12 +243,15 @@ void test_server::start(const std::shared_ptr<transport_hab> & hab, int index) {
   registrator_.current_user(folder);
   registrator_.local_machine(folder);
 
-  sp_ = registrator_.build();
+  this->sp_ = registrator_.build();
 
   registrator_.start();
+  
+  this->process_thread_.reset(new vds::thread_apartment(this->sp_));
 }
 
 void test_server::stop() {
+  this->process_thread_->prepare_to_stop().get();
   registrator_.shutdown();
 }
 
@@ -260,10 +263,24 @@ std::future<void> test_server::process_datagram(
   const vds::udp_datagram& datagram,
   const vds::const_data_buffer& source_node_id,
   const vds::network_address & source_address) {
-  return this->server_.process_datagram(
-    datagram,
-    source_node_id,
-    source_address);
+
+  auto r = std::make_shared<std::promise<void>>();
+  this->process_thread_->schedule([r, this, datagram, source_node_id, source_address]() {
+    try {
+      this->server_.process_datagram(
+        datagram,
+        source_node_id,
+        source_address).get();
+    }
+    catch(...) {
+      r->set_exception(std::current_exception());
+      return;
+    }
+
+    r->set_value();
+  });
+
+  return r->get_future();
 }
 
 const vds::const_data_buffer& test_server::node_id() const {

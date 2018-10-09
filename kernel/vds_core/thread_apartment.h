@@ -60,7 +60,9 @@ namespace vds {
     std::future<void> prepare_to_stop() {
       std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
       if(task_queue_.empty()) {
-        return std::packaged_task<void(void)>([]() {}).get_future();
+        auto r = std::promise<void>();
+        r.set_value();
+        return r.get_future();
       }
       this->empty_query_ = std::make_unique<std::promise<void>>();
       return this->empty_query_->get_future();

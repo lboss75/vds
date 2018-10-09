@@ -43,6 +43,10 @@ void vds::mt_service::stop()
 	}
 }
 
+std::future<void> vds::mt_service::prepare_to_stop() {
+  return this->impl_->prepare_to_stop();
+}
+
 void vds::imt_service::do_async(const std::function<void(void)>& handler)
 {
   ((mt_service *)this)->impl_->do_async(handler);
@@ -75,11 +79,15 @@ void vds::_mt_service::start()
 
 void vds::_mt_service::stop()
 {
-  this->is_shuting_down_ = true;
   for(auto & t : this->work_threads_){
     this->cond_.notify_all();
     t.join();
   }
+}
+
+std::future<void> vds::_mt_service::prepare_to_stop() {
+  this->is_shuting_down_ = true;
+  co_return;
 }
 
 void vds::_mt_service::do_async( const std::function<void(void)> & handler)

@@ -24,7 +24,8 @@ namespace vds {
     
     void start();
     void stop();
-    
+    std::future<void> prepare_to_stop();
+
     void do_async( const std::function<void(void)> & handler);
     void do_async( std::function<void(void)> && handler);
 

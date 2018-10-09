@@ -1,11 +1,12 @@
 #ifndef __TEST_VDS_DHT_NETWORK_TEST_SYNC_PROCESS_H_
 #define __TEST_VDS_DHT_NETWORK_TEST_SYNC_PROCESS_H_
 
-#include "../../libs/vds_dht_network/private/sync_process.h"
 #include "db_model.h"
 #include "iudp_transport.h"
 #include "network_address.h"
 #include "dht_network.h"
+#include "thread_apartment.h"
+#include "imessage_map.h"
 
 namespace vds {
   class udp_datagram;
@@ -155,13 +156,13 @@ public:
   vds::service_provider * sp_;
 
 private:
-
   vds::service_registrator registrator_;
   vds::file_logger logger_;
   vds::mt_service mt_service_;
   vds::task_manager task_manager_;
   mock_server server_;
 
+  std::shared_ptr<vds::thread_apartment> process_thread_;
 };
 
 

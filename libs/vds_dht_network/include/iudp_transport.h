@@ -7,7 +7,7 @@ All rights reserved
 */
 
 #include "service_provider.h"
-
+#include "asymmetriccrypto.h"
 
 namespace vds {
   class udp_datagram;
