@@ -69,7 +69,7 @@ namespace vds {
       dht_route(
         const service_provider * sp,
         const const_data_buffer &this_node_id)
-          : current_node_id_(this_node_id) {
+          : sp_(sp), current_node_id_(this_node_id) {
 
       }
 

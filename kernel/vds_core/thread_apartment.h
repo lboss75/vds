@@ -45,6 +45,10 @@ namespace vds {
             lock.lock();
             pthis->task_queue_.pop();
             if (pthis->task_queue_.empty()) {
+              if(pthis->empty_query_) {
+                auto r = std::move(pthis->empty_query_);
+                r->set_value();
+              }
               break;
             }
             lock.unlock();
@@ -53,10 +57,21 @@ namespace vds {
       }
     }
 
+    std::future<void> prepare_to_stop() {
+      std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
+      if(task_queue_.empty()) {
+        return std::packaged_task<void(void)>([]() {}).get_future();
+      }
+      this->empty_query_ = std::make_unique<std::promise<void>>();
+      return this->empty_query_->get_future();
+    }
+
   private:
     const service_provider * sp_;
+
     std::mutex task_queue_mutex_;
     std::queue<std::function<void(void)>> task_queue_;
+    std::unique_ptr<std::promise<void>> empty_query_;
   };
 }
 

@@ -108,10 +108,18 @@ void vds::task_manager::stop()
 {
   this->sp_->get<logger>()->debug("tm", "Stopping task manager");
 
+  if (this->work_thread_.joinable()) {
+    this->work_thread_.join();
+  }
+}
+
+std::future<void> vds::task_manager::prepare_to_stop() {
   this->is_shuting_down_ = true;
   if (this->work_thread_.joinable()) {
     this->work_thread_.join();
   }
+
+  co_return;
 }
 
 void vds::task_manager::work_thread()

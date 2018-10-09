@@ -53,7 +53,8 @@ namespace vds {
     void register_services(service_registrator &) override;
     void start(const service_provider * sp) override;
     void stop() override;
-      
+    std::future<void> prepare_to_stop() override;
+
   private:
     friend class timer;
     const service_provider * sp_;

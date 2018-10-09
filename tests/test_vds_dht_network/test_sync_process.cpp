@@ -423,8 +423,8 @@ void mock_server::register_services(vds::service_registrator& registrator) {
 }
 
 void mock_server::start(const vds::service_provider * sp) {
+  this->sp_ = sp;
   this->db_model_.start(sp);
-
   this->client_.start(sp, this->transport_, 0);
 }
 

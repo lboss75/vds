@@ -316,7 +316,7 @@ namespace vds {
     }
 
     std::future<void> prepare_to_stop(){
-      co_return;
+      return this->execute_queue_->prepare_to_stop();
     }
 
 
