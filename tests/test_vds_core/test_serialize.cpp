@@ -68,7 +68,7 @@ public:
 
 
 TEST(core_tests, test_message_serialize) {
-  auto data = vds::message_serialize<message>(10, "test");
+  auto data = vds::message_serialize(vds::message_create<message>(10, "test"));
   vds::binary_deserializer d(data);
   auto m1 = vds::message_deserialize<message>(d);
 

@@ -20,7 +20,7 @@ vds::timer::timer(const char * name)
 
 
 vds::task_manager::task_manager()
-: is_shuting_down_(false)
+: is_shuting_down_(false), is_disabled_(false)
 {
 }
 
@@ -78,6 +78,10 @@ void vds::timer::schedule()
   }
   
   auto manager = static_cast<task_manager *>(this->sp_->get<task_manager>());
+
+  if(manager->is_disabled_) {
+    return;
+  }
   
   this->start_time_ = std::chrono::steady_clock::now() + this->period_;
 

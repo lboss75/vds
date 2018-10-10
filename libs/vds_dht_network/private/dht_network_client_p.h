@@ -201,10 +201,9 @@ namespace vds {
         //
         template <typename message_type>
         std::future<void> send(
-          
           const const_data_buffer& node_id,
           const message_type& message) {
-          co_await this->send(node_id, message_type::message_id, message.serialize());
+          co_await this->send(node_id, message_type::message_id, message_serialize(message));
         }
 
         std::future<void> send(
@@ -219,29 +218,31 @@ namespace vds {
             size_t radius);
 
         template <typename message_type>
-        void send_near(
+        std::future<void> send_near(
           
           const const_data_buffer& node_id,
           size_t radius,
           const message_type& message) {
-          this->send_near(node_id, radius, message_type::message_id, message.serialize());
+
+          co_await this->send_near(node_id, radius, message_type::message_id, message_serialize(message));
         }
 
         template <typename message_type>
-        void send_near(
+        std::future<void> send_near(
           
           const const_data_buffer& node_id,
           size_t radius,
           const message_type& message,
           const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter) {
-          this->send_near(node_id, radius, message_type::message_id, message.serialize(), filter);
+
+          co_await this->send_near(node_id, radius, message_type::message_id, message_serialize(message), filter);
         }
 
         template <typename message_type>
         std::future<void> send_neighbors(
-          
           const message_type& message) {
-          co_await this->send_neighbors(message_type::message_id, message.serialize());
+
+          co_await this->send_neighbors(message_type::message_id, message_serialize(message));
         }
 
         void add_session( const std::shared_ptr<dht_session>& session, uint8_t hops);

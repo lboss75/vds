@@ -197,10 +197,20 @@ namespace vds {
   template <typename... field_init_types>
   class _message_init_visitor;
 
+  template <>
+  class _message_init_visitor<> {
+  public:
+    _message_init_visitor(){
+    }
+
+    void operator ()() {
+    }
+  };
+
   template <typename field_init_type>
   class _message_init_visitor<field_init_type> {
   public:
-    _message_init_visitor(field_init_type && v)
+    _message_init_visitor(field_init_type v)
       : v_(std::forward<field_init_type>(v)) {
     }
 
@@ -217,14 +227,20 @@ namespace vds {
   class _message_init_visitor<first_field_init_type, rest_fields_init_types...> : public _message_init_visitor<rest_fields_init_types...> {
     using base_class = _message_init_visitor<rest_fields_init_types...>;
   public:
-    _message_init_visitor(first_field_init_type && v, rest_fields_init_types &&... values)
+    _message_init_visitor(first_field_init_type v, rest_fields_init_types... values)
       : base_class(std::forward<rest_fields_init_types>(values)...), v_(v) {
     }
 
     template <typename first_field_type, typename... rest_field_types>
-    void operator ()(first_field_type & first_field, rest_field_types &... rest_fields) {
+    auto operator ()(first_field_type & first_field, rest_field_types &... rest_fields) {
       first_field = this->v_;
-      base_class::operator()(rest_fields...);
+      return base_class::operator()(rest_fields...);
+    }
+
+    template <typename last_field_type>
+    auto & operator ()(last_field_type & last_field) {
+      last_field = this->v_;
+      return *static_cast<base_class *>(this);
     }
 
   private:
@@ -232,6 +248,7 @@ namespace vds {
   };
 
   /////////////////////////////////////////////////////////////////////
+
   class _serialize_visitor {
   public:
     _serialize_visitor(vds::binary_serializer & b)
@@ -240,8 +257,14 @@ namespace vds {
     }
 
     template <typename... field_types>
-    void operator ()(field_types & ... fields) {
+    _serialize_visitor & operator ()(field_types & ... fields) {
       serialize<field_types...>(fields...);
+      return *this;
+    }
+
+    template <>
+    _serialize_visitor & operator ()() {
+      return *this;
     }
 
   private:
@@ -250,6 +273,7 @@ namespace vds {
     template <typename field_type>
     void serialize(field_type & field) {
       this->b_ << field;
+
     }
 
     template <typename first_field_type, typename... rest_fields_types>
@@ -266,8 +290,14 @@ namespace vds {
     }
 
     template <typename... field_types>
-    void operator ()(field_types &... fields) {
+    _deserialize_visitor & operator ()(field_types &... fields) {
       deserialize<field_types...>(fields...);
+      return *this;
+    }
+
+    template <>
+    _deserialize_visitor & operator ()(void) {
+      return *this;
     }
 
   private:
@@ -296,17 +326,12 @@ namespace vds {
     return message;
   }
 
-  template<typename message_type, typename... init_field_types>
-  inline const_data_buffer message_serialize(init_field_types &&... init_field_values)
+  template<typename message_type>
+  inline const_data_buffer message_serialize(const message_type & message)
   {
-    message_type message;
-    _message_init_visitor<init_field_types...> v(
-        std::forward<init_field_types>(init_field_values)...);
-    message.visit(v);
-
     vds::binary_serializer b;
     _serialize_visitor bs(b);
-    message.visit(bs);
+    const_cast<typename std::remove_const<message_type>::type *>(&message)->visit(bs);
 
     return b.move_data();
   }

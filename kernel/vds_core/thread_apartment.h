@@ -16,7 +16,7 @@ namespace vds {
   class thread_apartment : public std::enable_shared_from_this<thread_apartment> {
   public:
     thread_apartment(const service_provider * sp)
-      : sp_(sp) {      
+      : sp_(sp), is_stopping_(false){
     }
 
     ~thread_apartment() {
@@ -25,6 +25,8 @@ namespace vds {
 
     void schedule(const std::function<void(void)> & callback) {
       std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
+      vds_assert(!this->is_stopping_);
+
       const auto need_start = this->task_queue_.empty();
       this->task_queue_.push(callback);
       lock.unlock();
@@ -59,18 +61,21 @@ namespace vds {
 
     std::future<void> prepare_to_stop() {
       std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
+      vds_assert(!this->is_stopping_);
+      this->is_stopping_ = true;
       if(task_queue_.empty()) {
         auto r = std::promise<void>();
         r.set_value();
         return r.get_future();
       }
+
       this->empty_query_ = std::make_unique<std::promise<void>>();
       return this->empty_query_->get_future();
     }
 
   private:
     const service_provider * sp_;
-
+    bool is_stopping_;
     std::mutex task_queue_mutex_;
     std::queue<std::function<void(void)>> task_queue_;
     std::unique_ptr<std::promise<void>> empty_query_;

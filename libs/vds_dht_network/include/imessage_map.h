@@ -5,7 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <messages/got_replica.h>
+#include "messages/dht_route_messages.h"
 #include "service_provider.h"
 #include "const_data_buffer.h"
 #include "dht_network_client.h"

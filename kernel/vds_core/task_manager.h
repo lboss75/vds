@@ -55,6 +55,10 @@ namespace vds {
     void stop() override;
     std::future<void> prepare_to_stop() override;
 
+    void disable_timers() {
+      this->is_disabled_ = true;
+    }
+
   private:
     friend class timer;
     const service_provider * sp_;
@@ -63,7 +67,7 @@ namespace vds {
     std::mutex scheduled_mutex_;
     std::thread work_thread_;
     bool is_shuting_down_;
-
+    bool is_disabled_;
     void work_thread();
   };
 }

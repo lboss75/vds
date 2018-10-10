@@ -6,12 +6,11 @@ All rights reserved
 
 #include "stdafx.h"
 #include "private/udp_transport.h"
-#include "messages/dht_message_type.h"
+#include "messages/dht_route_messages.h"
 #include "private/dht_session.h"
 #include "logger.h"
 #include "dht_network_client.h"
 #include "dht_network_client_p.h"
-#include "messages/dht_find_node_response.h"
 
 vds::dht::network::udp_transport::udp_transport(){
 }
@@ -207,8 +206,9 @@ std::future<void> vds::dht::network::udp_transport::continue_read(
         out_message += bs.move_data();
         co_await this->write_async(udp_datagram(datagram.address(), out_message.move_data(), false));
         co_await (*this->sp_->get<client>())->send_neighbors(
-          messages::dht_find_node_response({
-          messages::dht_find_node_response::target_node(partner_node_id, datagram.address().to_string(), 0) }));
+          message_create<messages::dht_find_node_response>(
+            std::list<messages::dht_find_node_response::target_node>({
+          messages::dht_find_node_response::target_node(partner_node_id, datagram.address().to_string(), 0) })));
 
         co_await this->sp_->get<imessage_map>()->on_new_session(
           partner_node_id);

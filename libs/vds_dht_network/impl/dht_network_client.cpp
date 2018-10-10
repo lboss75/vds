@@ -6,21 +6,16 @@ All rights reserved
 #include <device_record_dbo.h>
 #include "stdafx.h"
 #include "dht_network_client.h"
-#include "private/dht_network_client_p.h"
 #include "chunk_dbo.h"
-#include "messages/dht_find_node.h"
-#include "messages/dht_find_node_response.h"
-#include "messages/dht_ping.h"
-#include "messages/dht_pong.h"
-#include "messages/sync_replica_request.h"
+#include "private/dht_network_client_p.h"
+#include "messages/sync_messages.h"
+#include "messages/dht_route_messages.h"
 #include "deflate.h"
 #include "db_model.h"
-
 #include "inflate.h"
 #include "vds_exceptions.h"
 #include "local_data_dbo.h"
 #include "well_known_node_dbo.h"
-#include "messages/sync_replica_data.h"
 #include "dht_network.h"
 #include "sync_replica_map_dbo.h"
 
@@ -93,9 +88,9 @@ void vds::dht::network::_client::apply_message(
   
   const messages::dht_find_node& message,
   const imessage_map::message_info_t& message_info) {
-  std::map<const_data_buffer /*distance*/, std::map<
-             const_data_buffer, std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>> result_nodes;
-  this->route_.search_nodes(message.target_id(), 70, result_nodes);
+  std::map<const_data_buffer /*distance*/,
+  std::map<const_data_buffer, std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>> result_nodes;
+  this->route_.search_nodes(message.target_id, 70, result_nodes);
 
   std::list<messages::dht_find_node_response::target_node> result;
   for (auto& presult : result_nodes) {
@@ -110,14 +105,14 @@ void vds::dht::network::_client::apply_message(
   this->sp_->get<logger>()->trace(ThisModule, "Send dht_find_node_response");
   this->send(
     message_info.source_node(),
-    messages::dht_find_node_response(result));
+    message_create<messages::dht_find_node_response>(result));
 }
 
 std::future<void> vds::dht::network::_client::apply_message(
   
   const messages::dht_find_node_response& message,
   const imessage_map::message_info_t& message_info) {
-  for (auto& p : message.nodes()) {
+  for (auto& p : message.nodes) {
     if (
       p.target_id_ != this->current_node_id()
       && this->route_.add_node(
@@ -140,7 +135,7 @@ void vds::dht::network::_client::apply_message(
     this->udp_transport_,
     (uint8_t)messages::dht_pong::message_id,
     message_info.source_node(),
-    messages::dht_pong().serialize());
+    message_serialize(messages::dht_pong()));
 }
 
 void vds::dht::network::_client::apply_message(
@@ -394,7 +389,7 @@ std::future<void> vds::dht::network::_client::update_route_table() {
     for (size_t i = 0; i < 8 * this->route_.current_node_id().size(); ++i) {
       auto canditate = dht_object_id::generate_random_id(this->route_.current_node_id(), i);
       co_await this->send_neighbors(
-        messages::dht_find_node(canditate));
+        message_create<messages::dht_find_node>(std::move(canditate)));
 
     }
     this->update_route_table_counter_ = 100;
@@ -646,8 +641,7 @@ void vds::dht::network::_client::find_nodes(
     const vds::const_data_buffer &node_id,
     size_t radius) {
 
-  this->send_neighbors(
-      messages::dht_find_node(node_id));
+  this->send_neighbors(message_create<messages::dht_find_node>(node_id));
 }
 
 void vds::dht::network::client::start(

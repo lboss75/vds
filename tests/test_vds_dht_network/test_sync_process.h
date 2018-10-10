@@ -156,6 +156,7 @@ public:
   vds::service_provider * sp_;
 
 private:
+  bool is_stopping_;
   vds::service_registrator registrator_;
   vds::file_logger logger_;
   vds::mt_service mt_service_;

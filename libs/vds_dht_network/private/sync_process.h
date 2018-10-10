@@ -3,7 +3,7 @@
 
 #include "database.h"
 #include "sync_message_dbo.h"
-#include "messages/dht_message_type.h"
+#include "messages/dht_route_messages.h"
 #include "dht_network_client.h"
 #include "chunk.h"
 #include "imessage_map.h"

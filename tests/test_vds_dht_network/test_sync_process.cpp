@@ -5,22 +5,8 @@
 #include "udp_socket.h"
 #include "../../libs/vds_dht_network/private/dht_session.h"
 #include "../../libs/vds_dht_network/private/dht_network_client_p.h"
-#include "messages/sync_new_election.h"
-#include "messages/sync_add_message.h"
-#include "messages/sync_leader_broadcast.h"
-#include "messages/sync_replica_operations.h"
-#include "messages/sync_looking_storage.h"
-#include "messages/sync_snapshot.h"
-#include "messages/sync_offer_send_replica_operation.h"
-#include "messages/sync_offer_remove_replica_operation.h"
-#include "messages/sync_replica_query_operations.h"
-#include "messages/sync_replica_request.h"
-#include "messages/sync_replica_data.h"
 #include "dht_network.h"
-#include "messages/dht_find_node.h"
-#include "messages/dht_find_node_response.h"
-#include "messages/dht_ping.h"
-#include "messages/dht_pong.h"
+#include "messages/sync_messages.h"
 #include "chunk_dbo.h"
 
 #define SERVER_COUNT 10
@@ -75,8 +61,8 @@ TEST(test_vds_dht_network, test_sync_process) {
       switch (log_record.message_info_.message_type()) {
       case vds::dht::network::message_type_t::sync_looking_storage_request: {
         vds::binary_deserializer s(log_record.message_info_.message_data());
-        vds::dht::messages::sync_looking_storage_request message(s);
-        if(message.object_id() != object_id) {
+        auto message = vds::message_deserialize<vds::dht::messages::sync_looking_storage_request>(s);
+        if(message.object_id != object_id) {
           throw std::runtime_error("Invalid data");
         }
         members.emplace(log_record.target_node_id_, std::set<uint16_t>());
@@ -84,14 +70,14 @@ TEST(test_vds_dht_network, test_sync_process) {
       }
       case vds::dht::network::message_type_t::sync_replica_operations_request: {
         vds::binary_deserializer s(log_record.message_info_.message_data());
-        vds::dht::messages::sync_replica_operations_request message(s);
-        if (message.object_id() != object_id) {
+        auto message = vds::message_deserialize<vds::dht::messages::sync_replica_operations_request>(s);
+        if (message.object_id != object_id) {
           throw std::runtime_error("Invalid data");
         }
-        switch (message.message_type()) {
+        switch (message.message_type) {
         case vds::orm::sync_message_dbo::message_type_t::add_replica: {
-          if (members.at(message.member_node()).end() == members.at(message.member_node()).find(message.replica())) {
-            members.at(message.member_node()).emplace(message.replica());
+          if (members.at(message.member_node).end() == members.at(message.member_node).find(message.replica)) {
+            members.at(message.member_node).emplace(message.replica);
             ++replica_count;
           }
           break;
@@ -155,6 +141,7 @@ TEST(test_vds_dht_network, test_sync_process) {
   for(auto server : servers){
     server->stop();
   }
+
   GTEST_ASSERT_EQ(stage, 1);
 }
 
@@ -220,7 +207,8 @@ void transport_hab::walk_messages(const std::function<message_log_action(const m
 }
 
 test_server::test_server(const vds::network_address & address, const std::shared_ptr<transport_hab> & hab)
-: logger_(
+: is_stopping_(false),
+  logger_(
   test_config::instance().log_level(),
   test_config::instance().modules()),
   server_(address, hab),
@@ -234,6 +222,7 @@ void test_server::start(const std::shared_ptr<transport_hab> & hab, int index) {
   folder.delete_folder(true);
   vds::foldername(folder, ".vds").create();
 
+  this->task_manager_.disable_timers();
 
   registrator_.add(logger_);
   registrator_.add(mt_service_);
@@ -251,7 +240,8 @@ void test_server::start(const std::shared_ptr<transport_hab> & hab, int index) {
 }
 
 void test_server::stop() {
-  this->process_thread_->prepare_to_stop().get();
+  this->is_stopping_ = true;
+  this->process_thread_->prepare_to_stop();
   registrator_.shutdown();
 }
 
@@ -265,21 +255,25 @@ std::future<void> test_server::process_datagram(
   const vds::network_address & source_address) {
 
   auto r = std::make_shared<std::promise<void>>();
-  this->process_thread_->schedule([r, this, datagram, source_node_id, source_address]() {
-    try {
-      this->server_.process_datagram(
-        datagram,
-        source_node_id,
-        source_address).get();
-    }
-    catch(...) {
-      r->set_exception(std::current_exception());
-      return;
-    }
+  if(this->is_stopping_) {
+    r->set_exception(std::make_exception_ptr(vds::vds_exceptions::shooting_down_exception()));
+  }
+  else {
+    this->process_thread_->schedule([r, this, datagram, source_node_id, source_address]() {
+      try {
+        this->server_.process_datagram(
+          datagram,
+          source_node_id,
+          source_address).get();
+      }
+      catch (...) {
+        r->set_exception(std::current_exception());
+        return;
+      }
 
-    r->set_value();
-  });
-
+      r->set_value();
+    });
+  }
   return r->get_future();
 }
 
@@ -324,7 +318,7 @@ const vds::network_address& mock_server::address() const {
   case vds::dht::network::message_type_t::message_type: {\
       co_return co_await this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, message_info](vds::database_transaction & t) {\
         vds::binary_deserializer s(message_info.message_data());\
-        vds::dht::messages::message_type message(s);\
+        auto message = vds::message_deserialize<vds::dht::messages::message_type>(s);\
         (*sp->get<vds::dht::network::client>())->apply_message(\
          t,\
          message,\
@@ -337,7 +331,7 @@ const vds::network_address& mock_server::address() const {
 #define route_client_wait(message_type)\
   case vds::dht::network::message_type_t::message_type: {\
       vds::binary_deserializer s(message_info.message_data());\
-      vds::dht::messages::message_type message(s);\
+      auto message = vds::message_deserialize<vds::dht::messages::message_type>(s);\
       co_return co_await (*this->sp_->get<vds::dht::network::client>())->apply_message(\
         message,\
         message_info);\
@@ -347,7 +341,7 @@ const vds::network_address& mock_server::address() const {
 #define route_client_nowait(message_type)\
   case vds::dht::network::message_type_t::message_type: {\
       vds::binary_deserializer s(message_info.message_data());\
-      vds::dht::messages::message_type message(s);\
+      auto message = vds::message_deserialize<vds::dht::messages::message_type>(s);\
       (*this->sp_->get<vds::dht::network::client>())->apply_message(\
         message,\
         message_info);\

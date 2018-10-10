@@ -7,15 +7,15 @@ All rights reserved
 */
 
 #include <map>
-#include <udp_socket.h>
+#include <queue>
 
+#include "udp_socket.h"
 #include "const_data_buffer.h"
 #include "udp_datagram_size_exception.h"
 #include "vds_debug.h"
-#include "messages/dht_message_type.h"
+#include "messages/dht_route_messages.h"
 #include "network_address.h"
 #include "debug_mutex.h"
-#include <queue>
 #include "vds_exceptions.h"
 #include "hash.h"
 
@@ -291,7 +291,7 @@ namespace vds {
 
               const_data_buffer datagram = buffer.move_data();
               try {
-                s->write_async( udp_datagram(this->address_, datagram, false));
+                co_await s->write_async( udp_datagram(this->address_, datagram, false));
               }
               catch (const udp_datagram_size_exception & ex) {
                 this->mtu_ /= 2;
@@ -352,7 +352,7 @@ namespace vds {
                 buffer.size());
               const_data_buffer datagram = buffer.move_data();
               try {
-                s->write_async(udp_datagram(this->address_, datagram, false));
+                co_await s->write_async(udp_datagram(this->address_, datagram, false));
               }
               catch (const udp_datagram_size_exception &) {
                 this->mtu_ /= 2;
