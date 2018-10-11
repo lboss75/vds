@@ -515,21 +515,20 @@ bool vds::dht::network::sync_process::apply_base_message(
 }
 
 void vds::dht::network::sync_process::add_sync_entry(
-  
   database_transaction& t,
   const const_data_buffer& object_id,
   uint32_t object_size) {
 
   const_data_buffer leader;
-  auto& client = *this->sp_->get<network::client>();
+  auto client = this->sp_->get<network::client>();
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
   auto st = t.get_reader(t1.select(t1.state, t2.voted_for)
-                           .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client.current_node_id())
+                           .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
                            .where(t1.object_id == object_id));
   if (!st.execute()) {
-    leader = client.current_node_id();
+    leader = client->current_node_id();
 
     t.execute(t1.insert(
       t1.object_id = object_id,
@@ -541,18 +540,18 @@ void vds::dht::network::sync_process::add_sync_entry(
       t2.object_id = object_id,
       t2.member_node = client->current_node_id(),
       t2.last_activity = std::chrono::system_clock::now(),
-      t2.voted_for = client.current_node_id(),
+      t2.voted_for = client->current_node_id(),
       t2.generation = 0,
       t2.current_term = 0,
       t2.commit_index = 0,
       t2.last_applied = 0,
       t2.delete_index = 0));
 
-    client->find_nodes(
+    (*client)->find_nodes(
       object_id,
       service::GENERATE_DISTRIBUTED_PIECES);
 
-    client->send_near(
+    (*client)->send_near(
       object_id,
       service::GENERATE_DISTRIBUTED_PIECES,
       message_create<messages::sync_looking_storage_request>(
@@ -704,8 +703,6 @@ void vds::dht::network::sync_process::apply_message(
 
   switch (this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied)) {
   case base_message_type::successful:
-    return;
-
   case base_message_type::not_found:
     break;
 

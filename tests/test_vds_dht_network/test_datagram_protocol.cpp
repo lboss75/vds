@@ -76,7 +76,7 @@ static void proxy_message_check(
 }
 
 
-TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
+TEST(test_vds_dht_network, test_data_exchange) {
 
 #ifdef _WIN32
   //Initialize Winsock
