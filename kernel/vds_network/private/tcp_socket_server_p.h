@@ -179,16 +179,14 @@ namespace vds {
 
                     auto socket = accept(this->s_, &client_address, &client_address_length);
                     if (INVALID_SOCKET != socket) {
-                      mt_service::async(sp, [socket, this]() {
-                        try {
-                          auto s = _tcp_network_socket::from_handle(socket);
-                          (*s)->make_socket_non_blocking();
-                          (*s)->set_timeouts();
-                          this->new_connection_(s).get();
-                        }
-                        catch (...){
-                        }
-                      });
+                      try {
+                        auto s = _tcp_network_socket::from_handle(socket);
+                        (*s)->make_socket_non_blocking();
+                        (*s)->set_timeouts();
+                        this->new_connection_(s);
+                      }
+                      catch (...){
+                      }
                     }
                   }
                 }
@@ -205,6 +203,7 @@ namespace vds {
     SOCKET_HANDLE s_;
     std::thread wait_accept_task_;
     bool is_shuting_down_;
+
 #ifndef _WIN32
     std::function<std::future<void>(const std::shared_ptr<tcp_network_socket> & s)> new_connection_;
 #else

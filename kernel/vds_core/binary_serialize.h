@@ -262,8 +262,7 @@ namespace vds {
       return *this;
     }
 
-    template <>
-    _serialize_visitor & operator ()() {
+    _serialize_visitor & operator ()(void) {
       return *this;
     }
 
@@ -295,7 +294,6 @@ namespace vds {
       return *this;
     }
 
-    template <>
     _deserialize_visitor & operator ()(void) {
       return *this;
     }

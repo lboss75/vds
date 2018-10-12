@@ -94,7 +94,8 @@ std::future<void> vds::_web_server::start(
         co_return http_response::status_response(http_response::HTTP_Internal_Server_Error, ex.what());
       }
     });
-    co_await session->handler_->process(reader);
+    session->handler_->process(reader);
+    co_return;
   });
 }
 
