@@ -205,6 +205,7 @@ namespace std {
   }
 
 #undef enum2str(x)
+
 }
 
 #endif//__VDS_DHT_NETWORK_DHT_ROUTE_MESSAGES_H_

@@ -19,11 +19,11 @@ namespace vds {
     http_multipart_reader(
       const service_provider * sp,
       const std::string & boundary,
-      const std::function<std::future<void>(const http_message &message)> & message_callback)
+      const std::function<vds::async_task<void>(const http_message &message)> & message_callback)
       : sp_(sp), boundary_(boundary), message_callback_(message_callback), readed_(0), is_first_(true), eof_(false) {
     }
 
-    std::future<void> process(
+    vds::async_task<void> process(
       const std::shared_ptr<stream_input_async<uint8_t>> & input_stream)
     {
       while(!this->eof_) {
@@ -35,7 +35,7 @@ namespace vds {
   private:
     const service_provider * sp_;
     const std::string boundary_;
-    std::function<std::future<void>(const http_message &message)> message_callback_;
+    std::function<vds::async_task<void>(const http_message &message)> message_callback_;
 
     uint8_t buffer_[1024];
     size_t readed_;
@@ -51,7 +51,7 @@ namespace vds {
       : owner_(owner), input_stream_(input_stream) {        
       }
 
-      std::future<size_t> read_async( uint8_t * buffer, size_t len) override {
+      vds::async_task<size_t> read_async( uint8_t * buffer, size_t len) override {
         auto pthis = this->shared_from_this();
 
         for (;;) {

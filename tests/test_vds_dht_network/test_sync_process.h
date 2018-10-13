@@ -35,7 +35,7 @@ enum class message_log_action {
 
 class transport_hab : public std::enable_shared_from_this<transport_hab> {
 public:
-  std::future<void> write_async(
+  vds::async_task<void> write_async(
     const vds::udp_datagram& datagram,
     const vds::const_data_buffer & source_node_id,
     const vds::network_address & source_address);
@@ -71,8 +71,8 @@ public:
 
   void stop() override;
 
-  std::future<void> write_async(const vds::udp_datagram& datagram) override;
-  std::future<void> try_handshake( const std::string& address) override;
+  vds::async_task<void> write_async(const vds::udp_datagram& datagram) override;
+  vds::async_task<void> try_handshake( const std::string& address) override;
 
   const vds::const_data_buffer & node_id() const {
     return this->node_id_;
@@ -98,9 +98,9 @@ public:
   void register_services(vds::service_registrator &) override;
   void start(const vds::service_provider *) override;
   void stop() override;
-  std::future<void> prepare_to_stop() override;
+  vds::async_task<void> prepare_to_stop() override;
 
-  std::future<void> process_datagram(
+  vds::async_task<void> process_datagram(
     
     const vds::udp_datagram& datagram,
     const vds::const_data_buffer& source_node_id,
@@ -113,13 +113,11 @@ public:
   const vds::network_address & address() const;
 
   void add_sync_entry(
-    
-    const vds::const_data_buffer& object_id,
     const vds::const_data_buffer& object_data);
 
 
-  std::future<void> process_message(const message_info_t& message_info) override;
-  std::future<void> on_new_session(const vds::const_data_buffer& partner_id) override;
+  vds::async_task<void> process_message(const message_info_t& message_info) override;
+  vds::async_task<void> on_new_session(const vds::const_data_buffer& partner_id) override;
 private:
   const vds::service_provider * sp_;
   vds::db_model db_model_;
@@ -141,10 +139,9 @@ public:
   bool is_ready_to_stop() const;
 
   void add_sync_entry(
-    const vds::const_data_buffer& object_id,
     const vds::const_data_buffer& object_data);
 
-  std::future<void> process_datagram(
+  void process_datagram(
     const vds::udp_datagram& datagram,
     const vds::const_data_buffer& source_node_id,
     const vds::network_address & source_address);

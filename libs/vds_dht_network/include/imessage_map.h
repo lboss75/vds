@@ -57,10 +57,10 @@ namespace vds {
           uint16_t hops_;
         };
 
-        virtual std::future<void> process_message(
+        virtual vds::async_task<void> process_message(
           const message_info_t& message_info) = 0;
 
-        virtual std::future<void> on_new_session(
+        virtual vds::async_task<void> on_new_session(
           
           const const_data_buffer & partner_id) = 0;
       };

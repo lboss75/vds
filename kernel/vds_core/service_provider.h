@@ -25,7 +25,7 @@ namespace vds {
     virtual void register_services(service_registrator &) = 0;
     virtual void start(const service_provider *) = 0;
     virtual void stop() = 0;
-    virtual std::future<void> prepare_to_stop() {
+    virtual vds::async_task<void> prepare_to_stop() {
       co_return;
     }
   };

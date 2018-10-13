@@ -41,7 +41,7 @@ public:
     return this->sp_;
   }
 
-  std::future<vds::server_statistic> get_statistic() const{
+  vds::async_task<vds::server_statistic> get_statistic() const{
     return this->server_.get_statistic();
   }
   
@@ -90,7 +90,7 @@ public:
       const std::string &mimetype,
     const std::shared_ptr<vds::stream_input_async<uint8_t>>& input_stream);
 
-  std::future<vds::file_manager::file_operations::download_result_t>
+  vds::async_task<vds::file_manager::file_operations::download_result_t>
   download_data(
 	  size_t client_index,
 	  const vds::const_data_buffer & channel_id,

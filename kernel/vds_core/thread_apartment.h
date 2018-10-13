@@ -59,17 +59,17 @@ namespace vds {
       }
     }
 
-    std::future<void> prepare_to_stop() {
+    vds::async_task<void> prepare_to_stop() {
       std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
       vds_assert(!this->is_stopping_);
       this->is_stopping_ = true;
       if(task_queue_.empty()) {
-        auto r = std::promise<void>();
+        auto r = vds::async_result<void>();
         r.set_value();
         return r.get_future();
       }
 
-      this->empty_query_ = std::make_unique<std::promise<void>>();
+      this->empty_query_ = std::make_unique<vds::async_result<void>>();
       return this->empty_query_->get_future();
     }
 
@@ -83,7 +83,7 @@ namespace vds {
     bool is_stopping_;
     mutable std::mutex task_queue_mutex_;
     std::queue<std::function<void(void)>> task_queue_;
-    std::unique_ptr<std::promise<void>> empty_query_;
+    std::unique_ptr<vds::async_result<void>> empty_query_;
   };
 }
 

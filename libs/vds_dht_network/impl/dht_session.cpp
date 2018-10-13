@@ -24,7 +24,7 @@ vds::dht::network::dht_session::dht_session(
       session_key) {
 }
 
-std::future<void> vds::dht::network::dht_session::ping_node(
+vds::async_task<void> vds::dht::network::dht_session::ping_node(
   
   const const_data_buffer& node_id,
   const std::shared_ptr<iudp_transport>& transport) {
@@ -44,7 +44,7 @@ vds::session_statistic::session_info vds::dht::network::dht_session::get_statist
   };
 }
 
-std::future<void> vds::dht::network::dht_session::process_message(
+vds::async_task<void> vds::dht::network::dht_session::process_message(
   
   const std::shared_ptr<iudp_transport>& transport,
   uint8_t message_type,

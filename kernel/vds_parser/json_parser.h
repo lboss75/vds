@@ -30,7 +30,7 @@ namespace vds {
       const std::function<void(const std::shared_ptr<json_value> &)> &result,
       const options &parse_options = options());
 
-    std::future<void> write_async(
+    vds::async_task<void> write_async(
       
       const unsigned char* data,
       size_t len) override {

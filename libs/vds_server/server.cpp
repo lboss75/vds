@@ -50,17 +50,17 @@ void vds::server::stop()
   this->impl_->stop();
 }
 
-std::future<void> vds::server::start_network( uint16_t port) {
+vds::async_task<void> vds::server::start_network( uint16_t port) {
   this->impl_->dht_network_service_->start(this->impl_->sp_, this->impl_->udp_transport_, port);
   this->impl_->file_manager_->start(this->impl_->sp_);
   co_return;
 }
 
-std::future<void> vds::server::prepare_to_stop() {
+vds::async_task<void> vds::server::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
 }
 
-std::future<vds::server_statistic> vds::server::get_statistic() const {
+vds::async_task<vds::server_statistic> vds::server::get_statistic() const {
   return this->impl_->get_statistic();
 }
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -83,23 +83,15 @@ void vds::_server::start(const service_provider* sp)
   this->db_model_->start(sp);
   this->transaction_log_sync_process_.reset(new transaction_log::sync_process(sp));
 
-  this->update_timer_.start(sp, std::chrono::seconds(60), [sp, pthis = this->shared_from_this()](){
-    std::unique_lock<std::debug_mutex> lock(pthis->update_timer_mutex_);
-    if (!pthis->in_update_timer_) {
-      pthis->in_update_timer_ = true;
-      lock.unlock();
-
-      sp->get<db_model>()->async_transaction([pthis](database_transaction & t) {
+  this->update_timer_.start(sp, std::chrono::seconds(60), [sp, pthis = this->shared_from_this()]() -> async_task<bool>{
+      co_await sp->get<db_model>()->async_transaction([pthis](database_transaction & t) {
         if (!pthis->sp_->get_shutdown_event().is_shuting_down()) {
-          pthis->transaction_log_sync_process_->do_sync(t);
+          pthis->transaction_log_sync_process_->do_sync(t).get();
         }
-      }).get();
+      });
+    
 
-      lock.lock();
-      pthis->in_update_timer_ = false;
-    }
-
-    return !sp->get_shutdown_event().is_shuting_down();
+    co_return !sp->get_shutdown_event().is_shuting_down();
   });
 }
 
@@ -116,12 +108,12 @@ void vds::_server::stop()
   this->db_model_.reset();
 }
 
-std::future<void> vds::_server::prepare_to_stop() {
+vds::async_task<void> vds::_server::prepare_to_stop() {
   co_await this->dht_network_service_->prepare_to_stop();
   co_await this->db_model_->prepare_to_stop();
 }
 
-std::future<vds::server_statistic> vds::_server::get_statistic() {
+vds::async_task<vds::server_statistic> vds::_server::get_statistic() {
   auto result = std::make_shared<vds::server_statistic>();
   this->sp_->get<dht::network::client>()->get_route_statistics(result->route_statistic_);
   this->sp_->get<dht::network::client>()->get_session_statistics(result->session_statistic_);
@@ -259,7 +251,7 @@ std::future<vds::server_statistic> vds::_server::get_statistic() {
   co_return *result;
 }
 
-std::future<void> vds::_server::apply_message(
+vds::async_task<void> vds::_server::apply_message(
   
   database_transaction & t,
   const dht::messages::transaction_log_state & message,
@@ -283,7 +275,7 @@ void vds::_server::apply_message(
   this->transaction_log_sync_process_->apply_message(t, message, message_info);
 }
 
-std::future<void> vds::_server::on_new_session( const const_data_buffer& partner_id) {
+vds::async_task<void> vds::_server::on_new_session( const const_data_buffer& partner_id) {
   
   co_await this->sp_->get<db_model>()->async_read_transaction([this, partner_id](database_read_transaction & t) {
 

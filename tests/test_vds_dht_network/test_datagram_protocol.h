@@ -10,7 +10,7 @@ public:
   mock_dg_transport(mock_session & s)
   : s_(s){
   }
-  std::future<void> write_async(
+  vds::async_task<void> write_async(
       
       const vds::udp_datagram & data);
 
@@ -30,7 +30,7 @@ public:
     : base_class(sp, address, this_node_id, partner_node_id, session_key) {
   }
 
-  std::future<void> process_message(
+  vds::async_task<void> process_message(
       
       const std::shared_ptr<mock_dg_transport>& transport,
       uint8_t message_type,

@@ -1,14 +1,14 @@
 #include "stdafx.h"
 #include "db_model.h"
 
-std::future<void> vds::db_model::async_transaction(const std::function<void(vds::database_transaction &)> &handler) {
+vds::async_task<void> vds::db_model::async_transaction(const std::function<void(vds::database_transaction &)> &handler) {
   return this->db_.async_transaction([handler](database_transaction & t)->bool{
       handler(t);
       return true;
   });
 }
 
-std::future<void> vds::db_model::async_read_transaction(
+vds::async_task<void> vds::db_model::async_read_transaction(
     
     const std::function<void(vds::database_read_transaction &)> &handler) {
   return this->db_.async_read_transaction(handler);
@@ -24,7 +24,7 @@ void vds::db_model::start(const service_provider * sp)
 		this->db_.async_transaction([this](database_transaction & t) {
 			this->migrate(t, 0);
 			return true;
-		});
+		}).get();
 	}
 	else {
 		this->db_.open(sp, db_filename);
@@ -41,7 +41,7 @@ void vds::db_model::start(const service_provider * sp)
 			this->migrate(t, db_version);
 
 			return true;
-		});
+		}).get();
 	}
 }
 
@@ -94,7 +94,6 @@ void vds::db_model::migrate(
 
     t.execute("CREATE TABLE chunk (\
 			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\
-      replica_hash VARCHAR(254) NOT NULL,\
 			last_sync INTEGER NOT NULL)");
 
     t.execute("CREATE TABLE chunk_replica_data(\
@@ -218,6 +217,6 @@ void vds::db_model::migrate(
 	}
 }
 
-std::future<void> vds::db_model::prepare_to_stop() {
+vds::async_task<void> vds::db_model::prepare_to_stop() {
   return this->db_.prepare_to_stop();
 }

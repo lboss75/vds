@@ -38,19 +38,14 @@ TEST(test_vds_dht_network, test_sync_process) {
     }
   }
 
-  uint8_t object_id_data[32] = {
-    0xC9, 0x9F, 0x11, 0x85,
-    0xFE, 0x2E, 0x42, 0x7F,
-    0xA7, 0x08, 0x11, 0xD2,
-    0xDF, 0xC8, 0x91, 0xF6
-  };
-  vds::const_data_buffer object_id(object_id_data, sizeof(object_id_data));
   vds::const_data_buffer object_data;
   object_data.resize(400000);
   for(size_t i = 0; i < object_data.size(); ++i) {
     object_data[i] = std::rand();
   }
-  servers[4]->add_sync_entry(object_id, object_data);
+
+  auto object_id = vds::hash::signature(vds::hash::sha256(), object_data);
+  servers[4]->add_sync_entry(object_data);
 
   //All corresponding nodes have to approove data storage
   int stage = 0;
@@ -166,7 +161,7 @@ TEST(test_vds_dht_network, test_sync_process) {
   GTEST_ASSERT_EQ(stage, 1);
 }
 
-std::future<void> transport_hab::write_async(
+vds::async_task<void> transport_hab::write_async(
   const vds::udp_datagram& datagram,
   const vds::const_data_buffer & source_node_id,
   const vds::network_address & source_address) {
@@ -176,8 +171,9 @@ std::future<void> transport_hab::write_async(
     throw std::runtime_error("Invalid address " + a);
   }
   else {
-    co_return co_await p->second->process_datagram(datagram, source_node_id, source_address);
+    p->second->process_datagram(datagram, source_node_id, source_address);
   }
+  co_return;
 }
 
 void transport_hab::add(const vds::network_address& address, test_server* server) {
@@ -267,17 +263,16 @@ bool test_server::is_ready_to_stop() const {
   return this->process_thread_->is_ready_to_stop();
 }
 
-void test_server::add_sync_entry(const vds::const_data_buffer& object_id, const vds::const_data_buffer& object_data) {
-  this->server_.add_sync_entry(object_id, object_data);
+void test_server::add_sync_entry(const vds::const_data_buffer& object_data) {
+  this->server_.add_sync_entry(object_data);
 }
 
-std::future<void> test_server::process_datagram(
+void test_server::process_datagram(
   const vds::udp_datagram& datagram,
   const vds::const_data_buffer& source_node_id,
   const vds::network_address & source_address) {
 
-  auto r = std::make_shared<std::promise<void>>();
-  this->process_thread_->schedule([r, this, datagram, source_node_id, source_address]() {
+  this->process_thread_->schedule([this, datagram, source_node_id, source_address]() {
     try {
       this->server_.process_datagram(
         datagram,
@@ -285,14 +280,9 @@ std::future<void> test_server::process_datagram(
         source_address).get();
     }
     catch (...) {
-      r->set_exception(std::current_exception());
       return;
     }
-
-    r->set_value();
   });
-
-  return r->get_future();
 }
 
 const vds::const_data_buffer& test_server::node_id() const {
@@ -308,7 +298,7 @@ void test_server::add_session(
   this->server_.add_session(session);
 }
 
-std::future<void> mock_server::process_datagram(
+vds::async_task<void> mock_server::process_datagram(
   
   const vds::udp_datagram& datagram,
   const vds::const_data_buffer& source_node_id,
@@ -333,21 +323,21 @@ const vds::network_address& mock_server::address() const {
 
 
 #define route_client(message_type)\
-  case vds::dht::network::message_type_t::message_type: {\
+  case vds::dht::network::message_type_t::##message_type: {\
       co_return co_await this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, message_info](vds::database_transaction & t) {\
         vds::binary_deserializer s(message_info.message_data());\
         auto message = vds::message_deserialize<vds::dht::messages::message_type>(s);\
         (*sp->get<vds::dht::network::client>())->apply_message(\
          t,\
          message,\
-         message_info);\
+         message_info).get();\
         return true;\
       });\
       break;\
     }
 
 #define route_client_wait(message_type)\
-  case vds::dht::network::message_type_t::message_type: {\
+  case vds::dht::network::message_type_t::##message_type: {\
       vds::binary_deserializer s(message_info.message_data());\
       auto message = vds::message_deserialize<vds::dht::messages::message_type>(s);\
       co_return co_await (*this->sp_->get<vds::dht::network::client>())->apply_message(\
@@ -356,17 +346,7 @@ const vds::network_address& mock_server::address() const {
       break;\
     }
 
-#define route_client_nowait(message_type)\
-  case vds::dht::network::message_type_t::message_type: {\
-      vds::binary_deserializer s(message_info.message_data());\
-      auto message = vds::message_deserialize<vds::dht::messages::message_type>(s);\
-      (*this->sp_->get<vds::dht::network::client>())->apply_message(\
-        message,\
-        message_info);\
-      break;\
-    }
-
-std::future<void> mock_server::process_message(
+vds::async_task<void> mock_server::process_message(
   
   const message_info_t& message_info) {
 
@@ -399,10 +379,10 @@ std::future<void> mock_server::process_message(
 
       route_client(sync_replica_query_operations_request)
 
-      route_client_nowait(dht_find_node)
+      route_client_wait(dht_find_node)
       route_client_wait(dht_find_node_response)
-      route_client_nowait(dht_ping)
-      route_client_nowait(dht_pong)
+      route_client_wait(dht_ping)
+      route_client_wait(dht_pong)
 
   default: {
       throw std::runtime_error("Invalid command");
@@ -412,28 +392,25 @@ std::future<void> mock_server::process_message(
 
 }
 
-std::future<void> mock_server::on_new_session( const vds::const_data_buffer& partner_id) {
+vds::async_task<void> mock_server::on_new_session( const vds::const_data_buffer& partner_id) {
   throw vds::vds_exceptions::invalid_operation();
 }
 
 
-void mock_server::add_sync_entry(
-  
-  const vds::const_data_buffer& object_id,
+void mock_server::add_sync_entry(  
   const vds::const_data_buffer& object_data) {
-  this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, object_id, object_data](vds::database_transaction & t) {
+  this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, object_data](vds::database_transaction & t) {
     auto client = sp->get<vds::dht::network::client>();
-    const auto replica_hash = vds::hash::signature(vds::hash::sha256(), object_data);
-    auto fn = (*client)->save_data(sp, t, replica_hash, object_data);
+    const auto object_id = vds::hash::signature(vds::hash::sha256(), object_data);
+    auto fn = (*client)->save_data(sp, t, object_id, object_data);
     vds::orm::chunk_dbo t1;
     t.execute(
       t1.insert(
         t1.object_id = object_id,
-        t1.replica_hash = replica_hash,
         t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
       ));
-    (*client)->add_sync_entry(t, object_id, object_data.size());
-  }).wait();
+    (*client)->add_sync_entry(t, object_id, object_data.size()).get();
+  }).get();
 
 }
 
@@ -462,7 +439,7 @@ void mock_server::stop() {
   this->db_model_.stop();
 }
 
-std::future<void> mock_server::prepare_to_stop() {
+vds::async_task<void> mock_server::prepare_to_stop() {
   co_return;
 }
 
@@ -477,12 +454,12 @@ void mock_transport::start(
 void mock_transport::stop() {
 }
 
-std::future<void> mock_transport::write_async(
+vds::async_task<void> mock_transport::write_async(
   const vds::udp_datagram& datagram) {
   return this->hab_->write_async(datagram, this->node_id_, this->owner_->address());
 }
 
-std::future<void> mock_transport::try_handshake(
+vds::async_task<void> mock_transport::try_handshake(
   const std::string & address) {
   co_return;
 }

@@ -37,7 +37,7 @@ void vds::background_app::main(const service_provider * sp)
 
     this->server_
       .start_network((uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
-      .wait();
+      .get();
 
     if (&this->server_root_cmd_set_ == this->current_command_set_) {
       const auto data = file::read_all(filename("keys"));

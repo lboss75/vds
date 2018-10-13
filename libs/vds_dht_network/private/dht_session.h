@@ -28,11 +28,11 @@ namespace vds {
           const const_data_buffer& partner_node_id,
           const const_data_buffer& session_key);
 
-        std::future<void> ping_node(
+        vds::async_task<void> ping_node(
           const const_data_buffer& node_id,
           const std::shared_ptr<iudp_transport>& transport);
 
-        std::future<void> process_message(
+        vds::async_task<void> process_message(
           
           const std::shared_ptr<iudp_transport>& transport,
           uint8_t message_type,

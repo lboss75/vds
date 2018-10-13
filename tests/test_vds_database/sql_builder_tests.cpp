@@ -16,7 +16,7 @@ vds::mock_database::~mock_database()
 {
 }
 
-std::future<void> vds::mock_database::async_transaction(
+vds::async_task<void> vds::mock_database::async_transaction(
   const std::function<bool (vds::mock_database_transaction & t)> & callback)
 {
   mock_database_transaction t{ std::shared_ptr<_database>() };
@@ -24,7 +24,7 @@ std::future<void> vds::mock_database::async_transaction(
   co_return;
 }
 
-std::future<void>  vds::mock_database::async_read_transaction(
+vds::async_task<void>  vds::mock_database::async_read_transaction(
   const std::function<void(vds::mock_database_read_transaction & t)> & callback)
 {
   mock_database_read_transaction t{ std::shared_ptr<_database>() };

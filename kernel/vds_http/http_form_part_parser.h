@@ -21,11 +21,11 @@ namespace vds {
   class http_form_part_parser {
   public:
     http_form_part_parser(
-        const std::function<std::future<void>(const http_message &message)> &message_callback)
+        const std::function<vds::async_task<void>(const http_message &message)> &message_callback)
     : message_callback_(message_callback) {
     }
 
-    std::future<void> start(
+    vds::async_task<void> start(
       const service_provider * sp,
       const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
       for (;;) {
@@ -79,7 +79,7 @@ namespace vds {
 
 
   private:
-    std::function<std::future<void>(const http_message &message)> message_callback_;
+    std::function<vds::async_task<void>(const http_message &message)> message_callback_;
 
     uint8_t buffer_[1024];
     std::string parse_buffer_;
@@ -104,7 +104,7 @@ namespace vds {
         
       }
 
-      std::future<size_t> read_async( uint8_t * buffer, size_t len) override {
+      vds::async_task<size_t> read_async( uint8_t * buffer, size_t len) override {
         vds_assert(!this->eof_);
 
         if (this->readed_ <= this->processed_) {

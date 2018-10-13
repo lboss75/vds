@@ -25,17 +25,17 @@ bool vds::http_message::get_header(
   return false;
 }
 
-std::future<void> vds::http_message::ignore_empty_body() const {
+vds::async_task<void> vds::http_message::ignore_empty_body() const {
   auto result = co_await this->body_->read_all();
   vds_assert(0 == result.size());
 }
 
-std::future<void> vds::http_message::ignore_body() const {
+vds::async_task<void> vds::http_message::ignore_body() const {
   auto buffer = std::make_shared<buffer_t>();
   co_await ignore_body(this->body_, buffer);
 }
 
-std::future<void> vds::http_message::ignore_body(  
+vds::async_task<void> vds::http_message::ignore_body(  
   const std::shared_ptr<stream_input_async<uint8_t>> & body,
   const std::shared_ptr<buffer_t>& buffer) {
 

@@ -28,7 +28,7 @@ namespace vds {
 			}
 		}
 
-		std::future<void> write_async(
+		vds::async_task<void> write_async(
       
       const uint8_t * input_data,
       size_t input_size)

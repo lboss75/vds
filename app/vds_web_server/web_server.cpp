@@ -34,14 +34,14 @@ void vds::web_server::register_services(service_registrator&) {
 
 void vds::web_server::start(const service_provider * sp) {
   this->impl_ = std::make_shared<_web_server>(sp);
-  this->impl_->start(this->root_folder_, this->port_);
+  this->impl_->start(this->root_folder_, this->port_).get();
 }
 
 void vds::web_server::stop() {
   this->impl_.reset();
 }
 
-std::future<void> vds::web_server::prepare_to_stop() {
+vds::async_task<void> vds::web_server::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
 }
 
@@ -68,17 +68,17 @@ struct session_data : public std::enable_shared_from_this<session_data> {
   }
 };
 
-std::future<void> vds::_web_server::start(
+vds::async_task<void> vds::_web_server::start(
     const std::string & root_folder,
     uint16_t port) {
   this->load_web("/", foldername(root_folder));
   co_await this->server_.start(this->sp_, network_address::any_ip4(port),
-    [sp = this->sp_, pthis = this->shared_from_this()](std::shared_ptr<tcp_network_socket> s) -> std::future<void>{
+    [sp = this->sp_, pthis = this->shared_from_this()](std::shared_ptr<tcp_network_socket> s) -> vds::async_task<void>{
     auto[reader, writer] = s->start(sp);
     auto session = std::make_shared<session_data>(writer);
     session->handler_ = std::make_shared<http_pipeline>(
         session->stream_,
-      [sp, pthis, session](const http_message request) -> std::future<http_message> {
+      [sp, pthis, session](const http_message request) -> vds::async_task<http_message> {
       try {
         if (request.headers().empty()) {
           session->stream_.reset();
@@ -94,16 +94,15 @@ std::future<void> vds::_web_server::start(
         co_return http_response::status_response(http_response::HTTP_Internal_Server_Error, ex.what());
       }
     });
-    session->handler_->process(reader);
-    co_return;
+    co_await session->handler_->process(reader);
   });
 }
 
-std::future<void> vds::_web_server::prepare_to_stop() {
+vds::async_task<void> vds::_web_server::prepare_to_stop() {
   co_return;
 }
 
-std::future<vds::http_message> vds::_web_server::route(
+vds::async_task<vds::http_message> vds::_web_server::route(
   
   const http_message message) {
    

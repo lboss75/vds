@@ -30,7 +30,7 @@ vds::const_data_buffer vds::inflate::decompress(
 	return result->move_data();
 }
 
-std::future<void> vds::inflate::write_async( const uint8_t *data, size_t len) {
+vds::async_task<void> vds::inflate::write_async( const uint8_t *data, size_t len) {
   return this->impl_->write_async(data, len);
 }
 

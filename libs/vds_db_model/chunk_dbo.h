@@ -14,13 +14,11 @@ namespace vds {
 			chunk_dbo()
 				: database_table("chunk"),
 				object_id(this, "object_id"),
-        replica_hash(this, "replica_hash"),
         last_sync(this, "last_sync")
 			{
 			}
 
 			database_column<const_data_buffer, std::string> object_id;
-      database_column<const_data_buffer, std::string> replica_hash;
       database_column<std::chrono::system_clock::time_point> last_sync;
     };
 	}

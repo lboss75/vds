@@ -37,10 +37,10 @@ namespace vds {
       }
     }
 
-    std::future<void> start(
+    vds::async_task<void> start(
       const service_provider * sp,
       const network_address & address,
-      const std::function<std::future<void>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection)
+      const std::function<vds::async_task<void>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection)
     {
        
 #ifdef _WIN32
@@ -69,7 +69,6 @@ namespace vds {
           HANDLE events[2];
           events[0] = sp->get_shutdown_event().windows_handle();
           events[1] = this->accept_event_.handle();
-          std::list<std::future<void>> connections;
           for (;;) {
             auto result = WSAWaitForMultipleEvents(2, events, FALSE, INFINITE, FALSE);
             if ((WAIT_OBJECT_0 + 1) != result) {
@@ -91,12 +90,9 @@ namespace vds {
                 sp->get<logger>()->trace("TCP", "Connection from %s", network_service::to_string(client_address).c_str());
                 (*sp->get<network_service>())->associate(socket);
                 auto s = _tcp_network_socket::from_handle(socket);
-                connections.push_back(std::move(new_connection(s)));
+                new_connection(s).detach();
               }
             }
-          }
-          for(auto & f : connections) {
-            f.get();
           }
         });
 #else
@@ -205,7 +201,7 @@ namespace vds {
     bool is_shuting_down_;
 
 #ifndef _WIN32
-    std::function<std::future<void>(const std::shared_ptr<tcp_network_socket> & s)> new_connection_;
+    std::function<vds::async_task<void>(const std::shared_ptr<tcp_network_socket> & s)> new_connection_;
 #else
     class windows_wsa_event
     {

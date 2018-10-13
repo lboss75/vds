@@ -538,7 +538,7 @@ vds::const_data_buffer vds_mock::upload_file(
   return file_info.file_id;
 }
 
-std::future<vds::file_manager::file_operations::download_result_t>
+vds::async_task<vds::file_manager::file_operations::download_result_t>
 vds_mock::download_data(
   size_t client_index,
   const vds::const_data_buffer &channel_id,

@@ -43,7 +43,7 @@ void vds::mt_service::stop()
 	}
 }
 
-std::future<void> vds::mt_service::prepare_to_stop() {
+vds::async_task<void> vds::mt_service::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
 }
 
@@ -85,7 +85,7 @@ void vds::_mt_service::stop()
   }
 }
 
-std::future<void> vds::_mt_service::prepare_to_stop() {
+vds::async_task<void> vds::_mt_service::prepare_to_stop() {
   this->is_shuting_down_ = true;
   co_return;
 }

@@ -23,11 +23,11 @@ namespace vds {
   class http_parser : public std::enable_shared_from_this<implementation_class>{
   public:
     http_parser(
-      const std::function<std::future<void>(const http_message message)> &message_callback)
+      const std::function<vds::async_task<void>(const http_message message)> &message_callback)
       : message_callback_(message_callback), eof_(false) {
     }
 
-    std::future<void> process(
+    vds::async_task<void> process(
       
       const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
 
@@ -117,17 +117,17 @@ namespace vds {
 
     
 
-    std::future<void> continue_read_data() {
+    vds::async_task<void> continue_read_data() {
       co_return;
     }
 
-    std::future<void> finish_message() {
+    vds::async_task<void> finish_message() {
       co_return;
     }
     
 
   private:
-    std::function<std::future<void>(const http_message message)> message_callback_;
+    std::function<vds::async_task<void>(const http_message message)> message_callback_;
     uint8_t buffer_[1024];
     size_t readed_;
     bool eof_;
@@ -161,7 +161,7 @@ namespace vds {
       }
 
 
-      std::future<size_t> parse_body(
+      vds::async_task<size_t> parse_body(
         
         uint8_t* buffer,
         size_t buffer_size) {
@@ -201,8 +201,8 @@ namespace vds {
         co_return size;
       }
 
-      std::future<void> parse_content_size() {
-        std::promise<void> result;
+      vds::async_task<void> parse_content_size() {
+        vds::async_result<void> result;
 
         size_t pos;
         this->content_length_ = std::stoul(this->parse_buffer_, &pos, 16);
@@ -216,7 +216,7 @@ namespace vds {
         return result.get_future();
       }
 
-      std::future<size_t> read_async(
+      vds::async_task<size_t> read_async(
         
         uint8_t* buffer,
         size_t buffer_size) override {

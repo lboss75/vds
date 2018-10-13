@@ -32,7 +32,7 @@ namespace vds {
         // Inherited via iservice
         void start(const service_provider *);
         void stop();
-        std::future<void> prepare_to_stop();
+        vds::async_task<void> prepare_to_stop();
         
         void remove(socket_base * socket);
 

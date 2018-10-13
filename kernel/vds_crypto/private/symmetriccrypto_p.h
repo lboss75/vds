@@ -108,7 +108,7 @@ namespace vds {
       }
     }
     
-    std::future<void> write_async(
+    vds::async_task<void> write_async(
       
         const uint8_t * input_buffer,
         size_t input_buffer_size) {
@@ -225,7 +225,7 @@ namespace vds {
       }
     }
 
-    std::future<void> write_async(
+    vds::async_task<void> write_async(
       
         const uint8_t * input_buffer,
         size_t input_buffer_size)

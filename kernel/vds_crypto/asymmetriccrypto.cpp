@@ -322,7 +322,7 @@ vds::const_data_buffer vds::asymmetric_sign::signature(
   return s.signature();
 }
 
-std::future<void> vds::asymmetric_sign::write_async( const uint8_t* data, size_t len) {
+vds::async_task<void> vds::asymmetric_sign::write_async( const uint8_t* data, size_t len) {
   return this->impl_->write_async(data, len);
 }
 
@@ -363,7 +363,7 @@ vds::_asymmetric_sign::~_asymmetric_sign()
   }
 }
 
-std::future<void> vds::_asymmetric_sign::write_async(
+vds::async_task<void> vds::_asymmetric_sign::write_async(
   const uint8_t * data,
   size_t data_size) {
 	if (0 == data_size) {
@@ -432,7 +432,7 @@ bool vds::asymmetric_sign_verify::verify(
   return verify(hash_info, key, signature, data.data(), data.size());
 }
 
-std::future<void> vds::asymmetric_sign_verify::write_async(const uint8_t* data, size_t len) {
+vds::async_task<void> vds::asymmetric_sign_verify::write_async(const uint8_t* data, size_t len) {
   return this->impl_->write_async(data, len);
 }
 
@@ -473,7 +473,7 @@ vds::_asymmetric_sign_verify::~_asymmetric_sign_verify()
   }
 }
 
-std::future<void> vds::_asymmetric_sign_verify::write_async(
+vds::async_task<void> vds::_asymmetric_sign_verify::write_async(
   const uint8_t *data,
   size_t len) {
 	if (0 == len) {

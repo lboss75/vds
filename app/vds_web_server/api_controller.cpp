@@ -40,7 +40,7 @@ vds::api_controller::get_channels(
   return std::static_pointer_cast<json_value>(result);
 }
 
-std::future<vds::http_message> vds::api_controller::get_login_state(
+vds::async_task<vds::http_message> vds::api_controller::get_login_state(
   const vds::service_provider * sp,
   const std::string & login,
   const std::string & password,
@@ -79,9 +79,8 @@ std::future<vds::http_message> vds::api_controller::get_login_state(
     "application/json; charset=utf-8");
 }
 
-std::future<vds::http_message>
-vds::api_controller::create_channel(
-  
+vds::async_task<vds::http_message>
+vds::api_controller::create_channel(  
   const std::shared_ptr<vds::user_manager> &user_mng,
   const std::string & name) {
 
@@ -92,7 +91,7 @@ vds::api_controller::create_channel(
         "application/json; charset=utf-8");
 }
 
-std::future<std::shared_ptr<vds::json_value>> vds::api_controller::channel_feed(
+vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_feed(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
   const std::shared_ptr<_web_server>& owner,
@@ -124,7 +123,7 @@ std::future<std::shared_ptr<vds::json_value>> vds::api_controller::channel_feed(
   co_return std::static_pointer_cast<json_value>(result);
 }
 
-std::future<vds::file_manager::file_operations::download_result_t>
+vds::async_task<vds::file_manager::file_operations::download_result_t>
 vds::api_controller::download_file(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
@@ -136,7 +135,7 @@ vds::api_controller::download_file(
   co_return co_await sp->get<file_manager::file_operations>()->download_file(user_mng, channel_id, file_hash, output_stream);
 }
 
-std::future<std::shared_ptr<vds::json_value>>
+vds::async_task<std::shared_ptr<vds::json_value>>
 vds::api_controller::user_devices(
   const vds::service_provider * sp,
     const std::shared_ptr<vds::user_manager> &user_mng,
@@ -178,7 +177,7 @@ vds::api_controller::user_devices(
   co_return std::static_pointer_cast<json_value>(result);
 }
 
-std::future<std::shared_ptr<vds::json_value>>
+vds::async_task<std::shared_ptr<vds::json_value>>
 vds::api_controller::offer_device(
   const vds::service_provider * sp,
     const std::shared_ptr<vds::user_manager> &user_mng,
@@ -216,7 +215,7 @@ vds::api_controller::offer_device(
   co_return result;
 }
 
-std::future<std::shared_ptr<vds::json_value>> vds::api_controller::get_statistics(
+vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_statistics(
   const vds::service_provider * sp,
   const std::shared_ptr<_web_server>& owner,
   const http_message& message) {
@@ -233,7 +232,7 @@ std::shared_ptr<vds::json_value> vds::api_controller::get_invite( user_manager& 
   return result;
 }
 
-std::future<void>
+vds::async_task<void>
 vds::api_controller::lock_device(
   const vds::service_provider * sp,
   const std::shared_ptr<vds::user_manager> &user_mng,
@@ -266,7 +265,7 @@ vds::api_controller::lock_device(
   });
 }
 
-std::future<std::shared_ptr<vds::json_value>>
+vds::async_task<std::shared_ptr<vds::json_value>>
 vds::api_controller::get_register_requests(
   const vds::service_provider * sp,
   const std::shared_ptr<vds::_web_server> &owner) {
@@ -289,7 +288,7 @@ vds::api_controller::get_register_requests(
   co_return std::static_pointer_cast<json_value>(result);
 }
 
-std::future<std::shared_ptr<vds::json_value>>
+vds::async_task<std::shared_ptr<vds::json_value>>
 vds::api_controller::get_register_request(
   const vds::service_provider * sp,
   const std::shared_ptr<vds::_web_server> &owner,
@@ -313,7 +312,7 @@ vds::api_controller::get_register_request(
   co_return std::static_pointer_cast<json_value>(result);
 }
 
-std::future<vds::const_data_buffer> vds::api_controller::get_register_request_body(
+vds::async_task<vds::const_data_buffer> vds::api_controller::get_register_request_body(
   const vds::service_provider * sp,
   const std::shared_ptr<_web_server>& owner,
   const const_data_buffer & request_id) {
@@ -335,7 +334,7 @@ std::future<vds::const_data_buffer> vds::api_controller::get_register_request_bo
   co_return *result;
 }
 
-std::future<vds::http_message> vds::api_controller::get_session(
+vds::async_task<vds::http_message> vds::api_controller::get_session(
   
   const std::shared_ptr<_web_server>& owner,
   const std::string& session_id) {
@@ -357,7 +356,7 @@ std::future<vds::http_message> vds::api_controller::get_session(
       "application/json; charset=utf-8");
 }
 
-std::future<vds::http_message> vds::api_controller::logout(
+vds::async_task<vds::http_message> vds::api_controller::logout(
   const std::shared_ptr<_web_server>& owner, const std::string & session_id) {
   owner->kill_session(session_id);
 

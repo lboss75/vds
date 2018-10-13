@@ -26,7 +26,7 @@ namespace vds {
     {
     }
 
-    std::future<void> write_async(
+    vds::async_task<void> write_async(
       const http_message message)
     {
       auto pthis = this->shared_from_this();

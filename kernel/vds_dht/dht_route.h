@@ -110,7 +110,7 @@ namespace vds {
       }
 
       template <typename... timer_arg_types>
-      std::future<void> on_timer(
+      vds::async_task<void> on_timer(
           
           timer_arg_types && ... timer_args) {
         return this->ping_buckets(std::forward<timer_arg_types>(timer_args)...);
@@ -158,11 +158,11 @@ namespace vds {
         this->_search_nodes(target_id, max_count, filter, result_nodes);
       }
 
-      std::future<void> for_near(
+      vds::async_task<void> for_near(
         
         const const_data_buffer &target_node_id,
         size_t max_count,
-        const std::function<std::future<bool>(const std::shared_ptr<node> & candidate)> &callback) {
+        const std::function<async_task<bool>(const std::shared_ptr<node> & candidate)> &callback) {
 
         std::map<
             const_data_buffer /*distance*/,
@@ -178,12 +178,12 @@ namespace vds {
         }
       }
 
-      std::future<void> for_near(
+      vds::async_task<void> for_near(
         
         const const_data_buffer &target_node_id,
         size_t max_count,
         const std::function<bool(const node & node)>& filter,
-        const std::function<std::future<bool>(const std::shared_ptr<node> & candidate)> &callback) {
+        const std::function<vds::async_task<bool>(const std::shared_ptr<node> & candidate)> &callback) {
 
         std::map<
             const_data_buffer /*distance*/,
@@ -204,9 +204,9 @@ namespace vds {
         
         std::list<std::shared_ptr<node>> & result_nodes) const;
 
-      std::future<void> for_neighbors(
+      vds::async_task<void> for_neighbors(
         
-        const std::function<std::future<bool>(const std::shared_ptr<node> & candidate)> &callback) {
+        const std::function<vds::async_task<bool>(const std::shared_ptr<node> & candidate)> &callback) {
 
         std::list<std::shared_ptr<node>> result_nodes;
         this->get_neighbors(result_nodes);
@@ -292,7 +292,7 @@ namespace vds {
         }
 
         template <typename... timer_arg_types>
-        std::future<void> on_timer(
+        vds::async_task<void> on_timer(
             const service_provider * sp,
             const dht_route *owner,
             timer_arg_types && ... timer_args) {
@@ -468,7 +468,7 @@ namespace vds {
       }
 
       template <typename... timer_arg_types>
-      std::future<void> ping_buckets( timer_arg_types && ... timer_args) {
+      vds::async_task<void> ping_buckets( timer_arg_types && ... timer_args) {
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
         for (auto &p : this->buckets_) {
           logger::get(this->sp_)->trace("DHT", "Bucket %d", p.first);

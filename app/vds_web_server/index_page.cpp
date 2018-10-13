@@ -12,7 +12,7 @@ All rights reserved
 #include "http_form_parser.h"
 #include "file_operations.h"
 
-std::future<vds::http_message> vds::index_page::create_channel(
+vds::async_task<vds::http_message> vds::index_page::create_channel(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
   const std::shared_ptr<_web_server>& web_server,
@@ -49,7 +49,7 @@ public:
     }
   }
 
-  std::future<void> on_file( const file_info & file) {
+  vds::async_task<void> on_file( const file_info & file) {
     auto file_info = co_await this->sp_->get<vds::file_manager::file_operations>()->upload_file(
       this->user_mng_,
       file.file_name,
@@ -59,7 +59,7 @@ public:
     this->files_.push_back(file_info);
   }
 
-  std::future<void> complete() {
+  vds::async_task<void> complete() {
     return this->sp_->get<vds::file_manager::file_operations>()->create_message(
       this->user_mng_,
       this->channel_id_,
@@ -74,7 +74,7 @@ private:
   std::string message_;
 };
 
-std::future<vds::http_message> vds::index_page::create_message(
+vds::async_task<vds::http_message> vds::index_page::create_message(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
   const std::shared_ptr<_web_server>& web_server,
@@ -100,7 +100,7 @@ public:
     //Ignore throw std::runtime_error("Invalid field " + field.name);
   }
 
-  std::future<void> on_file( const file_info & file) {
+  vds::async_task<void> on_file( const file_info & file) {
 
     auto buffer = co_await file.stream->read_all();
 
@@ -128,7 +128,7 @@ private:
   std::string userEmail_;
 };
 
-std::future<vds::http_message> vds::index_page::parse_join_request(
+vds::async_task<vds::http_message> vds::index_page::parse_join_request(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
   const std::shared_ptr<_web_server>& web_server,
@@ -168,7 +168,7 @@ public:
     //Ignore
   }
 
-  std::future<void> on_file( const file_info & file) {
+  vds::async_task<void> on_file( const file_info & file) {
     auto buffer = co_await file.stream->read_all();
 
     this->successful_ = co_await this->user_mng_->approve_join_request(buffer);
@@ -184,7 +184,7 @@ private:
 };
 
 
-std::future<vds::http_message> vds::index_page::approve_join_request(
+vds::async_task<vds::http_message> vds::index_page::approve_join_request(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng, const std::shared_ptr<_web_server>& web_server,
   const http_message& message) {

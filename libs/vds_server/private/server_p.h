@@ -48,18 +48,18 @@ namespace vds {
     
     void start(const service_provider * sp);
     void stop();
-    std::future<void> prepare_to_stop();
+    vds::async_task<void> prepare_to_stop();
 
-    std::future<server_statistic> get_statistic();
+    vds::async_task<server_statistic> get_statistic();
 
-    std::future<void> process_message(
+    vds::async_task<void> process_message(
         const message_info_t & message_info) override;
 
-    std::future<void> on_new_session(
+    vds::async_task<void> on_new_session(
       
       const const_data_buffer& partner_id) override;
 
-      std::future<void> apply_message(
+      vds::async_task<void> apply_message(
       
       database_transaction & t,
       const dht::messages::transaction_log_state & message,
@@ -84,8 +84,6 @@ namespace vds {
     server * owner_;
 
     timer update_timer_;
-    std::debug_mutex update_timer_mutex_;
-    bool in_update_timer_ = false;
 
 	  std::unique_ptr<class db_model> db_model_;
     std::unique_ptr<file_manager::file_manager_service> file_manager_;

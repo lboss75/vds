@@ -16,7 +16,7 @@ public:
     : target_(target) {
   }
 
-  std::future<void> write_async( const item_type *data, size_t len) override {
+  vds::async_task<void> write_async( const item_type *data, size_t len) override {
     for (;;) {
       if (0 == len) {
         co_await this->target_->write_async(data, len);

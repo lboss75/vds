@@ -38,8 +38,8 @@ namespace vds {
 
         void stop() override;
 
-        std::future<void> write_async( const udp_datagram& datagram);
-        std::future<void> try_handshake( const std::string& address);
+        vds::async_task<void> write_async( const udp_datagram& datagram);
+        vds::async_task<void> try_handshake( const std::string& address);
 
         const const_data_buffer& this_node_id() const {
           return this->this_node_id_;
@@ -82,7 +82,7 @@ namespace vds {
         mutable std::shared_mutex sessions_mutex_;
         std::map<network_address, session_state> sessions_;
 
-        std::future<void> continue_read();
+        vds::async_task<void> continue_read();
       };
     }
   }

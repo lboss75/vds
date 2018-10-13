@@ -16,7 +16,7 @@ namespace vds {
       void register_services(service_registrator &);
       void start(const service_provider *);
       void stop();
-      std::future<void> prepare_to_stop();
+      vds::async_task<void> prepare_to_stop();
 
     private:
       file_manager::file_operations file_operations_;

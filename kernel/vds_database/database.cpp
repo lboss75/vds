@@ -25,18 +25,18 @@ void vds::database::close()
   this->impl_->close();
 }
 
-std::future<void> vds::database::async_transaction(
+vds::async_task<void> vds::database::async_transaction(
   const std::function<bool(database_transaction & tr)> & callback)
 {
   return this->impl_->async_transaction(callback);
 }
 
-std::future<void> vds::database::async_read_transaction(
+vds::async_task<void> vds::database::async_read_transaction(
   const std::function<void(database_read_transaction& tr)>& callback) {
   return this->impl_->async_read_transaction(callback);
 }
 
-std::future<void> vds::database::prepare_to_stop() {
+vds::async_task<void> vds::database::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
 }
 

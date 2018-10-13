@@ -17,7 +17,7 @@ namespace vds {
 
     virtual ~stream_output_async() {}
 
-    virtual std::future<void> write_async(
+    virtual vds::async_task<void> write_async(
         const item_type *data,
         size_t len) = 0;
   };
@@ -28,11 +28,11 @@ namespace vds {
   template <typename item_type>
   class stream_input_async : public std::enable_shared_from_this<stream_input_async<item_type>> {
   public:
-    virtual std::future<size_t> read_async(      
+    virtual vds::async_task<size_t> read_async(      
       item_type * buffer,
       size_t len) = 0;
 
-    std::future<const_data_buffer> read_all() {
+    vds::async_task<const_data_buffer> read_all() {
       auto result = std::make_shared<resizable_data_buffer>();
       for(;;) {
         result->resize_data(result->size() + 1024);
@@ -58,7 +58,7 @@ namespace vds {
     : data_(std::move(data)), readed_(0) {      
     }
 
-    std::future<size_t> read_async(      
+    vds::async_task<size_t> read_async(      
       uint8_t * buffer,
       size_t len) override {
       if(this->readed_ > this->data_.size()) {
@@ -89,7 +89,7 @@ namespace vds {
     eof_(0) {
     }
 
-    std::future<size_t> read_async(
+    vds::async_task<size_t> read_async(
       
       uint8_t * buffer,
       size_t len) override {
@@ -134,7 +134,7 @@ namespace vds {
     collect_data() {
     }
 
-    std::future<void> write_async(
+    vds::async_task<void> write_async(
       const item_type *data,
       size_t len) override {
         this->data_.add(data, len);

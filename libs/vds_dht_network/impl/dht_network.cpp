@@ -72,7 +72,7 @@ void vds::dht::network::service::stop() {
   this->client_.stop();
 }
 
-std::future<void> vds::dht::network::service::prepare_to_stop() {
+vds::async_task<void> vds::dht::network::service::prepare_to_stop() {
   co_return;
 }
 

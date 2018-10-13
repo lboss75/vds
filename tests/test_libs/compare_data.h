@@ -21,7 +21,7 @@ public:
   {
   }
 
-  std::future<void> write_async(
+  vds::async_task<void> write_async(
     
     const item_type * data,
     size_t len) override

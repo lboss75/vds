@@ -26,7 +26,7 @@ void vds::file_manager::file_manager_service::stop() {
   this->impl_->stop();
 }
 
-std::future<void> vds::file_manager::file_manager_service::prepare_to_stop() {
+vds::async_task<void> vds::file_manager::file_manager_service::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
 }
 
@@ -43,7 +43,7 @@ void vds::file_manager_private::_file_manager_service::stop() {
   this->file_operations_.stop();
 }
 
-std::future<void> vds::file_manager_private::_file_manager_service::prepare_to_stop() {
+vds::async_task<void> vds::file_manager_private::_file_manager_service::prepare_to_stop() {
   return this->file_operations_.prepare_to_stop();
 }
 

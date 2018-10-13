@@ -41,7 +41,7 @@ namespace vds {
 #endif//_DEBUG
     }
 
-    std::future<void> write_async(      
+    vds::async_task<void> write_async(      
       const item_type * data,
       size_t data_size)
     {
@@ -80,7 +80,7 @@ namespace vds {
       }
     }
 
-    std::future<size_t /*readed*/> read_async( item_type * buffer, size_t buffer_size)
+    vds::async_task<size_t /*readed*/> read_async( item_type * buffer, size_t buffer_size)
     {
       vds_assert(0 != buffer_size);
 
@@ -97,7 +97,7 @@ namespace vds {
       co_return readed;
     }
 
-    std::future<const_data_buffer> read_all()
+    vds::async_task<const_data_buffer> read_all()
     {
       auto buffer = std::make_shared<std::tuple<resizable_data_buffer, item_type[1024]>>();
       co_return co_await this->read_all(buffer);
@@ -123,7 +123,7 @@ namespace vds {
     std::function<void(void)> continue_write_;
     std::function<void(void)> continue_read_;
 
-    std::future<size_t /*len*/> continue_write(
+    vds::async_task<size_t /*len*/> continue_write(
       
       const item_type * data,
       size_t data_size)
@@ -167,7 +167,7 @@ namespace vds {
         co_return len;
       }
 
-      auto result = std::make_shared<std::promise<size_t>>();
+      auto result = std::make_shared<vds::async_result<size_t>>();
       continue_write_ = [pthis = this->shared_from_this(), result, data, data_size](){
         auto size = pthis->continue_write(data, data_size).get();
         result->set_value(size);
@@ -177,7 +177,7 @@ namespace vds {
       co_return co_await result->get_future();
     }
 
-    std::future<void> write_all(
+    vds::async_task<void> write_all(
       
       const item_type * data,
       size_t data_size)
@@ -195,7 +195,7 @@ namespace vds {
       }
     }
 
-    std::future<size_t /*readed*/> continue_read(
+    vds::async_task<size_t /*readed*/> continue_read(
       
       item_type * buffer,
       size_t buffer_size)
@@ -235,7 +235,7 @@ namespace vds {
         co_return 0;
       }
 
-      auto result = std::make_shared<std::promise<size_t>>();
+      auto result = std::make_shared<vds::async_result<size_t>>();
       this->continue_read_ = [pthis = this->shared_from_this(), result, buffer, buffer_size](){
         try {
           auto size = pthis->continue_read(buffer, buffer_size).get();
@@ -249,7 +249,7 @@ namespace vds {
 
       co_return co_await result->get_future();
     }
-    std::future<const_data_buffer> read_all(
+    vds::async_task<const_data_buffer> read_all(
       
       const std::shared_ptr<std::tuple<resizable_data_buffer, item_type[1024]>> & buffer)
     {
@@ -283,7 +283,7 @@ namespace vds {
     : buffer_(buffer) {      
     }
 
-    std::future<size_t> read_async(
+    vds::async_task<size_t> read_async(
       uint8_t * buffer,
       size_t len) override {
       return this->buffer_->read_async(buffer, len);
@@ -301,7 +301,7 @@ namespace vds {
       : buffer_(buffer) {
     }
 
-    std::future<void> write_async(
+    vds::async_task<void> write_async(
       
       const uint8_t *data,
       size_t len) override {

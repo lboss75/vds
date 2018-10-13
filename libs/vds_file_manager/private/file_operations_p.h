@@ -18,21 +18,21 @@ namespace vds {
   namespace file_manager_private {
     class _file_operations : public std::enable_shared_from_this<_file_operations> {
     public:
-			std::future<transactions::user_message_transaction::file_info_t> upload_file(
+			vds::async_task<transactions::user_message_transaction::file_info_t> upload_file(
 					
           const std::shared_ptr<user_manager> & user_mng,
           const std::string & name,
           const std::string & mime_type,
 					const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
-	    std::future<file_manager::file_operations::download_result_t> download_file(
+	    vds::async_task<file_manager::file_operations::download_result_t> download_file(
 					
           const std::shared_ptr<user_manager> & user_mng,
           const const_data_buffer & channel_id,
           const const_data_buffer & target_file,
           const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
-      std::future<void> create_message(
+      vds::async_task<void> create_message(
         
         const std::shared_ptr<user_manager>& user_mng,
         const const_data_buffer& channel_id,
@@ -40,14 +40,14 @@ namespace vds {
         const std::list<transactions::user_message_transaction::file_info_t>& files);
 
 
-      //	    std::future<void> download_block(
+      //	    vds::async_task<void> download_block(
 //			
 //			database_transaction& t,
 //      file_manager::download_file_task::block_info & block_id,
 //			const std::shared_ptr<file_manager::download_file_task> & result);
       void start(const service_provider * sp);
       void stop();
-      std::future<void> prepare_to_stop();
+      vds::async_task<void> prepare_to_stop();
 
     private:
       const service_provider * sp_;
@@ -58,7 +58,7 @@ namespace vds {
         std::list<transactions::user_message_transaction::file_block_t> file_blocks;
       };
 
-      std::future<pack_file_result> pack_file(
+      vds::async_task<pack_file_result> pack_file(
           
           const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) const;
 
@@ -68,7 +68,7 @@ namespace vds {
 //					file_manager::download_file_task::block_info & block,
 //					const std::shared_ptr<file_manager::download_file_task> & result);
 
-      std::future<void> download_stream(
+      vds::async_task<void> download_stream(
           
           const std::shared_ptr<stream_output_async<uint8_t>> & target_stream,
           const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);

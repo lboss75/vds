@@ -129,7 +129,7 @@ namespace vds {
       const void * data,
       size_t data_size);
 
-    std::future<void> write_async(
+    vds::async_task<void> write_async(
       
       const uint8_t  *data,
       size_t len) override;
@@ -163,7 +163,7 @@ namespace vds {
       const const_data_buffer & signature,
       const const_data_buffer & data);
 
-    std::future<void> write_async(      
+    vds::async_task<void> write_async(      
       const uint8_t *data,
       size_t len) override;
 

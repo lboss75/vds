@@ -21,7 +21,7 @@ vds::udp_datagram::udp_datagram(vds::_udp_datagram* impl)
 {
 }
 
-std::future<vds::udp_datagram> vds::udp_datagram_reader::read_async() {
+vds::async_task<vds::udp_datagram> vds::udp_datagram_reader::read_async() {
   return static_cast<_udp_receive *>(this)->read_async();
 }
 
@@ -93,7 +93,7 @@ vds::udp_datagram& vds::udp_datagram::operator=(udp_datagram&& other) {
 
 }
 
-std::future<void> vds::udp_datagram_writer::write_async( const udp_datagram& message) {
+vds::async_task<void> vds::udp_datagram_writer::write_async( const udp_datagram& message) {
   return static_cast<_udp_send *>(this)->write_async(message);
 }
 

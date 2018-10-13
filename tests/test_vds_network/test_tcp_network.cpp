@@ -17,7 +17,7 @@ All rights reserved
 #include "test_config.h"
 #include "task_manager.h"
 
-std::future<void> copy_stream(
+vds::async_task<void> copy_stream(
   std::shared_ptr<vds::stream_input_async<uint8_t>> reader,
   std::shared_ptr<vds::stream_output_async<uint8_t>> writer) {
   auto buffer = std::shared_ptr<uint8_t>(new uint8_t[1024]);
@@ -54,7 +54,7 @@ TEST(network_tests, test_server)
   server.start(
     sp,
     vds::network_address::any_ip4(8000),
-    [sp](const std::shared_ptr<vds::tcp_network_socket> & s) -> std::future<void> {
+    [sp](const std::shared_ptr<vds::tcp_network_socket> & s) -> vds::async_task<void> {
       auto[reader, writer] = s->start(sp);
       return copy_stream(reader, writer);
   }).get();

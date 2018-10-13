@@ -32,10 +32,10 @@ vds::task_manager::~task_manager()
 void vds::timer::start(
   const service_provider * sp,
   const std::chrono::steady_clock::duration & period,
-  const std::function< bool(void) >& callback)
+  const std::function<async_task<bool>(void) >& callback)
 {
   this->sp_ = sp;
-  this->current_state_->change_state(state_t::bof, state_t::scheduled).wait();
+  this->current_state_->change_state(state_t::bof, state_t::scheduled).get();
   this->period_ = period;
   this->handler_ = callback;
   
@@ -49,26 +49,12 @@ void vds::timer::stop()
 	std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
 	manager->scheduled_.remove(this);
   this->is_shuting_down_ = true;
-	this->current_state_->wait(state_t::eof).wait();
+	this->current_state_->wait(state_t::eof).get();
 }
 
 void vds::timer::execute()
 {
-  try {
-    if (!this->is_shuting_down_) {
-      this->current_state_->change_state(state_t::scheduled, state_t::in_handler).wait();
-      if (this->handler_()) {
-        this->current_state_->change_state(state_t::in_handler, state_t::scheduled).wait();
-        this->schedule();
-      } else {
-        this->current_state_->change_state(state_t::in_handler, state_t::eof).wait();
-      }
-    } else {
-      this->current_state_->change_state(state_t::scheduled, state_t::eof).wait();
-    }
-  }
-  catch (...) {
-  }
+  this->execute_async().detach();
 }
 
 void vds::timer::schedule()
@@ -96,6 +82,26 @@ void vds::timer::schedule()
   }
 }
 
+vds::async_task<void> vds::timer::execute_async() {
+  try {
+    if (!this->is_shuting_down_) {
+      co_await this->current_state_->change_state(state_t::scheduled, state_t::in_handler);
+      if (co_await this->handler_()) {
+        co_await this->current_state_->change_state(state_t::in_handler, state_t::scheduled);
+        this->schedule();
+      }
+      else {
+        co_await this->current_state_->change_state(state_t::in_handler, state_t::eof);
+      }
+    }
+    else {
+      co_await this->current_state_->change_state(state_t::scheduled, state_t::eof);
+    }
+  }
+  catch (...) {
+  }
+
+}
 
 
 void vds::task_manager::register_services(service_registrator & registrator)
@@ -117,7 +123,7 @@ void vds::task_manager::stop()
   }
 }
 
-std::future<void> vds::task_manager::prepare_to_stop() {
+vds::async_task<void> vds::task_manager::prepare_to_stop() {
   this->is_shuting_down_ = true;
   if (this->work_thread_.joinable()) {
     this->work_thread_.join();

@@ -46,7 +46,7 @@ namespace vds {
           this->mtu_ = value;
         }
 
-        std::future<void> send_message(
+        vds::async_task<void> send_message(
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
           const const_data_buffer& target_node,
@@ -70,7 +70,7 @@ namespace vds {
             message);
         }
 
-        std::future<void> proxy_message(
+        vds::async_task<void> proxy_message(
           
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
@@ -98,7 +98,7 @@ namespace vds {
             message);
         }
 
-        std::future<void> process_datagram(
+        vds::async_task<void> process_datagram(
           
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
@@ -254,7 +254,7 @@ namespace vds {
         uint32_t next_sequence_number_;
 
 
-        std::future<void> send_message_async(
+        vds::async_task<void> send_message_async(
           
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
@@ -399,7 +399,7 @@ namespace vds {
           }
         }
 
-        std::future<void> continue_process_messages(
+        vds::async_task<void> continue_process_messages(
           
           const std::shared_ptr<transport_type>& s) {
           auto p = this->input_messages_.find(0);

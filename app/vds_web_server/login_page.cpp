@@ -13,7 +13,7 @@ All rights reserved
 #include "register_request.h"
 #include "dht_object_id.h"
 
-std::future<vds::http_message> vds::login_page::register_request_post(
+vds::async_task<vds::http_message> vds::login_page::register_request_post(
   const vds::service_provider * sp,
   const std::shared_ptr<_web_server>& owner,
   const http_message& message) {

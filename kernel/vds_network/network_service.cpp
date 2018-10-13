@@ -38,7 +38,7 @@ void vds::network_service::stop()
   this->impl_->stop();
 }
 
-std::future<void> vds::network_service::prepare_to_stop()
+vds::async_task<void> vds::network_service::prepare_to_stop()
 {
   return this->impl_->prepare_to_stop();
 }
@@ -198,7 +198,7 @@ void vds::_network_service::stop()
     }
 }
 
-std::future<void> vds::_network_service::prepare_to_stop()
+vds::async_task<void> vds::_network_service::prepare_to_stop()
 {
   co_return;
   /*

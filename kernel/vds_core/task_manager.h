@@ -8,6 +8,7 @@
 
 #include "service_provider.h"
 #include "state_machine.h"
+#include "async_task.h"
 
 namespace vds {
   
@@ -19,7 +20,7 @@ namespace vds {
     void start(
       const service_provider * sp,
       const std::chrono::steady_clock::duration & period,
-      const std::function<bool(void)> & callback);
+      const std::function<async_task<bool>(void)> & callback);
     
     void stop();
     
@@ -30,7 +31,7 @@ namespace vds {
     friend class task_manager;
     std::chrono::steady_clock::duration period_;
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
-    std::function<bool(void)> handler_;
+    std::function<async_task<bool>(void)> handler_;
 
 	  enum state_t {
 		  bof,
@@ -42,6 +43,8 @@ namespace vds {
 		bool is_shuting_down_;
     void execute();
     void schedule();
+
+    async_task<void> execute_async();
   };
 
   class task_manager : public iservice_factory
@@ -53,7 +56,7 @@ namespace vds {
     void register_services(service_registrator &) override;
     void start(const service_provider * sp) override;
     void stop() override;
-    std::future<void> prepare_to_stop() override;
+    vds::async_task<void> prepare_to_stop() override;
 
     void disable_timers() {
       this->is_disabled_ = true;

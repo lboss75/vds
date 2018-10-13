@@ -31,7 +31,7 @@ namespace vds {
 
     login_state_t get_login_state() const;
 
-    std::future<void> update();
+    vds::async_task<void> update();
 
     void load(
       
@@ -39,7 +39,7 @@ namespace vds {
       const std::string & user_login,
       const std::string & user_password);
 
-    std::future<vds::user_channel> create_channel(
+    vds::async_task<vds::user_channel> create_channel(
       
       const std::string &name) const;
 
@@ -49,7 +49,7 @@ namespace vds {
         const std::string &root_password,
         const cert_control::private_info_t & private_info);
 
-    //std::future<void> init_server(
+    //vds::async_task<void> init_server(
     //  
     //  const std::string & root_user_name,
     //  const std::string & user_password,
@@ -106,7 +106,7 @@ namespace vds {
     const std::shared_ptr<asymmetric_private_key> & get_current_user_private_key() const;
     const std::string & user_name() const;
 
-    static std::future<const_data_buffer> create_register_request(
+    static vds::async_task<const_data_buffer> create_register_request(
       const service_provider * sp,
       const std::string& userName,
       const std::string& userEmail,
@@ -118,7 +118,7 @@ namespace vds {
         std::string & userName,
         std::string & userEmail);
 
-    std::future<bool> approve_join_request(
+    vds::async_task<bool> approve_join_request(
       
       const const_data_buffer & data);
 
@@ -126,7 +126,7 @@ namespace vds {
     const service_provider * sp_;
     std::shared_ptr<_user_manager> impl_;
 
-    std::future<void> save_certificate( const std::shared_ptr<certificate> &cert);
+    vds::async_task<void> save_certificate( const std::shared_ptr<certificate> &cert);
   };
 }
 

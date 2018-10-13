@@ -19,10 +19,10 @@ static void send_message_check(
     message[i] = static_cast<uint8_t>(std::rand());
   }
 
-  session1->send_message(transport12, 10, node2, message);
+  session1->send_message(transport12, 10, node2, message).get();
   session2->check_message(10, message);
 
-  session2->send_message(transport21, 10, node1, message);
+  session2->send_message(transport21, 10, node1, message).get();
   session1->check_message(10, message);
 }
 
@@ -52,7 +52,7 @@ static void proxy_message_check(
     node3,
     node1,
     0,
-    message);
+    message).get();
   session2->check_message(
     10,
     message,
@@ -66,7 +66,7 @@ static void proxy_message_check(
     node2,
     node3,
     2,
-    message);
+    message).get();
   session2->check_message(
     10,
     message,
@@ -155,7 +155,7 @@ TEST(test_vds_dht_network, test_data_exchange) {
   registrator.shutdown();
 }
 
-std::future<void> mock_dg_transport::write_async(
+vds::async_task<void> mock_dg_transport::write_async(
     
     const vds::udp_datagram &data) {
   return this->s_.process_datagram(

@@ -25,7 +25,7 @@ namespace vds {
       }
     }
 
-    std::future<void> write_async( const uint8_t * input_data, size_t input_size)
+    vds::async_task<void> write_async( const uint8_t * input_data, size_t input_size)
     {
       if(0 == input_size){
         inflateEnd(&this->strm_);

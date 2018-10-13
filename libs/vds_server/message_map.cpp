@@ -17,13 +17,13 @@
         (*pthis->sp_->get<dht::network::client>())->apply_message(\
          t,\
          message,\
-         message_info);\
+         message_info).get();\
         return true;\
       });\
       break;\
     }
 
-std::future<void> vds::_server::process_message(
+vds::async_task<void> vds::_server::process_message(
   
   const message_info_t & message_info) {
 
@@ -33,13 +33,13 @@ std::future<void> vds::_server::process_message(
 
   switch(message_info.message_type()){
   case dht::network::message_type_t::transaction_log_state: {
-    co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) -> std::future<void> {
+    co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) {
       binary_deserializer s(message_info.message_data());
       auto message = message_deserialize<dht::messages::transaction_log_state>(s);
-      co_await (*pthis->sp_->get<server>())->apply_message(
+      (*pthis->sp_->get<server>())->apply_message(
           t,
           message,
-          message_info);
+          message_info).get();
     });
     break;
   }
@@ -108,7 +108,7 @@ std::future<void> vds::_server::process_message(
 
       binary_deserializer s(message_data);
       messages::sync_replica_request message(s);
-      auto result = std::make_shared<std::future<void>>(std::future<void>::empty());
+      auto result = std::make_shared<vds::async_task<void>>(vds::async_task<void>::empty());
       *result = (*sp->get<client>())->apply_message(
         sp.create_scope("messages::sync_replica_request"),
         this->shared_from_this(),

@@ -53,9 +53,9 @@ void vds::dht::network::udp_transport::stop() {
   this->server_.stop();
 }
 
-std::future<void>
+vds::async_task<void>
 vds::dht::network::udp_transport::write_async( const udp_datagram& datagram) {
-  auto result = std::make_shared<std::promise<void>>();
+  auto result = std::make_shared<vds::async_result<void>>();
   this->send_thread_->schedule([result, this, datagram]() {
     try{
       this->writer_->write_async(datagram).get();
@@ -84,7 +84,7 @@ vds::dht::network::udp_transport::write_async( const udp_datagram& datagram) {
   //co_await this->writer_->write_async(sp, datagram);
 }
 
-std::future<void> vds::dht::network::udp_transport::try_handshake(
+vds::async_task<void> vds::dht::network::udp_transport::try_handshake(
                                                                   const std::string& address) {
 
   resizable_data_buffer out_message;
@@ -118,7 +118,7 @@ void vds::dht::network::udp_transport::get_session_statistics(session_statistic&
 }
 
 
-std::future<void> vds::dht::network::udp_transport::continue_read(
+vds::async_task<void> vds::dht::network::udp_transport::continue_read(
   ) {
   for (;;) {
     udp_datagram datagram;

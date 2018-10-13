@@ -151,7 +151,7 @@ namespace vds {
     );
     ~_asymmetric_sign();
 
-    std::future<void> write_async(
+    vds::async_task<void> write_async(
       const uint8_t *data,
       size_t len);
 
@@ -175,7 +175,7 @@ namespace vds {
     
     ~_asymmetric_sign_verify();
 
-    std::future<void> write_async(
+    vds::async_task<void> write_async(
       
       const uint8_t *data,
       size_t len);
