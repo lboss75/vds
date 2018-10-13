@@ -29,6 +29,9 @@ namespace vds {
         }
       };
 
+      /**
+       * \brief Base class to message from leader
+       */
       class sync_base_message_request {
       public:
         const_data_buffer object_id;
@@ -49,6 +52,9 @@ namespace vds {
         }
       };
 
+      /**
+       * \brief Base class to responce message to leader
+       */
       class sync_base_message_response {
       public:
         const_data_buffer object_id;
@@ -69,7 +75,9 @@ namespace vds {
         }
       };
 
-      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      /**
+       * \brief Request new operation from leader
+       */
       class sync_replica_operations_request : public sync_base_message_request {
       public:
         static const network::message_type_t message_id = network::message_type_t::sync_replica_operations_request;
@@ -94,12 +102,18 @@ namespace vds {
         }
       };
 
+      /**
+       * \brief Response about new operation to leader
+       */
       class sync_replica_operations_response : public sync_base_message_response {
       public:
         static const network::message_type_t message_id = network::message_type_t::sync_replica_operations_response;
 
       };
-      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      /**
+       * \brief new operation from leader
+       */
       class sync_add_message_request {
       public:
         static const network::message_type_t message_id = network::message_type_t::sync_add_message_request;

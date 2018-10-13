@@ -138,6 +138,8 @@ public:
   void start(const std::shared_ptr<transport_hab> & hab, int index);
   void stop();
 
+  bool is_ready_to_stop() const;
+
   void add_sync_entry(
     const vds::const_data_buffer& object_id,
     const vds::const_data_buffer& object_data);
@@ -156,7 +158,6 @@ public:
   vds::service_provider * sp_;
 
 private:
-  bool is_stopping_;
   vds::service_registrator registrator_;
   vds::file_logger logger_;
   vds::mt_service mt_service_;

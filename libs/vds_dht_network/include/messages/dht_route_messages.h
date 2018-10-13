@@ -172,4 +172,39 @@ namespace vds {
   }
 }
 
+namespace std {
+#define enum2str(x) case vds::dht::network::message_type_t::##x: return #x;
+  inline std::string to_string(vds::dht::network::message_type_t v) {
+    switch (v) {
+      enum2str(transaction_log_state);
+      enum2str(transaction_log_request);
+      enum2str(transaction_log_record);
+      enum2str(dht_find_node);
+      enum2str(dht_find_node_response);
+      enum2str(dht_ping);
+      enum2str(dht_pong);
+      enum2str(sync_new_election_request);
+      enum2str(sync_new_election_response);
+      enum2str(sync_add_message_request);
+      enum2str(sync_leader_broadcast_request);
+      enum2str(sync_leader_broadcast_response);
+      enum2str(sync_replica_operations_request);
+      enum2str(sync_replica_operations_response);
+      enum2str(sync_looking_storage_request);
+      enum2str(sync_looking_storage_response);
+      enum2str(sync_snapshot_request);
+      enum2str(sync_snapshot_response);
+      enum2str(sync_offer_send_replica_operation_request);
+      enum2str(sync_offer_remove_replica_operation_request);
+      enum2str(sync_replica_request);
+      enum2str(sync_replica_data);
+      enum2str(sync_replica_query_operations_request);
+    default:
+      return "unknown";
+    }
+  }
+
+#undef enum2str(x)
+}
+
 #endif//__VDS_DHT_NETWORK_DHT_ROUTE_MESSAGES_H_

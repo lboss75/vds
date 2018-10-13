@@ -8,8 +8,9 @@
 #include "dht_network.h"
 #include "messages/sync_messages.h"
 #include "chunk_dbo.h"
+#include "test_log.h"
 
-#define SERVER_COUNT 10
+#define SERVER_COUNT 100
 
 TEST(test_vds_dht_network, test_sync_process) {
 #ifdef _WIN32
@@ -45,7 +46,7 @@ TEST(test_vds_dht_network, test_sync_process) {
   };
   vds::const_data_buffer object_id(object_id_data, sizeof(object_id_data));
   vds::const_data_buffer object_data;
-  object_data.resize(100);
+  object_data.resize(400000);
   for(size_t i = 0; i < object_data.size(); ++i) {
     object_data[i] = std::rand();
   }
@@ -54,7 +55,7 @@ TEST(test_vds_dht_network, test_sync_process) {
   //All corresponding nodes have to approove data storage
   int stage = 0;
   size_t replica_count = 0;
-  for(int try_count = 0; try_count < 10; ++try_count) {
+  for(; ; ) {
     replica_count = 0;
     std::map<vds::const_data_buffer/*node*/, std::set<uint16_t /*replicas*/>> members;
     hab->walk_messages([stage, &object_id, &members, &replica_count](const message_log_t & log_record)->message_log_action{
@@ -111,27 +112,47 @@ TEST(test_vds_dht_network, test_sync_process) {
       //valudate member count
       if(replica_count >= vds::dht::network::service::GENERATE_DISTRIBUTED_PIECES) {
         stage = 1;
-        //Dump
-        vds::const_data_buffer watch_target;
-        for(const auto & p : members) {
-          if(p.second.size() > 0) {
-            watch_target = p.first;
-            break;
-          }
-        }
-        std::list<std::tuple<vds::const_data_buffer/*from*/, vds::const_data_buffer/*to*/, vds::dht::network::message_type_t>> log_messages;
-        hab->walk_messages([stage, &object_id, &watch_target, &log_messages](const message_log_t & log_record)->message_log_action {
-          if(log_record.target_node_id_ == watch_target || log_record.message_info_.source_node() == watch_target) {
-            log_messages.push_back(std::make_tuple(
-              log_record.message_info_.source_node(),
-              log_record.target_node_id_,
-              log_record.message_info_.message_type()));
-          }
-          return message_log_action::skip;
-        });
       }
+
+      //Dump
+      std::map<std::string, std::string> server_index;
+      for (int i = 0; i < SERVER_COUNT; ++i) {
+        server_index[vds::base64::from_bytes(servers[i]->node_id())] = std::to_string(i);
+      }
+      std::list<std::tuple<std::string, std::map<std::string, std::string>>> table;
+      size_t total_size = 0;
+      hab->walk_messages([stage, &object_id, &table, &server_index, &total_size](const message_log_t & log_record)->message_log_action {
+        std::map<std::string, std::string> columns;
+        columns[server_index[vds::base64::from_bytes(log_record.target_node_id_)]] = "O";
+        columns[server_index[vds::base64::from_bytes(log_record.message_info_.source_node())]] = "*";
+        columns["Diff"] = std::to_string(log_record.message_info_.message_data().size());
+        columns["Total"] = std::to_string(total_size);
+        total_size += log_record.message_info_.message_data().size();
+        table.push_back(std::make_tuple(
+          std::to_string(table.size() + 1)
+          + ". "
+          + std::to_string(log_record.message_info_.message_type()),
+          columns));
+
+        return message_log_action::skip;
+      });
+
+      std::ofstream logfile("test.log", std::ofstream::out);
+      print_table(logfile, table);
     }
     else {
+      break;
+    }
+
+    bool is_ready_to_stop = true;
+    for (auto server : servers) {
+      if(!server->is_ready_to_stop()) {
+        is_ready_to_stop = false;
+        break;
+      }
+    }
+
+    if(is_ready_to_stop) {
       break;
     }
 
@@ -207,8 +228,7 @@ void transport_hab::walk_messages(const std::function<message_log_action(const m
 }
 
 test_server::test_server(const vds::network_address & address, const std::shared_ptr<transport_hab> & hab)
-: is_stopping_(false),
-  logger_(
+: logger_(
   test_config::instance().log_level(),
   test_config::instance().modules()),
   server_(address, hab),
@@ -240,9 +260,11 @@ void test_server::start(const std::shared_ptr<transport_hab> & hab, int index) {
 }
 
 void test_server::stop() {
-  this->is_stopping_ = true;
-  this->process_thread_->prepare_to_stop();
   registrator_.shutdown();
+}
+
+bool test_server::is_ready_to_stop() const {
+  return this->process_thread_->is_ready_to_stop();
 }
 
 void test_server::add_sync_entry(const vds::const_data_buffer& object_id, const vds::const_data_buffer& object_data) {
@@ -255,25 +277,21 @@ std::future<void> test_server::process_datagram(
   const vds::network_address & source_address) {
 
   auto r = std::make_shared<std::promise<void>>();
-  if(this->is_stopping_) {
-    r->set_exception(std::make_exception_ptr(vds::vds_exceptions::shooting_down_exception()));
-  }
-  else {
-    this->process_thread_->schedule([r, this, datagram, source_node_id, source_address]() {
-      try {
-        this->server_.process_datagram(
-          datagram,
-          source_node_id,
-          source_address).get();
-      }
-      catch (...) {
-        r->set_exception(std::current_exception());
-        return;
-      }
+  this->process_thread_->schedule([r, this, datagram, source_node_id, source_address]() {
+    try {
+      this->server_.process_datagram(
+        datagram,
+        source_node_id,
+        source_address).get();
+    }
+    catch (...) {
+      r->set_exception(std::current_exception());
+      return;
+    }
 
-      r->set_value();
-    });
-  }
+    r->set_value();
+  });
+
   return r->get_future();
 }
 

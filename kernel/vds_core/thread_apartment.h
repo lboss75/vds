@@ -73,10 +73,15 @@ namespace vds {
       return this->empty_query_->get_future();
     }
 
+    bool is_ready_to_stop() const {
+      std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
+      return task_queue_.empty();
+    }
+
   private:
     const service_provider * sp_;
     bool is_stopping_;
-    std::mutex task_queue_mutex_;
+    mutable std::mutex task_queue_mutex_;
     std::queue<std::function<void(void)>> task_queue_;
     std::unique_ptr<std::promise<void>> empty_query_;
   };
