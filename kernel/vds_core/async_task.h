@@ -88,7 +88,7 @@ namespace vds {
       return (!this->value_) ? std::future_status::timeout : std::future_status::ready;
     }
 
-    bool await_ready() {
+    bool is_ready() {
       std::unique_lock<std::mutex> lock(this->value_mutex_);
       return (!this->value_) ? false : true;
     }
@@ -166,8 +166,8 @@ namespace vds {
       return this->state_->get();
     }
 
-    bool await_ready() const noexcept {
-      return this->state_->await_ready();
+    bool is_ready() const noexcept {
+      return this->state_->is_ready();
     }
 
     void then(const std::function<void(void)> & f) {
@@ -268,7 +268,7 @@ namespace vds {
         : _future(std::move(f)) {}
 
     bool await_ready() const noexcept {
-      return _future.await_ready();
+      return _future.is_ready();
     }
 
     template<typename U>
@@ -363,17 +363,17 @@ namespace std {
 }
 
 
-namespace std {
 #ifdef _WIN32
+namespace std {
   template <typename  T>
   bool await_ready(vds::async_task<T> & _future)
   {
-    return _future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+    return _future.is_ready();
   }
 
   template <typename  T>
   void await_suspend(vds::async_task<T> & _future,
-    experimental::coroutine_handle<> _ResumeCb)
+    std::experimental::coroutine_handle<> _ResumeCb)
   {
     _future.then([_ResumeCb]() {
       _ResumeCb();
@@ -385,8 +385,9 @@ namespace std {
   {
     return (_future.get());
   }
-#endif
 }
+
+#endif
 
 #endif // __VDS_CORE_ASYNC_TASK_H_
  
