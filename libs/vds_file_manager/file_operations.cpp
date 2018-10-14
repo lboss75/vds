@@ -38,7 +38,6 @@ vds::async_task<void> vds::file_manager::file_operations::prepare_to_stop() {
 
 vds::async_task<vds::file_manager::file_operations::download_result_t>
 vds::file_manager::file_operations::download_file(
-  
   const std::shared_ptr<user_manager> & user_mng,
   const const_data_buffer & channel_id,
   const const_data_buffer & target_file,

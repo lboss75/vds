@@ -21,6 +21,7 @@ All rights reserved
 #include "private/index_page.h"
 #include "db_model.h"
 #include "chunk_dbo.h"
+#include "storage_api.h"
 
 vds::web_server::web_server()
 : port_(8050) {
@@ -50,8 +51,111 @@ vds::_web_server * vds::web_server::operator->() const {
 }
 /////////////////////////////////////////////////////////////
 vds::_web_server::_web_server(const service_provider * sp)
-: sp_(sp), middleware_(*this) {
+: sp_(sp), //middleware_(*this),
+router_({
+  { "/api/channels", "GET",  &api_controller::get_channels },
+  { "/api/channels", "POST", &index_page::create_channel },
+  { "/api/try_login", "GET", [this](
+    const vds::service_provider * sp,
+    const http_request & request) -> async_task<std::shared_ptr<json_value>> {
+      const auto login = request.get_parameter("login");
+      const auto password = request.get_parameter("password");
 
+      return co_await api_controller::get_login_state(
+        sp,
+        login,
+        password,
+        this->shared_from_this(),
+        request);
+  }
+    },
+  {"/api/session", "GET", [this](
+    const vds::service_provider * sp,
+    const http_request & request) -> async_task<std::shared_ptr<json_value>> {
+    const auto session_id = request.get_parameter("session");
+
+    return api_controller::get_session(
+      this->get_session(session_id));
+    }
+  },
+  {"/api/logout", "POST", [this](
+    const vds::service_provider * sp,
+    const http_request & request) -> async_task<http_message> {
+    const auto session_id = request.get_parameter("session");
+
+    this->kill_session(session_id);
+
+    co_return http_response::redirect("/");
+    }
+  },
+  {"/api/channel_feed", "GET", [this](
+    const vds::service_provider * sp,
+    const std::shared_ptr<user_manager> & user_mng,
+    const http_request & request) -> async_task<std::shared_ptr<json_value>> {
+            const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
+
+            return api_controller::channel_feed(
+              sp,
+              user_mng,
+              channel_id);
+    }
+  },
+  {"/api/devices", "GET", &storage_api::device_storages },
+  {"/api/devices", "POST", [](
+    const vds::service_provider * sp,
+    const std::shared_ptr<user_manager> & user_mng,
+    const http_request & request) -> async_task<http_message> {
+            const auto name = request.get_parameter("name");
+            const auto reserved_size = safe_cast<uint64_t>(std::atoll(request.get_parameter("size").c_str()));
+            const auto local_path = request.get_parameter("path");
+            co_await storage_api::add_device_storage(
+              sp,
+              user_mng,
+              name,
+              local_path,
+              reserved_size);
+
+            co_return http_response::status_response(
+                          http_response::HTTP_OK,
+                          "OK");
+          }
+  },
+  {"/api/download", "GET", [](
+    const vds::service_provider * sp,
+    const std::shared_ptr<user_manager> & user_mng,
+    const http_request & request) -> async_task<http_message> {
+                  const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
+                  const auto file_hash = base64::to_bytes(request.get_parameter("object_id"));
+
+                  auto buffer = std::make_shared<continuous_buffer<uint8_t>>(sp);
+
+      co_await request.get_message().ignore_empty_body();
+
+                  auto result = co_await api_controller::download_file(
+                    sp,
+                    user_mng,
+                    channel_id,
+                    file_hash,
+                    std::make_shared<continuous_stream_output_async<uint8_t>>(buffer));
+
+                    co_return http_response::file_response(
+                        std::make_shared<continuous_stream_input_async<uint8_t>>(buffer),
+                        result.size,
+                        result.name,
+                        result.mime_type);
+                      }
+  },
+  {"/api/parse_join_request", "POST", &index_page::parse_join_request },
+  {"/api/approve_join_request", "POST", &index_page::approve_join_request },
+  {"/upload", "POST", &index_page::create_message },
+  {"/api/register_requests", "GET", &api_controller::get_register_requests },
+  {"/api/register_request", "GET", &api_controller::get_register_request },
+  {"/api/statistics", "GET", &api_controller::get_statistics },
+  })
+{
+  this->router_.auth_callback([this](const http_request & message) {
+    return this->get_secured_context(message.get_parameter("session"));
+  });
 }
 
 vds::_web_server::~_web_server() {
@@ -88,7 +192,7 @@ vds::async_task<void> vds::_web_server::start(
 
         std::string keep_alive_header;
         //bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
-        co_return co_await pthis->middleware_.process(request);
+        co_return co_await pthis->router_.route(sp, request);
       }
       catch (const std::exception & ex) {
         co_return http_response::status_response(http_response::HTTP_Internal_Server_Error, ex.what());
@@ -102,304 +206,62 @@ vds::async_task<void> vds::_web_server::prepare_to_stop() {
   co_return;
 }
 
-vds::async_task<vds::http_message> vds::_web_server::route(
-  
-  const http_message message) {
-   
-  http_request request(message);
-  if(request.url() == "/api/channels") {
-    if (request.method() == "GET") {
-      const auto user_mng = this->get_secured_context(request.get_parameter("session"));
-      if (!user_mng) {
-        co_return http_response::status_response(
-                http_response::HTTP_Unauthorized,
-                "Unauthorized");
-      }
+//  if (request.url() == "/api/offer_device") {
+//    if (request.method() == "GET") {
+//      const auto user_mng = this->get_secured_context(request.get_parameter("session"));
+//      if (!user_mng) {
+//        co_return http_response::status_response(
+//                http_response::HTTP_Unauthorized,
+//                "Unauthorized");
+//      }
+//
+//      auto result = co_await api_controller::offer_device(
+//          this->sp_,
+//          user_mng,
+//          this->shared_from_this());
+//
+//            co_return http_response::simple_text_response(
+//                    result->str(),
+//                    "application/json; charset=utf-8");
+//    }
+//  }
+//
 
-      const auto result = api_controller::get_channels(
-          *user_mng,
-          this->shared_from_this(),
-          message);
-      co_return http_response::simple_text_response(
-          result->str(),
-          "application/json; charset=utf-8");
-    }
-
-    if (request.method() == "POST") {
-      auto user_mng = this->get_secured_context(request.get_parameter("session"));
-      if (!user_mng) {
-        co_return http_response::status_response(
-                http_response::HTTP_Unauthorized,
-                "Unauthorized");
-      }
-
-      co_return co_await index_page::create_channel(
-          this->sp_,
-          user_mng,
-          this->shared_from_this(),
-          message);
-    }
-  }
-
-  if (request.url() == "/api/try_login" && request.method() == "GET") {
-    const auto login = request.get_parameter("login");
-    const auto password = request.get_parameter("password");
-
-    co_return co_await api_controller::get_login_state(
-      this->sp_,
-      login,
-      password,
-      this->shared_from_this(),
-      message);
-  }
-
-  if (request.url() == "/api/session" && request.method() == "GET") {
-    const auto session_id = request.get_parameter("session");
-
-    co_return co_await api_controller::get_session(
-      this->shared_from_this(),
-      session_id);
-  }
-
-  if (request.url() == "/api/logout" && request.method() == "POST") {
-    const auto session_id = request.get_parameter("session");
-
-    co_return co_await api_controller::logout(
-      this->shared_from_this(),
-      session_id);
-  }
-
-  if (request.url() == "/api/channel_feed") {
-    if (request.method() == "GET") {
-      const auto user_mng = this->get_secured_context(request.get_parameter("session"));
-      if (!user_mng) {
-        co_return http_response::status_response(
-            http_response::HTTP_Unauthorized,
-            "Unauthorized");
-      }
-
-      const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
-
-      auto result = co_await api_controller::channel_feed(
-        this->sp_,
-        user_mng,
-        this->shared_from_this(),
-        channel_id);
-
-      co_return http_response::simple_text_response(
-            result->str(),
-            "application/json; charset=utf-8");
-    }
-  }
-
-  if (request.url() == "/api/devices") {
-    if (request.method() == "GET") {
-      const auto user_mng = this->get_secured_context(request.get_parameter("session"));
-      if (!user_mng) {
-        co_return http_response::status_response(
-            http_response::HTTP_Unauthorized,
-            "Unauthorized");
-      }
-
-      auto result = co_await
-      api_controller::user_devices(
-          this->sp_,
-          user_mng,
-          this->shared_from_this());
-
-      co_return http_response::simple_text_response(
-          result->str(),
-          "application/json; charset=utf-8");
-    }
-    if (request.method() == "POST") {
-      auto user_mng = this->get_secured_context(request.get_parameter("session"));
-      if (!user_mng) {
-        co_return http_response::status_response(
-                http_response::HTTP_Unauthorized,
-                "Unauthorized");
-      }
-
-      const auto device_name = request.get_parameter("name");
-      const auto reserved_size = safe_cast<uint64_t>(std::atoll(request.get_parameter("size").c_str()));
-      const auto local_path = request.get_parameter("path");
-      co_await api_controller::lock_device(
-          this->sp_,
-          user_mng,
-          this->shared_from_this(),
-          device_name,
-          local_path,
-          reserved_size);
-
-      co_return http_response::status_response(
-                    http_response::HTTP_OK,
-                    "OK");
-    }
-  }
-
-  if (request.url() == "/api/offer_device") {
-    if (request.method() == "GET") {
-      const auto user_mng = this->get_secured_context(request.get_parameter("session"));
-      if (!user_mng) {
-        co_return http_response::status_response(
-                http_response::HTTP_Unauthorized,
-                "Unauthorized");
-      }
-
-      auto result = co_await api_controller::offer_device(
-          this->sp_,
-          user_mng,
-          this->shared_from_this());
-
-            co_return http_response::simple_text_response(
-                    result->str(),
-                    "application/json; charset=utf-8");
-    }
-  }
-
-  if (request.url() == "/api/download") {
-    if (request.method() == "GET") {
-      co_await message.ignore_empty_body();
-      const auto user_mng = this->get_secured_context(request.get_parameter("session"));
-      if (!user_mng) {
-        co_return http_response::status_response(
-            http_response::HTTP_Unauthorized,
-            "Unauthorized");
-      }
-
-      const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
-      const auto file_hash = base64::to_bytes(request.get_parameter("object_id"));
-
-      auto buffer = std::make_shared<continuous_buffer<uint8_t>>(this->sp_);
-
-      auto result = co_await api_controller::download_file(
-        this->sp_,
-        user_mng,
-        this->shared_from_this(),
-        channel_id,
-        file_hash,
-        std::make_shared<continuous_stream_output_async<uint8_t>>(buffer));
-
-        co_return http_response::file_response(
-            std::make_shared<continuous_stream_input_async<uint8_t>>(buffer),
-            result.size,
-            result.name,
-            result.mime_type);
-    }
-  }
-
-  if (request.url() == "/api/parse_join_request" && request.method() == "POST") {
-    const auto user_mng = this->get_secured_context(request.get_parameter("session"));
-    if (!user_mng) {
-      co_return http_response::status_response(
-          http_response::HTTP_Unauthorized,
-          "Unauthorized");
-    }
-
-    co_return co_await index_page::parse_join_request(
-      this->sp_,
-      user_mng,
-      this->shared_from_this(),
-      message);
-  }
-  if (request.url() == "/approve_join_request" && request.method() == "POST") {
-    auto user_mng = this->get_secured_context(request.get_parameter("session"));
-    if (!user_mng) {
-      co_return http_response::status_response(
-          http_response::HTTP_Unauthorized,
-          "Unauthorized");
-    }
-
-    co_return co_await index_page::approve_join_request(
-      this->sp_,
-      user_mng,
-      this->shared_from_this(),
-      message);
-  }
-
-  if(request.url() == "/upload" && request.method() == "POST") {
-    auto user_mng = this->get_secured_context(request.get_parameter("session"));
-    if (!user_mng) {
-      co_await message.ignore_body();
-      co_return http_response::status_response(
-          http_response::HTTP_Unauthorized,
-          "Unauthorized");
-    }
-
-    co_return co_await index_page::create_message(
-      this->sp_,
-      user_mng,
-      this->shared_from_this(),
-      message);  
-  }
-
-  if (request.url() == "/" && request.method() == "GET") {
-    co_return co_await this->router_.route(message, "/index");
-  }
-
-  if (request.url() == "/api/register_requests" && request.method() == "GET") {
-    co_await message.ignore_empty_body();
-    auto result = co_await api_controller::get_register_requests(
-        this->sp_,
-        this->shared_from_this());
-    co_return http_response::simple_text_response(
-          result->str(),
-          "application/json; charset=utf-8");
-    
-  }
-  if (request.url() == "/api/register_request" && request.method() == "GET") {
-    co_await message.ignore_empty_body();
-    auto result = co_await api_controller::get_register_request(
-      this->sp_,
-      this->shared_from_this(),
-      base64::to_bytes(request.get_parameter("id")));
-
-    co_return http_response::simple_text_response(
-      result->str(),
-      "application/json; charset=utf-8");
-  }
-
-  if (request.url() == "/api/download_register_request" && request.method() == "GET") {
-    const auto request_id = base64::to_bytes(request.get_parameter("id"));
-    co_await message.ignore_empty_body();
-
-    auto result = co_await api_controller::get_register_request_body(
-        this->sp_,
-        this->shared_from_this(),
-        request_id);
-    co_return http_response::file_response(
-        result,
-        "user_invite.bin");
-  }
-
-  if(request.url() == "/register_request" && request.method() == "POST") {
-    co_return co_await login_page::register_request_post(
-        this->sp_,
-        this->shared_from_this(),
-        message);
-  }
-
-  if (request.url() == "/api/statistics") {
-    if (request.method() == "GET") {
-      co_await message.ignore_empty_body();
-
-      auto result = co_await api_controller::get_statistics(
-        this->sp_,
-        this->shared_from_this(),
-        message);
-      co_return http_response::simple_text_response(
-        result->str(),
-        "application/json; charset=utf-8");
-    }
-  }
-
-  co_return co_await this->router_.route(message, request.url());
-}
+//
+//  if (request.url() == "/api/download_register_request" && request.method() == "GET") {
+//    const auto request_id = base64::to_bytes(request.get_parameter("id"));
+//    co_await message.ignore_empty_body();
+//
+//    auto result = co_await api_controller::get_register_request_body(
+//        this->sp_,
+//        this->shared_from_this(),
+//        request_id);
+//    co_return http_response::file_response(
+//        result,
+//        "user_invite.bin");
+//  }
+//
+//  if(request.url() == "/register_request" && request.method() == "POST") {
+//    co_return co_await login_page::register_request_post(
+//        this->sp_,
+//        this->shared_from_this(),
+//        message);
+//  }
+//
+//
+//  co_return co_await this->router_.route(message, request.url());
+//}
 
 void vds::_web_server::load_web(const std::string& path, const foldername & folder) {
   foldername f(folder);
   f.files([this, path](const filename & fn) -> bool{
     if(".html" == fn.extension()) {
-      this->router_.add_file(path + fn.name_without_extension(), fn);
+      if(fn.name_without_extension() == "index") {
+        this->router_.add_file(path, fn);
+      }
+      else {
+        this->router_.add_file(path + fn.name_without_extension(), fn);
+      }
     }
     else {
       this->router_.add_file(path + fn.name(), fn);

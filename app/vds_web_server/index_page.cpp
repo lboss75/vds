@@ -11,16 +11,17 @@ All rights reserved
 #include "user_channel.h"
 #include "http_form_parser.h"
 #include "file_operations.h"
+#include "http_response.h"
+#include "http_request.h"
 
 vds::async_task<vds::http_message> vds::index_page::create_channel(
   const vds::service_provider * sp,
-  const std::shared_ptr<user_manager>& user_mng,
-  const std::shared_ptr<_web_server>& web_server,
-  const http_message& message) {
+  const std::shared_ptr<user_manager> & user_mng,
+  const http_request & message) {
 
   auto parser = std::make_shared<http::simple_form_parser>(sp);
 
-  co_await parser->parse(message);
+  co_await parser->parse(message.get_message());
   
   auto name = parser->values().find("channelName");
   co_return co_await api_controller::create_channel(user_mng, name->second);
@@ -77,12 +78,11 @@ private:
 vds::async_task<vds::http_message> vds::index_page::create_message(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
-  const std::shared_ptr<_web_server>& web_server,
-  const http_message& message) {
+  const http_request & request) {
 
   auto parser = std::make_shared<create_message_form>(sp ,user_mng);
 
-  co_await parser->parse(message);
+  co_await parser->parse(request.get_message());
   co_await parser->complete();
   
   co_return http_response::redirect("/");
@@ -128,15 +128,14 @@ private:
   std::string userEmail_;
 };
 
-vds::async_task<vds::http_message> vds::index_page::parse_join_request(
+vds::async_task<std::shared_ptr<vds::json_value>> vds::index_page::parse_join_request(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
-  const std::shared_ptr<_web_server>& web_server,
-  const http_message& message) {
+  const http_request & message) {
 
   auto parser = std::make_shared<parse_request_form>(sp);
 
-  co_await parser->parse(message);
+  co_await parser->parse(message.get_message());
 
   auto result = std::make_shared<json_object>();
   if (parser->successful()) {
@@ -148,9 +147,7 @@ vds::async_task<vds::http_message> vds::index_page::parse_join_request(
     result->add_property("successful", "false");
   }
 
-  co_return http_response::simple_text_response(
-    result->json_value::str(),
-    "application/json; charset=utf-8");
+  co_return result;
 }
 
 class approve_join_request_form : public vds::http::form_parser<approve_join_request_form> {
@@ -186,12 +183,12 @@ private:
 
 vds::async_task<vds::http_message> vds::index_page::approve_join_request(
   const vds::service_provider * sp,
-  const std::shared_ptr<user_manager>& user_mng, const std::shared_ptr<_web_server>& web_server,
-  const http_message& message) {
+  const std::shared_ptr<user_manager>& user_mng,
+  const http_request& message) {
 
   auto parser = std::make_shared<approve_join_request_form>(sp, user_mng);
 
-  co_await parser->parse(message);
+  co_await parser->parse(message.get_message());
 
   co_return http_response::redirect(parser->successful() ? "/?message=approve_successful" : "/?message=approve_failed");
 }

@@ -6,8 +6,11 @@
 
 vds::auth_session::auth_session(
   const service_provider * sp,
-  const std::string &login, const std::string &password)
-: login_(login),
+  const std::string & session_id,
+  const std::string &login,
+  const std::string &password)
+: session_id_(session_id),
+  login_(login),
   password_(password),
   user_mng_(new user_manager(sp)) {
 

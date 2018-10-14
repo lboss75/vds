@@ -1,7 +1,7 @@
 #ifndef __VDS_WEB_SERVER_WEB_SERVER_P_H_
 #define __VDS_WEB_SERVER_WEB_SERVER_P_H_
 #include "tcp_socket_server.h"
-#include "http_middleware.h"
+#include "http_router.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -24,9 +24,6 @@ namespace vds {
         uint16_t port);
     vds::async_task<void> prepare_to_stop();
 
-    vds::async_task<http_message> route(
-      
-      const http_message request);
 
     void add_auth_session(
         const std::string & id,
@@ -43,7 +40,7 @@ namespace vds {
   private:
     const service_provider * sp_;
     tcp_socket_server server_;
-    http_middleware<_web_server> middleware_;
+    //http_middleware<_web_server> middleware_;
     http_router router_;
 
     mutable std::shared_mutex auth_session_mutex_;

@@ -13,33 +13,30 @@ namespace vds {
   class _web_server;
   class user_manager;
   class http_message;
+  class http_request;
 
   class index_page
   {
   public:
     static vds::async_task<http_message> create_channel(
       const vds::service_provider * sp,
-      const std::shared_ptr<user_manager> &user_mng,
-      const std::shared_ptr<_web_server> &web_server,
-      const http_message &message);
+      const std::shared_ptr<user_manager> & user_mng,
+      const http_request & request);
 
     static vds::async_task<http_message> create_message(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> &user_mng,
-      const std::shared_ptr<_web_server> &web_server,
-      const http_message &message);
+      const http_request & request);
 
-    static vds::async_task<vds::http_message> parse_join_request(
+    static vds::async_task<std::shared_ptr<vds::json_value>> parse_join_request(
         const vds::service_provider * sp,
         const std::shared_ptr<user_manager>& user_mng,
-        const std::shared_ptr<_web_server>& web_server,
-        const http_message& message);
+        const http_request & request);
 
     static vds::async_task<vds::http_message> approve_join_request(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager>& user_mng,
-      const std::shared_ptr<_web_server>& web_server,
-      const http_message& message);
+      const http_request & request);
   };
 }
 

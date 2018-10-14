@@ -17,6 +17,7 @@ namespace vds {
   public:
     auth_session(
         const service_provider * sp,
+        const std::string & session_id,
         const std::string & login,
         const std::string & password);
 
@@ -27,10 +28,14 @@ namespace vds {
       return this->user_mng_;
     }
 
+    const std::string & id() const {
+      return this->session_id_;
+    }
     user_manager::login_state_t get_login_state() const;
     const std::string & user_name();
 
   private:
+    std::string session_id_;
     std::string login_;
     std::string password_;
     std::shared_ptr<user_manager> user_mng_;

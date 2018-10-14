@@ -17,6 +17,8 @@
 #include "member_user.h"
 #include "device_record_dbo.h"
 #include "server.h"
+#include "http_response.h"
+#include "http_request.h"
 
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
@@ -26,29 +28,28 @@ std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   return item;
 }
 
-std::shared_ptr<vds::json_value>
+vds::async_task<std::shared_ptr<vds::json_value>>
 vds::api_controller::get_channels(
-    
-    user_manager & user_mng,
-    const std::shared_ptr<vds::_web_server> &owner,
-    const vds::http_message &message) {
+  const vds::service_provider * /*sp*/,
+  const std::shared_ptr<user_manager> & user_mng,
+  const http_request & /*message*/) {
   auto result = std::make_shared<json_array>();
-  for(auto & channel : user_mng.get_channels()) {
+  for(auto & channel : user_mng->get_channels()) {
     result->add(channel_serialize(*channel.second));
   }
 
-  return std::static_pointer_cast<json_value>(result);
+  co_return std::static_pointer_cast<json_value>(result);
 }
 
-vds::async_task<vds::http_message> vds::api_controller::get_login_state(
+vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_login_state(
   const vds::service_provider * sp,
   const std::string & login,
   const std::string & password,
   const std::shared_ptr<_web_server>& owner,
-  const http_message& message) {
+  const http_request& request) {
 
   auto session_id = std::to_string(std::rand()) + "." + std::to_string(std::rand()) + "." + std::to_string(std::rand());
-  auto session = std::make_shared<auth_session>(sp, login, password);
+  auto session = std::make_shared<auth_session>(sp, session_id, login, password);
   co_await session->load(sp);
 
   auto item = std::make_shared<json_object>();
@@ -74,14 +75,12 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(
     throw std::runtime_error("Invalid program");
   }
 
-  co_return http_response::simple_text_response(
-    item->json_value::str(),
-    "application/json; charset=utf-8");
+  co_return item;
 }
 
 vds::async_task<vds::http_message>
 vds::api_controller::create_channel(  
-  const std::shared_ptr<vds::user_manager> &user_mng,
+  const std::shared_ptr<user_manager> & user_mng,
   const std::string & name) {
 
   auto channel = co_await user_mng->create_channel(name);
@@ -93,8 +92,7 @@ vds::api_controller::create_channel(
 
 vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_feed(
   const vds::service_provider * sp,
-  const std::shared_ptr<user_manager>& user_mng,
-  const std::shared_ptr<_web_server>& owner,
+  const std::shared_ptr<user_manager> & user_mng,
   const const_data_buffer & channel_id) {
   auto result = std::make_shared<json_array>();
   co_await sp->get<db_model>()->async_transaction([user_mng, channel_id, result](database_transaction & t)->bool {
@@ -120,61 +118,18 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_f
     return true;
   });
 
-  co_return std::static_pointer_cast<json_value>(result);
+  co_return result;
 }
 
 vds::async_task<vds::file_manager::file_operations::download_result_t>
 vds::api_controller::download_file(
   const vds::service_provider * sp,
-  const std::shared_ptr<user_manager>& user_mng,
-  const std::shared_ptr<_web_server>& owner,
+  const std::shared_ptr<user_manager> & user_mng,
   const const_data_buffer& channel_id,
   const const_data_buffer& file_hash,
   const std::shared_ptr<stream_output_async<uint8_t>> & output_stream) {
 
-  co_return co_await sp->get<file_manager::file_operations>()->download_file(user_mng, channel_id, file_hash, output_stream);
-}
-
-vds::async_task<std::shared_ptr<vds::json_value>>
-vds::api_controller::user_devices(
-  const vds::service_provider * sp,
-    const std::shared_ptr<vds::user_manager> &user_mng,
-    const std::shared_ptr<vds::_web_server> &owner) {
-  auto result = std::make_shared<json_array>();
-
-  co_await sp->get<db_model>()->async_read_transaction([sp, user_mng, result](database_read_transaction & t){
-    auto client = sp->get<dht::network::client>();
-    auto current_node = client->current_node_id();
-
-    orm::device_config_dbo t1;
-    orm::device_record_dbo t2;
-    db_value<uint64_t> used_size;
-    auto st = t.get_reader(
-        t1.select(
-            t1.name,
-            t1.node_id,
-            t1.local_path,
-            t1.reserved_size,
-            db_sum(t2.data_size).as(used_size))
-        .left_join(t2, t2.local_path == t1.local_path && t2.node_id == t1.node_id)
-        .where(t1.owner_id == user_mng->get_current_user().user_certificate()->subject())
-        .group_by(t1.name, t1.node_id, t1.local_path, t1.reserved_size));
-    while(st.execute()){
-      auto item = std::make_shared<json_object>();
-      item->add_property("name", t1.name.get(st));
-      item->add_property("local_path", t1.local_path.get(st));
-      item->add_property("reserved_size", t1.reserved_size.get(st));
-      item->add_property("used_size", std::to_string(used_size.get(st)));
-      item->add_property("free_size", std::to_string(foldername(t1.local_path.get(st)).free_size()));
-      item->add_property(
-          "current",
-          (t1.node_id.get(st) == current_node) ? "true" : "false");
-
-      result->add(item);
-    }
-  });
-  
-  co_return std::static_pointer_cast<json_value>(result);
+  return sp->get<file_manager::file_operations>()->download_file(user_mng, channel_id, file_hash, output_stream);
 }
 
 vds::async_task<std::shared_ptr<vds::json_value>>
@@ -217,8 +172,7 @@ vds::api_controller::offer_device(
 
 vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_statistics(
   const vds::service_provider * sp,
-  const std::shared_ptr<_web_server>& owner,
-  const http_message& message) {
+  const http_request& /*message*/) {
 
   auto statistic = co_await sp->get<server>()->get_statistic();
   co_return statistic.serialize();
@@ -268,7 +222,10 @@ vds::api_controller::lock_device(
 vds::async_task<std::shared_ptr<vds::json_value>>
 vds::api_controller::get_register_requests(
   const vds::service_provider * sp,
-  const std::shared_ptr<vds::_web_server> &owner) {
+  const std::shared_ptr<user_manager>& /*user_mng*/,
+  const http_request& message) {
+  
+  co_await message.get_message().ignore_empty_body();
 
   auto result = std::make_shared<json_array>();
 
@@ -291,9 +248,9 @@ vds::api_controller::get_register_requests(
 vds::async_task<std::shared_ptr<vds::json_value>>
 vds::api_controller::get_register_request(
   const vds::service_provider * sp,
-  const std::shared_ptr<vds::_web_server> &owner,
-  const const_data_buffer & request_id) {
-
+  const std::shared_ptr<user_manager>& /*user_mng*/,
+  const http_request& request) {
+  auto request_id = base64::to_bytes(request.get_parameter("id"));
   auto result = std::make_shared<json_array>();
 
   co_await sp->get<db_model>()->async_transaction([result, request_id](database_transaction & t) {
@@ -334,11 +291,8 @@ vds::async_task<vds::const_data_buffer> vds::api_controller::get_register_reques
   co_return *result;
 }
 
-vds::async_task<vds::http_message> vds::api_controller::get_session(
-  
-  const std::shared_ptr<_web_server>& owner,
-  const std::string& session_id) {
-  auto session = owner->get_session(session_id);
+vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_session(
+  const std::shared_ptr<auth_session> & session) {
 
   auto result = std::make_shared<json_object>();
 
@@ -347,18 +301,10 @@ vds::async_task<vds::http_message> vds::api_controller::get_session(
   }
   else {
     result->add_property("state", "sucessful");
-    result->add_property("session", session_id);
+    result->add_property("session", session->id());
     result->add_property("user_name", session->user_name());
   }
 
-  co_return http_response::simple_text_response(
-      result->json_value::str(),
-      "application/json; charset=utf-8");
+  co_return result;
 }
 
-vds::async_task<vds::http_message> vds::api_controller::logout(
-  const std::shared_ptr<_web_server>& owner, const std::string & session_id) {
-  owner->kill_session(session_id);
-
-  co_return http_response::redirect("/");
-}

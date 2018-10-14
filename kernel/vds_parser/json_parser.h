@@ -42,6 +42,16 @@ namespace vds {
       const uint8_t * input_buffer,
       size_t input_len);
 
+    static std::shared_ptr<json_value> parse(const std::string &stream_name, const const_data_buffer & data) {
+      std::shared_ptr<json_value> result;
+      auto parser = std::make_shared<json_parser>(stream_name, [&result](const std::shared_ptr<json_value> & items) {
+        result = items;
+      });
+      parser->write(data.data() , data.size());
+      parser->write(nullptr, 0);
+
+      return result;
+    }
   private:
     std::string stream_name_;
     std::function<void(const std::shared_ptr<json_value> &)> result_;
