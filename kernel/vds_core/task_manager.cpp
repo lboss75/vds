@@ -10,6 +10,7 @@ All rights reserved
 #include "shutdown_event.h"
 #include "barrier.h"
 #include "logger.h"
+#include "async_task.h"
 
 vds::timer::timer(const char * name)
 : name_(name),

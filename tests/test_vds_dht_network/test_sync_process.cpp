@@ -323,7 +323,7 @@ const vds::network_address& mock_server::address() const {
 
 
 #define route_client(message_type)\
-  case vds::dht::network::message_type_t::##message_type: {\
+  case vds::dht::network::message_type_t::message_type: {\
       co_return co_await this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, message_info](vds::database_transaction & t) {\
         vds::binary_deserializer s(message_info.message_data());\
         auto message = vds::message_deserialize<vds::dht::messages::message_type>(s);\
@@ -337,7 +337,7 @@ const vds::network_address& mock_server::address() const {
     }
 
 #define route_client_wait(message_type)\
-  case vds::dht::network::message_type_t::##message_type: {\
+  case vds::dht::network::message_type_t::message_type: {\
       vds::binary_deserializer s(message_info.message_data());\
       auto message = vds::message_deserialize<vds::dht::messages::message_type>(s);\
       co_return co_await (*this->sp_->get<vds::dht::network::client>())->apply_message(\

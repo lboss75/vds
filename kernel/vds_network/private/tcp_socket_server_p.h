@@ -175,14 +175,10 @@ namespace vds {
 
                     auto socket = accept(this->s_, &client_address, &client_address_length);
                     if (INVALID_SOCKET != socket) {
-                      try {
-                        auto s = _tcp_network_socket::from_handle(socket);
-                        (*s)->make_socket_non_blocking();
-                        (*s)->set_timeouts();
-                        this->new_connection_(s);
-                      }
-                      catch (...){
-                      }
+                      auto s = _tcp_network_socket::from_handle(socket);
+                      (*s)->make_socket_non_blocking();
+                      (*s)->set_timeouts();
+                      this->new_connection_(s).detach();
                     }
                   }
                 }
