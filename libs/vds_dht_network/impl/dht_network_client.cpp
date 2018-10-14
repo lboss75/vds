@@ -75,7 +75,7 @@ vds::async_task<std::vector<vds::const_data_buffer>> vds::dht::network::_client:
     result[replica] = replica_hash;
   }
 
-  return result;
+  co_return result;
 }
 
 vds::async_task<void> vds::dht::network::_client::apply_message(

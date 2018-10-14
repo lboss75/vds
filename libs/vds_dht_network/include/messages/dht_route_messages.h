@@ -173,7 +173,7 @@ namespace vds {
 }
 
 namespace std {
-#define enum2str(x) case vds::dht::network::message_type_t::##x: return #x;
+#define enum2str(x) case vds::dht::network::message_type_t::x: return #x;
   inline std::string to_string(vds::dht::network::message_type_t v) {
     switch (v) {
       enum2str(transaction_log_state);

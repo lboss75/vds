@@ -53,7 +53,7 @@ vds::async_task<void> vds::dht::network::sync_process::add_to_log(
                              && t3.source_node == source_node
                              && t3.source_index == source_index));
   if (st.execute()) {
-    return;
+    co_return;
   }
 
   auto client = this->sp_->get<network::client>();
@@ -1523,6 +1523,8 @@ vds::async_task<void> vds::dht::network::sync_process::send_random_replicas(
       }
     }
   }
+
+  throw std::runtime_error("Invalid program");
 }
 
 void vds::dht::network::sync_process::validate_last_applied(
@@ -2013,7 +2015,7 @@ vds::async_task<void> vds::dht::network::sync_process::apply_message(
 
     const auto count = voted_count.get(st);
     if (count >= this->get_quorum(t, message.object_id)) {
-      this->make_leader(t, message.object_id);
+      co_await this->make_leader(t, message.object_id);
     }
   }
 }

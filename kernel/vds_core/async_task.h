@@ -88,6 +88,12 @@ namespace vds {
       return (!this->value_) ? std::future_status::timeout : std::future_status::ready;
     }
 
+    bool await_ready() {
+      std::unique_lock<std::mutex> lock(this->value_mutex_);
+      return (!this->value_) ? false : true;
+    }
+
+
     result_type get() {
       std::unique_lock<std::mutex> lock(this->value_mutex_);
       while (!this->value_) {
@@ -160,6 +166,10 @@ namespace vds {
       return this->state_->get();
     }
 
+    bool await_ready() const noexcept {
+      return this->state_->await_ready();
+    }
+
     void then(const std::function<void(void)> & f) {
       this->state_->then(f);
     }
@@ -224,6 +234,63 @@ namespace vds {
   private:
     std::shared_ptr<_async_task_state<void>> state_;
   };
+
+
+#ifndef _WIN32
+  template<typename T>
+  struct awaiter {
+    vds::async_task<T> _future;
+  public:
+    explicit awaiter(vds::async_task<T> &&f) noexcept : _future(std::move(f)) {
+    }
+
+    bool await_ready() const noexcept {
+      return _future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+    }
+
+    template<typename U>
+    void await_suspend(std::experimental::coroutine_handle<U> hndl) noexcept {
+      this->_future.then([hndl]() mutable {
+        hndl();
+      });
+    }
+
+    T await_resume() {
+      return _future.get();
+    }
+  };
+
+  template<>
+  struct awaiter<void> {
+    vds::async_task<void> _future;
+  public:
+    explicit awaiter(vds::async_task<void> &&f) noexcept
+        : _future(std::move(f)) {}
+
+    bool await_ready() const noexcept {
+      return _future.await_ready();
+    }
+
+    template<typename U>
+    void await_suspend(std::experimental::coroutine_handle<U> hndl) noexcept {
+      this->_future.then([hndl]() mutable {
+        hndl();
+      });
+    }
+
+    void await_resume() { _future.get(); }
+  };
+
+  template<typename T>
+  inline auto operator co_await(async_task<T> f) noexcept {
+    return awaiter<T>(std::move(f));
+  }
+
+  inline auto operator co_await(async_task<void> f) noexcept {
+    return awaiter<void>(std::move(f));
+  }
+
+#endif//_WIN32
 }
 
 namespace std {
@@ -297,61 +364,7 @@ namespace std {
 
 
 namespace std {
-#ifndef _WIN32
-  template<typename T>
-  struct awaiter {
-    vds::async_task<T> _future;
-  public:
-    explicit awaiter(vds::async_task<T> &&f) noexcept : _future(std::move(f)) {
-    }
-
-    bool await_ready() const noexcept {
-      return _future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-}
-
-    template<typename U>
-    void await_suspend(std::experimental::coroutine_handle<U> hndl) noexcept {
-      std::async([this, hndl]() mutable {
-        this->_future.wait();
-        hndl.resume();
-      });
-    }
-
-    T await_resume() {
-      return _future.get();
-    }
-  };
-
-  template<>
-  struct awaiter<void> {
-    vds::async_task<void> _future;
-  public:
-    explicit awaiter(vds::async_task<void> &&f) noexcept : _future(std::move(f)) {}
-
-    bool await_ready() const noexcept {
-      return _future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-    }
-
-    template<typename U>
-    void await_suspend(std::experimental::coroutine_handle<U> hndl) noexcept {
-      std::async([this, hndl]() mutable {
-        this->_future.wait();
-        hndl.resume();
-      });
-    }
-
-    void await_resume() { _future.get(); }
-  };
-
-  template<typename T>
-  inline auto operator co_await(vds::async_task<T> f) noexcept {
-    return vds::awaiter<T>(std::move(f));
-  }
-
-  inline auto operator co_await(vds::async_task<void> f) noexcept {
-    return vds::awaiter<void>(std::move(f));
-  }
-#else
+#ifdef _WIN32
   template <typename  T>
   bool await_ready(vds::async_task<T> & _future)
   {
@@ -374,136 +387,6 @@ namespace std {
   }
 #endif
 }
-
-
-#ifndef _WIN32
-
-#include <experimental/coroutine>
-#include "vds_debug.h"
-
-namespace std {
-  namespace experimental {
-    template<typename R, typename... Args>
-    struct coroutine_traits<vds::async_task<R>, Args...> {
-      struct promise_type {
-        vds::async_result<R> p;
-
-        auto get_return_object() {
-          return p.get_future();
-        }
-
-        std::experimental::suspend_never initial_suspend() {
-          return {};
-        }
-
-        std::experimental::suspend_never final_suspend() {
-          return {};
-        }
-
-        void set_exception(std::exception_ptr e) {
-          p.set_exception(std::move(e));
-        }
-
-        template<typename U>
-        void return_value(U &&u) {
-          p.set_value(std::forward<U>(u));
-        }
-
-        void unhandled_exception() {
-          p.set_exception(std::current_exception());
-        }
-      };
-    };
-    template<typename... Args>
-    struct coroutine_traits<vds::async_task<void>, Args...> {
-      struct promise_type {
-        vds::async_result<void> p;
-
-        auto get_return_object() {
-          return p.get_future();
-        }
-
-        std::experimental::suspend_never initial_suspend() {
-          return {};
-        }
-
-        std::experimental::suspend_never final_suspend() {
-          return {};
-        }
-
-        void set_exception(std::exception_ptr e) {
-          p.set_exception(std::move(e));
-        }
-
-        void return_void() {
-          p.set_value();
-        }
-
-        void unhandled_exception() {
-          p.set_exception(std::current_exception());
-        }
-      };
-    };
-  };
-}
-
-namespace vds {
-  template<typename T>
-  struct awaiter {
-    vds::async_task<T> _future;
-  public:
-    explicit awaiter(vds::async_task<T> &&f) noexcept : _future(std::move(f)) {
-    }
-
-    bool await_ready() const noexcept {
-      return _future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-    }
-
-    template<typename U>
-    void await_suspend(std::experimental::coroutine_handle<U> hndl) noexcept {
-      std::async([this, hndl] () mutable {
-        this->_future.wait();
-        hndl.resume();
-      });
-    }
-
-    T await_resume() {
-      return _future.get(); }
-  };
-
-  template<>
-  struct awaiter<void> {
-    vds::async_task<void> _future;
-  public:
-    explicit awaiter(vds::async_task<void> &&f) noexcept : _future(std::move(f)) {}
-
-    bool await_ready() const noexcept {
-      return _future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-    }
-
-    template<typename U>
-    void await_suspend(std::experimental::coroutine_handle<U> hndl) noexcept {
-      std::async([this, hndl]() mutable {
-        this->_future.wait();
-        hndl.resume();
-      });
-    }
-
-    void await_resume() { _future.get(); }
-  };
-}
-
-namespace std {
-  template<typename T>
-  inline auto operator co_await(vds::async_task<T> f) noexcept {
-    return vds::awaiter<T>(std::move(f));
-  }
-
-  inline auto operator co_await(vds::async_task<void> f) noexcept {
-    return vds::awaiter<void>(std::move(f));
-  }
-}
-#endif//_WIN32
 
 #endif // __VDS_CORE_ASYNC_TASK_H_
  
