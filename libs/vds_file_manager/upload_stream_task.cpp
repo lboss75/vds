@@ -52,7 +52,7 @@ vds::async_task<void> vds::_upload_stream_task::process_data(
     this->total_size_ += this->readed_;
   }
 
-  co_await sp->get<db_model>()->async_transaction([sp, pthis = this->shared_from_this(), network_client](
+  co_await sp->get<db_model>()->async_transaction([pthis = this->shared_from_this(), network_client](
     database_transaction &t)->bool{
 
     auto block_info = network_client->save(

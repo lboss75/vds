@@ -204,7 +204,7 @@ namespace std {
     }
   }
 
-#undef enum2str(x)
+#undef enum2str
 
 }
 

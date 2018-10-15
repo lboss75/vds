@@ -157,6 +157,9 @@ namespace vds {
 
               message = const_data_buffer(datagram.data() + 1 + 32 + 32 + 1, datagram.size() - (1 + 32 + 32 + 1 + 32));
               break;
+            default:
+              vds_assert(false);
+              break;
             }
             }
 

@@ -22,7 +22,7 @@ namespace vds {
   template <typename result_type>
   class _async_task_value {
   public:
-    ~_async_task_value(){}
+    virtual ~_async_task_value(){}
     virtual result_type get() = 0;
   };
 
@@ -73,9 +73,11 @@ namespace vds {
     : is_processed_(false) {
     }
 
-    ~_async_task_state() {
+#ifdef DEBUG
+    ~_async_task_state() noexcept(false) {
       vds_assert(this->is_processed_);
     }
+#endif
 
     template<class _Rep, class _Period>
     std::future_status wait_for(std::chrono::duration<_Rep, _Period> timeout) {
@@ -153,9 +155,11 @@ namespace vds {
     : state_(state) {      
     }
 
-    ~async_task() {
+#ifdef DEBUG
+    ~async_task() noexcept(false) {
       vds_assert(!this->state_ || this->state_->is_processed());
     }
+#endif
 
     template<class _Rep, class _Period>
     std::future_status wait_for(std::chrono::duration<_Rep, _Period> timeout) const {

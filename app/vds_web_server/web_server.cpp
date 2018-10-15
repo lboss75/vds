@@ -61,7 +61,7 @@ router_({
       const auto login = request.get_parameter("login");
       const auto password = request.get_parameter("password");
 
-      return co_await api_controller::get_login_state(
+      return api_controller::get_login_state(
         sp,
         login,
         password,
