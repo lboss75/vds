@@ -40,13 +40,7 @@ void vds::dht::network::udp_transport::start(
     this->writer_ = writer;
   }
 
-  std::thread([sp, this]() {
-    try {
-      this->continue_read().get();
-    }
-    catch (...) {
-    }
-  }).detach();
+      this->continue_read().detach();
 }
 
 void vds::dht::network::udp_transport::stop() {
