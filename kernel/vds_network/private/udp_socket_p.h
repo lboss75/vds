@@ -421,10 +421,46 @@ namespace vds {
     }
 
     vds::async_task<void> write_async( const udp_datagram & message) {
-      this->write_message_ = message;
       auto r = std::make_shared<vds::async_result<void>>();
-      this->write_result_ = r;
-      (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLOUT);
+      int len = sendto(
+          (*this->owner())->handle(),
+          message.data(),
+          message.data_size(),
+          0,
+          message.address(),
+          message.address().size());
+
+      if (len < 0) {
+        int error = errno;
+        if (EAGAIN == error) {
+          this->write_message_ = message;
+          this->write_result_ = r;
+          (*this->owner())->change_mask(
+              this->owner_, this->ns_, EPOLLOUT);
+        }
+        else {
+          auto address = message.address().to_string();
+
+          if (EMSGSIZE == error) {
+            r->set_exception(std::make_exception_ptr(udp_datagram_size_exception()));
+          } else {
+            r->set_exception(std::make_exception_ptr(std::system_error(
+                error,
+                std::generic_category(),
+                "Send to " + address)));
+          }
+        }
+      }
+      else {
+        if ((size_t)len != message.data_size()) {
+          r->set_exception(std::make_exception_ptr(
+              std::runtime_error("Invalid send UDP")));
+        }
+        else {
+          r->set_value();
+        }
+      }
+
       return r->get_future();
     }
 
