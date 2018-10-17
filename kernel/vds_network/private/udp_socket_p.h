@@ -213,7 +213,7 @@ namespace vds {
     uint8_t buffer_[64 * 1024];
 
     void process(DWORD dwBytesTransfered) override
-    {
+    {      
       vds_assert(this->result_);
       auto pthis = this->shared_from_this();
       auto r = std::move(this->result_);

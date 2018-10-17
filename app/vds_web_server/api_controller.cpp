@@ -45,9 +45,11 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_login
   const vds::service_provider * sp,
   const std::string & login,
   const std::string & password,
-  const std::shared_ptr<_web_server>& owner,
-  const http_request& request) {
+  const std::shared_ptr<_web_server>& owner_param,
+  const http_request& request_param) {
 
+  std::shared_ptr<_web_server> owner = owner_param;
+  http_request request = request_param;
   auto session_id = std::to_string(std::rand()) + "." + std::to_string(std::rand()) + "." + std::to_string(std::rand());
   auto session = std::make_shared<auth_session>(sp, session_id, login, password);
   co_await session->load(sp);

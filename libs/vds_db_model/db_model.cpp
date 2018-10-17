@@ -126,6 +126,8 @@ void vds::db_model::migrate(
 			owner_id VARCHAR(64) NOT NULL,\
 			name VARCHAR(64) NOT NULL,\
 			reserved_size INTEGER NOT NULL,\
+			cert BLOB NOT NULL,\
+			private_key BLOB NOT NULL,\
       CONSTRAINT pk_device_config PRIMARY KEY(node_id,local_path))");
 
     t.execute("CREATE TABLE device_record(\

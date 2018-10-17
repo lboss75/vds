@@ -51,7 +51,7 @@ vds::async_task<void> vds::_server::process_message(
       (*pthis->sp_->get<server>())->apply_message(
           t,
           message,
-          message_info);
+          message_info).get();
     });
     break;
   }
@@ -62,7 +62,7 @@ vds::async_task<void> vds::_server::process_message(
       (*pthis->sp_->get<server>())->apply_message(
           t,
           message,
-          message_info);
+          message_info).get();
       return true;
     });
     break;
@@ -71,7 +71,7 @@ vds::async_task<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_find_node: {
       binary_deserializer s(message_info.message_data());
       auto message = message_deserialize<dht::messages::dht_find_node>(s);
-      (*this->sp_->get<dht::network::client>())->apply_message(
+      co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
           message_info);
       break;
@@ -89,7 +89,7 @@ vds::async_task<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_ping: {
       binary_deserializer s(message_info.message_data());
       auto message = message_deserialize<dht::messages::dht_ping>(s);
-      (*this->sp_->get<dht::network::client>())->apply_message(
+      co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
           message_info);
       break;
@@ -98,7 +98,7 @@ vds::async_task<void> vds::_server::process_message(
     case dht::network::message_type_t::dht_pong: {
       binary_deserializer s(message_info.message_data());
       auto message = message_deserialize<dht::messages::dht_pong>(s);
-      (*this->sp_->get<dht::network::client>())->apply_message(
+      co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
           message_info);
       break;

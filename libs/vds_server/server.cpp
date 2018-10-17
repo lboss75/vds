@@ -259,27 +259,27 @@ vds::async_task<void> vds::_server::apply_message(
   return this->transaction_log_sync_process_->apply_message(t, message, message_info);
 }
 
-void vds::_server::apply_message(
+vds::async_task<void> vds::_server::apply_message(
   
   database_transaction & t,
   const dht::messages::transaction_log_request & message,
   const message_info_t & message_info) {
-  this->transaction_log_sync_process_->apply_message(t, message, message_info);
+  return this->transaction_log_sync_process_->apply_message(t, message, message_info);
 }
 
-void vds::_server::apply_message(
+vds::async_task<void> vds::_server::apply_message(
   
   database_transaction & t,
   const dht::messages::transaction_log_record & message,
   const message_info_t & message_info) {
-  this->transaction_log_sync_process_->apply_message(t, message, message_info);
+  return this->transaction_log_sync_process_->apply_message(t, message, message_info);
 }
 
 vds::async_task<void> vds::_server::on_new_session( const const_data_buffer& partner_id) {
   
   co_await this->sp_->get<db_model>()->async_read_transaction([this, partner_id](database_read_transaction & t) {
 
-    this->transaction_log_sync_process_->on_new_session(t, partner_id);
+    this->transaction_log_sync_process_->on_new_session(t, partner_id).get();
     (*this->sp_->get<dht::network::client>())->on_new_session(t, partner_id);
   });
 }

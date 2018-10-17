@@ -59,19 +59,19 @@ namespace vds {
       
       const const_data_buffer& partner_id) override;
 
-      vds::async_task<void> apply_message(
+      async_task<void> apply_message(
       
       database_transaction & t,
       const dht::messages::transaction_log_state & message,
       const message_info_t & message_info);
 
-    void apply_message(
+      async_task<void> apply_message(
       
       database_transaction& t,
       const dht::messages::transaction_log_request& message,
       const message_info_t & message_info);
 
-    void apply_message(
+      async_task<void> apply_message(
       
       database_transaction& t,
       const dht::messages::transaction_log_record & message,
