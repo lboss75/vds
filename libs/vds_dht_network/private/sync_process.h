@@ -167,7 +167,7 @@ namespace vds {
           const messages::sync_replica_query_operations_request & message,
           const imessage_map::message_info_t& message_info);
         
-        void on_new_session(
+        async_task<void> on_new_session(
           
           database_read_transaction& t,
           const const_data_buffer& partner_id);
@@ -318,10 +318,9 @@ namespace vds {
           const imessage_map::message_info_t& message_info);
 
         async_task<void> send_snapshot(
-          
           database_read_transaction& t,
-          const const_data_buffer& object_id,
-          const std::set<const_data_buffer>& target_nodes);
+          const const_data_buffer object_id,
+          const std::set<const_data_buffer> target_nodes);
 
         async_task<void> sync_local_queues(
           
@@ -434,10 +433,10 @@ namespace vds {
         };
 
         async_task<void> send_random_replicas(
-          std::map<uint16_t, std::list<std::function<async_task<void>()>>>& allowed_replicas,
-          std::set<uint16_t>& send_replicas,
+          std::map<uint16_t, std::list<std::function<async_task<void>()>>> allowed_replicas,
+          std::set<uint16_t> send_replicas,
           const uint16_t count,
-          const std::map<size_t, std::set<uint16_t>> & replica_frequency);
+          const std::map<size_t, std::set<uint16_t>> replica_frequency);
 
         static async_task<void> send_replica(
           const service_provider * sp,

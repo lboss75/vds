@@ -1266,10 +1266,11 @@ vds::async_task<void> vds::dht::network::sync_process::apply_message(
 }
 
 vds::async_task<void> vds::dht::network::sync_process::send_random_replicas(
-  std::map<uint16_t, std::list<std::function<vds::async_task<void>()>>>& allowed_replicas,
-  std::set<uint16_t> & send_replicas,
+  std::map<uint16_t, std::list<std::function<vds::async_task<void>()>>> allowed_replicas,
+  std::set<uint16_t> send_replicas,
   const uint16_t count,
-  const std::map<size_t, std::set<uint16_t>> & replica_frequency) {
+  const std::map<size_t, std::set<uint16_t>> replica_frequency) {
+
   while (!allowed_replicas.empty() && count >= send_replicas.size()) {
     for (const auto & p : replica_frequency) {
       auto index = std::rand() % p.second.size();
@@ -1358,7 +1359,7 @@ vds::async_task<void> vds::dht::network::sync_process::send_random_replicas(
         .inner_join(t6, t6.node_id == client->client::current_node_id() && t6.data_hash == t5.replica_hash)
         .where(t5.object_id == object_id));
 
-      while (st.sql_statement::execute()) {
+      while (st.execute()) {
         const auto replica = t5.replica.get(st);
         if (send_replicas.end() == send_replicas.find(replica)) {
           if (goal == send_random_replica_goal_t::new_member) {
@@ -1507,10 +1508,9 @@ vds::async_task<void> vds::dht::network::sync_process::send_random_replicas(
       }
 
       if(goal == send_random_replica_goal_t::new_member) {
-        std::set<uint16_t> fake_send_replicas;
         return this->send_random_replicas(
           allowed_replicas,
-          fake_send_replicas,
+          std::set<uint16_t>(),
           1,
           replica_frequency);
       }
@@ -1709,7 +1709,7 @@ vds::async_task<void> vds::dht::network::sync_process::apply_message(
       t1.source_index.get(st)));
 }
 
-void vds::dht::network::sync_process::on_new_session(
+vds::async_task<void> vds::dht::network::sync_process::on_new_session(
   
   database_read_transaction& t,
   const const_data_buffer& partner_id) {
@@ -1734,7 +1734,7 @@ void vds::dht::network::sync_process::on_new_session(
       && db_not_in(t1.object_id, t3.select(t3.object_id).where(t3.member_node == partner_id))));
 
   while(st.execute()) {
-    (*client)->send(partner_id, message_create<messages::sync_looking_storage_request>(
+    co_await (*client)->send(partner_id, message_create<messages::sync_looking_storage_request>(
       t1.object_id.get(st),
       t2.generation.get(st),
       t2.current_term.get(st),
@@ -1742,7 +1742,6 @@ void vds::dht::network::sync_process::on_new_session(
       t2.last_applied.get(st),
       t1.object_size.get(st)));
   }
-
 }
 
 vds::async_task<void> vds::dht::network::sync_process::send_leader_broadcast(
@@ -2318,10 +2317,9 @@ vds::async_task<void> vds::dht::network::sync_process::apply_record(
 }
 
 vds::async_task<void> vds::dht::network::sync_process::send_snapshot(
-  
   database_read_transaction& t,
-  const const_data_buffer& object_id,
-  const std::set<const_data_buffer>& target_nodes) {
+  const const_data_buffer object_id,
+  const std::set<const_data_buffer> target_nodes) {
 
   const auto client = this->sp_->get<network::client>();
 

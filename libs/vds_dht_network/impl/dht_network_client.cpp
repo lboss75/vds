@@ -298,11 +298,11 @@ void vds::dht::network::_client::get_neighbors(
   this->route_.get_neighbors(result);
 }
 
-void vds::dht::network::_client::on_new_session(
+vds::async_task<void> vds::dht::network::_client::on_new_session(
   
   database_read_transaction& t,
   const const_data_buffer& partner_id) {
-  this->sync_process_.on_new_session(
+  return this->sync_process_.on_new_session(
     t,
     partner_id);
 }

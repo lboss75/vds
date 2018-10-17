@@ -53,7 +53,7 @@ namespace vds {
           
           std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>& result);
         
-        void on_new_session(
+        async_task<void> on_new_session(
           
           database_read_transaction& t,
           const const_data_buffer& partner_id);
