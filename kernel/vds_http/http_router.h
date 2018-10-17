@@ -103,7 +103,7 @@ namespace vds {
       : body_(body) {        
       }
 
-      virtual handler_base * clone() {
+      handler_base * clone() override {
         return new static_handler(this->body_);
       }
 
@@ -122,7 +122,7 @@ namespace vds {
       : fn_(fn){        
       }
 
-      virtual handler_base * clone() {
+      handler_base * clone() override {
         return new file_handler(this->fn_);
       }
 
@@ -141,14 +141,14 @@ namespace vds {
         : callback_(callback) {
       }
 
-      virtual handler_base * clone() {
+      handler_base * clone() override {
         return new auth_handler(*this);
       }
 
       async_task<http_message> process(
         const service_provider * sp,
         const http_router * router,
-        const http_request & message) const override;
+        const http_request & request) const override;
 
     private:
       std::function<async_task<http_message>(const service_provider *, const std::shared_ptr<user_manager> &, const http_request &)> callback_;
@@ -158,7 +158,7 @@ namespace vds {
     public:
       auth_api_handler(const std::function<async_task<std::shared_ptr<json_value>>(const service_provider *, const std::shared_ptr<user_manager> &, const http_request &)> & callback);
 
-      virtual handler_base * clone() {
+      handler_base * clone() override {
         return new auth_api_handler(*this);
       }
     };
@@ -169,7 +169,7 @@ namespace vds {
         : callback_(callback) {
       }
 
-      virtual handler_base * clone() {
+      handler_base * clone() override {
         return new web_handler(*this);
       }
 
@@ -186,7 +186,7 @@ namespace vds {
     public:
       api_handler(const std::function<async_task<std::shared_ptr<json_value>>(const service_provider *, const http_request &)> & callback);
 
-      virtual handler_base * clone() {
+      handler_base * clone() override {
         return new api_handler(*this);
       }
     };
