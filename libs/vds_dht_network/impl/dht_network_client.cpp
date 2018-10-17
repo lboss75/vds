@@ -571,7 +571,7 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
 
     *result_progress = 99 * replicas.size() / service::MIN_HORCRUX;
     for (const auto& replica : unknonw_replicas) {
-      pthis->sync_process_.restore_replica(t, replica);
+      pthis->sync_process_.restore_replica(t, replica).detach();
     }
     return true;
   });

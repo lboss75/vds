@@ -23,7 +23,14 @@ namespace vds {
   class _async_task_value {
   public:
     virtual ~_async_task_value(){}
-    virtual result_type get() = 0;
+    virtual result_type & get() = 0;
+  };
+
+  template <>
+  class _async_task_value<void> {
+  public:
+    virtual ~_async_task_value() {}
+    virtual void get() = 0;
   };
 
   template <typename result_type>
@@ -35,8 +42,8 @@ namespace vds {
     : value_(std::forward<init_type>(v)) {
     }
 
-    result_type get() override {
-      return this->value_;      
+    result_type & get() override {
+      return this->value_;
     }
 
   private:
@@ -58,7 +65,22 @@ namespace vds {
       : ex_(ex) {
     }
 
-    result_type get() override {
+    result_type & get() override {
+      std::rethrow_exception(this->ex_);
+    }
+
+  private:
+    std::exception_ptr ex_;
+  };
+
+  template <>
+  class _async_task_throw_exception<void> : public _async_task_value<void> {
+  public:
+    _async_task_throw_exception(std::exception_ptr ex)
+      : ex_(ex) {
+    }
+
+    void get() override {
       std::rethrow_exception(this->ex_);
     }
 
@@ -96,7 +118,7 @@ namespace vds {
     }
 
 
-    result_type get() {
+    auto & get() {
       std::unique_lock<std::mutex> lock(this->value_mutex_);
       while (!this->value_) {
         this->value_cond_.wait(lock);
@@ -141,6 +163,81 @@ namespace vds {
     std::function<void(void)> then_function_;
   };
 
+  template <>
+  class _async_task_state<void> {
+  public:
+    _async_task_state()
+      : is_processed_(false) {
+    }
+
+#ifdef DEBUG
+    ~_async_task_state() noexcept(false) {
+      vds_assert(this->is_processed_);
+    }
+#endif
+
+    template<class _Rep, class _Period>
+    std::future_status wait_for(std::chrono::duration<_Rep, _Period> timeout) {
+      std::unique_lock<std::mutex> lock(this->value_mutex_);
+      if (this->value_) {
+        return std::future_status::ready;
+      }
+
+      this->value_cond_.wait_for(lock, timeout);
+      return (!this->value_) ? std::future_status::timeout : std::future_status::ready;
+    }
+
+    bool is_ready() {
+      std::unique_lock<std::mutex> lock(this->value_mutex_);
+      return (!this->value_) ? false : true;
+    }
+
+
+    void get() {
+      std::unique_lock<std::mutex> lock(this->value_mutex_);
+      while (!this->value_) {
+        this->value_cond_.wait(lock);
+      }
+      vds_assert(!this->is_processed_);
+      this->is_processed_ = true;
+      this->value_->get();
+    }
+
+    void then(const std::function<void(void)> & f) {
+      std::unique_lock<std::mutex> lock(this->value_mutex_);
+      if (!this->value_) {
+        this->then_function_ = f;
+      }
+      else {
+        lock.unlock();
+
+        f();
+      }
+    }
+
+    void set_value(_async_task_value<void> * v) {
+      std::unique_lock<std::mutex> lock(this->value_mutex_);
+      vds_assert(!this->value_);
+      this->value_.reset(v);
+      this->value_cond_.notify_all();
+      if (this->then_function_) {
+        lock.unlock();
+
+        this->then_function_();
+      }
+    }
+
+    bool is_processed() const {
+      return this->is_processed_;
+    }
+  private:
+    std::mutex value_mutex_;
+    std::condition_variable value_cond_;
+    bool is_processed_;
+    std::unique_ptr<_async_task_value<void>> value_;
+    std::function<void(void)> then_function_;
+  };
+
   template <typename result_type>
   class async_task {
   public:
@@ -166,7 +263,7 @@ namespace vds {
       return this->state_->wait_for(timeout);
     }
 
-    result_type get() {
+    auto & get() {
       return this->state_->get();
     }
 
@@ -190,6 +287,57 @@ namespace vds {
     }
   private:
     std::shared_ptr<_async_task_state<result_type>> state_;
+  };  
+
+  template <>
+  class async_task<void> {
+  public:
+    async_task() = delete;
+    async_task(const async_task &) = delete;
+    async_task(async_task &&) = default;
+
+    async_task & operator = (const async_task &) = delete;
+    async_task & operator = (async_task &&) = default;
+
+    async_task(const std::shared_ptr<_async_task_state<void>> & state)
+      : state_(state) {
+    }
+
+#ifdef DEBUG
+    ~async_task() noexcept(false) {
+      vds_assert(!this->state_ || this->state_->is_processed());
+    }
+#endif
+
+    template<class _Rep, class _Period>
+    std::future_status wait_for(std::chrono::duration<_Rep, _Period> timeout) const {
+      return this->state_->wait_for(timeout);
+    }
+
+    void get() {
+      this->state_->get();
+    }
+
+    bool is_ready() const noexcept {
+      return this->state_->is_ready();
+    }
+
+    void then(const std::function<void(void)> & f) {
+      this->state_->then(f);
+    }
+
+    void detach() {
+      auto s = std::move(this->state_);
+      s->then([s]() {
+        try {
+          s->get();
+        }
+        catch (...) {
+        }
+      });
+    }
+  private:
+    std::shared_ptr<_async_task_state<void>> state_;
   };
 
   template <typename result_type>
@@ -259,7 +407,7 @@ namespace vds {
       });
     }
 
-    T await_resume() {
+    T & await_resume() {
       return _future.get();
     }
   };
@@ -370,13 +518,13 @@ namespace std {
 #ifdef _WIN32
 namespace std {
   template <typename  T>
-  bool await_ready(vds::async_task<T> & _future)
+  inline bool await_ready(vds::async_task<T> & _future)
   {
     return _future.is_ready();
   }
 
   template <typename  T>
-  void await_suspend(vds::async_task<T> & _future,
+  inline void await_suspend(vds::async_task<T> & _future,
     std::experimental::coroutine_handle<> _ResumeCb)
   {
     _future.then([_ResumeCb]() {
@@ -385,9 +533,14 @@ namespace std {
   }
 
   template<typename T>
-  auto await_resume(vds::async_task<T> & _future)
+  inline T & await_resume(vds::async_task<T> & _future)
   {
     return (_future.get());
+  }
+
+  inline void await_resume(vds::async_task<void> & _future)
+  {
+    _future.get();
   }
 }
 

@@ -588,7 +588,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
     return true;
   }).get();
 
-  return user_mng->create_channel(name).get();
+  return std::move(user_mng->create_channel(name).get());
 }
 
 const vds::service_provider * vds_mock::get_sp(int client_index) {

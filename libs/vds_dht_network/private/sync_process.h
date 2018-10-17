@@ -57,10 +57,9 @@ namespace vds {
         async_task<void> add_sync_entry( database_transaction& t,
                             const const_data_buffer& object_id, uint32_t object_size);
 
-        const_data_buffer restore_replica(
-          
+        async_task<const_data_buffer> restore_replica(
           database_transaction& t,
-          const const_data_buffer& object_id);
+          const const_data_buffer object_id);
 
         async_task<void> apply_message(
           

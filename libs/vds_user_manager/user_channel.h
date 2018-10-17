@@ -30,6 +30,9 @@ namespace vds {
   class user_channel
   {
   public:
+    user_channel(const user_channel &) = delete;
+    user_channel & operator = (const user_channel &) = delete;
+
     enum class channel_type_t {
       personal_channel,
       notes_channel,
@@ -39,6 +42,7 @@ namespace vds {
     };
 
     user_channel();
+    user_channel(user_channel &&);
 
     user_channel(
       const const_data_buffer & id,
@@ -88,6 +92,8 @@ namespace vds {
 
       this->add_to_log(log, s.get_buffer(), s.size());
     }
+
+    user_channel & operator = (user_channel && other);
 
   private:
     class _user_channel * impl_;

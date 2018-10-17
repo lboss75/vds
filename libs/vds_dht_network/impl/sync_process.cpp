@@ -581,10 +581,10 @@ vds::async_task<void> vds::dht::network::sync_process::add_sync_entry(
   }
 }
 
-vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
+vds::async_task<vds::const_data_buffer> vds::dht::network::sync_process::restore_replica(
   
   database_transaction& t,
-  const const_data_buffer& object_id) {
+  const const_data_buffer object_id) {
 
   auto client = this->sp_->get<network::client>();
   std::vector<uint16_t> replicas;
@@ -627,7 +627,7 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
         t1.object_id = object_id,
         t1.last_sync = std::chrono::system_clock::now()));
 
-    return data;
+    co_return data;
   }
   std::string log_message = "request replica " + base64::from_bytes(object_id) + ". Exists: ";
   std::set<uint16_t> exist_replicas;
@@ -669,7 +669,7 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
         log_message.c_str(),
         base64::from_bytes(candidate).c_str());
 
-      (*client)->send(
+      co_await (*client)->send(
         candidate,
         message_create<messages::sync_replica_request>(
           object_id,
@@ -677,10 +677,10 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
     }
   }
   else {
-    (*client)->send_neighbors(
+    co_await (*client)->send_neighbors(
       message_create<messages::dht_find_node>(object_id));
 
-    (*client)->send_near(
+    co_await (*client)->send_near(
       object_id,
       service::GENERATE_DISTRIBUTED_PIECES,
       message_create<messages::sync_replica_request>(
@@ -688,7 +688,7 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
         exist_replicas));
   }
 
-  return const_data_buffer();
+  co_return const_data_buffer();
 }
 
 vds::async_task<void> vds::dht::network::sync_process::apply_message(
@@ -1462,7 +1462,6 @@ vds::async_task<void> vds::dht::network::sync_process::send_random_replicas(
             allowed_replicas[replica].push_back([
               this,
                 &t,
-                &t5,
                 client,
                 data,
                 generation,
@@ -1485,6 +1484,7 @@ vds::async_task<void> vds::dht::network::sync_process::send_random_replicas(
               const auto data_hash = hash::signature(hash::sha256(), replica_data);
               auto fn = _client::save_data(this->sp_, t, data_hash, replica_data);
 
+              orm::chunk_replica_data_dbo t5;
               t.execute(
                 t5.insert(
                   t5.object_id = object_id,

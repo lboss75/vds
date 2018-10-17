@@ -608,7 +608,7 @@ vds::async_task<vds::user_channel> vds::_user_manager::create_channel(
     return true;
   });
 
-  co_return  *result;
+  co_return  std::move(*result);
 }
 
 const std::string& vds::user_manager::user_name() const {

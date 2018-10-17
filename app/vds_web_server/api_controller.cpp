@@ -85,7 +85,7 @@ vds::api_controller::create_channel(
   const std::shared_ptr<user_manager> & user_mng,
   const std::string & name) {
 
-  auto channel = co_await user_mng->create_channel(name);
+  auto channel = std::move(co_await user_mng->create_channel(name));
   
   co_return http_response::simple_text_response(
         channel_serialize(channel)->json_value::str(),

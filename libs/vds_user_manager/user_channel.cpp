@@ -13,6 +13,11 @@ vds::user_channel::user_channel()
 : impl_(nullptr) {
 }
 
+vds::user_channel::user_channel(user_channel&& other)
+: impl_(other.impl_) {
+  other.impl_ = nullptr;
+}
+
 vds::user_channel::user_channel(
   const const_data_buffer & id,
   channel_type_t channel_type,
@@ -65,6 +70,13 @@ void vds::user_channel::add_writer(
 
 std::shared_ptr<vds::asymmetric_private_key> vds::user_channel::read_cert_private_key(const std::string& cert_subject) {
   return this->impl_->read_cert_private_key(cert_subject);
+}
+
+vds::user_channel& vds::user_channel::operator=(user_channel&& other) {
+  delete this->impl_;
+  this->impl_ = other.impl_;
+  other.impl_ = nullptr;
+  return *this;
 }
 
 void vds::user_channel::add_to_log(
