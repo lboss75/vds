@@ -109,10 +109,7 @@ vds::udp_socket::~udp_socket()
 std::tuple<std::shared_ptr<vds::udp_datagram_reader>, std::shared_ptr<vds::udp_datagram_writer>>
 vds::udp_socket::start(const service_provider * sp)
 {
-  return {
-    std::make_shared<_udp_receive>(sp, this->shared_from_this()),
-    std::make_shared<_udp_send>(sp, this->shared_from_this())
-  };
+  return this->impl_->start(sp, this->shared_from_this());
 }
 
 void vds::udp_socket::stop()
@@ -208,6 +205,26 @@ void vds::_udp_socket::process(uint32_t events) {
     }
   }
 }
+
+std::tuple<
+    std::shared_ptr<vds::udp_datagram_reader>,
+    std::shared_ptr<vds::udp_datagram_writer>>
+vds::_udp_socket::start(
+    const vds::service_provider *sp,
+    const std::shared_ptr<vds::socket_base> &owner) {
+
+  auto read_task = std::make_shared<_udp_receive>(sp, owner);
+  auto write_task = std::make_shared<_udp_send>(sp, owner);
+
+  this->read_task_ = read_task;
+  this->write_task_ = write_task;
+
+  return {
+    read_task,
+    write_task
+  };
+}
+
 #endif//_WIN32
 
 vds::udp_server::udp_server()

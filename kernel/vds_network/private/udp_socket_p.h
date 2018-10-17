@@ -84,6 +84,13 @@ namespace vds {
     }
 
 #ifndef _WIN32
+    std::tuple<
+        std::shared_ptr<vds::udp_datagram_reader>,
+            std::shared_ptr<vds::udp_datagram_writer>>
+    start(
+        const service_provider * sp,
+        const std::shared_ptr<socket_base> & owner);
+
     void process(uint32_t events);
 
     void change_mask(
