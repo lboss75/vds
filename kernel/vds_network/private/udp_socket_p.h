@@ -220,7 +220,9 @@ namespace vds {
     uint8_t buffer_[64 * 1024];
 
     void process(DWORD dwBytesTransfered) override
-    {      
+    {
+      this->sp_->get<logger>()->trace("UDP", "Got %d bytes UDP package from %s", dwBytesTransfered, this->addr_.to_string().c_str());
+
       vds_assert(this->result_);
       auto pthis = this->shared_from_this();
       auto r = std::move(this->result_);
@@ -229,6 +231,8 @@ namespace vds {
 
     void error(DWORD error_code) override
     {
+      this->sp_->get<logger>()->trace("UDP", "Error %d at get recive UDP package", error_code);
+
       auto r = std::move(this->result_);
       r->set_exception(
         std::make_exception_ptr(
@@ -283,6 +287,12 @@ namespace vds {
         NULL)) {
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
+          this->sp_->get<logger>()->trace(
+            "UDP",
+            "Error %d at schedule sending UDP to %s",
+            errorCode,
+            this->buffer_->address().to_string().c_str());
+
           r->set_exception(std::make_exception_ptr(std::system_error(errorCode, std::system_category(), "WSASend failed")));
           this->result_.reset();
         }
@@ -306,6 +316,12 @@ namespace vds {
 
     void process(DWORD dwBytesTransfered) override
     {
+      this->sp_->get<logger>()->trace(
+        "UDP",
+        "Sent %d bytes UDP package to %s",
+        dwBytesTransfered,
+        this->buffer_->address().to_string().c_str());
+
       std::unique_lock<not_mutex> lock(this->not_mutex_);
       vds_assert(this->result_);
       auto result = std::move(this->result_);
@@ -321,6 +337,12 @@ namespace vds {
 
     void error(DWORD error_code) override
     {
+      this->sp_->get<logger>()->trace(
+        "UDP",
+        "Error %d at sending UDP to %s",
+        error_code,
+        this->buffer_->address().to_string().c_str());
+
       std::unique_lock<not_mutex> lock(this->not_mutex_);
       vds_assert(this->result_);
       auto result = std::move(this->result_);
@@ -337,7 +359,8 @@ namespace vds {
     _udp_receive(
         const service_provider * sp,
         const std::shared_ptr<socket_base> & owner)
-      : ns_(sp->get<network_service>()->operator->()),
+      : sp_(sp),
+        ns_(sp->get<network_service>()->operator->()),
         owner_(owner)
     {
     }
@@ -364,9 +387,12 @@ namespace vds {
           return r->get_future();
         }
 
+        this->sp_->get<logger>()->trace("UDP", "Error %d at get recive UDP package", error);
         throw std::system_error(error, std::system_category(), "recvfrom");
       }
       else {
+        this->sp_->get<logger>()->trace("UDP", "Got %d bytes UDP package from %s", len, this->addr_.to_string().c_str());
+
         auto r = std::make_shared<vds::async_result<udp_datagram>>();
         r->set_value(_udp_datagram::create(this->addr_, this->read_buffer_, len));
         return r->get_future();
@@ -392,12 +418,15 @@ namespace vds {
           return;
         }
 
+        this->sp_->get<logger>()->trace("UDP", "Error %d at get recive UDP package", error);
         auto r = std::move(this->read_result_);
         r->set_exception(
             std::make_exception_ptr(
                 std::system_error(error, std::system_category(), "recvfrom")));
       }
       else {
+        this->sp_->get<logger>()->trace("UDP", "Got %d bytes UDP package from %s", len, this->addr_.to_string().c_str());
+
         auto r = std::move(this->read_result_);
         r->set_value(_udp_datagram::create(this->addr_, this->read_buffer_, len));
       }
@@ -405,7 +434,8 @@ namespace vds {
 
 
   private:
-    _network_service * ns_;
+    const service_provider * sp_;
+      _network_service * ns_;
     std::shared_ptr<socket_base> owner_;
     std::shared_ptr<vds::async_result<udp_datagram>> read_result_;
 
@@ -422,7 +452,8 @@ namespace vds {
     _udp_send(
         const service_provider * sp,
         const std::shared_ptr<socket_base> & owner)
-        : ns_(sp->get<network_service>()->operator->()),
+        : sp_(sp),
+          ns_(sp->get<network_service>()->operator->()),
           owner_(owner) {
 
     }
@@ -448,6 +479,12 @@ namespace vds {
         else {
           auto address = message.address().to_string();
 
+          this->sp_->get<logger>()->trace(
+            "UDP",
+            "Error %d at sending UDP to %s",
+            error,
+            message.address().to_string().c_str());
+
           if (EMSGSIZE == error) {
             r->set_exception(std::make_exception_ptr(udp_datagram_size_exception()));
           } else {
@@ -464,6 +501,11 @@ namespace vds {
               std::runtime_error("Invalid send UDP")));
         }
         else {
+          this->sp_->get<logger>()->trace(
+            "UDP",
+            "Sent %d bytes UDP package to %s",
+            message.data_size(),
+            message.address().to_string().c_str());
           r->set_value();
         }
       }
@@ -490,6 +532,13 @@ namespace vds {
           return;
         }
 
+        this->sp_->get<logger>()->trace(
+          "UDP",
+          "Error %d at sending UDP to %s",
+          error,
+          this->write_message_.address().to_string().c_str());
+
+
         auto result = std::move(this->write_result_);
         auto address = this->write_message_.address().to_string();
 
@@ -508,12 +557,18 @@ namespace vds {
           throw std::runtime_error("Invalid send UDP");
         }
 
+        this->sp_->get<logger>()->trace(
+          "UDP",
+          "Sent %d bytes UDP package to %s",
+          this->write_message_.data_size(),
+          this->write_message_.address().to_string().c_str());
         auto result = std::move(this->write_result_);
         result->set_value();
       }
     }
 
   private:
+    const service_provider * sp_;
     _network_service * ns_;
     std::shared_ptr<socket_base> owner_;
     std::shared_ptr<vds::async_result<void>> write_result_;
