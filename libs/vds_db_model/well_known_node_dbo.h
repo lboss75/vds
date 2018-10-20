@@ -15,12 +15,12 @@ namespace vds {
     public:
       well_known_node_dbo()
           : database_table("well_known_node"),
-            id(this, "object_id"),
-            addresses(this, "addresses") {
+            address(this, "address"),
+            last_connect(this, "last_connect") {
       }
 
-      database_column<std::string> id;
-      database_column<std::string> addresses;
+      database_column<std::string> address;
+      database_column<std::chrono::system_clock::time_point> last_connect;
     };
   }
 }

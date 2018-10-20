@@ -188,6 +188,8 @@ namespace vds {
       return this->addr_.ss_family == 0;
     }
 
+    void clear();
+
   private:
     sockaddr_storage addr_;
     socklen_t addr_size_;

@@ -308,7 +308,6 @@ void vds::_user_manager::update(
 		
 		database_transaction &t) {
 	const auto log = this->sp_->get<logger>();
-	log->trace(ThisModule, "security_walker::load");
 
   std::list<const_data_buffer> new_records;
   orm::transaction_log_record_dbo t1;

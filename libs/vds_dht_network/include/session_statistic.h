@@ -31,10 +31,13 @@ namespace vds {
       }
     };
 
+    size_t output_size_;
     std::list<session_info> items_;
 
     std::shared_ptr<json_value> serialize() const {
       auto result = std::make_shared<json_object>();
+      
+      result->add_property("output_size", std::to_string(this->output_size_));
 
       auto items = std::make_shared<json_array>();
       for (const auto& p : this->items_) {

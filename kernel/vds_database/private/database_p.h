@@ -343,6 +343,10 @@ namespace vds {
       return result;
     }
 
+    size_t queue_length() const {
+      return this->execute_queue_->size();
+    }
+
   private:
     sqlite3 * db_;    
     std::shared_ptr<thread_apartment> execute_queue_;

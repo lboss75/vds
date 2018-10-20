@@ -196,7 +196,6 @@ namespace vds {
       auto r = std::make_shared<vds::async_result<size_t>>();
       this->result_ = r;
 
-      this->sp_->get<logger>()->trace("TCP", "WSARecv");
       DWORD flags = 0;
       DWORD numberOfBytesRecvd;
       if (NOERROR != WSARecv((*this->owner_)->handle(),

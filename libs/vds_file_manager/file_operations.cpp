@@ -56,7 +56,9 @@ vds::file_manager::file_operations::upload_file(
 }
 
 vds::async_task<void> vds::file_manager::file_operations::create_message(
-  const std::shared_ptr<user_manager>& user_mng, const const_data_buffer& channel_id, const std::string& message,
+  const std::shared_ptr<user_manager>& user_mng,
+  const const_data_buffer& channel_id,
+  const std::shared_ptr<json_value>& message,
   const std::list<transactions::user_message_transaction::file_info_t>& files) {
   return this->impl_->create_message(user_mng, channel_id, message, files);
 
@@ -126,7 +128,7 @@ vds::async_task<void> vds::file_manager_private::_file_operations::create_messag
   
   const std::shared_ptr<user_manager>& user_mng,
   const const_data_buffer& channel_id,
-  const std::string& message,
+  const std::shared_ptr<json_value>& message,
   const std::list<transactions::user_message_transaction::file_info_t>& files) {
   return this->sp_->get<db_model>()->async_transaction(
     [pthis = this->shared_from_this(),
@@ -148,9 +150,8 @@ vds::async_task<void> vds::file_manager_private::_file_operations::create_messag
     channel->add_log(
       log,
       message_create<transactions::user_message_transaction>(
-        message,
-        files,
-        std::string()));
+        message->str(),
+        files));
 
     log.save(
       t,

@@ -115,6 +115,9 @@ vds::async_task<void> vds::_server::prepare_to_stop() {
 
 vds::async_task<vds::server_statistic> vds::_server::get_statistic() {
   auto result = std::make_shared<vds::server_statistic>();
+  
+  result->db_queue_length_ = this->sp_->get<db_model>()->queue_length();
+
   this->sp_->get<dht::network::client>()->get_route_statistics(result->route_statistic_);
   this->sp_->get<dht::network::client>()->get_session_statistics(result->session_statistic_);
 

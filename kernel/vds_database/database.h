@@ -115,6 +115,8 @@ namespace vds {
 
     vds::async_task<void> prepare_to_stop();
 
+    size_t queue_length() const;
+
   private:
     std::shared_ptr<_database> impl_;
   };

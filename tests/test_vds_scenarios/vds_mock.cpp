@@ -528,11 +528,15 @@ vds::const_data_buffer vds_mock::upload_file(
     mimetype,
     input_stream).get();
 
+  auto message = std::make_shared<vds::json_object>();
+  message->add_property("$type", "SimpleMessage");
+  message->add_property("message", "test message");
+
   std::list<vds::transactions::user_message_transaction::file_info_t> files{ file_info };
   sp->get<vds::file_manager::file_operations>()->create_message(
     user_mng,
     channel_id,
-    "test message",
+    message,
     files).get();
 
   return file_info.file_id;

@@ -67,8 +67,8 @@ void vds::db_model::migrate(
 			last_access INTEGER NOT NULL)");
 
 		t.execute("CREATE TABLE well_known_node(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			addresses TEXT NOT NULL)");
+			address VARCHAR(64) PRIMARY KEY NOT NULL,\
+			last_connect DATETIME NOT NULL)");
 
     t.execute("CREATE TABLE current_config (\
 			id INTEGER PRIMARY KEY AUTOINCREMENT,\
@@ -203,18 +203,16 @@ void vds::db_model::migrate(
 			state INTEGER NOT NULL,\
 			next_sync INTEGER NOT NULL)");
 
-    t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
-									'local',\
-									'udp://localhost:8050')");
-    t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
-									'vds.iv-soft.ru',\
-									'udp://178.207.91.252:8050')");
-    t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
-									'server',\
-									'udp://46.21.68.42:8050')");
-    t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
-									'192.168.0.171',\
-									'udp://192.168.0.171:8050')");
+    t.execute("INSERT INTO well_known_node(address, last_connect) VALUES(\
+									'udp://localhost:8050',\
+									datetime('now'))");
+    t.execute("INSERT INTO well_known_node(address, last_connect) VALUES(\
+									'udp://vds.iv-soft.ru:8050',\
+									datetime('now'))");
+    t.execute("INSERT INTO well_known_node(address, last_connect) VALUES(\
+									'udp://46.21.68.42:8050',\
+									datetime('now'))");
+
     t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
 	}
 }

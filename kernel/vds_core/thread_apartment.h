@@ -78,6 +78,10 @@ namespace vds {
       return task_queue_.empty();
     }
 
+    size_t size() const {
+      return this->task_queue_.size();
+    }
+
   private:
     const service_provider * sp_;
     bool is_stopping_;

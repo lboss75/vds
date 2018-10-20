@@ -36,7 +36,7 @@ namespace vds {
         
         const std::shared_ptr<user_manager>& user_mng,
         const const_data_buffer& channel_id,
-        const std::string& message,
+        const std::shared_ptr<json_value>& message,
         const std::list<transactions::user_message_transaction::file_info_t>& files);
 
 

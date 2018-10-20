@@ -166,11 +166,12 @@ namespace vds {
       memset(&this->overlapped_, 0, sizeof(this->overlapped_));
       this->wsa_buf_.len = sizeof(this->buffer_);
       this->wsa_buf_.buf = (CHAR *)this->buffer_;
+      this->addr_.clear();
 
       auto r = std::make_shared<vds::async_result<udp_datagram>>();
       this->result_ = r;
 
-      this->sp_->get<logger>()->trace("UDP", "WSARecvFrom %d", this->s_);
+      this->sp_->get<logger>()->trace("UDP", "WSARecvFrom %d", (*this->s_)->handle());
 
       DWORD flags = 0;
       DWORD numberOfBytesRecvd;

@@ -101,6 +101,7 @@ vds::async_task<void> vds::dht::network::udp_transport::try_handshake(
 }
 
 void vds::dht::network::udp_transport::get_session_statistics(session_statistic& session_statistic) {
+  session_statistic.output_size_ = this->send_thread_->size();
 
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
   for (const auto& p : this->sessions_) {

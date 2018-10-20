@@ -146,6 +146,16 @@ void vds::dht::network::_client::add_session(
   const std::shared_ptr<dht_session>& session,
   uint8_t hops) {
   this->route_.add_node(session->partner_node_id(), session, hops, false);
+  this->sp_->get<db_model>()->async_transaction([address = session->address().to_string()](database_transaction& t) {
+    orm::well_known_node_dbo t1;
+    auto st = t.get_reader(t1.select(t1.last_connect).where(t1.address == address));
+    if(st.execute()) {
+      t.execute(t1.update(t1.last_connect = std::chrono::system_clock::now()).where(t1.address == address));
+    }
+    else {
+      t.execute(t1.insert(t1.last_connect = std::chrono::system_clock::now(), t1.address = address));
+    }
+  }).detach();
 }
 
 vds::async_task<void> vds::dht::network::_client::send(
@@ -585,15 +595,14 @@ vds::dht::network::_client::update_wellknown_connection(
   database_transaction& t) {
 
   orm::well_known_node_dbo t1;
-  auto st = t.get_reader(t1.select(t1.addresses));
+  auto st = t.get_reader(t1.select(t1.address));
   while (st.execute()) {
-    for (const auto& address : split_string(t1.addresses.get(st), ';', true)) {
-      try {
-        co_await this->udp_transport_->try_handshake(address);
-      }
-      catch(const std::system_error & ex) {
-        this->sp_->get<logger>()->debug(ThisModule, "%s at handshake to %s", ex.what(), address.c_str());
-      }
+    auto address = t1.address.get(st);
+    try {
+      co_await this->udp_transport_->try_handshake(address);
+    }
+    catch(const std::system_error & ex) {
+      this->sp_->get<logger>()->debug(ThisModule, "%s at handshake to %s", ex.what(), address.c_str());
     }
   }
 }

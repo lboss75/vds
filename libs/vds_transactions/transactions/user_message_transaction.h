@@ -33,14 +33,12 @@ namespace vds {
 
 			std::string message;
       std::list<file_info_t> files;
-      std::string json_attributes;
 
       template <typename  visitor_type>
       void visit(visitor_type & v) {
         v(
           message,
-          files,
-          json_attributes
+          files
         );
       }
 

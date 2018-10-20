@@ -13,11 +13,13 @@ All rights reserved
 namespace vds {
 
   struct server_statistic {
+    size_t db_queue_length_;
     sync_statistic sync_statistic_;
     route_statistic route_statistic_;
     session_statistic session_statistic_;
     std::shared_ptr<vds::json_value> serialize() const {
       auto result = std::make_shared<vds::json_object>();
+      result->add_property("db_queue_length", std::to_string(this->db_queue_length_));
       result->add_property("sync", this->sync_statistic_.serialize());
       result->add_property("route", this->route_statistic_.serialize());
       result->add_property("session", this->session_statistic_.serialize());

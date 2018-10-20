@@ -40,6 +40,10 @@ vds::async_task<void> vds::database::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
 }
 
+size_t vds::database::queue_length() const {
+  return this->impl_->queue_length();
+}
+
 void vds::database_transaction::execute(const char * sql)
 {
    this->impl_->execute(sql);

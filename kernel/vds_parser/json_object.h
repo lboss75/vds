@@ -7,6 +7,7 @@ All rights reserved
 */
 #include <list>
 #include <string>
+#include <chrono>
 #include "const_data_buffer.h"
 
 namespace vds {

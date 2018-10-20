@@ -265,4 +265,9 @@ bool vds::network_address::is_martian() const {
   }
 }
 
+void vds::network_address::clear() {
+  this->addr_size_ = sizeof(this->addr_);
+  memset(&this->addr_, 0, sizeof(this->addr_));
+}
+
 

@@ -24,6 +24,10 @@ namespace vds {
 	void stop();
 	vds::async_task<void> prepare_to_stop();
 
+  size_t queue_length() const {
+    return this->db_.queue_length();
+  }
+
   private:
     database db_;
 

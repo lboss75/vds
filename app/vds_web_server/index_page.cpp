@@ -33,8 +33,8 @@ public:
   create_message_form(
     const vds::service_provider * sp,
     const std::shared_ptr<vds::user_manager>& user_mng)
-  : base_class(sp), user_mng_(user_mng) {
-    
+  : base_class(sp), user_mng_(user_mng), message_(new vds::json_object()) {
+    this->message_->add_property("$type", "SimpleMessage");
   }
 
   void on_field(const simple_field_info & field) {
@@ -43,7 +43,7 @@ public:
     }
     else
     if (field.name == "message") {
-      this->message_ = field.value;
+      this->message_->add_property("message", field.value);
     }
     else {
       throw std::runtime_error("Invalid field " + field.name);
@@ -72,7 +72,7 @@ private:
   std::shared_ptr<vds::user_manager> user_mng_;
   vds::const_data_buffer channel_id_;
   std::list<vds::transactions::user_message_transaction::file_info_t> files_;
-  std::string message_;
+  std::shared_ptr<vds::json_object> message_;
 };
 
 vds::async_task<vds::http_message> vds::index_page::create_message(
