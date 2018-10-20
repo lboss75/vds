@@ -18,6 +18,9 @@ namespace vds {
         ContinueData = 3,
 
         Failed = 5,
+        
+        MTUTest = 6,
+        MTUTestPassed = 7,
 
         SpecialCommand = 0b11100000,
 

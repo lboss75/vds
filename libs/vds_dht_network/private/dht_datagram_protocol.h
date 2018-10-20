@@ -27,6 +27,8 @@ namespace vds {
       template <typename implementation_class, typename transport_type>
       class dht_datagram_protocol : public std::enable_shared_from_this<implementation_class> {
       public:
+        static constexpr int CHECK_MTU_TIMEOUT = 10;
+
         dht_datagram_protocol(
           const service_provider * sp,
           const network_address& address,
@@ -34,11 +36,12 @@ namespace vds {
           const const_data_buffer& partner_node_id,
           const const_data_buffer& session_key)
           : sp_(sp),
+          check_mtu_(0),
           address_(address),
           this_node_id_(this_node_id),
           partner_node_id_(partner_node_id),
           session_key_(session_key),
-          mtu_(65507),
+          mtu_(10 * 1024),
           next_sequence_number_(0) {
         }
 
@@ -102,6 +105,21 @@ namespace vds {
           
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
+
+          if(protocol_message_type_t::MTUTest == static_cast<protocol_message_type_t>(*datagram.data())) {
+            const_data_buffer data = datagram;
+            data[0] = (uint8_t)protocol_message_type_t::MTUTestPassed;
+            co_await s->write_async(udp_datagram(this->address_, data, false));
+            co_return;
+          }
+          if (protocol_message_type_t::MTUTestPassed == static_cast<protocol_message_type_t>(*datagram.data())) {
+            if(this->mtu_ < datagram.size()) {
+              this->mtu_ = datagram.size();
+              this->check_mtu_ = 0;
+              this->sp_->get<logger>()->trace("dht_session", "Change MTU size to %d", this->mtu_);
+            }
+            co_return;
+          }
 
           this->input_mutex_.lock();
           if (datagram.size() < 33) {
@@ -231,6 +249,31 @@ namespace vds {
           return this->partner_node_id_;
         }
 
+        vds::async_task<void> on_timer(
+          const std::shared_ptr<transport_type>& s) {
+          this->check_mtu_++;
+          if ((this->check_mtu_ / CHECK_MTU_TIMEOUT) < 10) {
+            if ((this->check_mtu_ % CHECK_MTU_TIMEOUT) == 0) {
+              if (this->mtu_ < 0xFFFF - 256) {
+                resizable_data_buffer out_message;
+                out_message.resize_data(this->mtu_ + 256);
+                out_message.add((uint8_t)protocol_message_type_t::MTUTest);
+
+                try {
+                  co_await s->write_async(udp_datagram(this->address_, out_message.move_data(), false));
+                }
+                catch (...) {
+                }
+              }
+            }
+          }
+          else if(this->mtu_ > 1024) {
+            this->mtu_ -= 256;
+            this->check_mtu_ = 0;
+          }
+        }
+
+
       protected:
         const service_provider * sp_;
 
@@ -243,13 +286,13 @@ namespace vds {
           uint16_t hops;
           const_data_buffer message;
         };
-
+        int check_mtu_;
         network_address address_;
         const_data_buffer this_node_id_;
         const_data_buffer partner_node_id_;
         const_data_buffer session_key_;
 
-        uint32_t mtu_;
+        uint16_t mtu_;
 
         not_mutex input_mutex_;
         const_data_buffer last_input_message_id_;

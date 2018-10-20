@@ -74,6 +74,10 @@ public:
   vds::async_task<void> write_async(const vds::udp_datagram& datagram) override;
   vds::async_task<void> try_handshake( const std::string& address) override;
 
+  vds::async_task<void> on_timer() override {
+    co_return;
+  }
+
   const vds::const_data_buffer & node_id() const {
     return this->node_id_;
   }

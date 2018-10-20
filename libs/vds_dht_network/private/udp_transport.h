@@ -41,6 +41,8 @@ namespace vds {
         vds::async_task<void> write_async( const udp_datagram& datagram) override;
         vds::async_task<void> try_handshake( const std::string& address) override;
 
+        async_task<void> on_timer() override;
+
         const const_data_buffer& this_node_id() const {
           return this->this_node_id_;
         }

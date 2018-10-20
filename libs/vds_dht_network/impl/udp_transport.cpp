@@ -100,6 +100,20 @@ vds::async_task<void> vds::dht::network::udp_transport::try_handshake(
     false));
 }
 
+vds::async_task<void> vds::dht::network::udp_transport::on_timer() {
+  std::list<std::shared_ptr<dht_session>> sessions;
+
+  this->sessions_mutex_.lock_shared();
+  for(auto & p : this->sessions_) {
+    sessions.push_back(p.second.session_);
+  }
+  this->sessions_mutex_.unlock_shared();
+
+  for(auto & s : sessions) {
+    co_await s->on_timer(this->shared_from_this());
+  }
+}
+
 void vds::dht::network::udp_transport::get_session_statistics(session_statistic& session_statistic) {
   session_statistic.output_size_ = this->send_thread_->size();
 

@@ -289,6 +289,7 @@ vds::const_data_buffer vds::dht::network::_client::replica_id(const std::string&
 void vds::dht::network::_client::start() {
   this->update_timer_.start(this->sp_, std::chrono::seconds(60), [pthis = this->shared_from_this()]() -> async_task<bool>{
 
+    co_await pthis->udp_transport_->on_timer();
       co_await pthis->sp_->get<db_model>()->async_transaction([pthis](database_transaction& t) {
         pthis->process_update(t).get();
         return true;

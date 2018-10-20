@@ -24,8 +24,10 @@ namespace vds {
 
         virtual void stop() = 0;
 
-        virtual vds::async_task<void> write_async( const udp_datagram& datagram) = 0;
-        virtual vds::async_task<void> try_handshake( const std::string& address) = 0;
+        virtual async_task<void> write_async( const udp_datagram& datagram) = 0;
+        virtual async_task<void> try_handshake( const std::string& address) = 0;
+        virtual async_task<void> on_timer() = 0;
+
       };
     }
   }
