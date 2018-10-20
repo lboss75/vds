@@ -95,6 +95,7 @@ vds::async_task<void> vds::dht::network::udp_transport::try_handshake(
     session_info.session_mutex_.lock();
     if (session_info.blocked_) {
       if ((std::chrono::steady_clock::now() - session_info.update_time_) > std::chrono::minutes(1)) {
+        logger::get(this->sp_)->trace(ThisModule, "Unblock session %s", address_str.c_str());
         session_info.blocked_ = false;
       }
       else {
@@ -179,6 +180,7 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
     session_info.session_mutex_.lock();
     if (session_info.blocked_) {
       if ((std::chrono::steady_clock::now() - session_info.update_time_) > std::chrono::minutes(1)) {
+        logger::get(this->sp_)->trace(ThisModule, "Unblock session %s", datagram.address().to_string().c_str());
         session_info.blocked_ = false;
       }
       else {
@@ -315,6 +317,7 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
     }
     case protocol_message_type_t::Failed: {
       session_info.blocked_ = true;
+      logger::get(this->sp_)->trace(ThisModule, "Block session %s", datagram.address().to_string().c_str());
       (*this->sp_->get<client>())->remove_session(session_info.session_);
       session_info.session_.reset();
       session_info.update_time_ = std::chrono::steady_clock::now();
@@ -342,6 +345,7 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
 
           if(failed) {
             session_info.session_mutex_.lock();
+            logger::get(this->sp_)->trace(ThisModule, "Block session %s", datagram.address().to_string().c_str());
             session_info.blocked_ = true;
             (*this->sp_->get<client>())->remove_session(session_info.session_);
             session_info.session_.reset();
@@ -355,6 +359,7 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
         }
         catch (...) {
           session_info.session_mutex_.lock();
+          logger::get(this->sp_)->trace(ThisModule, "Block session %s", datagram.address().to_string().c_str());
           session_info.blocked_ = true;
           (*this->sp_->get<client>())->remove_session(session_info.session_);
           session_info.session_.reset();
@@ -363,6 +368,7 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
         }
       }
       else {
+        logger::get(this->sp_)->trace(ThisModule, "Block session %s", datagram.address().to_string().c_str());
         session_info.blocked_ = true;
         (*this->sp_->get<client>())->remove_session(session_info.session_);
         session_info.session_.reset();
