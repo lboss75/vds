@@ -98,12 +98,15 @@ vds::async_task<void> vds::dht::network::udp_transport::try_handshake(
         session_info.blocked_ = false;
       }
       else {
+        session_info.session_mutex_.unlock();
         co_return;
       }
     }
     else if(session_info.session_) {
+      session_info.session_mutex_.unlock();
       co_return;
     }
+    session_info.session_mutex_.unlock();
   }
 
   resizable_data_buffer out_message;
