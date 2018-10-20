@@ -257,13 +257,7 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
 
         out_message += bs.move_data();
         co_await this->write_async(udp_datagram(datagram.address(), out_message.move_data(), false));
-        co_await (*this->sp_->get<client>())->send_neighbors(
-          message_create<messages::dht_find_node_response>(
-            std::list<messages::dht_find_node_response::target_node>({
-          messages::dht_find_node_response::target_node(partner_node_id, datagram.address().to_string(), 0) })));
-
-        co_await this->sp_->get<imessage_map>()->on_new_session(
-          partner_node_id);
+        co_await this->sp_->get<imessage_map>()->on_new_session(partner_node_id);
       }
       else {
         session_info.session_mutex_.unlock();
