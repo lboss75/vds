@@ -155,7 +155,9 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
       }
       else {
         session_info.session_mutex_.unlock();
-        if (*datagram.data() != (uint8_t)protocol_message_type_t::Failed) {
+        if (*datagram.data() != (uint8_t)protocol_message_type_t::Failed
+          && *datagram.data() != (uint8_t)protocol_message_type_t::Handshake
+          && *datagram.data() != (uint8_t)protocol_message_type_t::HandshakeBroadcast) {
           uint8_t out_message[] = { (uint8_t)protocol_message_type_t::Failed };
           try {
             co_await this->write_async(udp_datagram(datagram.address(),
