@@ -219,9 +219,11 @@ namespace vds {
 
               const auto message_id = const_data_buffer(datagram.data() + 1, 32);
               if (this->last_input_message_id_ != message_id) {
+                this->last_input_message_id_.clear();
+                this->input_messages_.clear();
                 this->input_mutex_.unlock();
 
-                throw std::runtime_error("Invalid message_id");
+                co_return;
               }
               this->input_messages_[datagram.data()[1 + 32]] = datagram;
 
