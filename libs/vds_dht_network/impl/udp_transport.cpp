@@ -79,7 +79,32 @@ vds::dht::network::udp_transport::write_async( const udp_datagram& datagram) {
 }
 
 vds::async_task<void> vds::dht::network::udp_transport::try_handshake(
-                                                                  const std::string& address) {
+                                                                  const std::string& address_str) {
+
+  auto address = network_address::parse(this->server_.address().family(), address_str);
+
+  this->sessions_mutex_.lock();
+  auto p = this->sessions_.find(address);
+  if (this->sessions_.end() == p) {
+    this->sessions_mutex_.unlock();
+  }
+  else {
+    auto & session_info = *p;
+    this->sessions_mutex_.unlock();
+
+    session_info.session_mutex_.lock();
+    if (session_info.blocked_) {
+      if ((std::chrono::steady_clock::now() - session_info.update_time_) > std::chrono::minutes(1)) {
+        session_info.blocked_ = false;
+      }
+      else {
+        co_return;
+      }
+    }
+    else if(session_info.session_) {
+      co_return;
+    }
+  }
 
   resizable_data_buffer out_message;
   out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
@@ -95,7 +120,7 @@ vds::async_task<void> vds::dht::network::udp_transport::try_handshake(
   out_message += bs.move_data();
 
   co_await this->write_async(udp_datagram(
-    network_address::parse(this->server_.address().family(), address),
+    address,
     out_message.move_data(),
     false));
 }
@@ -157,7 +182,8 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
         session_info.session_mutex_.unlock();
         if (*datagram.data() != (uint8_t)protocol_message_type_t::Failed
           && *datagram.data() != (uint8_t)protocol_message_type_t::Handshake
-          && *datagram.data() != (uint8_t)protocol_message_type_t::HandshakeBroadcast) {
+          && *datagram.data() != (uint8_t)protocol_message_type_t::HandshakeBroadcast
+          && *datagram.data() != (uint8_t)protocol_message_type_t::Welcome) {
           uint8_t out_message[] = { (uint8_t)protocol_message_type_t::Failed };
           try {
             co_await this->write_async(udp_datagram(datagram.address(),
