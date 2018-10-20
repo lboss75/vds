@@ -105,7 +105,9 @@ vds::async_task<void> vds::dht::network::udp_transport::on_timer() {
 
   this->sessions_mutex_.lock_shared();
   for(auto & p : this->sessions_) {
-    sessions.push_back(p.second.session_);
+    if (p.second.session_) {
+      sessions.push_back(p.second.session_);
+    }
   }
   this->sessions_mutex_.unlock_shared();
 
