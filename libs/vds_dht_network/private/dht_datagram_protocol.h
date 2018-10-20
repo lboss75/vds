@@ -41,7 +41,7 @@ namespace vds {
           this_node_id_(this_node_id),
           partner_node_id_(partner_node_id),
           session_key_(session_key),
-          mtu_(10 * 1024),
+          mtu_(16 * 1024),
           next_sequence_number_(0) {
         }
 
@@ -254,18 +254,16 @@ namespace vds {
         vds::async_task<void> on_timer(
           const std::shared_ptr<transport_type>& s) {
           this->check_mtu_++;
-          if ((this->check_mtu_ / CHECK_MTU_TIMEOUT) < 10) {
-            if ((this->check_mtu_ % CHECK_MTU_TIMEOUT) == 0) {
-              if (this->mtu_ < 0xFFFF - 256) {
-                resizable_data_buffer out_message;
-                out_message.resize_data(this->mtu_ + 256);
-                out_message.add((uint8_t)protocol_message_type_t::MTUTest);
+          if (this->check_mtu_ < CHECK_MTU_TIMEOUT) {
+            if (this->mtu_ < 0xFFFF - 256) {
+              resizable_data_buffer out_message;
+              out_message.resize_data(this->mtu_ + 256);
+              out_message.add((uint8_t)protocol_message_type_t::MTUTest);
 
-                try {
-                  co_await s->write_async(udp_datagram(this->address_, out_message.move_data(), false));
-                }
-                catch (...) {
-                }
+              try {
+                co_await s->write_async(udp_datagram(this->address_, out_message.move_data(), false));
+              }
+              catch (...) {
               }
             }
           }

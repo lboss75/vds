@@ -94,7 +94,6 @@ vds::async_task<void> vds::transaction_log::sync_process::apply_message(
     }
   }
   if (!requests.empty()) {
-    orm::transaction_log_unknown_record_dbo t3;
     for (const auto & p : requests) {
       auto & client = *this->sp_->get<vds::dht::network::client>();
       co_await client->send(
