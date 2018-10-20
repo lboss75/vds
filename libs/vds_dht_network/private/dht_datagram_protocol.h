@@ -41,7 +41,7 @@ namespace vds {
           this_node_id_(this_node_id),
           partner_node_id_(partner_node_id),
           session_key_(session_key),
-          mtu_(16 * 1024),
+          mtu_(508),
           next_sequence_number_(0) {
         }
 
