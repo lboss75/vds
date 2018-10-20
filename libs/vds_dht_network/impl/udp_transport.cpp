@@ -302,7 +302,10 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
               this->shared_from_this(),
               const_data_buffer(datagram.data(), datagram.data_size()));
           }
-          catch (const std::exception & /*ex*/) {
+          catch (const std::exception & ex) {
+            logger::get(this->sp_)->debug(ThisModule, "%s at process message from %s",
+              ex.what(),
+              datagram.address().to_string().c_str());
             failed = true;
           }
 
