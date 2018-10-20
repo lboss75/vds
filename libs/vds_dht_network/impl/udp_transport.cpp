@@ -89,7 +89,7 @@ vds::async_task<void> vds::dht::network::udp_transport::try_handshake(
     this->sessions_mutex_.unlock();
   }
   else {
-    auto & session_info = *p;
+    auto & session_info = p->second;
     this->sessions_mutex_.unlock();
 
     session_info.session_mutex_.lock();
