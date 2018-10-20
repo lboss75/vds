@@ -116,7 +116,7 @@ namespace vds {
             if(this->mtu_ < datagram.size()) {
               this->mtu_ = datagram.size();
               this->check_mtu_ = 0;
-              this->sp_->get<logger>()->trace("dht_session", "Change MTU size to %d", this->mtu_);
+              logger::get(this->sp_)->trace("dht_session", "Change MTU size to %d", this->mtu_);
             }
             co_return;
           }
