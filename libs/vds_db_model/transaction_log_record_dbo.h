@@ -21,6 +21,9 @@ namespace vds {
       };
       static std::string str(state_t value){
         switch(value){
+          case state_t::stored:
+            return "stored";
+        
           case state_t::processed:
             return "processed";
 
