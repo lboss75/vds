@@ -27,11 +27,13 @@ namespace vds {
 //    }
 
     _tcp_network_socket(
-        const service_provider * sp,
-        SOCKET_HANDLE s)
-      : sp_(sp), s_(s)
 #ifndef _WIN32
-    , event_masks_(0)
+      const service_provider * sp,
+#endif
+        SOCKET_HANDLE s)
+      : s_(s)
+#ifndef _WIN32
+        , sp_(sp), event_masks_(0)
 #endif
     {
 #ifdef _WIN32
@@ -78,13 +80,18 @@ namespace vds {
     }
 
     static std::shared_ptr<tcp_network_socket> from_handle(
-        const service_provider * sp,
-        SOCKET_HANDLE handle)
+#ifndef _WIN32
+      const service_provider * sp,
+#endif
+      SOCKET_HANDLE handle)
     {
       return std::shared_ptr<tcp_network_socket>(
           new tcp_network_socket(
               new _tcp_network_socket(
-                  sp, handle)));
+#ifndef _WIN32
+                sp,
+#endif
+                handle)));
     }
     //
     //    std::shared_ptr<vds::stream_input_async<uint8_t>> start()
@@ -163,10 +170,10 @@ namespace vds {
   private:
     friend class tcp_network_socket;
 
-    const service_provider * sp_;
     SOCKET_HANDLE s_;
 
 #ifndef _WIN32
+    const service_provider * sp_;
     std::mutex event_masks_mutex_;
     uint32_t event_masks_;
 
