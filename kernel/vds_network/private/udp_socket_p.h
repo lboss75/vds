@@ -65,10 +65,13 @@ namespace vds {
   class _udp_socket
   {
   public:
-    _udp_socket(SOCKET_HANDLE s)
-      : s_(s)
+    _udp_socket(
+        const service_provider * sp,
+        SOCKET_HANDLE s)
+      : sp_(sp),
+        s_(s)
 #ifndef _WIN32
-    , event_masks_(EPOLLET)
+        , event_masks_(0)
 #endif//_WIN32
     {
     }
@@ -95,32 +98,33 @@ namespace vds {
 
     void change_mask(
         const std::shared_ptr<socket_base> & owner,
-        _network_service * ns,
         uint32_t set_events,
         uint32_t clear_events = 0)
     {
       std::unique_lock<std::mutex> lock(this->event_masks_mutex_);
-      auto need_create = (EPOLLET == this->event_masks_);
+      auto last_mask = this->event_masks_;
       this->event_masks_ |= set_events;
       this->event_masks_ &= ~clear_events;
 
-      if(!need_create && EPOLLET != this->event_masks_){
-        ns->set_events(this->s_, this->event_masks_);
+      if(last_mask == this->event_masks_){
+        return;
       }
-      else if (EPOLLET == this->event_masks_){
-        ns->remove_association(this->s_);
+
+      if(0 != last_mask && 0 != this->event_masks_){
+        (*this->sp_->get<network_service>())->set_events(this->s_, this->event_masks_);
+      }
+      else if (0 == this->event_masks_){
+        (*this->sp_->get<network_service>())->remove_association(this->s_);
       }
       else {
-        ns->associate(
-            this->s_,
-            owner,
-            this->event_masks_);
+        (*this->sp_->get<network_service>())->associate(this->s_, owner, this->event_masks_);
       }
     }
 
 #endif//_WIN32
 
   private:
+    const service_provider * sp_;
     SOCKET_HANDLE s_;
 
     void close()
@@ -361,7 +365,6 @@ namespace vds {
         const service_provider * sp,
         const std::shared_ptr<socket_base> & owner)
       : sp_(sp),
-        ns_(sp->get<network_service>()->operator->()),
         owner_(owner)
     {
     }
@@ -371,6 +374,8 @@ namespace vds {
     }
 
     vds::async_task<udp_datagram> read_async() {
+      auto r = std::make_shared<vds::async_result<udp_datagram>>();
+
       this->addr_.reset();
       int len = recvfrom((*this->owner())->handle(),
                          this->read_buffer_,
@@ -382,28 +387,25 @@ namespace vds {
       if (len <= 0) {
         int error = errno;
         if (EAGAIN == error) {
-          auto r = std::make_shared<vds::async_result<udp_datagram>>();
           this->read_result_ = r;
-          (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLIN);
-          return r->get_future();
+          (*this->owner())->change_mask(this->owner_, EPOLLIN);
         }
-
-        this->sp_->get<logger>()->trace("UDP", "Error %d at get recive UDP package", error);
-        throw std::system_error(error, std::system_category(), "recvfrom");
+        else {
+          this->sp_->get<logger>()->trace("UDP", "Error %d at get recive UDP package", error);
+          r->set_exception(std::make_exception_ptr(
+              std::system_error(error, std::system_category(), "recvfrom")));
+        }
       }
       else {
         this->sp_->get<logger>()->trace("UDP", "Got %d bytes UDP package from %s", len, this->addr_.to_string().c_str());
-
-        auto r = std::make_shared<vds::async_result<udp_datagram>>();
         r->set_value(_udp_datagram::create(this->addr_, this->read_buffer_, len));
-        return r->get_future();
       }
+
+      return r->get_future();
     }
 
 
     void process() {
-      (*this->owner())->change_mask(this->owner_, this->ns_, 0, EPOLLIN);
-
       this->addr_.reset();
       int len = recvfrom((*this->owner())->handle(),
                          this->read_buffer_,
@@ -412,23 +414,27 @@ namespace vds {
                          this->addr_,
                          this->addr_.size_ptr());
 
+      auto r = std::move(this->read_result_);
       if (len <= 0) {
         int error = errno;
         if (EAGAIN == error) {
-          (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLIN);
           return;
         }
 
+        (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
         this->sp_->get<logger>()->trace("UDP", "Error %d at get recive UDP package", error);
-        auto r = std::move(this->read_result_);
         r->set_exception(
             std::make_exception_ptr(
                 std::system_error(error, std::system_category(), "recvfrom")));
       }
       else {
-        this->sp_->get<logger>()->trace("UDP", "Got %d bytes UDP package from %s", len, this->addr_.to_string().c_str());
+        this->sp_->get<logger>()->trace(
+            "UDP",
+            "Got %d bytes UDP package from %s",
+            len,
+            this->addr_.to_string().c_str());
 
-        auto r = std::move(this->read_result_);
+        (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
         r->set_value(_udp_datagram::create(this->addr_, this->read_buffer_, len));
       }
     }
@@ -436,7 +442,6 @@ namespace vds {
 
   private:
     const service_provider * sp_;
-      _network_service * ns_;
     std::shared_ptr<socket_base> owner_;
     std::shared_ptr<vds::async_result<udp_datagram>> read_result_;
 
@@ -454,7 +459,6 @@ namespace vds {
         const service_provider * sp,
         const std::shared_ptr<socket_base> & owner)
         : sp_(sp),
-          ns_(sp->get<network_service>()->operator->()),
           owner_(owner) {
 
     }
@@ -475,7 +479,7 @@ namespace vds {
           this->write_message_ = message;
           this->write_result_ = r;
           (*this->owner())->change_mask(
-              this->owner_, this->ns_, EPOLLOUT);
+              this->owner_, EPOLLOUT);
         }
         else {
           auto address = message.address().to_string();
@@ -484,7 +488,7 @@ namespace vds {
             "UDP",
             "Error %d at sending UDP to %s",
             error,
-            message.address().to_string().c_str());
+            address .c_str());
 
           if (EMSGSIZE == error) {
             r->set_exception(std::make_exception_ptr(udp_datagram_size_exception()));
@@ -515,7 +519,6 @@ namespace vds {
     }
 
     void process(){
-      (*this->owner())->change_mask(this->owner_, this->ns_, 0, EPOLLOUT);
 
       auto size = this->write_message_.data_size();
       int len = sendto(
@@ -526,13 +529,14 @@ namespace vds {
           this->write_message_.address(),
           this->write_message_.address().size());
 
+      auto result = std::move(this->write_result_);
       if (len < 0) {
         int error = errno;
         if (EAGAIN == error) {
-          (*this->owner())->change_mask(this->owner_, this->ns_, EPOLLOUT);
           return;
         }
 
+        (*this->owner())->change_mask(this->owner_, 0, EPOLLOUT);
         this->sp_->get<logger>()->trace(
           "UDP",
           "Error %d at sending UDP to %s",
@@ -540,7 +544,6 @@ namespace vds {
           this->write_message_.address().to_string().c_str());
 
 
-        auto result = std::move(this->write_result_);
         auto address = this->write_message_.address().to_string();
 
         if (EMSGSIZE == error) {
@@ -554,23 +557,24 @@ namespace vds {
         }
       }
       else {
-        if ((size_t)len != size) {
-          throw std::runtime_error("Invalid send UDP");
-        }
+        (*this->owner())->change_mask(this->owner_, 0, EPOLLOUT);
 
         this->sp_->get<logger>()->trace(
           "UDP",
           "Sent %d bytes UDP package to %s",
           this->write_message_.data_size(),
           this->write_message_.address().to_string().c_str());
-        auto result = std::move(this->write_result_);
-        result->set_value();
+        if ((size_t)len != size) {
+          result->set_exception(std::make_exception_ptr(std::runtime_error("Invalid send UDP")));
+        }
+        else {
+          result->set_value();
+        }
       }
     }
 
   private:
     const service_provider * sp_;
-    _network_service * ns_;
     std::shared_ptr<socket_base> owner_;
     std::shared_ptr<vds::async_result<void>> write_result_;
     udp_datagram write_message_;

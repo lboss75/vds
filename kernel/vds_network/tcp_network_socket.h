@@ -21,7 +21,7 @@ namespace vds {
 #endif//_WIN32
   {
   public:
-    tcp_network_socket();
+    //tcp_network_socket();
     ~tcp_network_socket();
 
     static std::shared_ptr<tcp_network_socket> connect(

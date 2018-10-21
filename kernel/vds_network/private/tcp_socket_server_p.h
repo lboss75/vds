@@ -175,7 +175,7 @@ namespace vds {
 
                     auto socket = accept(this->s_, &client_address, &client_address_length);
                     if (INVALID_SOCKET != socket) {
-                      auto s = _tcp_network_socket::from_handle(socket);
+                      auto s = _tcp_network_socket::from_handle(sp, socket);
                       (*s)->make_socket_non_blocking();
                       (*s)->set_timeouts();
                       this->new_connection_(s).detach();

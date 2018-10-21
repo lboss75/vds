@@ -5,13 +5,11 @@ All rights reserved
 #include "stdafx.h"
 #include "tcp_network_socket.h"
 #include "private/tcp_network_socket_p.h"
-#include "private/read_socket_task_p.h"
-#include "private/write_socket_task_p.h"
 
-vds::tcp_network_socket::tcp_network_socket()
-: impl_(new _tcp_network_socket())
-{
-}
+//vds::tcp_network_socket::tcp_network_socket()
+//: impl_(new _tcp_network_socket())
+//{
+//}
 
 vds::tcp_network_socket::tcp_network_socket(_tcp_network_socket * impl)
 : impl_(impl)
@@ -33,6 +31,7 @@ std::shared_ptr<vds::tcp_network_socket> vds::tcp_network_socket::connect(
 #ifdef _WIN32
         WSASocket(address.family(), SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)
 #else
+        sp,
         socket(address.family(), SOCK_STREAM, 0)
 #endif//_WIN32
         );

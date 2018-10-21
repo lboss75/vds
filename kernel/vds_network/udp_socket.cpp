@@ -206,7 +206,7 @@ std::shared_ptr<vds::udp_socket> vds::udp_socket::create(
   }
 
 #endif
-  return std::shared_ptr<udp_socket>(new udp_socket(new _udp_socket(s)));
+  return std::shared_ptr<udp_socket>(new udp_socket(new _udp_socket(sp, s)));
 }
 
 #ifndef _WIN32
