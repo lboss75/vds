@@ -16,7 +16,44 @@ All rights reserved
 
 namespace vds {
   class user_wallet {
-    
+  public:
+    user_wallet(
+      const std::string & name,
+      certificate && cert,
+      asymmetric_private_key && private_key)
+    : name_(name),
+      cert_(std::move(cert)),
+      private_key_(std::move(private_key)) {
+    }
+
+    static user_wallet create_wallet(
+      transactions::transaction_block_builder & log,
+      const member_user & target_user,
+      const std::string & name);
+
+    static void transfer(
+      database_read_transaction & t,
+      transactions::transaction_block_builder & log,
+      const member_user & target_user,
+      const member_user & source_user,
+      size_t value);
+
+    const std::string& name() const {
+      return name_;
+    }
+
+    const certificate& cert() const {
+      return cert_;
+    }
+
+    const asymmetric_private_key& private_key() const {
+      return private_key_;
+    }
+
+  private:
+    std::string name_;
+    certificate cert_;
+    asymmetric_private_key private_key_;
   };
 }
 

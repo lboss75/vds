@@ -13,6 +13,7 @@ All rights reserved
 #include "channel_create_transaction.h"
 #include "user_message_transaction.h"
 #include "func_utils.h"
+#include "control_message_transaction.h"
 
 namespace vds {
   namespace transactions {
@@ -33,7 +34,11 @@ namespace vds {
       virtual bool visit(const user_message_transaction & /*message*/) {
         return true;
       }
-      
+
+      virtual bool visit(const control_message_transaction & /*message*/) {
+        return true;
+      }
+
       bool process(const const_data_buffer & message_data) {
         binary_deserializer s(message_data);
 
@@ -62,6 +67,12 @@ namespace vds {
             }
             case user_message_transaction::message_id: {
               if (!this->visit(message_deserialize<user_message_transaction>(s))) {
+                return false;
+              }
+              break;
+            }
+            case control_message_transaction::message_id: {
+              if (!this->visit(message_deserialize<control_message_transaction>(s))) {
                 return false;
               }
               break;

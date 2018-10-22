@@ -47,6 +47,10 @@ vds::user_channel vds::member_user::create_channel(
   return this->impl_->create_channel(log, name);
 }
 
+vds::user_channel vds::member_user::personal_channel() const {
+  return this->impl_->personal_channel();
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 vds::_member_user::_member_user(

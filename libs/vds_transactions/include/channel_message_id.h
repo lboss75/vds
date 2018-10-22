@@ -20,6 +20,8 @@ namespace vds {
       channel_remove_reader_transaction = 'e',
 
       split_block_transaction = 's',
+
+      control_message_transaction = 'c',
     };
   }
 }

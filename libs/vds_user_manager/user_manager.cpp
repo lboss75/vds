@@ -23,6 +23,7 @@ All rights reserved
 #include "register_request.h"
 #include "create_user_transaction.h"
 #include "private/user_channel_p.h"
+#include "control_message_transaction.h"
 
 vds::user_manager::user_manager(const service_provider * sp)
 : sp_(sp) {
@@ -108,59 +109,7 @@ void vds::user_manager::reset(
   }).get();
 }
 
-//vds::async_task<void> vds::user_manager::init_server(
-//	const service_provider * parent_sp,
-//	const std::string &root_user_name,
-//	const std::string & user_password,
-//	const std::string & device_name,
-//	int port)
-//{
-//	auto sp = parent_sp.create_scope(__FUNCTION__);
-//	return sp->get<db_model>()->async_transaction(sp, [this, sp, root_user_name, user_password, device_name, port](database_transaction & t)
-//	{
-//		this->load(
-//				sp,
-//				t,
-//				dht::dht_object_id::from_user_email(root_user_name),
-//				symmetric_key::from_password(user_password),
-//				hash::signature(hash::sha256(), user_password.c_str(), user_password.length())
-//		);
-
-//    auto user = this->import_user(*request.certificate_chain().rbegin());
-//		transactions::transaction_block_builder log;
-//
-//		auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-//		auto device_user = this->lock_to_device(
-//			sp,
-//			t,
-//			log,
-//			request.certificate_chain(),
-//			user,
-//			request.user_name(),
-//			user_password,
-//			request.private_key(),
-//			device_name,
-//			private_key,
-//			port);
-//
-//		log.add(
-//			transactions::device_user_add_transaction(
-//				device_user.object_id(),
-//				device_user.user_certificate()));
-//
-//		auto blocks = log.save(
-//			sp, t,
-//          user.object_id(),
-//          user.user_certificate(),
-//          user.user_certificate(),
-//          request.private_key());
-		//this->load(sp, t, device_user.object_id());
-//
-//		return true;
-//	});
-//}
 std::shared_ptr<vds::user_channel> vds::user_manager::get_channel(
-  
   const const_data_buffer & channel_id) const
 {
   return this->impl_->get_channel(channel_id);
@@ -290,6 +239,11 @@ vds::async_task<bool> vds::user_manager::approve_join_request(
   
   const const_data_buffer& data) {
   return this->impl_->approve_join_request(data);
+}
+
+const std::list<std::shared_ptr<vds::user_wallet>>& vds::user_manager::wallets() const
+{
+  return this->impl_->wallets();
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -434,6 +388,28 @@ void vds::_user_manager::update(
                 message.name.c_str(),
                 cp->read_cert()->subject().c_str(),
                 cp->write_cert()->subject().c_str());
+
+              return true;
+            },
+              [this, channel_id = message.channel_id(), log](const transactions::control_message_transaction & message)->bool {
+              auto msg = std::dynamic_pointer_cast<json_object>(message.message);
+              std::string type;
+                if(msg && msg->get_property("$type", type)) {
+                  if(transactions::control_message_transaction::create_wallet_type == type) {
+                    std::string name;
+                    msg->get_property("name", name);
+
+                    auto wallet = std::make_shared<user_wallet>(
+                      name,
+                      certificate::parse_der(message.attachments.at("cert")),
+                      asymmetric_private_key::parse_der(message.attachments.at("key"), std::string()));
+
+                    this->wallets_.push_back(wallet);
+
+                    log->debug(ThisModule, "Got wallet %s write certificate",
+                      name.c_str());
+                  }                  
+                }
 
               return true;
             });

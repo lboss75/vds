@@ -5,6 +5,7 @@
 #include "cert_control.h"
 #include "user_manager.h"
 #include "db_model.h"
+#include "user_wallet.h"
 
 TEST(test_vds_dht_network, test_datacoin_protocol) {
 
@@ -58,6 +59,9 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
   sp->get<vds::db_model>()->async_transaction([user1_mng](vds::database_transaction & t) {
     user1_mng->load(t, "user1@domain.com", "1234567");
   }).get();
+
+  //
+  //vds::user_wallet::transfer(user1_mng->get_current_user(), root_user_mng, 100);
 
   //auto user1 = user_manager::create_user();
   //auto user2 = user_manager::create_user();

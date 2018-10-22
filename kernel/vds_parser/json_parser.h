@@ -835,5 +835,19 @@ namespace vds {
             "Unexpected end of data");
     }
   }
+
+  inline vds::binary_deserializer & operator >> (
+    vds::binary_deserializer & s,
+    std::shared_ptr<json_value> & value) {
+
+    std::string value_str;
+    s >> value_str;
+
+    value = json_parser::parse(
+      "deserialize",
+      const_data_buffer(value_str.c_str(), value_str.length()));
+    return s;
+  }
+
 }
 #endif // __VDS_PARSER_JSON_PARSER_H_

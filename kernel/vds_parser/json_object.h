@@ -9,6 +9,7 @@ All rights reserved
 #include <string>
 #include <chrono>
 #include "const_data_buffer.h"
+#include "binary_serialize.h"
 
 namespace vds {
   class json_writer;
@@ -198,6 +199,13 @@ namespace vds {
     }
     
     return true;
+  }
+
+  inline vds::binary_serializer & operator << (
+    vds::binary_serializer & s,
+    const std::shared_ptr<json_value> & value) {
+    s << value->str();
+    return s;
   }
 }
 

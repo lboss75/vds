@@ -30,9 +30,10 @@ namespace vds {
     //    const vds::asymmetric_private_key &private_key);
 
     user_channel create_channel(
-      
       transactions::transaction_block_builder &log,
       const std::string &name);
+
+    user_channel personal_channel() const;
 
     _member_user * operator -> () const {
       return this->impl_;

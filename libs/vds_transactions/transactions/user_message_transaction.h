@@ -8,6 +8,8 @@ All rights reserved
 #include <unordered_map>
 #include "binary_serialize.h"
 #include "channel_message_id.h"
+#include "json_object.h"
+#include "json_parser.h"
 
 namespace vds {
 	namespace transactions {
@@ -31,7 +33,7 @@ namespace vds {
         std::list<file_block_t> file_blocks;
       };
 
-			std::string message;
+      std::shared_ptr<json_value> message;
       std::list<file_info_t> files;
 
       template <typename  visitor_type>

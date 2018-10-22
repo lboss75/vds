@@ -150,7 +150,7 @@ vds::async_task<void> vds::file_manager_private::_file_operations::create_messag
     channel->add_log(
       log,
       message_create<transactions::user_message_transaction>(
-        message->str(),
+        message,
         files));
 
     log.save(

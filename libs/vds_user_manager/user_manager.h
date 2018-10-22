@@ -15,6 +15,7 @@ All rights reserved
 #include "encoding.h"
 
 namespace vds {
+  class user_wallet;
   class _user_manager;
 
   class user_manager : public std::enable_shared_from_this<user_manager>
@@ -121,6 +122,8 @@ namespace vds {
     vds::async_task<bool> approve_join_request(
       
       const const_data_buffer & data);
+
+    const std::list<std::shared_ptr<user_wallet>> & wallets() const;
 
   private:
     const service_provider * sp_;
