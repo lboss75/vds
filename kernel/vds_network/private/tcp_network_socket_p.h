@@ -354,10 +354,8 @@ namespace vds {
 
   public:
     _write_socket_task(
-      const service_provider * sp,
       const std::shared_ptr<socket_base> &owner)
-      : sp_(sp),
-        owner_(owner) {
+      : owner_(owner) {
     }
 
     ~_write_socket_task() {
@@ -446,7 +444,6 @@ namespace vds {
     }
 
   private:
-    const service_provider * sp_;
     std::shared_ptr<socket_base> owner_;
     std::shared_ptr<vds::async_result<void>> result_;
     const uint8_t * buffer_;
