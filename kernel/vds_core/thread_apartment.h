@@ -20,7 +20,14 @@ namespace vds {
     }
 
     ~thread_apartment() {
-      vds_assert(this->task_queue_.empty());
+#ifdef DEBUG
+      try {
+        vds_assert(this->task_queue_.empty());
+      }
+      catch (...){
+
+      }
+#endif
     }
 
     void schedule(const std::function<void(void)> & callback) {

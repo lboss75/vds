@@ -28,6 +28,8 @@ namespace vds {
   template <typename item_type>
   class stream_input_async : public std::enable_shared_from_this<stream_input_async<item_type>> {
   public:
+    virtual ~stream_input_async() {}
+
     virtual vds::async_task<size_t> read_async(      
       item_type * buffer,
       size_t len) = 0;

@@ -116,7 +116,6 @@ void vds::_network_service::start(const service_provider * sp)
     }
   this->epoll_thread_ = std::thread(
     [this, sp] {
-      auto last_timeout_update = std::chrono::steady_clock::now();
       for(;;){
         std::unique_lock<std::mutex> lock(this->tasks_mutex_);
         if(this->tasks_.empty()){

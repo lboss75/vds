@@ -86,7 +86,7 @@ std::tuple<
 
   auto pthis = this->shared_from_this();
   auto reader = std::make_shared<_read_socket_task>(sp, pthis);
-  auto writer = std::make_shared<_write_socket_task>(sp, pthis);
+  auto writer = std::make_shared<_write_socket_task>(pthis);
 
   (*this)->read_task_ = reader;
   (*this)->write_task_ = writer;

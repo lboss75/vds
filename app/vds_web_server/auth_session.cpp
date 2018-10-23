@@ -19,7 +19,7 @@ vds::auth_session::auth_session(
 
 vds::async_task<void> vds::auth_session::load(const service_provider * sp) {
 
-  return sp->get<db_model>()->async_transaction([sp, pthis = this->shared_from_this()](database_transaction & t) {
+  return sp->get<db_model>()->async_transaction([pthis = this->shared_from_this()](database_transaction & t) {
     pthis->user_mng_->load(
       t,
       pthis->login_,

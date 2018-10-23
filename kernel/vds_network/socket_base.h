@@ -13,6 +13,7 @@ namespace vds {
   class socket_base : public std::enable_shared_from_this<socket_base>
   {
   public:
+    virtual ~socket_base() {}
     virtual void process(uint32_t events) = 0;
   };
 }
