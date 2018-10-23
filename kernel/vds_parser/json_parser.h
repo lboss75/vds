@@ -498,7 +498,7 @@ namespace vds {
               this->state_ = ST_STRING;
               break;
 
-            case 'x':
+            case 'u':
               this->state_ = ST_STRING_SYMBOL_1;
               break;
 
