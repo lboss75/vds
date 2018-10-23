@@ -57,6 +57,8 @@ namespace vds {
           return this->impl_.get();
         }
 
+        void update_wellknown_connection_enabled(bool value);
+
       private:
         std::shared_ptr<_client> impl_;
       };

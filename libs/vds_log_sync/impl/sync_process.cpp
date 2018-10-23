@@ -7,11 +7,13 @@ All rights reserved
 #include "dht_network_client.h"
 #include "transaction_log_record_dbo.h"
 #include "chunk_dbo.h"
-#include "transaction_log_unknown_record_dbo.h"
+#include "transaction_log_hierarchy_dbo.h"
 #include "transaction_log.h"
 #include "db_model.h"
 #include "messages/transaction_log_messages.h"
 #include "../../vds_dht_network/private/dht_network_client_p.h"
+#include "certificate_chain_dbo.h"
+#include "transaction_block.h"
 
 vds::async_task<void> vds::transaction_log::sync_process::do_sync( database_transaction& t) {
   co_await this->sync_local_channels(t, const_data_buffer());
@@ -20,12 +22,13 @@ vds::async_task<void> vds::transaction_log::sync_process::do_sync( database_tran
 
 vds::async_task<void> vds::transaction_log::sync_process::query_unknown_records( database_transaction& t) {
   std::set<const_data_buffer> record_ids;
-  orm::transaction_log_unknown_record_dbo t1;
-  orm::transaction_log_unknown_record_dbo t2;
+  orm::transaction_log_hierarchy_dbo t1;
+  orm::transaction_log_hierarchy_dbo t2;
+  orm::transaction_log_record_dbo t3;
   auto st = t.get_reader(
     t1.select(
       t1.id)
-    .where(db_not_in(t1.id, t2.select(t2.follower_id))));
+    .where(db_not_in(t1.id, t2.select(t2.follower_id)) && db_not_in(t1.id, t3.select(t3.id))));
 
   while (st.execute()) {
     if (record_ids.end() == record_ids.find(t1.id.get(st))) {
@@ -34,14 +37,13 @@ vds::async_task<void> vds::transaction_log::sync_process::query_unknown_records(
   }
 
   if(record_ids.empty()){
-    orm::transaction_log_record_dbo t2;
-    auto st = t.get_reader(
-        t2.select(t2.id)
-            .where(t2.state == orm::transaction_log_record_dbo::state_t::leaf));
+    st = t.get_reader(
+        t3.select(t3.id)
+            .where(t3.state == orm::transaction_log_record_dbo::state_t::leaf));
 
     std::list<const_data_buffer> current_state;
     while (st.execute()) {
-      auto id = t2.id.get(st);
+      auto id = t3.id.get(st);
       current_state.push_back(id);
     }
 
@@ -165,7 +167,6 @@ vds::async_task<void> vds::transaction_log::sync_process::apply_message(
 }
 
 vds::async_task<void> vds::transaction_log::sync_process::apply_message(
-    
     database_transaction& t,
     const dht::messages::transaction_log_record& message,
     const dht::network::imessage_map::message_info_t & message_info) {
@@ -175,12 +176,49 @@ vds::async_task<void> vds::transaction_log::sync_process::apply_message(
     "Save log record %s",
     base64::from_bytes(message.record_id).c_str());
 
-  if(transactions::transaction_log::save(
+  transactions::transaction_block block(message.data);
+
+  if (block.exists(t)) {
+    co_return;
+  }
+
+  orm::transaction_log_record_dbo t1;
+  const auto root_cert = cert_control::get_root_certificate();
+  std::shared_ptr<certificate> write_cert;
+  if (block.ancestors().empty() || block.write_cert_id() == root_cert->subject()) {
+    write_cert = root_cert;
+  }
+  else {
+    orm::certificate_chain_dbo t2;
+    auto st = t.get_reader(t2.select(t2.cert).where(t2.id == block.write_cert_id()));
+    if (st.execute()) {
+      write_cert = std::make_shared<certificate>(certificate::parse_der(t2.cert.get(st)));
+    }
+  }
+
+  if (!write_cert || !block.validate(*write_cert)) {
+    auto client = this->sp_->get<vds::dht::network::client>();
+
+    orm::transaction_log_hierarchy_dbo t4;
+    for (const auto & ancestor : block.ancestors()) {
+      auto st = t.get_reader(t1.select(t1.state).where(t1.id == ancestor));
+
+      if (!st.execute()) {
+        co_await (*client)->send(
+          message_info.source_node(),
+          message_create<dht::messages::transaction_log_request>(
+            ancestor,
+            client->current_node_id()));
+      }
+    }
+
+    co_return;
+  }
+
+  transactions::transaction_log::save(
     this->sp_,
     t,
-    message.data)) {
-    co_await this->sync_local_channels(t, const_data_buffer());
-  }
+    message.data);
 }
 
 vds::async_task<void> vds::transaction_log::sync_process::on_new_session(

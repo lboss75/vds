@@ -275,6 +275,11 @@ namespace vds {
             uint32_t object_size) {
           return this->sync_process_.add_sync_entry(t, object_id, object_size);
         }
+
+        void update_wellknown_connection_enabled(bool value) {
+          this->update_wellknown_connection_enabled_ = value;
+        }
+
       private:
         friend class sync_process;
         friend class dht_session;
@@ -288,7 +293,7 @@ namespace vds {
 
         timer update_timer_;
         uint32_t update_route_table_counter_;
-
+        bool update_wellknown_connection_enabled_;
         vds::async_task<void> update_route_table();
         vds::async_task<void> process_update(
           

@@ -80,17 +80,16 @@ void vds::db_model::migrate(
       data BLOB NOT NULL,\
 			state INTEGER NOT NULL,\
 			order_no INTEGER NOT NULL,\
-      time_point INTEGER NOT NULL,\
-      state_data BLOB NULL)");
+      time_point INTEGER NOT NULL)");
 
     t.execute("CREATE TABLE channel_local_cache(\
       channel_id VARCHAR(64) PRIMARY KEY NOT NULL,\
       last_sync INTEGER NOT NULL)");
 
-		t.execute("CREATE TABLE transaction_log_unknown_record(\
+		t.execute("CREATE TABLE transaction_log_hierarchy(\
 			id VARCHAR(64) NOT NULL,\
       follower_id VARCHAR(64) NOT NULL,\
-			CONSTRAINT pk_transaction_log_unknown_record PRIMARY KEY(id,follower_id))");
+			CONSTRAINT pk_transaction_log_hierarchy PRIMARY KEY(id,follower_id))");
 
     t.execute("CREATE TABLE chunk (\
 			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\

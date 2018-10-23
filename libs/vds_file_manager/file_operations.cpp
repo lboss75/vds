@@ -154,6 +154,7 @@ vds::async_task<void> vds::file_manager_private::_file_operations::create_messag
         files));
 
     log.save(
+      pthis->sp_,
       t,
       user_mng->get_current_user().user_certificate(),
       user_mng->get_current_user_private_key());

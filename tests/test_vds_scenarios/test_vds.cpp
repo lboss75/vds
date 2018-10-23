@@ -66,10 +66,10 @@ TEST(test_vds, test_initial)
     result_data = std::make_shared<compare_data_async<uint8_t>>(buffer.get(), len);
     result = mock.download_data(4, channel.id(), "test data", file_hash, result_data).get();
 
-    ASSERT_EQ(len, result.size);
-
     std::cout << "Done...\n";
     mock.stop();
+
+    ASSERT_EQ(len, result.size);
 
   }
   catch (const std::exception & ex) {

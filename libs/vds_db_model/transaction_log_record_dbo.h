@@ -14,24 +14,25 @@ namespace vds {
     class transaction_log_record_dbo : public database_table {
     public:
       enum class state_t : uint8_t {
-        stored,
+        validated,
         processed,
         leaf,
-        invalid,
+        invalid
       };
       static std::string str(state_t value){
         switch(value){
-          case state_t::stored:
-            return "stored";
-        
-          case state_t::processed:
-            return "processed";
+       
+        case state_t::validated:
+          return "validated";
 
-          case state_t::invalid:
-            return "invalid";
+        case state_t::processed:
+            return "processed";
 
           case state_t::leaf:
             return "leaf";
+
+          case state_t::invalid:
+            return "invalid";
 
           default:
             return "unknown(" + std::to_string((uint8_t)value) + ")";
@@ -44,7 +45,6 @@ namespace vds {
             data(this, "data"),
             state(this, "state"),
             order_no(this, "order_no"),
-            state_data(this, "state_data"),
             time_point(this, "time_point"){
       }
 
@@ -52,7 +52,6 @@ namespace vds {
       database_column<const_data_buffer> data;
       database_column<state_t, int> state;
       database_column<uint64_t> order_no;
-      database_column<const_data_buffer> state_data;
       database_column<std::chrono::system_clock::time_point> time_point;
     };
   }

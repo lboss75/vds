@@ -39,7 +39,7 @@ namespace vds {
       void add(const channel_message & item);
 
       const_data_buffer save(
-          
+          const service_provider * sp,
           class vds::database_transaction &t,
           const std::shared_ptr<certificate> &write_cert,
           const std::shared_ptr<asymmetric_private_key> &write_private_key);
@@ -51,7 +51,7 @@ namespace vds {
         std::chrono::system_clock::time_point time_point_;
 
         std::set<const_data_buffer> ancestors_;
-        data_coin_balance balance_;
+        size_t order_no_;
         binary_serializer data_;
 
         transaction_block_builder(const service_provider * sp);

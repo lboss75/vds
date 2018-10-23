@@ -29,7 +29,8 @@ vds::dht::network::_client::_client(
     update_timer_("DHT Network"),
     update_route_table_counter_(0),
     udp_transport_(udp_transport),
-    sync_process_(sp){
+    sync_process_(sp),
+  update_wellknown_connection_enabled_(true) {
   for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
     this->generators_[replica].reset(new chunk_generator<uint16_t>(service::MIN_HORCRUX, replica));
   }
@@ -389,7 +390,7 @@ vds::async_task<void> vds::dht::network::_client::update_route_table() {
         message_create<messages::dht_find_node>(std::move(canditate)));
 
     }
-    this->update_route_table_counter_ = 100;
+    this->update_route_table_counter_ = 10;
   }
   else {
     this->update_route_table_counter_--;
@@ -592,18 +593,25 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
 
 vds::async_task<void>
 vds::dht::network::_client::update_wellknown_connection(
-  
   database_transaction& t) {
-
-  orm::well_known_node_dbo t1;
-  auto st = t.get_reader(t1.select(t1.address));
-  while (st.execute()) {
-    auto address = t1.address.get(st);
-    try {
-      co_await this->udp_transport_->try_handshake(address);
+  if (this->update_wellknown_connection_enabled_) {
+    orm::well_known_node_dbo t1;
+    auto st = t.get_reader(t1.select(t1.address));
+    while (st.execute()) {
+      auto address = t1.address.get(st);
+      try {
+        co_await this->udp_transport_->try_handshake(address);
+      }
+      catch (const std::system_error & ex) {
+        this->sp_->get<logger>()->debug(ThisModule, "%s at handshake to %s", ex.what(), address.c_str());
+      }
     }
-    catch(const std::system_error & ex) {
-      this->sp_->get<logger>()->debug(ThisModule, "%s at handshake to %s", ex.what(), address.c_str());
+  }
+  else {
+    try {
+      co_await this->udp_transport_->try_handshake("udp://localhost:8050");
+    }
+    catch (const std::system_error & ex) {
     }
   }
 }
@@ -730,4 +738,8 @@ void vds::dht::network::client::get_route_statistics(route_statistic& result) {
 
 void vds::dht::network::client::get_session_statistics(session_statistic& session_statistic) {
   this->impl_->get_session_statistics(session_statistic);
+}
+
+void vds::dht::network::client::update_wellknown_connection_enabled(bool value) {
+  this->impl_->update_wellknown_connection_enabled(value);
 }

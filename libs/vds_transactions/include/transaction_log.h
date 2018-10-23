@@ -16,23 +16,21 @@ namespace vds {
     class transaction_log {
     public:
 
-      static bool save(
+      static void save(
         const service_provider * sp,
         class database_transaction &t,
         const const_data_buffer & block_data);
 
     private:
-      static void update_consensus(
-        const service_provider * sp,
-        database_transaction& t,
-        const transaction_block& block,
-        const std::string & account);
-
-      static bool process_block(
+      static void process_block(
         const service_provider * sp,
         class database_transaction &t,
-        const const_data_buffer & block_data,
-        bool saved);
+        const const_data_buffer & block_data);
+
+      static void invalid_block(
+        const service_provider * sp,
+        class database_transaction &t,
+        const const_data_buffer & block_id);
     };
   }
 }

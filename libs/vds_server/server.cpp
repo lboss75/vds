@@ -10,7 +10,7 @@ All rights reserved
 #include "db_model.h"
 #include "file_manager_service.h"
 #include "dht_network.h"
-#include "transaction_log_unknown_record_dbo.h"
+#include "transaction_log_hierarchy_dbo.h"
 #include "chunk_dbo.h"
 #include "chunk_replica_data_dbo.h"
 #include "dht_object_id.h"
@@ -135,7 +135,7 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic() {
         });
     }
 
-    orm::transaction_log_unknown_record_dbo t3;
+    orm::transaction_log_hierarchy_dbo t3;
     st = t.get_reader(t3.select(t3.id));
 
     while(st.execute()) {

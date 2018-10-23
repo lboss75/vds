@@ -10,7 +10,7 @@ All rights reserved
 #include "database_orm.h"
 #include "db_model.h"
 #include "transaction_block_builder.h"
-#include "transaction_log_unknown_record_dbo.h"
+#include "transaction_log_hierarchy_dbo.h"
 #include "transaction_log_record_dbo.h"
 #include "encoding.h"
 #include "user_manager.h"
@@ -19,202 +19,48 @@ All rights reserved
 #include "certificate_chain_dbo.h"
 #include "include/transaction_state_calculator.h"
 
-bool vds::transactions::transaction_log::save(
+void vds::transactions::transaction_log::save(
 	const service_provider * sp,
 	database_transaction & t,
 	const const_data_buffer & block_data)
 {
   transaction_block block(block_data);
 
-  if(block.exists(t)) {
-    return false;
-  }
+  vds_assert(!block.exists(t));
 
-  std::set<const_data_buffer> remove_leaf;
-  bool ancestors_exist = true;
-  bool ancestor_invalid = false;
   orm::transaction_log_record_dbo t1;
-  orm::transaction_log_unknown_record_dbo t4;
+  t.execute(
+    t1.insert(
+      t1.id = block.id(),
+      t1.data = block_data,
+      t1.state = orm::transaction_log_record_dbo::state_t::validated,
+      t1.order_no = block.order_no(),
+      t1.time_point = block.time_point()));
+
+  orm::transaction_log_hierarchy_dbo t2;
   for (const auto & ancestor : block.ancestors()) {
-    auto st = t.get_reader(t1.select(t1.state).where(t1.id == ancestor));
-    if (!st.execute()) {
-      ancestors_exist = false;
-      t.execute(t4.insert_or_ignore(
-        t4.id = ancestor,
-        t4.follower_id = block.id()
-      ));
-    }
-    else {
-      switch (static_cast<orm::transaction_log_record_dbo::state_t>(t1.state.get(st))) {
-      case orm::transaction_log_record_dbo::state_t::leaf: {
-        remove_leaf.emplace(ancestor);
-        break;
-      }
-
-      case orm::transaction_log_record_dbo::state_t::processed:
-        break;
-
-      case orm::transaction_log_record_dbo::state_t::invalid:
-        ancestor_invalid = true;
-        break;
-
-      default:
-        throw std::runtime_error("Invalid program");
-      }
-    }
+    t.execute(t2.insert(
+      t2.id = ancestor,
+      t2.follower_id = block.id()
+    ));
   }
 
-  if (!ancestors_exist) {
-    return false;
-  }
-
-  const auto root_cert = cert_control::get_root_certificate();
-  std::shared_ptr<certificate> write_cert;
-  if (block.ancestors().empty() || block.write_cert_id() == root_cert->subject()) {
-    write_cert = root_cert;
-  }
-  else {
-    orm::certificate_chain_dbo t2;
-    auto st = t.get_reader(t2.select(t2.cert).where(t2.id == block.write_cert_id()));
-    if (st.execute()) {
-      write_cert = std::make_shared<certificate>(certificate::parse_der(t2.cert.get(st)));
-    }
-    else {
-      return false;
-    }
-  }
-
-  if(!block.validate(*write_cert)){
-    return false;
-  }  
-
-  if(ancestor_invalid) {
-    t.execute(
-      t1.insert(
-        t1.id = block.id(),
-        t1.data = block_data,
-        t1.state = orm::transaction_log_record_dbo::state_t::invalid,
-        t1.order_no = block.order_no()));
-  }
-  else {
-    update_consensus(sp, t, block, block.write_cert_id());
-
-    if(block.ancestors().empty()) {//Root
-        transaction_record_state state(block.id(), cert_control::get_root_certificate()->subject());
-        t.execute(
-            t1.insert(
-                t1.id = block.id(),
-                t1.data = block_data,
-                t1.state = orm::transaction_log_record_dbo::state_t::leaf,
-                t1.order_no = block.order_no(),
-                t1.time_point = block.time_point(),
-                t1.state_data = state.serialize()));
-    }
-    else {
-
-      //try {
-      auto state = transaction_state_calculator::calculate(t, block.ancestors(), block.time_point(), block.order_no());
-      state.apply(block);
-      //}
-      //catch (const transactions::transaction_source_not_found_error & ex) {
-      //  //
-      //}
-      //catch (const transactions::transaction_lack_of_funds & ex) {
-
-      //}
-
-      t.execute(
-          t1.insert(
-              t1.id = block.id(),
-              t1.data = block_data,
-              t1.state = orm::transaction_log_record_dbo::state_t::leaf,
-              t1.order_no = block.order_no(),
-              t1.time_point = block.time_point(),
-              t1.state_data = state.serialize()));
-
-      for (const auto &p : remove_leaf) {
-        t.execute(
-            t1.update(
-                    t1.state = orm::transaction_log_record_dbo::state_t::processed)
-                .where(t1.id == p));
-      }
-    }
-  }
-
-  //process followers
-  std::set<const_data_buffer> followers;
-  auto st = t.get_reader(t4.select(t4.follower_id).where(t4.id == block.id()));
-  while (st.execute()) {
-    const auto follower_id = t4.follower_id.get(st);
-    if(follower_id) {
-      followers.emplace(follower_id);
-    }
-  }
-
-  for (const auto &p : followers) {
-    st = t.get_reader(t1.select(t1.data).where(t1.id == p));
-    if (!st.execute()) {
-      throw std::runtime_error("Invalid data");
-    }
-
-    t.execute(
-      t4.delete_if(
-        t4.id == block.id()
-        && t4.follower_id == p));
-  }
-
-  return true;
+  process_block(sp, t, block_data);
 }
 
-void vds::transactions::transaction_log::update_consensus(
-  const service_provider * sp, 
-  database_transaction& t,
-  const transactions::transaction_block& block,
-  const std::string & account) {
-
-  orm::transaction_log_record_dbo t1;
-  for (const auto & ancestor_id : block.ancestors()) {
-    auto st = t.get_reader(t1.select(t1.data, t1.state_data).where(t1.id == ancestor_id));
-    if (!st.execute()) {
-      throw std::runtime_error("Invalid program");
-    }
-    else {
-      const auto state_data = t1.state_data.get(st);
-      binary_deserializer state_deserializer(state_data);
-      transactions::transaction_record_state state(state_deserializer);
-
-      if(state.update_consensus(account)) {
-        transactions::transaction_block ancestor(t1.data.get(st));
-        update_consensus(sp, t, ancestor, account);
-      }
-    }
-  }
-}
-
-bool vds::transactions::transaction_log::process_block(
+void vds::transactions::transaction_log::process_block(
   const service_provider* sp,
   database_transaction& t,
-  const const_data_buffer& block_data,
-  bool saved) {
+  const const_data_buffer& block_data) {
   transaction_block block(block_data);
 
-  if (!saved && block.exists(t)) {
-    return false;
-  }
-
-  std::set<const_data_buffer> remove_leaf;
-  bool ancestors_exist = true;
-  bool ancestor_invalid = false;
+  //Check ancestors
   orm::transaction_log_record_dbo t1;
-  orm::transaction_log_unknown_record_dbo t4;
+  std::set<const_data_buffer> remove_leaf;
   for (const auto & ancestor : block.ancestors()) {
     auto st = t.get_reader(t1.select(t1.state).where(t1.id == ancestor));
     if (!st.execute()) {
-      ancestors_exist = false;
-      t.execute(t4.insert_or_ignore(
-        t4.id = ancestor,
-        t4.follower_id = block.id()
-      ));
+      return;
     }
     else {
       switch (static_cast<orm::transaction_log_record_dbo::state_t>(t1.state.get(st))) {
@@ -224,11 +70,11 @@ bool vds::transactions::transaction_log::process_block(
       }
 
       case orm::transaction_log_record_dbo::state_t::processed:
+      case orm::transaction_log_record_dbo::state_t::validated:
         break;
 
       case orm::transaction_log_record_dbo::state_t::invalid:
-        ancestor_invalid = true;
-        break;
+        return;;
 
       default:
         throw std::runtime_error("Invalid program");
@@ -236,91 +82,28 @@ bool vds::transactions::transaction_log::process_block(
     }
   }
 
-  if (!ancestors_exist) {
-    return false;
+  auto state = orm::transaction_log_record_dbo::state_t::leaf;
+  try {
+    //apply_block
+  }
+  catch(...) {
+    state = orm::transaction_log_record_dbo::state_t::invalid;
   }
 
-  const auto root_cert = cert_control::get_root_certificate();
-  std::shared_ptr<certificate> write_cert;
-  if (block.ancestors().empty() || block.write_cert_id() == root_cert->subject()) {
-    write_cert = root_cert;
-  }
-  else {
-    orm::certificate_chain_dbo t2;
-    auto st = t.get_reader(t2.select(t2.cert).where(t2.id == block.write_cert_id()));
-    if (st.execute()) {
-      write_cert = std::make_shared<certificate>(certificate::parse_der(t2.cert.get(st)));
-    }
-    else {
-      return false;
-    }
-  }
+  t.execute(t1.update(t1.state = state).where(t1.id == block.id()));
 
-  if (!block.validate(*write_cert)) {
-    if(saved) {
-      t.execute(t1.delete_if(t1.id == block.id()));
-    }
-
-    return false;
-  }
-
-  if (ancestor_invalid) {
-    if (!saved) {
+  if (orm::transaction_log_record_dbo::state_t::leaf == state) {
+    for (const auto & p : remove_leaf) {
       t.execute(
-        t1.insert(
-          t1.id = block.id(),
-          t1.data = block_data,
-          t1.state = orm::transaction_log_record_dbo::state_t::invalid,
-          t1.order_no = block.order_no()));
-    }
-  }
-  else {
-    update_consensus(sp, t, block, block.write_cert_id());
-
-    if (block.ancestors().empty()) {//Root
-      transaction_record_state state(block.id(), cert_control::get_root_certificate()->subject());
-      t.execute(
-        t1.insert(
-          t1.id = block.id(),
-          t1.data = block_data,
-          t1.state = orm::transaction_log_record_dbo::state_t::leaf,
-          t1.order_no = block.order_no(),
-          t1.time_point = block.time_point(),
-          t1.state_data = state.serialize()));
-    }
-    else {
-
-      //try {
-      auto state = transaction_state_calculator::calculate(t, block.ancestors(), block.time_point(), block.order_no());
-      state.apply(block);
-      //}
-      //catch (const transactions::transaction_source_not_found_error & ex) {
-      //  //
-      //}
-      //catch (const transactions::transaction_lack_of_funds & ex) {
-
-      //}
-
-      t.execute(
-        t1.insert(
-          t1.id = block.id(),
-          t1.data = block_data,
-          t1.state = orm::transaction_log_record_dbo::state_t::leaf,
-          t1.order_no = block.order_no(),
-          t1.time_point = block.time_point(),
-          t1.state_data = state.serialize()));
-
-      for (const auto &p : remove_leaf) {
-        t.execute(
-          t1.update(
-            t1.state = orm::transaction_log_record_dbo::state_t::processed)
-          .where(t1.id == p));
-      }
+        t1.update(
+          t1.state = orm::transaction_log_record_dbo::state_t::processed)
+        .where(t1.id == p));
     }
   }
 
   //process followers
   std::set<const_data_buffer> followers;
+  orm::transaction_log_hierarchy_dbo t4;
   auto st = t.get_reader(t4.select(t4.follower_id).where(t4.id == block.id()));
   while (st.execute()) {
     const auto follower_id = t4.follower_id.get(st);
@@ -330,16 +113,46 @@ bool vds::transactions::transaction_log::process_block(
   }
 
   for (const auto &p : followers) {
+
     st = t.get_reader(t1.select(t1.data).where(t1.id == p));
     if (!st.execute()) {
       throw std::runtime_error("Invalid data");
     }
 
-    t.execute(
-      t4.delete_if(
-        t4.id == block.id()
-        && t4.follower_id == p));
+    if(state == orm::transaction_log_record_dbo::state_t::leaf) {
+      process_block(sp, t, t1.data.get(st));
+    }
+    else {
+      invalid_block(sp, t, p);
+    }
+  }
+}
+
+void vds::transactions::transaction_log::invalid_block(
+  const service_provider * sp,
+  class database_transaction &t,
+  const const_data_buffer & block_id) {
+
+  orm::transaction_log_record_dbo t1;
+  t.execute(t1.update(t1.state = orm::transaction_log_record_dbo::state_t::invalid).where(t1.id == block_id));
+
+  std::set<const_data_buffer> followers;
+  orm::transaction_log_hierarchy_dbo t4;
+  auto st = t.get_reader(t4.select(t4.follower_id).where(t4.id == block_id));
+  while (st.execute()) {
+    const auto follower_id = t4.follower_id.get(st);
+    if (follower_id) {
+      followers.emplace(follower_id);
+    }
   }
 
-  return true;
+  for (const auto &p : followers) {
+
+    st = t.get_reader(t1.select(t1.data).where(t1.id == p));
+    if (!st.execute()) {
+      throw std::runtime_error("Invalid data");
+    }
+
+    invalid_block(sp, t, p);
+  }
 }

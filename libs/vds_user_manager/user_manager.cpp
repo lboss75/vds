@@ -101,6 +101,7 @@ void vds::user_manager::reset(
 
 
     playback.save(
+      this->sp_,
       t,
       root_user.user_certificate(),
       private_info.root_private_key_);
@@ -504,6 +505,7 @@ vds::async_task<bool> vds::_user_manager::approve_join_request( const const_data
         member_user(pthis->user_cert_, pthis->user_private_key_));
 
       playback.save(
+        pthis->sp_,
         t,
         pthis->user_cert_,
         pthis->user_private_key_);
@@ -574,6 +576,7 @@ vds::async_task<vds::user_channel> vds::_user_manager::create_channel(
       name);
 
     log.save(
+      pthis->sp_,
       t,
       pthis->user_cert(),
       pthis->user_private_key());

@@ -1523,8 +1523,6 @@ vds::async_task<void> vds::dht::network::sync_process::send_random_replicas(
       }
     }
   }
-
-  throw std::runtime_error("Invalid program");
 }
 
 void vds::dht::network::sync_process::validate_last_applied(

@@ -4,131 +4,131 @@ All rights reserved
 */
 
 #include "private/stdafx.h"
-#include "transaction_state_calculator.h"
-#include "database.h"
-#include "transaction_log_record_dbo.h"
-#include "encoding.h"
-#include "transaction_block_builder.h"
-#include "vds_debug.h"
-#include "transaction_block.h"
-
-
-vds::transactions::transaction_record_state
-vds::transactions::transaction_state_calculator::calculate(
-    database_transaction &t,
-    const std::set<vds::const_data_buffer> & ancestors,
-    const std::chrono::system_clock::time_point & time_point,
-    uint64_t max_order_no) {
-
-  transaction_state_calculator calculator;
-  for(const auto & ancestor : ancestors){
-    calculator.add_ancestor(t, ancestor, time_point, max_order_no);
-  }
-
-  return calculator.process(t);
-}
-
-void vds::transactions::transaction_state_calculator::add_ancestor(
-    vds::database_transaction &t,
-    const vds::const_data_buffer &ancestor_id,
-    const std::chrono::system_clock::time_point & max_time_point,
-    uint64_t max_order_no) {
-
-  orm::transaction_log_record_dbo t1;
-  auto st = t.get_reader(
-      t1.select(
-              t1.id,
-              t1.order_no,
-              t1.time_point)
-          .where(t1.id == ancestor_id));
-  if(!st.execute()){
-    throw std::runtime_error("Invalid data");
-  }
-
-  const auto id = t1.id.get(st);
-  const auto order_no = t1.order_no.get(st);
-  const auto time_point = t1.time_point.get(st);
-  vds_assert(order_no < max_order_no);
-  vds_assert(time_point < max_time_point);
-
-  auto pitems = this->items_.find(order_no);
-  if(this->items_.end() != pitems){
-    if(pitems->second.end() != pitems->second.find(id)){
-      return;//Already processed
-    }
-  }
-
-  if(this->not_processed_[order_no].end() == this->not_processed_[order_no].find(id)) {
-    this->not_processed_[order_no].emplace(id);
-  }
-}
-
-vds::transactions::transaction_record_state
-vds::transactions::transaction_state_calculator::process(vds::database_transaction &t) {
-  while(1 < this->not_processed_.size()
-        || (1 == this->not_processed_.size() && 1 < this->not_processed_.begin()->second.size())){
-    auto p = this->not_processed_.rbegin();
-    auto pnode = p->second.begin();
-
-    const auto order_no = p->first;
-    const auto node_id = *pnode;
-    p->second.erase(pnode);
-    if(p->second.empty()){
-      this->not_processed_.erase(order_no);
-    }
-
-    this->resolve(t, order_no, node_id);
-  }
-
-  if(this->not_processed_.empty()){
-    throw std::runtime_error("Invalid program");
-  }
-
-  orm::transaction_log_record_dbo t1;
-  auto st = t.get_reader(
-      t1.select(t1.state_data)
-          .where(t1.id == *this->not_processed_.begin()->second.begin()));
-  if(!st.execute()){
-    throw std::runtime_error("Invalid data");
-  }
-
-  const auto state_data = t1.state_data.get(st);
-  binary_deserializer s(state_data);
-  transaction_record_state result(s);
-  result.reset_consensus();
-
-  for(const auto & porder : this->items_){
-    for(const auto & pitem : porder.second){
-      transaction_block block(pitem.second);
-      result.apply(block);
-    }
-  }
-
-  return result;
-}
-
-void vds::transactions::transaction_state_calculator::resolve(
-    vds::database_transaction &t,
-    const uint64_t parent_order_no,
-    const vds::const_data_buffer &node_id) {
-
-  orm::transaction_log_record_dbo t1;
-  auto st = t.get_reader(
-      t1.select(t1.data)
-          .where(t1.id == node_id));
-  if(!st.execute()){
-    throw std::runtime_error("Invalid data");
-  }
-
-  const auto block_data = t1.data.get(st);
-
-  transaction_block block(block_data);
-
-  vds_assert(block.order_no() == parent_order_no);
-
-  this->items_[block.order_no()][node_id] = block_data;
-
-  for(const auto & ancestor : block.ancestors()){
-    this->add_ancestor(t, ancestor, block.time_point(), block.order_no());
-  }
-}
+//#include "transaction_state_calculator.h"
+//#include "database.h"
+//#include "transaction_log_record_dbo.h"
+//#include "encoding.h"
+//#include "transaction_block_builder.h"
+//#include "vds_debug.h"
+//#include "transaction_block.h"
+//
+//
+//vds::transactions::transaction_record_state
+//vds::transactions::transaction_state_calculator::calculate(
+//    database_transaction &t,
+//    const std::set<vds::const_data_buffer> & ancestors,
+//    const std::chrono::system_clock::time_point & time_point,
+//    uint64_t max_order_no) {
+//
+//  transaction_state_calculator calculator;
+//  for(const auto & ancestor : ancestors){
+//    calculator.add_ancestor(t, ancestor, time_point, max_order_no);
+//  }
+//
+//  return calculator.process(t);
+//}
+//
+//void vds::transactions::transaction_state_calculator::add_ancestor(
+//    vds::database_transaction &t,
+//    const vds::const_data_buffer &ancestor_id,
+//    const std::chrono::system_clock::time_point & max_time_point,
+//    uint64_t max_order_no) {
+//
+//  orm::transaction_log_record_dbo t1;
+//  auto st = t.get_reader(
+//      t1.select(
+//              t1.id,
+//              t1.order_no,
+//              t1.time_point)
+//          .where(t1.id == ancestor_id));
+//  if(!st.execute()){
+//    throw std::runtime_error("Invalid data");
+//  }
+//
+//  const auto id = t1.id.get(st);
+//  const auto order_no = t1.order_no.get(st);
+//  const auto time_point = t1.time_point.get(st);
+//  vds_assert(order_no < max_order_no);
+//  vds_assert(time_point < max_time_point);
+//
+//  auto pitems = this->items_.find(order_no);
+//  if(this->items_.end() != pitems){
+//    if(pitems->second.end() != pitems->second.find(id)){
+//      return;//Already processed
+//    }
+//  }
+//
+//  if(this->not_processed_[order_no].end() == this->not_processed_[order_no].find(id)) {
+//    this->not_processed_[order_no].emplace(id);
+//  }
+//}
+//
+//vds::transactions::transaction_record_state
+//vds::transactions::transaction_state_calculator::process(vds::database_transaction &t) {
+//  while(1 < this->not_processed_.size()
+//        || (1 == this->not_processed_.size() && 1 < this->not_processed_.begin()->second.size())){
+//    auto p = this->not_processed_.rbegin();
+//    auto pnode = p->second.begin();
+//
+//    const auto order_no = p->first;
+//    const auto node_id = *pnode;
+//    p->second.erase(pnode);
+//    if(p->second.empty()){
+//      this->not_processed_.erase(order_no);
+//    }
+//
+//    this->resolve(t, order_no, node_id);
+//  }
+//
+//  if(this->not_processed_.empty()){
+//    throw std::runtime_error("Invalid program");
+//  }
+//
+//  orm::transaction_log_record_dbo t1;
+//  auto st = t.get_reader(
+//      t1.select(t1.state_data)
+//          .where(t1.id == *this->not_processed_.begin()->second.begin()));
+//  if(!st.execute()){
+//    throw std::runtime_error("Invalid data");
+//  }
+//
+//  const auto state_data = t1.state_data.get(st);
+//  binary_deserializer s(state_data);
+//  transaction_record_state result(s);
+//  result.reset_consensus();
+//
+//  for(const auto & porder : this->items_){
+//    for(const auto & pitem : porder.second){
+//      transaction_block block(pitem.second);
+//      result.apply(block);
+//    }
+//  }
+//
+//  return result;
+//}
+//
+//void vds::transactions::transaction_state_calculator::resolve(
+//    vds::database_transaction &t,
+//    const uint64_t parent_order_no,
+//    const vds::const_data_buffer &node_id) {
+//
+//  orm::transaction_log_record_dbo t1;
+//  auto st = t.get_reader(
+//      t1.select(t1.data)
+//          .where(t1.id == node_id));
+//  if(!st.execute()){
+//    throw std::runtime_error("Invalid data");
+//  }
+//
+//  const auto block_data = t1.data.get(st);
+//
+//  transaction_block block(block_data);
+//
+//  vds_assert(block.order_no() == parent_order_no);
+//
+//  this->items_[block.order_no()][node_id] = block_data;
+//
+//  for(const auto & ancestor : block.ancestors()){
+//    this->add_ancestor(t, ancestor, block.time_point(), block.order_no());
+//  }
+//}

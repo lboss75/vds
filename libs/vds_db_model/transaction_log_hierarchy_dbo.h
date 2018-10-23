@@ -11,11 +11,11 @@ All rights reserved
 
 namespace vds {
   namespace orm {
-    class transaction_log_unknown_record_dbo : public database_table {
+    class transaction_log_hierarchy_dbo : public database_table {
     public:
 
-      transaction_log_unknown_record_dbo()
-          : database_table("transaction_log_unknown_record"),
+      transaction_log_hierarchy_dbo()
+          : database_table("transaction_log_hierarchy"),
             id(this, "id"),
             follower_id(this, "follower_id") {}
 

@@ -14,9 +14,10 @@ All rights reserved
 #include "transactions/payment_transaction.h"
 #include "transaction_block.h"
 #include "create_user_transaction.h"
+#include "transaction_log.h"
 
 vds::const_data_buffer vds::transactions::transaction_block_builder::save(
-  
+  const service_provider * sp,
   class vds::database_transaction &t,
   const std::shared_ptr<certificate> &write_cert,
   const std::shared_ptr<asymmetric_private_key> &write_private_key) {
@@ -25,7 +26,7 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
   block_data
     << transaction_block::CURRENT_VERSION
     << static_cast<uint64_t>(std::chrono::system_clock::to_time_t(this->time_point_))
-    << (this->ancestors_.empty() ? 1 : this->balance_.order_no())
+    << this->order_no_
     << write_cert->subject()
     << this->ancestors_
     << this->data_.move_data();
@@ -39,45 +40,34 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
   auto id = hash::signature(hash::sha256(), block_data.get_buffer(), block_data.size());
 
   const auto data = block_data.move_data();
-  if(this->ancestors_.empty()) {
-    //Root transaction
-    transaction_block block(data);
-    block.walk_messages(
-      [this, id](const root_user_transaction & message)->bool{
-      this->balance_ = data_coin_balance(id, message.user_cert->subject());
-      return true;
-    });
 
-  }
-
-  orm::transaction_log_record_dbo t2;
-  t.execute(t2.insert(
-    t2.id = id,
-    t2.data = data,
-    t2.state = orm::transaction_log_record_dbo::state_t::leaf,
-    t2.order_no = this->balance_.order_no(),
-    t2.time_point = this->time_point_,
-    t2.state_data = this->balance_.serialize()));
-
-  for (auto & ancestor : this->ancestors_) {
-    orm::transaction_log_record_dbo t1;
-    t.execute(
-      t1.update(t1.state = orm::transaction_log_record_dbo::state_t::processed)
-      .where(t1.id == ancestor));
-  }
+  transaction_log::save(sp, t, data);
 
   return id;
 }
 
 vds::transactions::transaction_block_builder::transaction_block_builder(const service_provider * sp)
-  : sp_(sp), time_point_(std::chrono::system_clock::now()) {
+  : sp_(sp), time_point_(std::chrono::system_clock::now()), order_no_(1){
 }
 
 vds::transactions::transaction_block_builder::transaction_block_builder(
   const service_provider * sp,
   vds::database_transaction& t)
-: sp_(sp), time_point_(std::chrono::system_clock::now()),
-  balance_(data_coin_balance::load(t, this->time_point_, this->ancestors_)) {
+: sp_(sp), time_point_(std::chrono::system_clock::now()), order_no_(0) {
+
+    orm::transaction_log_record_dbo t1;
+    auto st = t.get_reader(
+      t1.select(t1.id, t1.order_no)
+      .where(t1.state == orm::transaction_log_record_dbo::state_t::leaf));
+    while (st.execute()) {
+      this->ancestors_.emplace(t1.id.get(st));
+      auto order = t1.order_no.get(st);
+      if (this->order_no_ < order) {
+        this->order_no_ = order;
+      }
+    }
+
+    this->order_no_++;
 }
 
 void vds::transactions::transaction_block_builder::add(const root_user_transaction& item) {

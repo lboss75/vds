@@ -690,9 +690,8 @@ void mock_server::start()
   this->sp_ = this->registrator_.build();
   this->registrator_.start();
 
-  std::shared_ptr<std::exception> error;
-  vds::barrier b;
   this->server_.start_network(this->udp_port_).get();
+  this->sp_->get<vds::dht::network::client>()->update_wellknown_connection_enabled(false);
 }
 
 void mock_server::stop()

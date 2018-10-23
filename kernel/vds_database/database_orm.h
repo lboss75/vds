@@ -781,6 +781,12 @@ namespace vds {
              + ")";
     }
 
+    template <typename other_exp>
+    _database_logical_and<_db_not_in, other_exp> operator && (other_exp && exp);
+
+    template <typename other_exp>
+    _database_logical_or<_db_not_in, other_exp> operator || (other_exp && exp);
+
   private:
     source_type left_;
     command_type right_;
@@ -1763,6 +1769,20 @@ namespace vds {
   inline _database_logical_or<implementation_type, other_exp> _database_binary_expression<implementation_type, left_exp_type, right_exp_type>::operator||(other_exp && exp)
   {
     return _database_logical_or<implementation_type, other_exp>(std::move(*static_cast<implementation_type *>(this)), std::move(exp));
+  }
+
+  template <typename source_type, typename command_type>
+  template <typename other_exp>
+  _database_logical_and<_db_not_in<source_type, command_type>, other_exp> _db_not_in<source_type, command_type>::
+  operator &&(other_exp&& exp) {
+    return _database_logical_and<_db_not_in<source_type, command_type>, other_exp>(std::move(*this), std::move(exp));
+  }
+
+  template <typename source_type, typename command_type>
+  template <typename other_exp>
+  _database_logical_or<_db_not_in<source_type, command_type>, other_exp> _db_not_in<source_type, command_type>::
+    operator ||(other_exp&& exp) {
+    return _database_logical_or<_db_not_in<source_type, command_type>, other_exp>(std::move(*this), std::move(exp));
   }
 
   template <typename source_type>
