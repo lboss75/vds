@@ -19,6 +19,7 @@ All rights reserved
 #include "encoding.h"
 #include "private/upload_stream_task_p.h"
 #include "member_user.h"
+#include "file_manager_service.h"
 
 vds::file_manager::file_operations::file_operations()
   : impl_(new file_manager_private::_file_operations()) {
@@ -38,12 +39,21 @@ vds::async_task<void> vds::file_manager::file_operations::prepare_to_stop() {
 
 vds::async_task<vds::file_manager::file_operations::download_result_t>
 vds::file_manager::file_operations::download_file(
-  const std::shared_ptr<user_manager> & user_mng,
+  const std::shared_ptr<vds::user_manager> & user_mng,
   const const_data_buffer & channel_id,
   const const_data_buffer & target_file,
   const std::shared_ptr<stream_output_async<uint8_t>> & output_stream) {
   return this->impl_->download_file(user_mng, channel_id, target_file, output_stream);
 }
+
+vds::async_task<vds::file_manager::file_operations::prepare_download_result_t>
+vds::file_manager::file_operations::prepare_download_file(
+  const std::shared_ptr<vds::user_manager> & user_mng,
+  const const_data_buffer & channel_id,
+  const const_data_buffer & target_file) {
+  return this->impl_->prepare_download_file(user_mng, channel_id, target_file);
+}
+
 
 vds::async_task<vds::transactions::user_message_transaction::file_info_t>
 vds::file_manager::file_operations::upload_file(
@@ -124,6 +134,58 @@ vds::async_task<vds::file_manager::file_operations::download_result_t> vds::file
   co_return *result;
 }
 
+vds::async_task<vds::file_manager::file_operations::prepare_download_result_t> vds::file_manager_private::_file_operations::prepare_download_file(
+  const std::shared_ptr<user_manager> & user_mng,
+  const const_data_buffer & channel_id,
+  const const_data_buffer & target_file) {
+
+  auto result = std::make_shared<file_manager::file_operations::prepare_download_result_t>();
+  co_await this->sp_->get<db_model>()->async_transaction(
+    [pthis = this->shared_from_this(), user_mng, channel_id, target_file, result](database_transaction &t) -> bool {
+    auto channel = user_mng->get_channel(channel_id);
+
+    user_mng->walk_messages(
+      channel_id,
+      t,
+      [pthis, result, target_file](const transactions::user_message_transaction &message) -> bool {
+      for (const auto & file : message.files) {
+        if (target_file == file.file_id) {
+          result->name = file.name;
+          result->mime_type = file.mime_type;
+          result->size = file.size;
+          result->blocks = pthis->prepare_download_stream(file.file_blocks).get();
+
+          uint16_t ready_blocks = 0;
+          uint16_t wait_blocks = 0;
+          for (auto & p : result->blocks) {
+            for (auto & pr : p.second.replicas) {
+              if (pr.second.size() < dht::network::service::MIN_DISTRIBUTED_PIECES) {
+                ready_blocks += pr.second.size();
+                wait_blocks += dht::network::service::MIN_DISTRIBUTED_PIECES - pr.second.size();
+              }
+              else {
+                ready_blocks += dht::network::service::MIN_DISTRIBUTED_PIECES;
+              }
+            }
+          }
+
+          result->progress = 100 * ready_blocks / (ready_blocks + ready_blocks);
+          return false;
+        }
+      }
+      return true;
+    });
+
+      return true;
+
+    });
+
+  if (result->mime_type.empty()) {
+    throw vds_exceptions::not_found();
+  }
+  co_return *result;
+}
+
 vds::async_task<void> vds::file_manager_private::_file_operations::create_message(
   
   const std::shared_ptr<user_manager>& user_mng,
@@ -189,7 +251,6 @@ vds::file_manager_private::_file_operations::pack_file(
 }
 
 vds::async_task<void> vds::file_manager_private::_file_operations::download_stream(
-  
   const std::shared_ptr<vds::stream_output_async<uint8_t>> & target_stream_param,
   const std::list<vds::transactions::user_message_transaction::file_block_t> &file_blocks_param) {
 
@@ -212,4 +273,27 @@ vds::async_task<void> vds::file_manager_private::_file_operations::download_stre
   }
 
   co_await target_stream->write_async(nullptr, 0);
+}
+
+vds::async_task<std::map<vds::const_data_buffer, vds::dht::network::client::block_info_t>>
+vds::file_manager_private::_file_operations::prepare_download_stream(
+  const std::list<vds::transactions::user_message_transaction::file_block_t> &file_blocks_param) {
+
+  auto result = std::make_shared<std::map<vds::const_data_buffer, vds::dht::network::client::block_info_t>>();
+  std::list<vds::transactions::user_message_transaction::file_block_t> file_blocks = file_blocks_param;
+
+  while (!file_blocks.empty()) {
+    auto network_client = this->sp_->get<dht::network::client>();
+
+    auto info = co_await network_client->prepare_restore(dht::network::client::chunk_info{
+        file_blocks.begin()->block_id,
+        file_blocks.begin()->block_key,
+        file_blocks.begin()->replica_hashes });
+
+    (*result)[file_blocks.begin()->block_id] = info;
+
+    file_blocks.pop_front();
+  }
+
+  co_return std::move(*result);
 }

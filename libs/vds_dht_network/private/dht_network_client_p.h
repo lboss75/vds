@@ -245,11 +245,13 @@ namespace vds {
 
         void add_session( const std::shared_ptr<dht_session>& session, uint8_t hops);
 
-        vds::async_task<void> restore(
-          
+        vds::async_task<void> restore(          
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);
+
+        vds::async_task<client::block_info_t> prepare_restore(
+          const std::vector<const_data_buffer>& object_ids);
 
         vds::async_task<uint8_t> restore_async(
           

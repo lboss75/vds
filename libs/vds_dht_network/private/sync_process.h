@@ -61,6 +61,10 @@ namespace vds {
           database_transaction& t,
           const const_data_buffer object_id);
 
+        async_task<std::list<uint16_t>> prepare_restore_replica(
+          database_transaction& t,
+          const const_data_buffer object_id);
+
         async_task<void> apply_message(
           
           database_transaction& t,

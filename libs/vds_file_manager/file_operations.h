@@ -10,6 +10,7 @@ All rights reserved
 #include "const_data_buffer.h"
 #include "json_object.h"
 #include "async_buffer.h"
+#include "dht_network_client.h"
 
 namespace vds {
   class user_manager;
@@ -25,6 +26,47 @@ namespace vds {
         std::string name;
         std::string mime_type;
         size_t size;
+      };
+
+      struct prepare_download_result_t {
+        std::string name;
+        std::string mime_type;
+        size_t size;
+        int progress;
+
+        std::map<const_data_buffer, dht::network::client::block_info_t> blocks;
+
+        std::shared_ptr<json_value> to_json() const {
+          auto result = std::make_shared<json_object>();
+          result->add_property("name", this->name);
+          result->add_property("mime_type", this->mime_type);
+          result->add_property("size", this->size);
+
+          auto result_blocks = std::make_shared<json_array>();
+          for(auto & p : this->blocks) {
+            auto block = std::make_shared<json_object>();
+            block->add_property("id", base64::from_bytes(p.first));
+
+            auto replicas = std::make_shared<json_array>();
+            for(auto & replica : p.second.replicas) {
+              auto r = std::make_shared<json_object>();
+              r->add_property("id", base64::from_bytes(replica.first));
+
+              auto ra = std::make_shared<json_array>();
+              for(auto index : replica.second) {
+                ra->add(std::make_shared<json_primitive>(std::to_string(index)));
+              }
+              r->add_property("replicas", ra);
+              replicas->add(r);
+            }
+            block->add_property("replicas", replicas);
+
+            result_blocks->add(block);
+          }
+          result->add_property("blocks", result_blocks);
+          result->add_property("progress", std::to_string(this->progress));
+          return result;
+        }
       };
 
 
@@ -54,7 +96,13 @@ namespace vds {
 
       void start(const service_provider * sp);
       void stop();
-      vds::async_task<void> prepare_to_stop();
+      
+      async_task<void> prepare_to_stop();
+
+      async_task<prepare_download_result_t> prepare_download_file(
+        const std::shared_ptr<user_manager> & user_mng,
+        const const_data_buffer& channel_id,
+        const const_data_buffer& file_hash);
 
     protected:
       std::shared_ptr<file_manager_private::_file_operations> impl_;

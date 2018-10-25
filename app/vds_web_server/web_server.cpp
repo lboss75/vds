@@ -145,6 +145,22 @@ router_({
                         result.mime_type);
                       }
   },
+  {"/api/prepare_download", "GET", [](
+    const vds::service_provider * sp,
+    const std::shared_ptr<user_manager> & user_mng,
+    const http_request & request) -> async_task<std::shared_ptr<json_value>> {
+                  const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
+                  const auto file_hash = base64::to_bytes(request.get_parameter("object_id"));
+
+      co_await request.get_message().ignore_empty_body();
+
+                  co_return co_await api_controller::prepare_download_file(
+                    sp,
+                    user_mng,
+                    channel_id,
+                    file_hash);
+      }
+  },
   {"/api/parse_join_request", "POST", &index_page::parse_join_request },
   {"/api/approve_join_request", "POST", &index_page::approve_join_request },
   {"/upload", "POST", &index_page::create_message },

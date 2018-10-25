@@ -135,6 +135,16 @@ vds::api_controller::download_file(
 }
 
 vds::async_task<std::shared_ptr<vds::json_value>>
+vds::api_controller::prepare_download_file(
+  const vds::service_provider * sp,
+  const std::shared_ptr<vds::user_manager> & user_mng,
+  const const_data_buffer& channel_id,
+  const const_data_buffer& file_hash) {
+  auto result = co_await sp->get<file_manager::file_operations>()->prepare_download_file(user_mng, channel_id, file_hash);
+  co_return result.to_json();
+}
+
+vds::async_task<std::shared_ptr<vds::json_value>>
 vds::api_controller::offer_device(
   const vds::service_provider * sp,
     const std::shared_ptr<vds::user_manager> &user_mng,

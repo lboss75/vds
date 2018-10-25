@@ -29,15 +29,30 @@ function load_channel(session_id, channel_id, channel_name) {
                         function() {
                             files
                                 .append(
-                                    $('<li class="list-group-item" />')
-                                    .append($('<a />')
-                                            .attr('href', '/api/download?session='
-                                            + encodeURIComponent(session_id)
-                                            + "&channel_id="
-                                            + encodeURIComponent(channel_id)
-                                            + "&object_id="
-                                            + encodeURIComponent(this.object_id))
-                                            .text(this.name))
+                                $('<li class="list-group-item" />')
+                                    .append($('<a class="nav-link" href="#" />')
+                                        .attr('data-channel_id', channel_id)
+                                        .attr('data-object_id', this.object_id)
+                                        .attr('data-file_name', this.name)
+                                        .text(this.name)
+                                        .on('click',
+                                            function (e) {
+                                                $this = $(e.currentTarget);
+
+                                                var channel_id = $this.data('channel_id');
+                                                var object_id = $this.data('object_id');
+                                                var file_name = $this.data('file_name');
+
+                                                var link = document.createElement('a');
+                                                link.href = '/api/download?session=' +
+                                                    encodeURIComponent(session_id) +
+                                                    "&channel_id=" +
+                                                    encodeURIComponent(channel_id) +
+                                                    "&object_id=" +
+                                                    encodeURIComponent(object_id);
+                                                link.download = file_name;
+                                                link.click();
+                                            }))
                                     .append($('<span class="badge"/>')
                                         .text(humanFileSize(this.size, 1000))));
                         });
@@ -132,3 +147,37 @@ function try_login() {
     });
 }
 
+function start_download(session_id, channel_id, object_id) {
+    $.ajax({
+        url: 'api/prepare_download?session='
+                    + encodeURIComponent(session_id)
+                    + "&channel_id="
+                    + encodeURIComponent(channel_id)
+                    + "&object_id="
+                    + encodeURIComponent(this.object_id),
+        success: function (data) {
+            if ('sucessful' == data.state) {
+                $('#fileDownloadProcessDialog').modal('hide');
+                $.ajax({
+                    url: '/api/download?session='
+                        + encodeURIComponent(session_id)
+                        + "&channel_id="
+                        + encodeURIComponent(channel_id)
+                        + "&object_id="
+                        + encodeURIComponent(this.object_id),
+                    method: 'GET',
+                    success: function (data) {
+                        var a = document.createElement('a');
+                        var url = window.URL.createObjectURL(data);
+                        a.href = url;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    }
+                });
+            } else {
+                $('#fileDownloadProgressBar').css('width', data.state + '%').attr('aria-valuenow', data.state);
+                start_download(session_id, channel_id, object_id);
+            }
+        }
+    });
+}

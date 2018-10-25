@@ -582,7 +582,6 @@ vds::async_task<void> vds::dht::network::sync_process::add_sync_entry(
 }
 
 vds::async_task<vds::const_data_buffer> vds::dht::network::sync_process::restore_replica(
-  
   database_transaction& t,
   const const_data_buffer object_id) {
 
@@ -689,6 +688,90 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::sync_process::restore
   }
 
   co_return const_data_buffer();
+}
+
+vds::async_task<std::list<uint16_t>> vds::dht::network::sync_process::prepare_restore_replica(
+  database_transaction& t,
+  const const_data_buffer object_id) {
+
+  auto client = this->sp_->get<network::client>();
+  std::list<uint16_t> replicas;
+
+  orm::chunk_replica_data_dbo t2;
+  orm::device_record_dbo t4;
+  auto st = t.get_reader(
+    t2.select(
+        t2.replica)
+      .inner_join(t4, t4.node_id == client->current_node_id() && t4.data_hash == t2.replica_hash)
+      .where(t2.object_id == object_id));
+  while (st.execute()) {
+    replicas.push_back(t2.replica.get(st));
+  }
+
+  if (replicas.size() >= service::MIN_DISTRIBUTED_PIECES) {
+    co_return replicas;
+  }
+
+  std::string log_message = "request replica " + base64::from_bytes(object_id) + ". Exists: ";
+  std::set<uint16_t> exist_replicas;
+  for (auto p : replicas) {
+    log_message += std::to_string(p);
+    log_message += ',';
+
+    exist_replicas.emplace(p);
+  }
+  this->sp_->get<logger>()->trace(SyncModule, "%s", log_message.c_str());
+
+  std::set<const_data_buffer> candidates;
+  orm::sync_replica_map_dbo t5;
+  st = t.get_reader(t5.select(t5.node).where(t5.object_id == object_id));
+  while (st.execute()) {
+    if (candidates.end() == candidates.find(t5.node.get(st)) && client->current_node_id() != t5.node.get(st)) {
+      candidates.emplace(t5.node.get(st));
+    }
+  }
+
+  orm::sync_member_dbo t6;
+  st = t.get_reader(t6.select(t6.voted_for, t6.member_node).where(t6.object_id == object_id));
+  while (st.execute()) {
+    if (candidates.end() == candidates.find(t6.member_node.get(st))
+      && client->current_node_id() != t6.member_node.get(st)) {
+      candidates.emplace(t6.member_node.get(st));
+    }
+    if (candidates.end() == candidates.find(t6.voted_for.get(st))
+      && client->current_node_id() != t6.voted_for.get(st)) {
+      candidates.emplace(t6.voted_for.get(st));
+    }
+  }
+
+  if (!candidates.empty()) {
+    for (const auto& candidate : candidates) {
+      this->sp_->get<logger>()->trace(
+        SyncModule,
+        "%s from %s",
+        log_message.c_str(),
+        base64::from_bytes(candidate).c_str());
+
+      co_await (*client)->send(
+        candidate,
+        message_create<messages::sync_replica_request>(
+          object_id,
+          exist_replicas));
+    }
+  }
+  else {
+    co_await (*client)->send_neighbors(
+      message_create<messages::dht_find_node>(object_id));
+
+    co_await (*client)->send_near(
+      object_id,
+      service::GENERATE_DISTRIBUTED_PIECES,
+      message_create<messages::sync_replica_request>(
+        object_id,
+        exist_replicas));
+  }
+
+  co_return replicas;
 }
 
 vds::async_task<void> vds::dht::network::sync_process::apply_message(

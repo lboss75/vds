@@ -46,6 +46,12 @@ namespace vds {
       const const_data_buffer& file_hash,
       const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
+    static vds::async_task<std::shared_ptr<json_value>>
+      prepare_download_file(
+        const vds::service_provider * sp,
+        const std::shared_ptr<user_manager> & user_mng,
+        const const_data_buffer& channel_id,
+        const const_data_buffer& file_hash);
 
     static vds::async_task<void> lock_device(
       const vds::service_provider * sp,

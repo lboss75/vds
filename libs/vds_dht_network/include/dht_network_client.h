@@ -39,13 +39,19 @@ namespace vds {
           std::vector<const_data_buffer> object_ids;
         };
 
+        struct block_info_t {
+          std::map<const_data_buffer, std::list<uint16_t>> replicas;
+        };
+
         async_task<chunk_info> save(
           
           database_transaction& t,
           const const_data_buffer& value);
 
-        vds::async_task<const_data_buffer> restore(
-          
+        async_task<const_data_buffer> restore(          
+          const chunk_info& block_id);
+
+        async_task<block_info_t> prepare_restore(
           const chunk_info& block_id);
 
         const const_data_buffer& current_node_id() const;

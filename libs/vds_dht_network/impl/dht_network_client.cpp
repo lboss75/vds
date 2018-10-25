@@ -513,8 +513,7 @@ vds::async_task<void> vds::dht::network::_client::apply_message( database_transa
   return this->sync_process_.apply_message(t, message, message_info);
 }
 
-vds::async_task<void> vds::dht::network::_client::restore(
-  
+vds::async_task<void> vds::dht::network::_client::restore(  
   const std::vector<const_data_buffer>& object_ids,
   const std::shared_ptr<const_data_buffer>& result,
   const std::chrono::steady_clock::time_point& start) {
@@ -533,6 +532,24 @@ vds::async_task<void> vds::dht::network::_client::restore(
 
     std::this_thread::sleep_for(std::chrono::minutes(2));
   }
+}
+
+vds::async_task<vds::dht::network::client::block_info_t> vds::dht::network::_client::prepare_restore(
+  const std::vector<const_data_buffer>& object_ids) {
+
+  auto result = std::make_shared<vds::dht::network::client::block_info_t>();
+  co_await this->sp_->get<db_model>()->async_transaction(
+    [pthis = this->shared_from_this(), object_ids, result](
+      database_transaction& t) -> bool {
+
+    for (const auto& object_id : object_ids) {
+      result->replicas[object_id] = pthis->sync_process_.prepare_restore_replica(t, object_id).get();
+    }
+
+    return true;
+  });
+
+  co_return *result;
 }
 
 vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
@@ -727,6 +744,12 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(
   co_return original_data;
 
 }
+
+vds::async_task<vds::dht::network::client::block_info_t> vds::dht::network::client::prepare_restore(
+  const chunk_info& block_id) {
+  co_return co_await this->impl_->prepare_restore(block_id.object_ids);
+}
+
 
 const vds::const_data_buffer& vds::dht::network::client::current_node_id() const {
   return this->impl_->current_node_id();

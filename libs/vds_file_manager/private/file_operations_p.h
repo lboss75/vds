@@ -25,12 +25,17 @@ namespace vds {
           const std::string & mime_type,
 					const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
-	    vds::async_task<file_manager::file_operations::download_result_t> download_file(
+	    async_task<file_manager::file_operations::download_result_t> download_file(
 					
           const std::shared_ptr<user_manager> & user_mng,
           const const_data_buffer & channel_id,
           const const_data_buffer & target_file,
           const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
+
+      async_task<file_manager::file_operations::prepare_download_result_t> prepare_download_file(
+        const std::shared_ptr<user_manager> & user_mng,
+        const const_data_buffer & channel_id,
+        const const_data_buffer & target_file);
 
       vds::async_task<void> create_message(
         
@@ -68,10 +73,14 @@ namespace vds {
 //					file_manager::download_file_task::block_info & block,
 //					const std::shared_ptr<file_manager::download_file_task> & result);
 
-      vds::async_task<void> download_stream(
+      async_task<void> download_stream(
           
           const std::shared_ptr<stream_output_async<uint8_t>> & target_stream,
           const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);
+
+      async_task<std::map<vds::const_data_buffer, dht::network::client::block_info_t>> prepare_download_stream(
+        const std::list<vds::transactions::user_message_transaction::file_block_t> &file_blocks_param);
+
 		};
   }
 }
