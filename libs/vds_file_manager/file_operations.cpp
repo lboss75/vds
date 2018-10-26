@@ -158,16 +158,13 @@ vds::async_task<vds::file_manager::file_operations::prepare_download_result_t> v
           uint16_t ready_blocks = 0;
           for (auto & p : result->blocks) {
             for (auto & pr : p.second.replicas) {
-              if (pr.second.size() < dht::network::service::MIN_DISTRIBUTED_PIECES) {
-                ready_blocks += pr.second.size();
-              }
-              else {
-                ready_blocks += dht::network::service::MIN_DISTRIBUTED_PIECES;
+              if (pr.second.size() >= dht::network::service::MIN_DISTRIBUTED_PIECES) {
+                ++ready_blocks;
               }
             }
           }
 
-          result->progress = 100 * ready_blocks / dht::network::service::MIN_DISTRIBUTED_PIECES / dht::network::service::MIN_HORCRUX;
+          result->progress = 100 * ready_blocks / dht::network::service::MIN_HORCRUX;
           if(result->progress > 100) {
             result->progress = 100;
           }
