@@ -13,6 +13,7 @@ All rights reserved
 
 namespace vds {
   class database_transaction;
+  class database_read_transaction;
   class certificate;
   class asymmetric_private_key;
 
@@ -52,6 +53,7 @@ namespace vds {
           const chunk_info& block_id);
 
         async_task<block_info_t> prepare_restore(
+          database_read_transaction & t,
           const chunk_info& block_id);
 
         const const_data_buffer& current_node_id() const;

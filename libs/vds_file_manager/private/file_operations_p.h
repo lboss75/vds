@@ -79,6 +79,7 @@ namespace vds {
           const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);
 
       async_task<std::map<vds::const_data_buffer, dht::network::client::block_info_t>> prepare_download_stream(
+        database_read_transaction &t,
         const std::list<vds::transactions::user_message_transaction::file_block_t> &file_blocks_param);
 
 		};

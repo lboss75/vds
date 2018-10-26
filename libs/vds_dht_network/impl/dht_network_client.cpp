@@ -535,21 +535,16 @@ vds::async_task<void> vds::dht::network::_client::restore(
 }
 
 vds::async_task<vds::dht::network::client::block_info_t> vds::dht::network::_client::prepare_restore(
+  database_read_transaction & t,
   const std::vector<const_data_buffer>& object_ids) {
 
-  auto result = std::make_shared<vds::dht::network::client::block_info_t>();
-  co_await this->sp_->get<db_model>()->async_transaction(
-    [pthis = this->shared_from_this(), object_ids, result](
-      database_transaction& t) -> bool {
+  auto result = vds::dht::network::client::block_info_t();
 
     for (const auto& object_id : object_ids) {
-      result->replicas[object_id] = pthis->sync_process_.prepare_restore_replica(t, object_id).get();
+      result.replicas[object_id] = co_await this->sync_process_.prepare_restore_replica(t, object_id);
     }
 
-    return true;
-  });
-
-  co_return *result;
+  co_return result;
 }
 
 vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
@@ -746,8 +741,9 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(
 }
 
 vds::async_task<vds::dht::network::client::block_info_t> vds::dht::network::client::prepare_restore(
+  database_read_transaction & t,
   const chunk_info& block_id) {
-  co_return co_await this->impl_->prepare_restore(block_id.object_ids);
+  return this->impl_->prepare_restore(t, block_id.object_ids);
 }
 
 

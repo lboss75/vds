@@ -64,7 +64,7 @@ namespace vds {
     void walk_messages(
       
       const const_data_buffer & channel_id,
-      database_transaction & t,
+      database_read_transaction & t,
       handler_types && ... handlers) const {
 
       orm::transaction_log_record_dbo t1;

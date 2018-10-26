@@ -691,7 +691,7 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::sync_process::restore
 }
 
 vds::async_task<std::list<uint16_t>> vds::dht::network::sync_process::prepare_restore_replica(
-  database_transaction& t,
+  database_read_transaction & t,
   const const_data_buffer object_id) {
 
   auto client = this->sp_->get<network::client>();

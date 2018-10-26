@@ -43,15 +43,8 @@ function load_channel(session_id, channel_id, channel_name) {
                                                 var object_id = $this.data('object_id');
                                                 var file_name = $this.data('file_name');
 
-                                                var link = document.createElement('a');
-                                                link.href = '/api/download?session=' +
-                                                    encodeURIComponent(session_id) +
-                                                    "&channel_id=" +
-                                                    encodeURIComponent(channel_id) +
-                                                    "&object_id=" +
-                                                    encodeURIComponent(object_id);
-                                                link.download = file_name;
-                                                link.click();
+                                                $('#fileDownloadProcessDialog').modal('show');
+                                                start_download(session_id, channel_id, object_id, file_name);
                                             }))
                                     .append($('<span class="badge"/>')
                                         .text(humanFileSize(this.size, 1000))));
@@ -147,36 +140,30 @@ function try_login() {
     });
 }
 
-function start_download(session_id, channel_id, object_id) {
+function start_download(session_id, channel_id, object_id, file_name) {
     $.ajax({
         url: 'api/prepare_download?session='
                     + encodeURIComponent(session_id)
                     + "&channel_id="
                     + encodeURIComponent(channel_id)
                     + "&object_id="
-                    + encodeURIComponent(this.object_id),
+                    + encodeURIComponent(object_id),
         success: function (data) {
-            if ('sucessful' == data.state) {
+            if ('100' == data.progress) {
                 $('#fileDownloadProcessDialog').modal('hide');
-                $.ajax({
-                    url: '/api/download?session='
-                        + encodeURIComponent(session_id)
-                        + "&channel_id="
-                        + encodeURIComponent(channel_id)
-                        + "&object_id="
-                        + encodeURIComponent(this.object_id),
-                    method: 'GET',
-                    success: function (data) {
-                        var a = document.createElement('a');
-                        var url = window.URL.createObjectURL(data);
-                        a.href = url;
-                        a.click();
-                        window.URL.revokeObjectURL(url);
-                    }
-                });
+
+                var link = document.createElement('a');
+                link.href = '/api/download?session=' +
+                    encodeURIComponent(session_id) +
+                    "&channel_id=" +
+                    encodeURIComponent(channel_id) +
+                    "&object_id=" +
+                    encodeURIComponent(object_id);
+                link.download = file_name;
+                link.click();
             } else {
-                $('#fileDownloadProgressBar').css('width', data.state + '%').attr('aria-valuenow', data.state);
-                start_download(session_id, channel_id, object_id);
+                $('#fileDownloadProgressBar').css('width', data.progress + '%').attr('aria-valuenow', data.state);
+                start_download(session_id, channel_id, object_id, file_name);
             }
         }
     });

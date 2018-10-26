@@ -251,6 +251,7 @@ namespace vds {
           const std::chrono::steady_clock::time_point& start);
 
         vds::async_task<client::block_info_t> prepare_restore(
+          database_read_transaction & t,
           const std::vector<const_data_buffer>& object_ids);
 
         vds::async_task<uint8_t> restore_async(
