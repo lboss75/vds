@@ -164,9 +164,14 @@ vds::async_task<vds::file_manager::file_operations::prepare_download_result_t> v
             }
           }
 
-          result->progress = 100 * ready_blocks / dht::network::service::MIN_HORCRUX;
-          if(result->progress > 100) {
+          if(ready_blocks >= dht::network::service::MIN_HORCRUX) {
             result->progress = 100;
+          }
+          else {
+            result->progress = 100 * ready_blocks / dht::network::service::MIN_HORCRUX;
+            if (result->progress > 99) {
+              result->progress = 99;
+            }
           }
           return false;
         }
