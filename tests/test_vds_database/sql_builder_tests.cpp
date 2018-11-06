@@ -53,7 +53,7 @@ void vds::mock_sql_statement::set_parameter(int index, int value)
   int_parameter_value = value;
 }
 
-void vds::mock_sql_statement::set_parameter(int , uint64_t )
+void vds::mock_sql_statement::set_parameter(int , int64_t )
 {
 }
 

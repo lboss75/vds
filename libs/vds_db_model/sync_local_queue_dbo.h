@@ -24,11 +24,11 @@ namespace vds {
 			{
 			}
 
-      database_column<uint64_t, int> local_index;
+      database_column<int64_t, int> local_index;
       database_column<const_data_buffer, std::string> object_id;
       database_column<sync_message_dbo::message_type_t, int> message_type;
       database_column<const_data_buffer, std::string> member_node;
-      database_column<uint16_t, int> replica;
+      database_column<int16_t, int> replica;
       database_column<std::chrono::system_clock::time_point> last_send;
     };
 	}

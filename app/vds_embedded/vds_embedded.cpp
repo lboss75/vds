@@ -27,7 +27,7 @@ void vds::vds_embedded::server_root(const std::string & /*login*/, const std::st
 
     auto folder = foldername(this->root_folder_);
     folder.delete_folder(true);
-    vds::foldername(folder, ".vds").create();
+    folder.create();
 
     registrator.add(mt_service);
     registrator.add(logger);

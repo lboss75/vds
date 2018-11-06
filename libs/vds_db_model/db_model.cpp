@@ -16,7 +16,9 @@ vds::async_task<void> vds::db_model::async_read_transaction(
 
 void vds::db_model::start(const service_provider * sp)
 {
-	filename db_filename(foldername(persistence::current_user(sp), ".vds"), "local.db");
+  auto folder = persistence::current_user(sp);
+  folder.create();
+	filename db_filename(folder, "local.db");
 
 	if (!file::exists(db_filename)) {
 		this->db_.open(sp, db_filename);
@@ -35,7 +37,7 @@ void vds::db_model::start(const service_provider * sp)
 				throw std::runtime_error("Database has been corrupted");
 			}
 
-			uint64_t db_version;
+			int64_t db_version;
 			st.get_value(0, db_version);
 
 			this->migrate(t, db_version);
@@ -52,7 +54,7 @@ void vds::db_model::stop()
 
 void vds::db_model::migrate(
 	database_transaction & t,
-	uint64_t db_version)
+	int64_t db_version)
 {
 	if (1 > db_version) {
 
@@ -75,13 +77,6 @@ void vds::db_model::migrate(
 			cert BLOB NOT NULL,\
       cert_key BLOB NOT NULL)");
 
-		t.execute("CREATE TABLE transaction_log_record(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-      data BLOB NOT NULL,\
-			state INTEGER NOT NULL,\
-			order_no INTEGER NOT NULL,\
-      time_point INTEGER NOT NULL)");
-
     t.execute("CREATE TABLE channel_local_cache(\
       channel_id VARCHAR(64) PRIMARY KEY NOT NULL,\
       last_sync INTEGER NOT NULL)");
@@ -90,6 +85,21 @@ void vds::db_model::migrate(
 			id VARCHAR(64) NOT NULL,\
       follower_id VARCHAR(64) NOT NULL,\
 			CONSTRAINT pk_transaction_log_hierarchy PRIMARY KEY(id,follower_id))");
+
+	  t.execute("CREATE TABLE transaction_log_record(\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+      data BLOB NOT NULL,\
+			state INTEGER NOT NULL,\
+			order_no INTEGER NOT NULL,\
+      time_point INTEGER NOT NULL)");
+
+	  t.execute("CREATE TABLE transaction_log_vote_request(\
+			id VARCHAR(64) NOT NULL,\
+      owner VARCHAR(64) NOT NULL,\
+      source VARCHAR(64) NOT NULL,\
+      balance INTEGER NOT NULL,\
+      is_appoved BIT NOT NULL,\
+			CONSTRAINT pk_transaction_log_vote_request PRIMARY KEY(id,owner,source))");
 
     t.execute("CREATE TABLE chunk (\
 			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\
@@ -140,20 +150,20 @@ void vds::db_model::migrate(
 		t.execute("CREATE TABLE certificate_unknown(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL)");
 
-		t.execute("CREATE TABLE register_request(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-      name VARCHAR(64) NOT NULL,\
-      email VARCHAR(64) NOT NULL,\
-			data BLOB NOT NULL,\
-      create_time INTEGER NOT NULL)");
+		//t.execute("CREATE TABLE register_request(\
+		//	id VARCHAR(64) PRIMARY KEY NOT NULL,\
+  //    name VARCHAR(64) NOT NULL,\
+  //    email VARCHAR(64) NOT NULL,\
+		//	data BLOB NOT NULL,\
+  //    create_time INTEGER NOT NULL)");
 
-		t.execute("CREATE TABLE incoming_request_dbo(\
-			id INTEGER PRIMARY KEY AUTOINCREMENT,\
-      owner VARCHAR(64) NOT NULL,\
-      name VARCHAR(64) NOT NULL,\
-      email VARCHAR(64) NOT NULL,\
-			data BLOB NOT NULL,\
-      create_time INTEGER NOT NULL)");
+		//t.execute("CREATE TABLE incoming_request_dbo(\
+		//	id INTEGER PRIMARY KEY AUTOINCREMENT,\
+  //    owner VARCHAR(64) NOT NULL,\
+  //    name VARCHAR(64) NOT NULL,\
+  //    email VARCHAR(64) NOT NULL,\
+		//	data BLOB NOT NULL,\
+  //    create_time INTEGER NOT NULL)");
 
     t.execute("CREATE TABLE sync_local_queue(\
 			local_index INTEGER PRIMARY KEY AUTOINCREMENT,\

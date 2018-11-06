@@ -27,7 +27,7 @@ namespace vds {
       database_column<std::string> local_path;
 
       database_column<const_data_buffer, std::string> data_hash;
-      database_column<uint64_t> data_size;
+      database_column<int64_t> data_size;
     };
   }
 }

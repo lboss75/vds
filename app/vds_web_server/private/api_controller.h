@@ -79,24 +79,6 @@ namespace vds {
       const std::shared_ptr<_web_server>& owner,
       const http_message& message);
 
-    static vds::async_task<std::shared_ptr<vds::json_value>>
-      get_register_requests(
-        const vds::service_provider * sp,
-        const std::shared_ptr<user_manager>& user_mng,
-        const http_request& message);
-
-    static vds::async_task<std::shared_ptr<vds::json_value>>
-      get_register_request(
-        const vds::service_provider * sp,
-        const std::shared_ptr<user_manager>& user_mng,
-        const http_request& message);
-
-    static async_task<const_data_buffer>
-      get_register_request_body(
-        const vds::service_provider * sp,
-        const std::shared_ptr<_web_server>& owner,
-        const const_data_buffer & request_id);
-
     static async_task<std::shared_ptr<json_value>> get_session(
       const std::shared_ptr<auth_session> & session);
     

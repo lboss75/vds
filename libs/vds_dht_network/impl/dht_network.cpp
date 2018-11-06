@@ -46,7 +46,7 @@ void vds::dht::network::service::start(
           t1.cert_key = node_key->der(std::string())));
 
       //System reserved
-      foldername system_reserved(foldername(persistence::current_user(sp), ".vds"), "reserved");
+      foldername system_reserved(persistence::current_user(sp), "reserved");
       system_reserved.create();
 
       auto storage_key = std::make_shared<asymmetric_private_key>(asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));

@@ -5,10 +5,25 @@ All rights reserved
 
 #include "stdafx.h"
 #include "user_wallet.h"
-#include "user_wallet_dbo.h"
 #include "member_user.h"
 #include "json_object.h"
 #include "control_message_transaction.h"
+#include "transaction_state_calculator.h"
+
+vds::transactions::transaction_record_state vds::user_wallet::get_balance(database_read_transaction& t) {
+  
+  std::set<vds::const_data_buffer> ancestors;
+
+  orm::transaction_log_record_dbo t1;
+  auto st = t.get_reader(t1.select(
+    t1.id)
+    .where(t1.state == orm::transaction_log_record_dbo::state_t::leaf));
+  while (st.execute()) {
+    ancestors.emplace(t1.id.get(st));
+  }
+
+  return transactions::transaction_record_state::load(t, ancestors);
+}
 
 vds::user_wallet vds::user_wallet::create_wallet(
   transactions::transaction_block_builder & log,
@@ -42,10 +57,13 @@ vds::user_wallet vds::user_wallet::create_wallet(
 }
 
 void vds::user_wallet::transfer(
-  database_read_transaction & t,
   transactions::transaction_block_builder& log,
+  const const_data_buffer & source_transaction,
   const member_user& target_user,
-  const member_user& source_user, size_t value) {
+  size_t value) {
 
-  orm::user_wallet_dbo t1;
+  log.add(message_create<transactions::payment_transaction>(
+    source_transaction, 
+    target_user.user_certificate()->subject(),
+    value));
 }

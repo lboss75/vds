@@ -26,7 +26,7 @@ namespace vds {
 			}
 
 			database_column<const_data_buffer, std::string> object_id;
-      database_column<uint32_t, int> object_size;
+      database_column<int32_t, int> object_size;
       database_column<state_t, int> state;
       database_column<std::chrono::system_clock::time_point> next_sync;
     };

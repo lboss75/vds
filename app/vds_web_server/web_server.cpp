@@ -51,7 +51,7 @@ vds::_web_server * vds::web_server::operator->() const {
 }
 /////////////////////////////////////////////////////////////
 vds::_web_server::_web_server(const service_provider * sp)
-: sp_(sp), //middleware_(*this),
+: sp_(sp),
 router_({
   { "/api/channels", "GET",  &api_controller::get_channels },
   { "/api/channels", "POST", &index_page::create_channel },
@@ -61,7 +61,9 @@ router_({
       const auto login = request.get_parameter("login");
       const auto password = request.get_parameter("password");
 
-      return api_controller::get_login_state(
+      co_await request.get_message().ignore_empty_body();
+
+      co_return co_await api_controller::get_login_state(
         sp,
         login,
         password,
@@ -74,7 +76,9 @@ router_({
     const http_request & request) -> async_task<std::shared_ptr<json_value>> {
     const auto session_id = request.get_parameter("session");
 
-    return api_controller::get_session(
+    co_await request.get_message().ignore_empty_body();
+
+    co_return co_await api_controller::get_session(
       this->get_session(session_id));
     }
   },
@@ -83,7 +87,9 @@ router_({
     const http_request & request) -> async_task<http_message> {
     const auto session_id = request.get_parameter("session");
 
-    this->kill_session(session_id);
+    co_await request.get_message().ignore_empty_body();
+
+      this->kill_session(session_id);
 
     co_return http_response::redirect("/");
     }
@@ -94,7 +100,9 @@ router_({
     const http_request & request) -> async_task<std::shared_ptr<json_value>> {
             const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
 
-            return api_controller::channel_feed(
+            co_await request.get_message().ignore_empty_body();
+            
+      co_return co_await api_controller::channel_feed(
               sp,
               user_mng,
               channel_id);
@@ -108,7 +116,10 @@ router_({
             const auto name = request.get_parameter("name");
             const auto reserved_size = safe_cast<uint64_t>(std::atoll(request.get_parameter("size").c_str()));
             const auto local_path = request.get_parameter("path");
-            co_await storage_api::add_device_storage(
+      
+      co_await request.get_message().ignore_empty_body();
+
+      co_await storage_api::add_device_storage(
               sp,
               user_mng,
               name,
@@ -164,8 +175,6 @@ router_({
   {"/api/parse_join_request", "POST", &index_page::parse_join_request },
   {"/api/approve_join_request", "POST", &index_page::approve_join_request },
   {"/upload", "POST", &index_page::create_message },
-  {"/api/register_requests", "GET", &api_controller::get_register_requests },
-  {"/api/register_request", "GET", &api_controller::get_register_request },
   {"/api/statistics", "GET", &api_controller::get_statistics },
   })
 {

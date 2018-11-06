@@ -29,12 +29,12 @@ namespace vds {
       database_column<const_data_buffer, std::string> member_node;
       database_column<const_data_buffer, std::string> voted_for;
 
-      database_column<uint64_t> generation;
-      database_column<uint64_t> current_term;
-      database_column<uint64_t> commit_index;
-      database_column<uint64_t> last_applied;
+      database_column<int64_t> generation;
+      database_column<int64_t> current_term;
+      database_column<int64_t> commit_index;
+      database_column<int64_t> last_applied;
 
-      database_column<uint64_t> delete_index;
+      database_column<int64_t> delete_index;
 
       database_column<std::chrono::system_clock::time_point> last_activity;
     };

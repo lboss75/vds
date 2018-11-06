@@ -338,14 +338,14 @@ vds::filename vds::dht::network::_client::save_data(
 
   orm::device_config_dbo t3;
   orm::device_record_dbo t4;
-  db_value<uint64_t> data_size;
+  db_value<int64_t> data_size;
   auto st = t.get_reader(
     t3.select(t3.local_path, t3.reserved_size, db_sum(t4.data_size).as(data_size))
       .left_join(t4, t4.node_id == t3.node_id && t4.storage_path == t3.local_path)
       .where(t3.node_id == client->current_node_id())
       .group_by(t3.local_path, t3.reserved_size));
   while (st.execute()) {
-    const uint64_t size = data_size.is_null(st) ? 0 : data_size.get(st);
+    const int64_t size = data_size.is_null(st) ? 0 : data_size.get(st);
     if (t3.reserved_size.get(st) > size && allowed_size < (t3.reserved_size.get(st) - size)) {
       allowed_size = (t3.reserved_size.get(st) - size);
       local_path = t3.local_path.get(st);

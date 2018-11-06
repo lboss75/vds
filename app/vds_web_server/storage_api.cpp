@@ -23,7 +23,7 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::storage_api::device_stora
 
     orm::device_config_dbo t1;
     orm::device_record_dbo t2;
-    db_value<uint64_t> used_size;
+    db_value<int64_t> used_size;
     auto st = t.get_reader(
       t1.select(
         t1.name,

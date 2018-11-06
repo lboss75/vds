@@ -261,9 +261,11 @@ std::tuple<std::shared_ptr<vds::udp_datagram_reader>, std::shared_ptr<vds::udp_d
 
 void vds::udp_server::stop()
 {
-  this->impl_->stop();
-  delete this->impl_;
-  this->impl_ = nullptr;
+  if (nullptr != this->impl_) {
+    this->impl_->stop();
+    delete this->impl_;
+    this->impl_ = nullptr;
+  }
 }
 
 const std::shared_ptr<vds::udp_socket> &vds::udp_server::socket() const {

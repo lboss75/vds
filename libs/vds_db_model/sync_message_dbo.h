@@ -33,14 +33,14 @@ namespace vds {
 			}
 
 			database_column<const_data_buffer, std::string> object_id;
-      database_column<uint64_t> generation;
-      database_column<uint64_t> current_term;
-      database_column<uint64_t> index;
+      database_column<int64_t> generation;
+      database_column<int64_t> current_term;
+      database_column<int64_t> index;
       database_column<message_type_t, int> message_type;
       database_column<const_data_buffer, std::string> member_node;
-			database_column<uint16_t, int> replica;
+			database_column<int16_t, int> replica;
       database_column<const_data_buffer, std::string> source_node;
-      database_column<uint64_t> source_index;
+      database_column<int64_t> source_index;
 
     };
 	}

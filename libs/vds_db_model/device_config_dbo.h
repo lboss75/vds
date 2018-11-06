@@ -29,7 +29,7 @@ namespace vds {
       database_column<std::string> owner_id;
 
       database_column<std::string> name;
-      database_column<uint64_t> reserved_size;
+      database_column<int64_t> reserved_size;
 
       database_column<const_data_buffer, std::string> cert;
       database_column<const_data_buffer, std::string> private_key;

@@ -190,14 +190,11 @@ const std::shared_ptr<vds::asymmetric_private_key> & vds::user_manager::get_curr
   return this->impl_->get_current_user_private_key();
 }
 
-vds::async_task<vds::const_data_buffer> vds::user_manager::create_register_request(
+vds::const_data_buffer vds::user_manager::create_register_request(
   const service_provider * sp,
   const std::string& userName,
   const std::string& user_email,
   const std::string& user_password) {
-  auto result = std::make_shared<const_data_buffer>();
-  co_await sp->get<db_model>()->async_transaction(
-    [result, userName, user_email, user_password](database_transaction & t) {
 
     auto user_private_key = vds::asymmetric_private_key::generate(
       vds::asymmetric_crypto::rsa4096());
@@ -214,21 +211,7 @@ vds::async_task<vds::const_data_buffer> vds::user_manager::create_register_reque
 
     s << asymmetric_sign::signature(hash::sha256(), user_private_key, s.get_buffer(), s.size());
 
-    auto id = hash::signature(hash::md5(), s.get_buffer(), s.size());
-    *result = id;
-    orm::register_request t1;
-    t.execute(
-      t1.insert(
-        t1.id = id,
-        t1.name = userName,
-        t1.email = user_email,
-        t1.data = s.move_data(),
-        t1.create_time = std::chrono::system_clock::now()));
-
-    return true;
-  });
-
-  co_return *result;
+    return s.move_data();
 }
 
 bool vds::user_manager::parse_join_request( const vds::const_data_buffer &data,

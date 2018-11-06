@@ -92,7 +92,7 @@ void vds::file_logger::start(const service_provider * sp)
 {
   this->sp_ = sp;
 
-  foldername folder(persistence::current_user(sp), ".vds");
+  auto folder = persistence::current_user(sp);
   folder.create();
   this->f_.reset(new file(filename(folder, "vds.log"), file::file_mode::append));
   this->logger_thread_ = std::thread([this]() { this->logger_thread(); });

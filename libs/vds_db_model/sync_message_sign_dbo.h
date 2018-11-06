@@ -26,13 +26,13 @@ All rights reserved
 //			}
 //
 //			database_column<const_data_buffer, std::string> object_id;
-//      database_column<uint8_t> state;
+//      database_column<int8_t> state;
 //      database_column<std::chrono::system_clock::time_point> next_sync;
 //      database_column<const_data_buffer, std::string> voted_for;
-//      database_column<uint64_t> generation;
-//      database_column<uint64_t> current_term;
-//      database_column<uint64_t> commit_index;
-//      database_column<uint64_t> last_applied;
+//      database_column<int64_t> generation;
+//      database_column<int64_t> current_term;
+//      database_column<int64_t> commit_index;
+//      database_column<int64_t> last_applied;
 //
 //    };
 //	}

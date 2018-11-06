@@ -13,7 +13,7 @@ namespace vds {
     struct log_info_t {
       const_data_buffer id;
       int state;
-      uint64_t order_no;
+      int64_t order_no;
 
       std::shared_ptr<json_value> serialize() const {
         auto result = std::make_shared<json_object>();
@@ -46,9 +46,9 @@ namespace vds {
     struct sync_message {
       std::string message_type_;
       const_data_buffer member_node_;
-      uint16_t replica_;
+      int16_t replica_;
       const_data_buffer source_node_;
-      uint64_t source_index_;
+      int64_t source_index_;
     };
 
     struct sync_state {

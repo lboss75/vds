@@ -107,7 +107,7 @@ namespace vds {
     const std::shared_ptr<asymmetric_private_key> & get_current_user_private_key() const;
     const std::string & user_name() const;
 
-    static vds::async_task<const_data_buffer> create_register_request(
+    static const_data_buffer create_register_request(
       const service_provider * sp,
       const std::string& userName,
       const std::string& userEmail,

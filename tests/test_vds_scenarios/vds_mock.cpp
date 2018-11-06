@@ -719,7 +719,7 @@ void mock_server::init(
       vds::foldername(vds::filename::current_process().contains_folder(), "servers"),
       std::to_string(index));
   folder.delete_folder(true);
-  vds::foldername(folder, ".vds").create();
+  folder.create();
 
   registrator.add(mt_service);
   registrator.add(logger);

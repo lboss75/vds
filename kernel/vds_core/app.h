@@ -375,7 +375,7 @@ namespace vds{
     {
       chdir("/");
       
-      foldername folder(foldername(this->root_folder_.value()), ".vds");
+      foldername folder(this->root_folder_.value());
       folder.create();
 
       filename pid_file_name(folder, this->current_process_.name_without_extension() + ".pid");

@@ -119,7 +119,7 @@ void vds::background_app::register_command_line(command_line & cmd_line)
 void vds::background_app::start_services(service_registrator & registrator, service_provider * sp)
 {
   if (&this->server_root_cmd_set_ == this->current_command_set_) {
-    foldername folder(persistence::current_user(sp), ".vds");
+    auto folder = persistence::current_user(sp);
     folder.delete_folder(true);
     folder.create();
     registrator.start();

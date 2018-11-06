@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "dht_route_messages.h"
+
 namespace vds {
   namespace dht {
     namespace messages {

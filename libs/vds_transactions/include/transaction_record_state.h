@@ -9,6 +9,7 @@ All rights reserved
 #include <map>
 #include "payment_transaction.h"
 #include "binary_serialize.h"
+#include "database.h"
 
 
 namespace vds {
@@ -27,91 +28,108 @@ namespace vds {
         this->account_state_[root_account].balance_[root_block_id] = UINT64_MAX;
       }
 
+      transaction_record_state(const transaction_record_state & original)
+        : account_state_(original.account_state_) {
+      }
+
       transaction_record_state(transaction_record_state && original)
       : account_state_(std::move(original.account_state_)){
       }
 
+      static transaction_record_state load(
+        database_read_transaction & t,
+        const const_data_buffer & log_id);
+
+      static transaction_record_state load(
+        database_read_transaction & t,
+        const std::set<vds::const_data_buffer> & ancestors);
+
+      static transaction_record_state load(
+        database_read_transaction & t,
+        const transaction_block & block);
+      
+      void save(
+        database_transaction & t,
+        const std::string & owner,
+        const const_data_buffer & log_id) const;
+
       struct account_state_t {
-        bool is_approved_;
-        std::map<const_data_buffer/*source*/, uint64_t /*balance*/> balance_;
-
-        account_state_t()
-          : is_approved_(false) {          
-        }
+        std::map<const_data_buffer/*source*/, int64_t /*balance*/> balance_;
       };
-
-      transaction_record_state(binary_deserializer & s);
-      const_data_buffer serialize() const ;
 
       void apply(
         const transaction_block & block);
 
-      bool update_consensus(const std::string & account) {
-        auto p = this->account_state_.find(account);
-        if(this->account_state_.end() == p || p->second.is_approved_) {
-          return false;
-        }
+      void rollback(
+        const transaction_block & block);
 
-        p->second.is_approved_ = true;
-        return true;
-      }
-
-      bool in_consensus() const {
-        size_t approved = 0;
-        size_t not_approved = 0;
-
-        for(const auto & p : this->account_state_) {
-          if(p.second.is_approved_) {
-            ++approved;
-          }
-          else {
-            ++not_approved;
-          }
-        }
-        return (approved > not_approved);
-      }
-
-      void reset_consensus() {
-        for (auto & p : this->account_state_) {
-          p.second.is_approved_ = false;
-        }
-      }
 
       transaction_record_state &operator = (transaction_record_state && original){
         this->account_state_ = std::move(original.account_state_);
         return *this;
       }
+      
+      const std::map<std::string/*account*/, account_state_t> & account_state() const {
+        return this->account_state_;
+      }
+
     private:
       friend class data_coin_balance;
 
       std::map<std::string/*account*/, account_state_t> account_state_;
+
+
+      static const_data_buffer looking_leaf(
+        database_read_transaction& t,
+        const const_data_buffer& log_id);
+
+      static transaction_record_state calculate_state(
+        database_read_transaction& t,
+        const const_data_buffer& log_id);
+
+      class transaction_state_calculator {
+      public:
+        transaction_state_calculator();
+
+        void add_ancestor(
+          vds::database_read_transaction &t,
+          const const_data_buffer & ancestor_id);
+
+        transaction_record_state load(
+          vds::database_read_transaction& t);
+
+      private:
+        enum class log_state_t {
+          none,
+
+          include,
+          exclude,
+
+          included,
+        };
+
+        struct log_state {
+          log_state_t state_;
+          const_data_buffer block_body_;
+        };
+
+        int not_included_;
+        std::map<uint64_t/*order_no*/, std::map<const_data_buffer/*log_id*/, log_state /*state*/>> items_;
+
+        void set_state(
+          uint64_t order_no,
+          const vds::const_data_buffer &log_id,
+          log_state_t state);
+        log_state_t get_state(
+          uint64_t order_no,
+          const vds::const_data_buffer &log_id) const;
+
+        transaction_record_state load_init_state(
+          vds::database_read_transaction& t);
+
+      };
     };
   }
-inline vds::binary_serializer & operator << (
-  vds::binary_serializer & s,
-  const vds::transactions::transaction_record_state::account_state_t & item) {
-  s << item.is_approved_ << item.balance_;
-  return s;
 }
-
-inline vds::binary_deserializer & operator >> (
-  vds::binary_deserializer & s,
-  vds::transactions::transaction_record_state::account_state_t & item) {
-  s >> item.is_approved_ >> item.balance_;
-  return s;
-}
-}
-
-
-inline  vds::transactions::transaction_record_state::transaction_record_state(binary_deserializer & s){
-        s >> this->account_state_;
-      }
-
-inline  vds::const_data_buffer vds::transactions::transaction_record_state::serialize() const {
-        binary_serializer s;
-        s << this->account_state_;
-        return s.move_data();
-      }
-
 
 #endif //__VDS_TRANSACTIONS_TRANSACTION_RECORD_STATE_H_

@@ -31,7 +31,7 @@ namespace vds {
   private:
     database db_;
 
-	static void migrate(class database_transaction & t, uint64_t db_version);
+	static void migrate(class database_transaction & t, int64_t db_version);
 
   };
 

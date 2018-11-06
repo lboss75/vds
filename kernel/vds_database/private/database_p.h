@@ -47,7 +47,7 @@ namespace vds {
       sqlite3_bind_int(this->stmt_, index, value);
     }
 
-    void set_parameter(int index, uint64_t value)
+    void set_parameter(int index, int64_t value)
     {
       this->reset();
       
@@ -103,7 +103,7 @@ namespace vds {
       return true;
     }
 
-    bool get_value(int index, uint64_t & value)
+    bool get_value(int index, int64_t & value)
     {
       assert(read_state == this->state_);
       assert(0 <= index && index < sqlite3_column_count(this->stmt_));

@@ -21,6 +21,21 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
   class vds::database_transaction &t,
   const std::shared_ptr<certificate> &write_cert,
   const std::shared_ptr<asymmetric_private_key> &write_private_key) {
+
+  auto data = sign(
+    sp,
+    write_cert,
+    write_private_key);
+
+  transaction_log::save(sp, t, data);
+
+  return hash::signature(hash::sha256(), data);
+}
+
+vds::const_data_buffer vds::transactions::transaction_block_builder::sign(
+  const service_provider * sp,
+  const std::shared_ptr<certificate> &write_cert,
+  const std::shared_ptr<asymmetric_private_key> &write_private_key) {
   vds_assert(0 != this->data_.size());
   binary_serializer block_data;
   block_data
@@ -37,13 +52,7 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
     block_data.get_buffer(),
     block_data.size());
 
-  auto id = hash::signature(hash::sha256(), block_data.get_buffer(), block_data.size());
-
-  const auto data = block_data.move_data();
-
-  transaction_log::save(sp, t, data);
-
-  return id;
+  return block_data.move_data();
 }
 
 vds::transactions::transaction_block_builder::transaction_block_builder(const service_provider * sp)
@@ -52,7 +61,7 @@ vds::transactions::transaction_block_builder::transaction_block_builder(const se
 
 vds::transactions::transaction_block_builder::transaction_block_builder(
   const service_provider * sp,
-  vds::database_transaction& t)
+  vds::database_read_transaction& t)
 : sp_(sp), time_point_(std::chrono::system_clock::now()), order_no_(0) {
 
     orm::transaction_log_record_dbo t1;

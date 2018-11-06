@@ -83,7 +83,7 @@ void vds::sql_statement::set_parameter(int index, int value)
   this->impl_->set_parameter(index, value);
 }
 
-void vds::sql_statement::set_parameter(int index, uint64_t value)
+void vds::sql_statement::set_parameter(int index, int64_t value)
 {
   this->impl_->set_parameter(index, value);
 }
@@ -113,7 +113,7 @@ bool vds::sql_statement::get_value(int index, int & value)
   return this->impl_->get_value(index, value);
 }
 
-bool vds::sql_statement::get_value(int index, uint64_t & value)
+bool vds::sql_statement::get_value(int index, int64_t & value)
 {
   return this->impl_->get_value(index, value);
 }

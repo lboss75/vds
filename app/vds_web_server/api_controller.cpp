@@ -32,7 +32,10 @@ vds::async_task<std::shared_ptr<vds::json_value>>
 vds::api_controller::get_channels(
   const vds::service_provider * /*sp*/,
   const std::shared_ptr<user_manager> & user_mng,
-  const http_request & /*message*/) {
+  const http_request & request) {
+  
+  co_await request.get_message().ignore_empty_body();
+
   auto result = std::make_shared<json_array>();
   for(auto & channel : user_mng->get_channels()) {
     result->add(channel_serialize(*channel.second));
@@ -163,7 +166,7 @@ vds::api_controller::offer_device(
   }
   result->add_property("name", hostname);
 #endif// _WIN32
-  const foldername root_rolder(persistence::current_user(sp), ".vds");
+  const auto root_rolder = persistence::current_user(sp);
   const auto free_size = root_rolder.free_size() / (1024 * 1024 * 1024);
   const auto total_size = root_rolder.total_size() / (1024 * 1024 * 1024);
 
@@ -229,78 +232,6 @@ vds::api_controller::lock_device(
             t1.name = device_name,
             t1.reserved_size = reserved_size * 1024 * 1024 * 1024));
   });
-}
-
-vds::async_task<std::shared_ptr<vds::json_value>>
-vds::api_controller::get_register_requests(
-  const vds::service_provider * sp,
-  const std::shared_ptr<user_manager>& /*user_mng*/,
-  const http_request& message) {
-  
-  co_await message.get_message().ignore_empty_body();
-
-  auto result = std::make_shared<json_array>();
-
-  co_await sp->get<db_model>()->async_transaction([result](database_transaction & t) {
-    orm::register_request t1;
-    auto st = t.get_reader(t1.select(t1.id, t1.name, t1.email, t1.create_time));
-    while(st.execute()){
-      auto item = std::make_shared<json_object>();
-      item->add_property("object_id", t1.id.get(st));
-      item->add_property("name", t1.name.get(st));
-      item->add_property("email", t1.email.get(st));
-      item->add_property("create_time", t1.create_time.get(st));
-      result->add(item);
-    }
-  });
-  
-  co_return std::static_pointer_cast<json_value>(result);
-}
-
-vds::async_task<std::shared_ptr<vds::json_value>>
-vds::api_controller::get_register_request(
-  const vds::service_provider * sp,
-  const std::shared_ptr<user_manager>& /*user_mng*/,
-  const http_request& request) {
-  auto request_id = base64::to_bytes(request.get_parameter("id"));
-  auto result = std::make_shared<json_array>();
-
-  co_await sp->get<db_model>()->async_transaction([result, request_id](database_transaction & t) {
-    orm::register_request t1;
-    auto st = t.get_reader(t1.select(t1.id, t1.name, t1.email, t1.create_time).where(t1.id == request_id));
-    while (st.execute()) {
-      auto item = std::make_shared<json_object>();
-      item->add_property("object_id", t1.id.get(st));
-      item->add_property("name", t1.name.get(st));
-      item->add_property("email", t1.email.get(st));
-      item->add_property("create_time", t1.create_time.get(st));
-      result->add(item);
-    }
-  });
-
-  co_return std::static_pointer_cast<json_value>(result);
-}
-
-vds::async_task<vds::const_data_buffer> vds::api_controller::get_register_request_body(
-  const vds::service_provider * sp,
-  const std::shared_ptr<_web_server>& owner,
-  const const_data_buffer & request_id) {
-
-  auto result = std::make_shared<const_data_buffer>();
-
-  co_await sp->get<db_model>()->async_read_transaction([request_id, result](database_read_transaction & t) {
-    orm::register_request t1;
-    auto st = t.get_reader(t1.select(t1.data).where(t1.id == request_id));
-    if (!st.execute()) {
-      throw vds::vds_exceptions::not_found();
-    }
-
-    *result = t1.data.get(st);
-
-    return true;
-  });
-
-  co_return *result;
 }
 
 vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_session(

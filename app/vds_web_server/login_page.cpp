@@ -32,11 +32,13 @@ vds::async_task<vds::http_message> vds::login_page::register_request_post(
       co_return http_response::redirect("/error/?code=InvalidRegister");
     }
 
-  auto request_id = co_await user_manager::create_register_request(
+  auto request_body = user_manager::create_register_request(
       sp,
       userName->second,
       userEmail->second,
       userPassword->second);
 
-      co_return http_response::redirect("/register_request?id=" + url_encode::encode(base64::from_bytes(request_id)));
+      co_return http_response::file_response(
+        request_body,
+        "register_request.vds");
 }

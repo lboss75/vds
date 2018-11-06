@@ -16,7 +16,7 @@ namespace vds {
     class transaction_log {
     public:
 
-      static void save(
+      static const_data_buffer save(
         const service_provider * sp,
         class database_transaction &t,
         const const_data_buffer & block_data);
@@ -31,6 +31,11 @@ namespace vds {
         const service_provider * sp,
         class database_transaction &t,
         const const_data_buffer & block_id);
+
+      static void update_consensus(
+        const service_provider * sp,
+        class database_transaction &t,
+        const const_data_buffer & block_data);
     };
   }
 }

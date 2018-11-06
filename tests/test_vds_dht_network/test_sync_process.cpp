@@ -236,7 +236,7 @@ void test_server::start(const std::shared_ptr<transport_hab> & hab, int index) {
     vds::foldername(vds::filename::current_process().contains_folder(), "servers"),
     std::to_string(index));
   folder.delete_folder(true);
-  vds::foldername(folder, ".vds").create();
+  folder.create();
 
   this->task_manager_.disable_timers();
 

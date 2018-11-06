@@ -394,7 +394,7 @@ uint32_t vds::dht::network::sync_process::get_quorum(
   database_read_transaction& t,
   const const_data_buffer& object_id) {
 
-  db_value<uint64_t> member_count;
+  db_value<int64_t> member_count;
   orm::sync_member_dbo t1;
   auto st = t.get_reader(t1.select(
                              db_count(t1.member_node).as(member_count))
@@ -472,7 +472,7 @@ vds::async_task<bool> vds::dht::network::sync_process::apply_base_message(
             for (;;) {
               const auto quorum = this->get_quorum(t, message.object_id);
 
-              db_value<uint64_t> applied_count;
+              db_value<int64_t> applied_count;
               st = t.get_reader(t2.select(
                                     db_count(t2.member_node).as(applied_count))
                                   .where(t2.object_id == message.object_id
@@ -2081,7 +2081,7 @@ vds::async_task<void> vds::dht::network::sync_process::apply_message(
                   .where(t2.object_id == message.object_id && t2.member_node == message.source_node));
     }
 
-    db_value<uint64_t> voted_count;
+    db_value<int64_t> voted_count;
     st = t.get_reader(
       t2.select(
           db_count(t2.member_node).as(voted_count))

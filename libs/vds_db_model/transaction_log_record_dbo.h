@@ -17,8 +17,14 @@ namespace vds {
         validated,
         processed,
         leaf,
+        consensus,
         invalid
       };
+
+      static bool have_state(state_t value) {
+        return value == state_t::leaf || value == state_t::processed;
+      }
+
       static std::string str(state_t value){
         switch(value){
        
@@ -51,7 +57,7 @@ namespace vds {
       database_column<const_data_buffer, std::string> id;
       database_column<const_data_buffer> data;
       database_column<state_t, int> state;
-      database_column<uint64_t> order_no;
+      database_column<int64_t> order_no;
       database_column<std::chrono::system_clock::time_point> time_point;
     };
   }

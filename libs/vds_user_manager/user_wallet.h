@@ -26,16 +26,18 @@ namespace vds {
       private_key_(std::move(private_key)) {
     }
 
+    static transactions::transaction_record_state get_balance(
+      database_read_transaction& t);
+
     static user_wallet create_wallet(
       transactions::transaction_block_builder & log,
       const member_user & target_user,
       const std::string & name);
 
     static void transfer(
-      database_read_transaction & t,
-      transactions::transaction_block_builder & log,
+      transactions::transaction_block_builder& log,
+      const const_data_buffer & source_transaction,
       const member_user & target_user,
-      const member_user & source_user,
       size_t value);
 
     const std::string& name() const {
