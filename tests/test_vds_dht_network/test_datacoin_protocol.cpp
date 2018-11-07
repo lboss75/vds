@@ -245,6 +245,16 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
       }
     }
   }).get();
+  /*      0 - creare root
+   *      1 - creare user1
+   *      2 - root -> user 1: 100
+   *      3 - create user2
+   *      4 - create user3
+   *      5 - create user4
+   *      6 - user1 -> user 2: 50
+   *      
+   *
+   */
 
   //test invalid
   vds::const_data_buffer log14_id;
