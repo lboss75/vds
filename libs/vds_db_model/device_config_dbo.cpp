@@ -28,7 +28,7 @@ std::list<vds::orm::device_config_dbo::device_info> vds::orm::device_config_dbo:
        t1.local_path.get(st),
        t1.reserved_size.get(st),
        used_size.get(st),
-       foldername(t1.local_path.get(st)).free_size()
+       safe_cast<int64_t>(foldername(t1.local_path.get(st)).free_size())
       };
 
       result.push_back(record);
