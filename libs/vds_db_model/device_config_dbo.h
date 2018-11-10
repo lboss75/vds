@@ -37,9 +37,9 @@ namespace vds {
       struct device_info {
         std::string name;
         std::string local_path;
-        uint64_t reserved_size;
-        uint64_t used_size;
-        uint64_t free_size;
+        int64_t reserved_size;
+        int64_t used_size;
+        int64_t free_size;
       };
 
       static std::list<device_info> get_free_space(
