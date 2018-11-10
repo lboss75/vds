@@ -90,16 +90,27 @@ void vds::db_model::migrate(
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
       data BLOB NOT NULL,\
 			state INTEGER NOT NULL,\
+      consensus BIT NOT NULL,\
+      new_member BIT NOT NULL,\
 			order_no INTEGER NOT NULL,\
       time_point INTEGER NOT NULL)");
 
-	  t.execute("CREATE TABLE transaction_log_vote_request(\
+    t.execute("CREATE TABLE transaction_log_balance(\
 			id VARCHAR(64) NOT NULL,\
       owner VARCHAR(64) NOT NULL,\
       source VARCHAR(64) NOT NULL,\
       balance INTEGER NOT NULL,\
-      is_appoved BIT NOT NULL,\
-			CONSTRAINT pk_transaction_log_vote_request PRIMARY KEY(id,owner,source))");
+			CONSTRAINT pk_transaction_log_balance PRIMARY KEY(id,owner,source))");
+
+	  t.execute("CREATE TABLE transaction_log_vote_request(\
+			id VARCHAR(64) NOT NULL,\
+      owner VARCHAR(64) NOT NULL,\
+      approved BIT NOT NULL,\
+			CONSTRAINT pk_transaction_log_vote_request PRIMARY KEY(id,owner))");
+
+    t.execute("CREATE TABLE member_user(\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+      log_id VARCHAR(64) NOT NULL)");
 
     t.execute("CREATE TABLE chunk (\
 			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\

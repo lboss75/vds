@@ -11,6 +11,7 @@ All rights reserved
 #include "transaction_log_vote_request_dbo.h"
 #include "transaction_log_record_dbo.h"
 #include "transaction_log_hierarchy_dbo.h"
+#include "transaction_log_balance_dbo.h"
 
 vds::transactions::transaction_record_state vds::transactions::transaction_record_state::load(
   database_read_transaction& t, const const_data_buffer& log_id) {
@@ -50,16 +51,31 @@ void vds::transactions::transaction_record_state::save(
   database_transaction& t,
   const std::string & owner,
   const const_data_buffer& log_id) const {
+  bool is_new_user = true;
   for (const auto & account : this->account_state_) {
     for (const auto & account_state : account.second.balance_) {
-      orm::transaction_log_vote_request_dbo t1;
+      orm::transaction_log_balance_dbo t1;
       t.execute(t1.insert(
         t1.id = log_id,
         t1.owner = account.first,
         t1.source = account_state.first,
-        t1.balance = account_state.second,
-        t1.is_appoved = (account.first == owner)));
+        t1.balance = account_state.second));
     }
+
+    if (account.second.approve_required) {
+      orm::transaction_log_vote_request_dbo t2;
+      t.execute(t2.insert(
+        t2.id = log_id,
+        t2.owner = account.first,
+        t2.approved = (owner == account.first)));
+      if(owner == account.first) {
+        is_new_user = false;
+      }
+    }
+  }
+  if(is_new_user) {
+    orm::transaction_log_record_dbo t3;
+    t.execute(t3.update(t3.new_member = true).where(t3.id == log_id));
   }
 }
 
@@ -146,18 +162,29 @@ vds::transactions::transaction_record_state vds::transactions::transaction_recor
     processed.emplace(p);
 
     orm::transaction_log_record_dbo t2;
-    auto st = t.get_reader(t2.select(t2.state, t2.order_no).where(t2.id == p));
+    auto st = t.get_reader(
+      t2.select(t2.state, t2.order_no,t2.new_member,t2.data)
+      .where(t2.id == p));
 
     if (!st.execute()) {
       throw std::runtime_error("Invalid data");
     }
 
     if (orm::transaction_log_record_dbo::have_state(t2.state.get(st))) {
+      if(t2.new_member.get(st)) {
+        result.account_state_[transaction_block(t2.data.get(st)).write_cert_id()].approve_required = true;
+      }
       this->set_state(t2.order_no.get(st), p, log_state_t::exclude);
       orm::transaction_log_vote_request_dbo t3;
-      st = t.get_reader(t3.select(t3.owner, t3.source, t3.balance).where(t3.id == p));
+      st = t.get_reader(t3.select(t3.owner, t3.approved).where(t3.id == p));
+      while(st.execute()) {
+        result.account_state_[t3.owner.get(st)].approve_required = true;
+      }
+
+      orm::transaction_log_balance_dbo t4;
+      st = t.get_reader(t4.select(t4.owner, t4.source, t4.balance).where(t4.id == p));
       while (st.execute()) {
-        result.account_state_[t3.owner.get(st)].balance_[t3.source.get(st)] = t3.balance.get(st);
+        result.account_state_[t4.owner.get(st)].balance_[t4.source.get(st)] = t4.balance.get(st);
       }
 
       state_loaded = true;
@@ -193,7 +220,7 @@ vds::transactions::transaction_record_state vds::transactions::transaction_recor
     for (auto & p : porder_no->second) {
       orm::transaction_log_record_dbo t1;
       auto st = t.get_reader(
-        t1.select(t1.data)
+        t1.select(t1.data, t1.new_member)
         .where(t1.id == p.first));
 
       if (!st.execute()) {
@@ -201,6 +228,7 @@ vds::transactions::transaction_record_state vds::transactions::transaction_recor
       }
 
       transaction_block block(t1.data.get(st));
+      const auto is_new_member = t1.new_member.get(st);
       switch (p.second.state_) {
       case log_state_t::included: {
         break;
@@ -209,12 +237,18 @@ vds::transactions::transaction_record_state vds::transactions::transaction_recor
       case log_state_t::exclude: {
         this->not_included_--;
         result.rollback(block);
+        if(is_new_member) {
+          result.account_state_[block.write_cert_id()].approve_required = false;
+        }
         break;
       }
 
       case log_state_t::include: {
         this->not_included_--;
         result.apply(block);
+        if (is_new_member) {
+          result.account_state_[block.write_cert_id()].approve_required = true;
+        }
         break;
       }
       default:

@@ -21,17 +21,30 @@ namespace vds {
         class database_transaction &t,
         const const_data_buffer & block_data);
 
-    private:
-      static void process_block(
-        const service_provider * sp,
-        class database_transaction &t,
-        const const_data_buffer & block_data);
+      static bool check_consensus(
+        database_read_transaction& t,
+        const const_data_buffer & log_id);
 
       static void invalid_block(
         const service_provider * sp,
         class database_transaction &t,
         const const_data_buffer & block_id);
 
+    private:
+      static void process_block(
+        const service_provider * sp,
+        class database_transaction &t,
+        const const_data_buffer & block_data);
+
+      static void invalid_become_consensus(
+        const service_provider* sp,
+        const database_transaction& t,
+        const const_data_buffer &  log_id);
+
+      static void make_consensus(
+        const service_provider * sp,
+        class database_transaction &t,
+        const const_data_buffer & log_id);
       static void update_consensus(
         const service_provider * sp,
         class database_transaction &t,

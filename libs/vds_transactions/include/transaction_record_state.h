@@ -10,6 +10,7 @@ All rights reserved
 #include "payment_transaction.h"
 #include "binary_serialize.h"
 #include "database.h"
+#include "transaction_log_vote_request_dbo.h"
 
 
 namespace vds {
@@ -54,7 +55,12 @@ namespace vds {
         const const_data_buffer & log_id) const;
 
       struct account_state_t {
+        bool approve_required;
         std::map<const_data_buffer/*source*/, int64_t /*balance*/> balance_;
+
+        account_state_t()
+        : approve_required(false) {          
+        }
       };
 
       void apply(

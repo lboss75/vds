@@ -73,6 +73,8 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
   vds::cert_control::genereate_all(root_user_name, root_password, private_info);
 
   std::make_shared<vds::user_manager>(sp)->reset(root_user_name, root_password, private_info);
+  /*      0 - creare root                     root_user MAX
+   */
 
   auto root_user_mng = std::make_shared<vds::user_manager>(sp);
   sp->get<vds::db_model>()->async_transaction([root_user_mng, root_user_name, root_password](vds::database_transaction & t) {
@@ -81,6 +83,9 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
 
   //Create User 1
   auto user1_mng = create_user(sp, root_user_mng, "User1", "user1@domain.ru", "1234567").get();
+  /*      0 - creare root                     root_user MAX
+   *      1 - creare user1                    root_user MAX
+   */
 
   vds::const_data_buffer root_source;
   vds::const_data_buffer first_source;
@@ -98,6 +103,11 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
       root_user_mng->get_current_user().user_certificate(),
       root_user_mng->get_current_user().private_key());
   }).get();
+  /*      0 - (root_source, consensus) creare root              root_user MAX +
+   *      1 - (consensus) creare user1                                      root_user MAX +
+   *      2 - (first_source, consensus, leaf) root_user->user1: 100        root_user MAX-100 +  user1 100 -
+   */
+
 
   auto root_user_account = root_user_mng->get_current_user().user_certificate()->subject();
   auto user1_account = user1_mng->get_current_user().user_certificate()->subject();
@@ -111,25 +121,25 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     vds_assert(balance.account_state().at(user1_account).balance_.at(first_source) == 100);
 
     vds::orm::transaction_log_record_dbo t1;
-    auto st = t.get_reader(t1.select(t1.id, t1.state));
+    auto st = t.get_reader(t1.select(t1.id, t1.state, t1.consensus, t1.new_member));
     while(st.execute()) {
       if(t1.id.get(st) == root_source) {
-        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::consensus);
+        vds_assert(t1.new_member.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
+        vds_assert(t1.consensus.get(st));
       }
       else if (t1.id.get(st) == first_source) {
+        vds_assert(!t1.new_member.get(st));
         vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::leaf);
+        vds_assert(t1.consensus.get(st));
       }
     }
 
     vds::orm::transaction_log_vote_request_dbo t2;
-    st = t.get_reader(t2.select(t2.owner, t2.is_appoved).where(t2.id == first_source));
-    while(st.execute()) {
-      if(t2.owner.get(st) == root_user_account) {
-        vds_assert(t2.is_appoved.get(st));
-      }
-      else if (t2.owner.get(st) == root_user_account) {
-        vds_assert(!t2.is_appoved.get(st));
-      }
+    st = t.get_reader(t2.select(t2.owner, t2.approved).where(t2.id == first_source));
+    while (st.execute()) {
+      vds_assert(t2.owner.get(st) == root_user_account);
+      vds_assert(t2.approved.get(st));
     }
   }).get();
   ///////////////////////
@@ -145,6 +155,14 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
       user1_mng->get_current_user().user_certificate(),
       user1_mng->get_current_user().private_key());
   }).get();
+  /*      0 - (root_source, consensus) creare root       root_user MAX +
+   *      1 - creare user1                               root_user MAX +
+   *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
+   *      3 - (leaf) create user2                        root_user MAX-100 +  user1 100 - 
+   *      |\
+   *      | * (log12) user1->user2:50                    root_user MAX-100 -  user1 50 +   user2 50 -
+   */
+
 
   auto user3_mng = create_user(sp, root_user_mng, "User3", "user3@domain.ru", "1234567").get();
   auto user3_account = user3_mng->get_current_user().user_certificate()->subject();
@@ -158,6 +176,16 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
       user1_mng->get_current_user().user_certificate(),
       user1_mng->get_current_user().private_key());
   }).get();
+  /*      0 - (root_source, consensus) creare root       root_user MAX +
+   *      1 - creare user1                               root_user MAX +
+   *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
+   *      3 -        create user2                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log12) user1->user2:50                    root_user MAX-100 -  user1 50 +   user2 50 -
+   *      4 - (leaf) create user3                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log13) user1->user3:50                    root_user MAX-100 -  user1 50 +   user3 50 -
+   */
 
   auto user4_mng = create_user(sp, root_user_mng, "User4", "user4@domain.ru", "1234567").get();
   auto user4_account = user4_mng->get_current_user().user_certificate()->subject();
@@ -171,6 +199,19 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
       user1_mng->get_current_user().user_certificate(),
       user1_mng->get_current_user().private_key());
   }).get();
+  /*      0 - (root_source, consensus) creare root       root_user MAX +
+   *      1 - creare user1                               root_user MAX +
+   *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
+   *      3 - (leaf) create user2                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log12) user1->user2:50                    root_user MAX-100 -  user1 50 +   user2 50 -
+   *      4 -        create user3                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log13) user1->user3:50                    root_user MAX-100 -  user1 50 +   user3 50 -
+   *      5 - (leaf) create user4                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log14) user1->user4:50                    root_user MAX-100 -  user1 50 +   user4 50 -
+   */
 
   //Validate
   vds::const_data_buffer log12_id;
@@ -187,19 +228,35 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     vds_assert(balance.account_state().at(user2_account).balance_.at(log12_id) == 50);
 
     vds::orm::transaction_log_record_dbo t1;
-    auto st = t.get_reader(t1.select(t1.id, t1.state));
+    auto st = t.get_reader(t1.select(t1.id, t1.state, t1.consensus));
     while (st.execute()) {
       if (t1.id.get(st) == root_source) {
-        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::consensus);
+        vds_assert(t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
       }
       else if (t1.id.get(st) == first_source) {
-        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::consensus);
+        vds_assert(t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
       }
       else if (t1.id.get(st) == log12_id) {
+        vds_assert(!t1.consensus.get(st));
         vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::leaf);
       }
     }
   }).get();
+  /*      0 - (root_source, consensus) creare root       root_user MAX +
+   *      1 - creare user1                               root_user MAX +
+   *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
+   *      3 - (leaf) create user2                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log12,leaf) user1->user2:50               root_user MAX-100 -  user1 50 +   user2 50 -
+   *      4 -        create user3                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log13) user1->user3:50                    root_user MAX-100 -  user1 50 +   user3 50 -
+   *      5 - (leaf) create user4                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log14) user1->user4:50                    root_user MAX-100 -  user1 50 +   user4 50 -
+   */
 
   vds::const_data_buffer log13_id;
   sp->get<vds::db_model>()->async_transaction(
@@ -229,31 +286,38 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     vds_assert(balance.account_state().at(user3_account).balance_.at(log13_id) == 50);
 
     vds::orm::transaction_log_record_dbo t1;
-    auto st = t.get_reader(t1.select(t1.id, t1.state));
+    auto st = t.get_reader(t1.select(t1.id, t1.state, t1.consensus));
     while (st.execute()) {
       if (t1.id.get(st) == root_source) {
-        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::consensus);
+        vds_assert(t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
       }
       else if (t1.id.get(st) == first_source) {
-        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::consensus);
+        vds_assert(t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
       }
       else if (t1.id.get(st) == log12_id) {
+        vds_assert(!t1.consensus.get(st));
         vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::leaf);
       }
       else if (t1.id.get(st) == log13_id) {
+        vds_assert(!t1.consensus.get(st));
         vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::leaf);
       }
     }
   }).get();
-  /*      0 - creare root
-   *      1 - creare user1
-   *      2 - root -> user 1: 100
-   *      3 - create user2
-   *      4 - create user3
-   *      5 - create user4
-   *      6 - user1 -> user 2: 50
-   *      
-   *
+  /*      0 - (root_source, consensus) creare root       root_user MAX +
+   *      1 - creare user1                               root_user MAX +
+   *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
+   *      3 - (leaf) create user2                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log12,leaf) user1->user2:50               root_user MAX-100 -  user1 50 +   user2 50 -
+   *      4 -        create user3                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log13,leaf) user1->user3:50               root_user MAX-100 -  user1 50 +   user3 50 -
+   *      5 - (leaf) create user4                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log14) user1->user4:50                    root_user MAX-100 -  user1 50 +   user4 50 -
    */
 
   //test invalid
@@ -275,34 +339,128 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
       &log14_id](vds::database_transaction & t) {
     log14_id = vds::transactions::transaction_log::save(sp, t, log14);
 
+    auto balance = vds::user_wallet::safe_get_balance(sp, t);
+    vds_assert(balance.account_state().size() == 4);
+    vds_assert(balance.account_state().at(root_user_account).balance_.size() == 1);
+    vds_assert(balance.account_state().at(user1_account).balance_.size() == 1);
+    vds_assert(balance.account_state().at(user1_account).balance_.at(first_source) == 0);
+
+    vds::orm::transaction_log_record_dbo t1;
+    auto st = t.get_reader(t1.select(t1.id, t1.state, t1.consensus));
+    while (st.execute()) {
+      if (t1.id.get(st) == root_source) {
+        vds_assert(t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
+      }
+      else if (t1.id.get(st) == first_source) {
+        vds_assert(t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
+      }
+      else if (t1.id.get(st) == log12_id) {
+        vds_assert(!t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::leaf
+        || t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::invalid);
+      }
+      else if (t1.id.get(st) == log13_id) {
+        vds_assert(!t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::leaf
+          || t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::invalid);
+      }
+      else if (t1.id.get(st) == log14_id) {
+        vds_assert(!t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::leaf
+          || t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::invalid);
+      }
+    }
+  }).get();
+  /*      0 - (root_source, consensus) creare root       root_user MAX +
+   *      1 - creare user1                               root_user MAX +
+   *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
+   *      3 - (leaf) create user2                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log12,leaf) user1->user2:50               root_user MAX-100 -  user1 50 +   user2 50 -
+   *      4 -        create user3                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log13,leaf) user1->user3:50               root_user MAX-100 -  user1 50 +               user3 50 -
+   *      5 - (leaf) create user4                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | * (log14,leaf) user1->user4:50               root_user MAX-100 -  user1 50 +                           user4 50 -
+   */
+
+  vds::const_data_buffer log14_log12_id;
+  sp->get<vds::db_model>()->async_transaction(
+    [
+      sp,
+      root_user_mng,
+      root_user_account,
+      user1_mng,
+      user4_mng,
+      root_source,
+      user1_account,
+      user2_account,
+      user3_account,
+      first_source,
+      log14,
+      log12_id,
+      log13_id,
+      log14_id,
+      &log14_log12_id](vds::database_transaction & t) {
+    std::set<vds::const_data_buffer> ancestors;
+    ancestors.emplace(log12_id);
+    ancestors.emplace(log14_id);
+    vds::transactions::transaction_block_builder transaction_log(sp, t, ancestors);
+    vds::user_wallet::transfer(transaction_log, first_source, user4_mng->get_current_user(), 50);
+    log14_log12_id = transaction_log.sign(
+      sp,
+      user1_mng->get_current_user().user_certificate(),
+      user1_mng->get_current_user().private_key());
+
     auto balance = vds::user_wallet::get_balance(t);
     vds_assert(balance.account_state().size() == 4);
     vds_assert(balance.account_state().at(root_user_account).balance_.size() == 1);
     vds_assert(balance.account_state().at(user1_account).balance_.size() == 1);
     vds_assert(balance.account_state().at(user1_account).balance_.at(first_source) == 0);
-    vds_assert(balance.account_state().at(user2_account).balance_.size() == 1);
-    vds_assert(balance.account_state().at(user2_account).balance_.at(log12_id) == 50);
-    vds_assert(balance.account_state().at(user3_account).balance_.size() == 1);
-    vds_assert(balance.account_state().at(user3_account).balance_.at(log13_id) == 50);
 
     vds::orm::transaction_log_record_dbo t1;
-    auto st = t.get_reader(t1.select(t1.id, t1.state));
+    auto st = t.get_reader(t1.select(t1.id, t1.state, t1.consensus));
     while (st.execute()) {
       if (t1.id.get(st) == root_source) {
-        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::consensus);
+        vds_assert(t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
       }
       else if (t1.id.get(st) == first_source) {
-        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::consensus);
+        vds_assert(t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
       }
       else if (t1.id.get(st) == log12_id) {
+        vds_assert(!t1.consensus.get(st));
         vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::leaf);
       }
       else if (t1.id.get(st) == log13_id) {
+        vds_assert(!t1.consensus.get(st));
         vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::leaf);
+      }
+      else if (t1.id.get(st) == log14_id) {
+        vds_assert(!t1.consensus.get(st));
+        vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::invalid);
       }
     }
   }).get();
-
+  /*      0 - (root_source, consensus) creare root       root_user MAX +
+   *      1 - creare user1                               root_user MAX +
+   *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
+   *      3 - (leaf) create user2                        root_user MAX-100 +  user1 100 -
+   *      |\
+   *      | | (log12) user1->user2:50                    root_user MAX-100 -  user1 50 +   user2 50 -
+   *      4-+-       create user3                        root_user MAX-100 +  user1 100 -
+   *      | | \
+   *      | |   * (log13,leaf) user1->user3:50           root_user MAX-100 -  user1 50 +               user3 50 -
+   *      5-+-    (leaf) create user4                    root_user MAX-100 +  user1 100 -
+   *      | | \
+   *      | |  * (log14,invalid) user1->user4:50         root_user MAX-100 -  user1 50 +                           user4 50 -
+   *      | | /
+   *      | *    (log14_log12, leaf)
+   */
   registrator.shutdown();
 
 }

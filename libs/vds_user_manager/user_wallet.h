@@ -29,6 +29,10 @@ namespace vds {
     static transactions::transaction_record_state get_balance(
       database_read_transaction& t);
 
+    static transactions::transaction_record_state safe_get_balance(
+      const service_provider * sp,
+      database_transaction& t);
+
     static user_wallet create_wallet(
       transactions::transaction_block_builder & log,
       const member_user & target_user,

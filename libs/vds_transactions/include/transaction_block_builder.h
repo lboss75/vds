@@ -29,6 +29,11 @@ namespace vds {
         const service_provider * sp,
         class vds::database_read_transaction &t);
 
+      transaction_block_builder(
+        const service_provider * sp,
+        class vds::database_read_transaction &t,
+        const std::set<const_data_buffer> & ancestors);
+
       static transaction_block_builder create_root_block(const service_provider * sp) {
         return transaction_block_builder(sp);
       }

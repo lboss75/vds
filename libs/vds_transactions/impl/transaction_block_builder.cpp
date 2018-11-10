@@ -79,6 +79,29 @@ vds::transactions::transaction_block_builder::transaction_block_builder(
     this->order_no_++;
 }
 
+vds::transactions::transaction_block_builder::transaction_block_builder(
+  const service_provider * sp,
+  vds::database_read_transaction& t,
+  const std::set<const_data_buffer> & ancestors)
+  : sp_(sp), time_point_(std::chrono::system_clock::now()), ancestors_(ancestors), order_no_(0) {
+
+  for (auto ancestor : ancestors) {
+    orm::transaction_log_record_dbo t1;
+    auto st = t.get_reader(
+      t1.select(t1.order_no)
+      .where(t1.id == ancestor));
+    while (st.execute()) {
+      auto order = t1.order_no.get(st);
+      if (this->order_no_ < order) {
+        this->order_no_ = order;
+      }
+    }
+  }
+
+  this->order_no_++;
+}
+
+
 void vds::transactions::transaction_block_builder::add(const root_user_transaction& item) {
   this->data_ << (uint8_t)root_user_transaction::message_id;
   _serialize_visitor v(this->data_);

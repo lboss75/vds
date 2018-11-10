@@ -9,20 +9,38 @@ All rights reserved
 #include "json_object.h"
 #include "control_message_transaction.h"
 #include "transaction_state_calculator.h"
+#include "transaction_lack_of_funds.h"
+#include "transaction_source_not_found_error.h"
+#include "transaction_log.h"
 
 vds::transactions::transaction_record_state vds::user_wallet::get_balance(database_read_transaction& t) {
-  
-  std::set<vds::const_data_buffer> ancestors;
+    std::set<vds::const_data_buffer> ancestors;
 
-  orm::transaction_log_record_dbo t1;
-  auto st = t.get_reader(t1.select(
-    t1.id)
-    .where(t1.state == orm::transaction_log_record_dbo::state_t::leaf));
-  while (st.execute()) {
-    ancestors.emplace(t1.id.get(st));
+    orm::transaction_log_record_dbo t1;
+    auto st = t.get_reader(t1.select(
+      t1.id)
+      .where(t1.state == orm::transaction_log_record_dbo::state_t::leaf));
+    while (st.execute()) {
+      ancestors.emplace(t1.id.get(st));
+    }
+
+    return transactions::transaction_record_state::load(t, ancestors);
+}
+
+vds::transactions::transaction_record_state vds::user_wallet::safe_get_balance(
+  const service_provider* sp,
+  database_transaction& t) {
+  for(;;) {
+    try{
+      return get_balance(t);
+    }
+    catch (const transactions::transaction_lack_of_funds & ex) {
+      transactions::transaction_log::invalid_block(sp, t, ex.refer_transaction());
+    }
+    catch (const transactions::transaction_source_not_found_error & ex) {
+      transactions::transaction_log::invalid_block(sp, t, ex.refer_transaction());
+    }
   }
-
-  return transactions::transaction_record_state::load(t, ancestors);
 }
 
 vds::user_wallet vds::user_wallet::create_wallet(
