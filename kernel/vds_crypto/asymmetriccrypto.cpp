@@ -202,6 +202,10 @@ vds::asymmetric_private_key vds::_asymmetric_private_key::parse_der(
     
     const unsigned char * p = buffer.data();
     auto key = d2i_AutoPrivateKey(NULL, &p, safe_cast<long>(buffer.size()));
+    if (nullptr == key) {
+      auto error = ERR_get_error();
+      throw crypto_exception("d2i_AutoPrivateKey", error);
+    }
     return asymmetric_private_key(new _asymmetric_private_key(key));
   }
   else{
