@@ -197,7 +197,8 @@ namespace vds {
   {
   public:
     _database(const service_provider * sp)
-    : db_(nullptr),
+    : sp_(sp),
+      db_(nullptr),
       execute_queue_(std::make_shared<thread_apartment>(sp))
     {
     }
@@ -271,7 +272,13 @@ namespace vds {
         try {
           callback(tr);
         }
+        catch (const std::exception & ex) {
+          pthis->sp_->get<logger>()->trace("DB", "%s at read transaction", ex.what());
+          r->set_exception(std::current_exception());
+          return;
+        }
         catch(...) {
+          pthis->sp_->get<logger>()->trace("DB", "Unexcpected error at read transaction");
           r->set_exception(std::current_exception());
           return;
         }
@@ -296,7 +303,14 @@ namespace vds {
         try {
           result = callback(tr);
         }
+        catch (const std::exception & ex) {
+          pthis->sp_->get<logger>()->trace("DB", "%s at transaction", ex.what());
+          pthis->execute("ROLLBACK TRANSACTION");
+          r->set_exception(std::current_exception());
+          return;
+        }
         catch (...) {
+          pthis->sp_->get<logger>()->trace("DB", "Unexpected error at transaction");
           pthis->execute("ROLLBACK TRANSACTION");
           r->set_exception(std::current_exception());
           return;
@@ -348,6 +362,7 @@ namespace vds {
     }
 
   private:
+    const service_provider * sp_;
     sqlite3 * db_;    
     std::shared_ptr<thread_apartment> execute_queue_;
   };
