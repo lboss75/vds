@@ -1,5 +1,5 @@
-#ifndef __VDS_BACKGROUND_BACKGROUND_APP_H_
-#define __VDS_BACKGROUND_BACKGROUND_APP_H_
+#ifndef __VDS_CMD_VDS_CMD_APP_H_
+#define __VDS_CMD_VDS_CMD_APP_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -8,11 +8,11 @@ All rights reserved
 #include "stdafx.h"
 
 namespace vds {
-  class vds_cmd_app : public console_app<vds_cmd_app>
+  class vds_app_app : public console_app<vds_app_app>
   {
-    using base_class = console_app<vds_cmd_app>;
+    using base_class = console_app<vds_app_app>;
   public:
-    vds_cmd_app();
+    vds_app_app();
 
     void main(const service_provider * sp);
     
@@ -39,4 +39,4 @@ namespace vds {
   };
 }
 
-#endif // __VDS_BACKGROUND_BACKGROUND_APP_H_
+#endif // __VDS_CMD_VDS_CMD_APP_H_

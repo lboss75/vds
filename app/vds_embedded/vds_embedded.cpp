@@ -4,6 +4,19 @@
 #include "stdafx.h"
 #include "vds_embedded.h"
 
+#include <jni.h>
+#include <string>
+
+extern "C" JNIEXPORT jstring
+
+JNICALL
+Java_ru_ivysoft_vds_CameraActivity_stringFromJNI(
+        JNIEnv *env,
+        jobject /* this */) {
+    std::string hello = "Hello from C++";
+    return env->NewStringUTF(hello.c_str());
+}
+
 void vds::vds_embedded::server_root(const std::string & /*login*/, const std::string & /*password*/) {
 
   this->last_error_.clear();

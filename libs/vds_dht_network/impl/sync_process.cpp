@@ -1591,14 +1591,14 @@ vds::async_task<void> vds::dht::network::sync_process::send_random_replicas(
       }
 
       if(goal == send_random_replica_goal_t::new_member) {
-        return this->send_random_replicas(
+        co_await this->send_random_replicas(
           allowed_replicas,
           std::set<uint16_t>(),
           1,
           replica_frequency);
       }
       else {
-        return this->send_random_replicas(
+        co_await this->send_random_replicas(
           allowed_replicas,
           send_replicas,
           service::MIN_DISTRIBUTED_PIECES,

@@ -8,7 +8,7 @@ All rights reserved
 #include "http_router.h"
 #include "user_manager.h"
 
-vds::background_app::background_app()
+vds::vds_cmd_app::vds_cmd_app()
 : server_start_command_set_("Server start", "Start server", "start", "server"),
   server_root_cmd_set_("Install Root node", "Create new network", "root", "server"),
   server_init_command_set_("Initialize new node", "Attach this device to the network", "init", "server"),
@@ -30,7 +30,7 @@ vds::background_app::background_app()
 {
 }
 
-void vds::background_app::main(const service_provider * sp)
+void vds::vds_cmd_app::main(const service_provider * sp)
 {
   if (this->current_command_set_ == &this->server_start_command_set_
     || &this->server_root_cmd_set_ == this->current_command_set_) {
@@ -82,7 +82,7 @@ void vds::background_app::main(const service_provider * sp)
   }
 }
 
-void vds::background_app::register_services(vds::service_registrator& registrator)
+void vds::vds_cmd_app::register_services(vds::service_registrator& registrator)
 {
   base_class::register_services(registrator);
   registrator.add(this->mt_service_);
@@ -97,7 +97,7 @@ void vds::background_app::register_services(vds::service_registrator& registrato
   }
 }
 
-void vds::background_app::register_command_line(command_line & cmd_line)
+void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
 {
   base_class::register_command_line(cmd_line);
 
@@ -116,7 +116,7 @@ void vds::background_app::register_command_line(command_line & cmd_line)
   //this->server_init_command_set_.optional(this->port_);
 }
 
-void vds::background_app::start_services(service_registrator & registrator, service_provider * sp)
+void vds::vds_cmd_app::start_services(service_registrator & registrator, service_provider * sp)
 {
   if (&this->server_root_cmd_set_ == this->current_command_set_) {
     auto folder = persistence::current_user(sp);
@@ -134,7 +134,7 @@ void vds::background_app::start_services(service_registrator & registrator, serv
   }
 }
 
-bool vds::background_app::need_demonize()
+bool vds::vds_cmd_app::need_demonize()
 {
   return false;
   //return (this->current_command_set_ == &this->server_start_command_set_);

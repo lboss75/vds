@@ -4,11 +4,11 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "background_app.h"
+#include "vds_cmd_app.h"
 
 int main(int argc, const char **argv)
 {
-  vds::vds_cmd_app app;
+  vds::cmd_app app;
   return app.run(argc, argv);
 }
 
