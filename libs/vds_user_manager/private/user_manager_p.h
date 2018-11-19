@@ -35,8 +35,7 @@ namespace vds {
       return this->login_state_;
     }
 
-    void update(
-        
+    void update(        
         class database_transaction &t);
 
 

@@ -7,11 +7,13 @@ All rights reserved
 #include "vds_cmd_app.h"
 #include "http_router.h"
 #include "user_manager.h"
+#include "tcp_network_socket.h"
+#include "http_request.h"
+#include "http_serializer.h"
 
-vds::vds_app_app::vds_app_app()
-: server_start_command_set_("Server start", "Start server", "start", "server"),
-  server_root_cmd_set_("Install Root node", "Create new network", "root", "server"),
-  server_init_command_set_("Initialize new node", "Attach this device to the network", "init", "server"),
+vds::vds_cmd_app::vds_cmd_app()
+: file_upload_cmd_set_("Upload file", "Upload file on the network", "upload", "file"),
+  file_download_cmd_set_("Download file", "Download file from the network", "download", "file"),
   user_login_(
       "l",
       "login",
@@ -22,92 +24,75 @@ vds::vds_app_app::vds_app_app()
       "password",
       "Password",
       "User password"),
-  port_(
-    "P",
-    "port",
-    "Port",
-    "Port to listen connections")
-{
+  server_(
+    "s",
+    "server",
+    "Server URL",
+    "Server URL to connect"),
+  message_(
+    "m",
+    "message",
+    "Message",
+    "Message"),
+  attachment_(
+    "f",
+    "file",
+    "File(s) names",
+    "Comma separated file names"),
+  output_folder_(
+    "o",
+    "output",
+    "output folder",
+    "Folder to store files") {
 }
 
-void vds::vds_app_app::main(const service_provider * sp)
+void vds::vds_cmd_app::main(const service_provider * sp)
 {
-  if (this->current_command_set_ == &this->server_start_command_set_
-    || &this->server_root_cmd_set_ == this->current_command_set_) {
+  if (this->current_command_set_ == &this->file_upload_cmd_set_) {
+    auto server = this->server_.value().empty() ? "localhost:8050" : this->server_.value();
 
-    this->server_
-      .start_network((uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
-      .get();
+    auto s = tcp_network_socket::connect(sp, network_address::parse(server));
+    auto [reader, writer] = s->start(sp);
+    auto http_out = std::make_shared<http_async_serializer>(writer);
 
-    if (&this->server_root_cmd_set_ == this->current_command_set_) {
-      const auto data = file::read_all(filename("keys"));
-      const_data_buffer root_private_key, common_news_write_private_key, common_news_admin_private_key;
-      binary_deserializer s(data);
-      s
-        >> root_private_key
-        >> common_news_write_private_key
-        >> common_news_admin_private_key
-        ;
+    auto login_request = http_request::create(
+      "GET",
+      "api/login?login=" + url_encode::encode(this->user_login_.value())
+      + "&password=" + url_encode::encode(this->user_password_.value));
 
-      cert_control::private_info_t private_info;
-      private_info.root_private_key_ = std::make_shared<asymmetric_private_key>(
-        asymmetric_private_key::parse_der(root_private_key, this->user_password_.value()));
+    http_out->write_async(login_request.get_message()).get();
 
-      private_info.common_news_write_private_key_ = std::make_shared<asymmetric_private_key>(
-        asymmetric_private_key::parse_der(common_news_write_private_key, this->user_password_.value()));
-
-      private_info.common_news_admin_private_key_ = std::make_shared<asymmetric_private_key>(
-        asymmetric_private_key::parse_der(common_news_admin_private_key, this->user_password_.value()));
-
-
-      auto user_mng = std::make_shared<user_manager>(sp);
-      user_mng->reset(
-        this->user_login_.value(),
-        this->user_password_.value(),
-        private_info);
-    }
-    else {
-      for (;;) {
-        std::cout << "Enter command:\n";
-
-        std::string cmd;
-        std::cin >> cmd;
-
-        if ("exit" == cmd) {
-          break;
-        }
-      }
-
-    }
+    auto client = http_parser();
   }
 }
 
-void vds::vds_app_app::register_services(vds::service_registrator& registrator)
+void vds::vds_cmd_app::register_services(vds::service_registrator& registrator)
 {
   base_class::register_services(registrator);
   registrator.add(this->mt_service_);
   registrator.add(this->task_manager_);
   registrator.add(this->network_service_);
-  registrator.add(this->crypto_service_);
-  
-  if (&this->server_start_command_set_ == this->current_command_set_
-      || &this->server_root_cmd_set_ == this->current_command_set_
-      || &this->server_init_command_set_ == this->current_command_set_){
-    registrator.add(this->server_);
-  }
 }
 
-void vds::vds_app_app::register_command_line(command_line & cmd_line)
+void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
 {
   base_class::register_command_line(cmd_line);
 
-  cmd_line.add_command_set(this->server_start_command_set_);
-  this->server_start_command_set_.optional(this->port_);
+  cmd_line.add_command_set(this->file_upload_cmd_set_);
+  this->file_upload_cmd_set_.required(this->user_login_);
+  this->file_upload_cmd_set_.required(this->user_password_);
+  this->file_upload_cmd_set_.optional(this->server_);
+  this->file_upload_cmd_set_.optional(this->message_);
+  this->file_upload_cmd_set_.required(this->attachment_);
+  this->file_upload_cmd_set_.optional(this->output_folder_);
 
-  cmd_line.add_command_set(this->server_root_cmd_set_);
-  this->server_root_cmd_set_.required(this->user_login_);
-  this->server_root_cmd_set_.required(this->user_password_);
-  this->server_root_cmd_set_.optional(this->port_);
+  cmd_line.add_command_set(this->file_download_cmd_set_);
+  this->file_download_cmd_set_.required(this->user_login_);
+  this->file_download_cmd_set_.required(this->user_password_);
+  this->file_download_cmd_set_.optional(this->server_);
+  this->file_download_cmd_set_.optional(this->message_);
+  this->file_download_cmd_set_.required(this->attachment_);
+  this->file_download_cmd_set_.optional(this->output_folder_);
 
   //cmd_line.add_command_set(this->server_init_command_set_);
   //this->server_init_command_set_.required(this->user_login_);
@@ -116,26 +101,12 @@ void vds::vds_app_app::register_command_line(command_line & cmd_line)
   //this->server_init_command_set_.optional(this->port_);
 }
 
-void vds::vds_app_app::start_services(service_registrator & registrator, service_provider * sp)
+void vds::vds_cmd_app::start_services(service_registrator & registrator, service_provider * sp)
 {
-  if (&this->server_root_cmd_set_ == this->current_command_set_) {
-    auto folder = persistence::current_user(sp);
-    folder.delete_folder(true);
-    folder.create();
-    registrator.start();
-  //} else if (&this->server_init_command_set_ == this->current_command_set_) {
-  //  foldername folder(persistence::current_user(sp), ".vds");
-  //  folder.delete_folder(true);
-  //  folder.create();
-  //  registrator.start(sp);
-  }
-  else {
-    base_class::start_services(registrator, sp);
-  }
+  base_class::start_services(registrator, sp);
 }
 
-bool vds::vds_app_app::need_demonize()
+bool vds::vds_cmd_app::need_demonize()
 {
   return false;
-  //return (this->current_command_set_ == &this->server_start_command_set_);
 }

@@ -8,7 +8,7 @@ All rights reserved
 
 int main(int argc, const char **argv)
 {
-  vds::cmd_app app;
+  vds::vds_cmd_app app;
   return app.run(argc, argv);
 }
 

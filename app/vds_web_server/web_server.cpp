@@ -71,6 +71,22 @@ router_({
         request);
   }
     },
+  { "/api/login", "GET", [this](
+    const vds::service_provider * sp,
+    const http_request & request) -> async_task<std::shared_ptr<json_value>> {
+      const auto login = request.get_parameter("login");
+      const auto password = request.get_parameter("password");
+
+      co_await request.get_message().ignore_empty_body();
+
+      co_return co_await api_controller::login(
+        sp,
+        login,
+        password,
+        this->shared_from_this(),
+        request);
+  }
+    },
   {"/api/session", "GET", [this](
     const vds::service_provider * sp,
     const http_request & request) -> async_task<std::shared_ptr<json_value>> {

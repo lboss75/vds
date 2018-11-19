@@ -29,6 +29,13 @@ namespace vds {
       const std::shared_ptr<_web_server>& owner,
       const http_request& request);
 
+    static async_task<std::shared_ptr<json_value>> login(
+      const vds::service_provider * sp,
+      const std::string & login,
+      const std::string & password,
+      const std::shared_ptr<_web_server>& owner,
+      const http_request& request);
+
     static vds::async_task<http_message> create_channel(
       const std::shared_ptr<user_manager> & user_mng,
       const std::string & name);

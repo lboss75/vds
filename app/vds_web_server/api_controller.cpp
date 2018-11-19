@@ -83,6 +83,49 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_login
   co_return item;
 }
 
+vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::login(
+  const vds::service_provider * sp,
+  const std::string & login,
+  const std::string & password,
+  const std::shared_ptr<_web_server>& owner_param,
+  const http_request& request_param) {
+
+  std::shared_ptr<_web_server> owner = owner_param;
+  http_request request = request_param;
+  auto session_id = std::to_string(std::rand()) + "." + std::to_string(std::rand()) + "." + std::to_string(std::rand());
+  auto session = std::make_shared<auth_session>(sp, session_id, login, password);
+  co_await session->load(sp);
+
+  auto item = std::make_shared<json_object>();
+
+  for (;;) {
+    co_await session->update();
+
+    switch (session->get_login_state()) {
+    case user_manager::login_state_t::waiting:
+      continue;
+
+    case user_manager::login_state_t::login_failed:
+      item->add_property("state", "failed");
+      break;
+
+    case user_manager::login_state_t::login_sucessful:
+      item->add_property("state", "sucessful");
+      item->add_property("session", session_id);
+      item->add_property("user_name", session->user_name());
+
+      owner->add_auth_session(session_id, session);
+      break;
+
+    default:
+      throw std::runtime_error("Invalid program");
+    }
+    break;
+  }
+
+  co_return item;
+}
+
 vds::async_task<vds::http_message>
 vds::api_controller::create_channel(  
   const std::shared_ptr<user_manager> & user_mng,
