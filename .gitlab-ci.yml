@@ -1,40 +1,49 @@
-image: viaduck/ci
+image: ubuntu:14.04
 
 stages:
+    - update-os
     - dependencies
     - build
     - test
 
-variables:
-    ANDROID_PLATFORM: "android-27"
-    ANDROID_NDK: "/android/ndk"
-    
-dependencies:linux-x86_64:
-    stage: dependencies
+update-os:
+    stage: update-os
     script:
     - apt-get update
     - apt-get install -y git cmake clang gcovr
+
+build-openssl:
+    stage: dependencies
+    script:
     - cd externals
     - git clone https://github.com/openssl/openssl.git
     - cd openssl
     - ./Configure x86-64 --prefix=$PWD/externals/openssl-out --openssldir=$PWD/externals/openssl-out
     - make
     - make install
-    - cd ..
+
+build-zlib:
+    stage: dependencies
+    script:
+    - cd externals
     - git clone https://github.com/madler/zlib.git
     - mkdir zlib_out
     - cd zlib_out
     - cmake ../zlib
     - make
-    - cd ..
+
+
+build-gtest:
+    stage: dependencies
+    script:
+    - cd externals
     - git clone https://github.com/google/googletest.git
     - mkdir gtest_out
     - cd gtest_out
     - cmake -Dgtest_force_shared_crt=ON ../googletest/googletest
     - make
-    - cd ../..
-    
-build:linux-x86_64:
+
+build:
     stage: build
     script:
     - mkdir build
@@ -42,8 +51,8 @@ build:linux-x86_64:
     - cmake -DZLIB_INCLUDE_DIR=externals/zlib_out/include -DZLIB_LIBRARY=externals/zlib_out/lib/zlibstaticd.a -DOPENSSL_ROOT_DIR=externals/openssl-out/ -DGTEST_LIBRARY=externals/gtest_out/gtestd.a -DGTEST_INCLUDE_DIR=externals/gtest/googletest/include -DGTEST_MAIN_LIBRARY=externals/gtest_out/gtest_maind.a .. 
     - make -j
     
-build:linux-x86_64:
-    stage: build
+test:
+    stage: test
     script:    
     - tests/test_vds_core/test_vds_core
     - gcovr -r ..
