@@ -7,28 +7,28 @@ build-ubuntu:
     - export CC=/usr/bin/clang-6.0
     - export CXX=/usr/bin/clang++-6.0
     - cd externals
-    - git clone https://github.com/openssl/openssl.git
+    - git clone --quiet https://github.com/openssl/openssl.git
     - cd openssl
     - ./Configure linux-x86_64-clang no-shared no-tests --prefix=$PWD/externals/openssl-out --openssldir=$PWD/externals/openssl-out
     - make
     - make install
     - cd ..
-    - git clone https://github.com/madler/zlib.git
+    - git clone --quiet https://github.com/madler/zlib.git
     - mkdir zlib_out
     - cd zlib_out
     - cmake ../zlib
     - make
     - cd ..
-    - git clone https://github.com/google/googletest.git
+    - git clone --quiet https://github.com/google/googletest.git
     - mkdir gtest_out
     - cd gtest_out
     - cmake -Dgtest_force_shared_crt=ON ../googletest/googletest
     - make
     - cd ..
-    - svn co http://llvm.org/svn/llvm-project/llvm/trunk llvm
+    - svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
     - cd llvm/projects
-    - svn co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
-    - svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
+    - svn -q co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
+    - svn -q co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
     - cd ..
     - mkdir build
     - cd build
