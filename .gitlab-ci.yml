@@ -1,0 +1,12 @@
+image: ubuntu:14.04
+
+job:
+  script:
+    - apt-get update
+    - apt-get install -y git cmake g++ gcovr
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make -j
+    - tests/test_vds_core/test_vds_core
+    - gcovr -r ..
