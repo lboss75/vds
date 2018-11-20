@@ -8,11 +8,13 @@ build:
     stage: build
     script:
     - apt-get update
-    - apt-get install -y git cmake clang gcovr
+    - apt-get install -y git cmake clang-6.0 gcovr
+    - export CC=/usr/bin/clang-6.0
+    - export CXX=/usr/bin/clang++-6.0
     - cd externals
     - git clone https://github.com/openssl/openssl.git
     - cd openssl
-    - ./Configure x86-64 --prefix=$PWD/externals/openssl-out --openssldir=$PWD/externals/openssl-out
+    - ./Configure linux-x86_64-clang no-shared no-tests --prefix=$PWD/externals/openssl-out --openssldir=$PWD/externals/openssl-out
     - make
     - make install
     - cd ..
