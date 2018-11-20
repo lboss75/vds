@@ -15,7 +15,6 @@ update-os:
 dependencies:
     stage: dependencies
     script:
-    - # open ssl
     - cd externals
     - git clone https://github.com/openssl/openssl.git
     - cd openssl
@@ -23,14 +22,12 @@ dependencies:
     - make
     - make install
     - cd ..
-    - # zlib
     - git clone https://github.com/madler/zlib.git
     - mkdir zlib_out
     - cd zlib_out
     - cmake ../zlib
     - make
     - cd ..
-    - # gtest:
     - git clone https://github.com/google/googletest.git
     - mkdir gtest_out
     - cd gtest_out
