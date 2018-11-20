@@ -4,9 +4,29 @@ job:
   script:
     - apt-get update
     - apt-get install -y git cmake g++ gcovr
+    - mkdir externals
+    - cd externals
+    - git clone https://github.com/openssl/openssl.git
+    - cd openssl
+    - ./Configure x86-64 --prefix=openssl-debug --openssldir=openssl-debug
+    - make
+    - make install
+    - cd ..
+    - git clone https://github.com/madler/zlib.git
+    - mkdir zlib_out
+    - cd zlib_out
+    - cmake ../zlib
+    - make
+    - cd ..
+    - git clone https://github.com/google/googletest.git
+    - mkdir gtest_out
+    - cd gtest_out
+    - cmake -Dgtest_force_shared_crt=ON ../googletest/googletest
+    - make
+    - cd ../..
     - mkdir build
     - cd build
-    - cmake ..
+    - cmake -DZLIB_INCLUDE_DIR=externals/zlib_out/include -DZLIB_LIBRARY=externals/zlib_out/lib/zlibstaticd.a -DOPENSSL_ROOT_DIR=externals/openssl-debug/ -DGTEST_LIBRARY=externals/gtest_out/gtestd.a -DGTEST_INCLUDE_DIR=externals/gtest/googletest/include -DGTEST_MAIN_LIBRARY=externals/gtest_out/gtest_maind.a .. 
     - make -j
     - tests/test_vds_core/test_vds_core
     - gcovr -r ..
