@@ -1,14 +1,9 @@
-image: ubuntu:16.04
-
-stages:
-    - build
-
-
-build:
+build-ubuntu:
+    image: ubuntu:16.04
     stage: build
     script:
     - apt-get update
-    - apt-get install -y git cmake clang-6.0 gcovr
+    - apt-get install -y git cmake clang-6.0 gcovr subversion
     - export CC=/usr/bin/clang-6.0
     - export CXX=/usr/bin/clang++-6.0
     - cd externals
@@ -30,6 +25,17 @@ build:
     - cmake -Dgtest_force_shared_crt=ON ../googletest/googletest
     - make
     - cd ..
+    - svn co http://llvm.org/svn/llvm-project/llvm/trunk llvm
+    - cd llvm/projects
+    - svn co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
+    - svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
+    - cd ..
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make cxx
+    - make install-cxx install-cxxabi
+    - cd ../..
     - mkdir build
     - cd build
     - cmake -DZLIB_INCLUDE_DIR=externals/zlib_out/include -DZLIB_LIBRARY=externals/zlib_out/lib/zlibstaticd.a -DOPENSSL_ROOT_DIR=externals/openssl-out/ -DGTEST_LIBRARY=externals/gtest_out/gtestd.a -DGTEST_INCLUDE_DIR=externals/gtest/googletest/include -DGTEST_MAIN_LIBRARY=externals/gtest_out/gtest_maind.a .. 
