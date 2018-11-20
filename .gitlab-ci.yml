@@ -12,31 +12,25 @@ update-os:
     - apt-get update
     - apt-get install -y git cmake clang gcovr
 
-build-openssl:
+dependencies:
     stage: dependencies
     script:
+    - # open ssl
     - cd externals
     - git clone https://github.com/openssl/openssl.git
     - cd openssl
     - ./Configure x86-64 --prefix=$PWD/externals/openssl-out --openssldir=$PWD/externals/openssl-out
     - make
     - make install
-
-build-zlib:
-    stage: dependencies
-    script:
-    - cd externals
+    - cd ..
+    - # zlib
     - git clone https://github.com/madler/zlib.git
     - mkdir zlib_out
     - cd zlib_out
     - cmake ../zlib
     - make
-
-
-build-gtest:
-    stage: dependencies
-    script:
-    - cd externals
+    - cd ..
+    - # gtest:
     - git clone https://github.com/google/googletest.git
     - mkdir gtest_out
     - cd gtest_out
