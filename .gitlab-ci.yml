@@ -1,20 +1,14 @@
 image: ubuntu:14.04
 
 stages:
-    - update-os
-    - dependencies
     - build
-    - test
 
-update-os:
-    stage: update-os
+
+build:
+    stage: build
     script:
     - apt-get update
     - apt-get install -y git cmake clang gcovr
-
-dependencies:
-    stage: dependencies
-    script:
     - cd externals
     - git clone https://github.com/openssl/openssl.git
     - cd openssl
@@ -33,18 +27,11 @@ dependencies:
     - cd gtest_out
     - cmake -Dgtest_force_shared_crt=ON ../googletest/googletest
     - make
-
-build:
-    stage: build
-    script:
+    - cd ..
     - mkdir build
     - cd build
     - cmake -DZLIB_INCLUDE_DIR=externals/zlib_out/include -DZLIB_LIBRARY=externals/zlib_out/lib/zlibstaticd.a -DOPENSSL_ROOT_DIR=externals/openssl-out/ -DGTEST_LIBRARY=externals/gtest_out/gtestd.a -DGTEST_INCLUDE_DIR=externals/gtest/googletest/include -DGTEST_MAIN_LIBRARY=externals/gtest_out/gtest_maind.a .. 
     - make -j
-    
-test:
-    stage: test
-    script:    
     - tests/test_vds_core/test_vds_core
     - gcovr -r ..
     
