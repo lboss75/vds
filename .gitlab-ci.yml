@@ -35,6 +35,7 @@ build-ubuntu:
     - cmake ..
     - make --quiet cxx
     - make --quiet install-cxx install-cxxabi
+    - export CXXFLAGS="-I /usr/local/include/c++/v1/"
     - cd ../../..
     - mkdir build
     - cd build
