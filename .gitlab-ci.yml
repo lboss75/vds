@@ -7,7 +7,7 @@ build-ubuntu:
     - export CC=/usr/bin/clang-6.0
     - export CXX=/usr/bin/clang++-6.0
     - export CFLAGS="-pthread"
-    - export CPPFLAGS="-fno-rtti -fcoroutines-ts -DANDROID -std=c++17 -fexceptions -lpthread -v"
+    - export CXXFLAGS="-fno-rtti -fcoroutines-ts -std=c++17 -fexceptions -lpthread -v -I /usr/local/include/c++/v1/"
     - export LDFLAGS="-lstdc++ -Wl -v"
     - cd externals
     - svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
@@ -20,7 +20,6 @@ build-ubuntu:
     - cmake ..
     - make --quiet cxx
     - make --quiet install-cxx install-cxxabi
-    - export CXXFLAGS="-I /usr/local/include/c++/v1/"
     - cd ../..
     - git clone --quiet https://github.com/openssl/openssl.git
     - cd openssl
