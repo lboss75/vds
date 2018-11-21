@@ -7,7 +7,7 @@ build-ubuntu:
     - export CC=/usr/bin/clang-6.0
     - export CXX=/usr/bin/clang++-6.0
     - export CFLAGS="-pthread"
-    - export CPPFLAGS="-fno-rtti -fcoroutines-ts -DANDROID -std=c++17 -fexceptions -lpthread --disable-shared -v"
+    - export CPPFLAGS="-fno-rtti -fcoroutines-ts -DANDROID -std=c++17 -fexceptions -lpthread -v"
     - export LDFLAGS="-lstdc++ -Wl -v"
     - cd externals
     - svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
