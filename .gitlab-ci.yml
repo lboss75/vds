@@ -25,7 +25,7 @@ build-ubuntu:
     - cd ../..
     - git clone --quiet https://github.com/openssl/openssl.git
     - cd openssl
-    - ./Configure linux-x86_64-clang no-shared no-tests --prefix=$PWD/../openssl-out --openssldir=$PWD/../openssl-out
+    - ./Configure linux-x86_64-clang no-tests --prefix=$PWD/../openssl-out --openssldir=$PWD/../openssl-out
     - make --quiet
     - make --quiet install
     - cd ..
