@@ -6,7 +6,22 @@ build-ubuntu:
     - apt-get -qq install -y git cmake clang-6.0 gcovr subversion
     - export CC=/usr/bin/clang-6.0
     - export CXX=/usr/bin/clang++-6.0
+    - export CFLAGS="-pthread"
+    - export CPPFLAGS="-fno-rtti -fcoroutines-ts -DANDROID -std=c++17 -fexceptions -lpthread --disable-shared -v"
+    - export LDFLAGS="-lstdc++ -Wl -v"
     - cd externals
+    - svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
+    - cd llvm/projects
+    - svn -q co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
+    - svn -q co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
+    - cd ..
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make --quiet cxx
+    - make --quiet install-cxx install-cxxabi
+    - export CXXFLAGS="-I /usr/local/include/c++/v1/"
+    - cd ../..
     - git clone --quiet https://github.com/openssl/openssl.git
     - cd openssl
     - ./Configure linux-x86_64-clang no-shared no-tests --prefix=$PWD/../openssl-out --openssldir=$PWD/../openssl-out
@@ -25,19 +40,7 @@ build-ubuntu:
     - cd gtest_out
     - cmake -Dgtest_force_shared_crt=ON ../googletest/googletest
     - make --quiet
-    - cd ..
-    - svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
-    - cd llvm/projects
-    - svn -q co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
-    - svn -q co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
-    - cd ..
-    - mkdir build
-    - cd build
-    - cmake ..
-    - make --quiet cxx
-    - make --quiet install-cxx install-cxxabi
-    - export CXXFLAGS="-I /usr/local/include/c++/v1/"
-    - cd ../../..
+    - cd ../..
     - mkdir build
     - cd build
     - ls -R $PWD/../externals/zlib_out/
