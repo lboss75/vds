@@ -16,7 +16,6 @@ namespace vds {
   class http_pipeline : public http_parser<http_pipeline>{
   public:
     http_pipeline(
-      
       const std::shared_ptr<http_async_serializer> & output_stream,
       const std::function<vds::async_task<http_message>(const http_message message)> &message_callback)
       : http_parser([message_callback, this](

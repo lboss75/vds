@@ -28,7 +28,7 @@ TEST(test_vds_dht_network, test_sync_process) {
 
   for(int i = 0; i < SERVER_COUNT; ++i) {
     auto server = std::make_shared<test_server>(
-      vds::network_address(AF_INET, "localhost", i), hab);
+      vds::network_address(AF_INET, SOCK_DGRAM, AI_NUMERICSERV | AI_ALL | AI_V4MAPPED, IPPROTO_UDP, "localhost", i), hab);
     server->start(hab, i);
     servers.push_back(server);
     hab->add(server->address(), server.get());

@@ -29,8 +29,10 @@ void vds::web_server_app::main(const service_provider * sp)
     || this->current_command_set_ == &this->server_service_command_set_) {
     std::shared_ptr<std::exception> error;
 
-    this->server_
-      .start_network((uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10))).get();
+    auto port = (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10));
+    this->server_.start_network(port).get();
+    
+    std::cout << "Open http://localhost:" << port << "\n";
 
     if (this->current_command_set_ == &this->server_start_command_set_) {
       for (;;) {

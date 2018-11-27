@@ -10,6 +10,8 @@ All rights reserved
 #include "tcp_network_socket.h"
 #include "http_request.h"
 #include "http_serializer.h"
+#include "http_client.h"
+#include "http_response.h"
 
 vds::vds_cmd_app::vds_cmd_app()
 : file_upload_cmd_set_("Upload file", "Upload file on the network", "upload", "file"),
@@ -49,20 +51,40 @@ vds::vds_cmd_app::vds_cmd_app()
 void vds::vds_cmd_app::main(const service_provider * sp)
 {
   if (this->current_command_set_ == &this->file_upload_cmd_set_) {
-    auto server = this->server_.value().empty() ? "localhost:8050" : this->server_.value();
+    auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
 
     auto s = tcp_network_socket::connect(sp, network_address::parse(server));
     auto [reader, writer] = s->start(sp);
-    auto http_out = std::make_shared<http_async_serializer>(writer);
 
-    auto login_request = http_request::create(
+    auto client = std::make_shared<http_client>();
+    auto f = client->start(reader, writer);
+
+    auto response = client->send(http_request::create(
       "GET",
-      "api/login?login=" + url_encode::encode(this->user_login_.value())
-      + "&password=" + url_encode::encode(this->user_password_.value));
+      "/api/login?login=" + url_encode::encode(this->user_login_.value())
+      + "&password=" + url_encode::encode(this->user_password_.value())).get_message()).get();
 
-    http_out->write_async(login_request.get_message()).get();
+    http_response login_response(response);
 
-    auto client = http_parser();
+    if (login_response.code() != http_response::HTTP_OK) {
+      std::cerr << "Login failed\n";
+      return;
+    }
+
+    auto body = json_parser::parse(
+      server + "/api/login",
+      response.body()->read_all().get());
+
+    auto body_object = dynamic_cast<const json_object *>(body.get());
+
+    std::string value;
+    body_object->get_property("state", value);
+
+    if ("sucessful" != value) {
+      std::cerr << "Login failed\n";
+      return;
+    }
+
   }
 }
 

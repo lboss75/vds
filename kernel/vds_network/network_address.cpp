@@ -7,21 +7,27 @@ vds::network_address::network_address()
   memset((char *)&this->addr_, 0, sizeof(this->addr_));
 }
 
-vds::network_address::network_address(sa_family_t af, const std::string &server, uint16_t port) {
+vds::network_address::network_address(
+  sa_family_t af,
+  int sock_type,
+  int ai_flags,
+  int ai_protocol,
+  const std::string &server,
+  uint16_t port) {
   memset((char *)&this->addr_, 0, sizeof(this->addr_));
 
   addrinfo hints;
 
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = af;
-  hints.ai_socktype = SOCK_DGRAM;
-  hints.ai_protocol = IPPROTO_UDP;
-  hints.ai_flags = AI_NUMERICSERV | AI_ALL | AI_V4MAPPED | AI_NUMERICHOST;
+  hints.ai_socktype = sock_type;//SOCK_DGRAM;
+  hints.ai_protocol = ai_protocol;// IPPROTO_UDP;
+  hints.ai_flags = ai_flags | AI_NUMERICHOST; // AI_NUMERICSERV | AI_ALL | AI_V4MAPPED
 
   addrinfo * buffer;
   auto status = getaddrinfo(server.c_str(), std::to_string(port).c_str(), &hints, &buffer);
   if (status) {
-    hints.ai_flags &= ~AI_NUMERICHOST;
+    hints.ai_flags = ai_flags;
     status = getaddrinfo(server.c_str(), std::to_string(port).c_str(), &hints, &buffer);
     if (status) {
       throw std::system_error(status, std::system_category(), "Parse address " + server);
@@ -84,7 +90,9 @@ vds::network_address::network_address(sa_family_t af, const std::string &server,
 
 std::string vds::network_address::to_string() const {
   return 
-    ((AF_INET6 == this->family()) ? "udp6://" : "udp://")
+    ((AF_INET6 == this->family())
+      ? "udp6://"
+      : "udp://")
     + this->server() + ":" + std::to_string(this->port());
 }
 
@@ -101,10 +109,27 @@ vds::network_address vds::network_address::parse(const std::string& address) {
 
           result = network_address(
               (na.protocol == "udp") ? AF_INET : AF_INET6,
+              SOCK_DGRAM,
+              AI_NUMERICSERV | AI_ALL | AI_V4MAPPED,
+              IPPROTO_UDP,
               na.server,
               (uint16_t) atoi(na.port.c_str()));
-        } else {
-          throw std::runtime_error("Invalid addresss");
+        } else if ("tcp" == protocol || "tcp6" == protocol) {
+            auto na = url_parser::parse_network_address(address);
+            if (na.protocol != "tcp" && na.protocol != "tcp6") {
+              throw std::invalid_argument("address");
+            }
+
+            result = network_address(
+              (na.protocol == "tcp") ? AF_INET : AF_INET6,
+              SOCK_STREAM,
+              AI_NUMERICSERV | AI_ALL | AI_V4MAPPED,
+              0,
+              na.server,
+              (uint16_t)atoi(na.port.c_str()));
+          }
+          else {
+            throw std::runtime_error("Invalid addresss");
         }
         return true;
       });
@@ -129,12 +154,18 @@ vds::network_address vds::network_address::parse(sa_family_t family, const std::
           if ("udp" == na.protocol) {
             result = network_address(
               AF_INET6,
+              SOCK_DGRAM,
+              AI_NUMERICSERV | AI_ALL | AI_V4MAPPED,
+              IPPROTO_UDP,
               na.server,
               (uint16_t)atoi(na.port.c_str()));
           }
           else if ("udp6" == na.protocol) {
               result = network_address(
                 AF_INET6,
+                SOCK_DGRAM,
+                AI_NUMERICSERV | AI_ALL | AI_V4MAPPED,
+                IPPROTO_UDP,
                 na.server,
                 (uint16_t)atoi(na.port.c_str()));
             }
@@ -144,6 +175,9 @@ vds::network_address vds::network_address::parse(sa_family_t family, const std::
           if ("udp" == na.protocol) {
             result = network_address(
               AF_INET,
+              SOCK_DGRAM,
+              AI_NUMERICSERV | AI_ALL | AI_V4MAPPED,
+              IPPROTO_UDP,
               na.server,
               (uint16_t)atoi(na.port.c_str()));
           }
@@ -165,6 +199,10 @@ vds::network_address vds::network_address::parse(sa_family_t family, const std::
   return result;
 }
 
+
+sa_family_t vds::network_address::family() const {
+  return reinterpret_cast<const sockaddr *>(&this->addr_)->sa_family;
+}
 
 std::string vds::network_address::server() const {
 //  char buffer[512];
@@ -207,7 +245,9 @@ uint16_t vds::network_address::port() const {
   }
 }
 
-vds::network_address::network_address(sa_family_t af, uint16_t port) {
+vds::network_address::network_address(
+  sa_family_t af,
+  uint16_t port) {
   memset((char *)&this->addr_, 0, sizeof(this->addr_));
 
   switch(af) {
@@ -232,7 +272,6 @@ vds::network_address::network_address(sa_family_t af, uint16_t port) {
     default:
       throw std::runtime_error("Invalid error");
   }
-
 }
 
 bool vds::network_address::is_martian() const {
@@ -262,6 +301,86 @@ bool vds::network_address::is_martian() const {
     }
     default:
       throw std::runtime_error("Invalid state");
+  }
+}
+
+int vds::network_address::compare(const network_address & other) const {
+  if (this->addr_.ss_family == other.addr_.ss_family) {
+    switch (this->addr_.ss_family) {
+    case AF_INET: {
+      const auto result = reinterpret_cast<const sockaddr_in *>(&this->addr_)->sin_addr.s_addr -
+        reinterpret_cast<const sockaddr_in *>(&other.addr_)->sin_addr.s_addr;
+      if (0 != result) {
+        return result;
+      }
+
+      return reinterpret_cast<const sockaddr_in *>(&this->addr_)->sin_port -
+        reinterpret_cast<const sockaddr_in *>(&other.addr_)->sin_port;
+    }
+    case AF_INET6: {
+      const auto l = reinterpret_cast<const sockaddr_in6 *>(&this->addr_);
+      const auto r = reinterpret_cast<const sockaddr_in6 *>(&other.addr_);
+      auto result = memcmp(
+        &l->sin6_addr,
+        &r->sin6_addr,
+        sizeof(l->sin6_addr));
+      if (0 != result) {
+        return result;
+      }
+
+      result = ntohs(l->sin6_port) - ntohs(r->sin6_port);
+      if (0 != result) {
+        return result;
+      }
+
+      result = l->sin6_flowinfo - r->sin6_flowinfo;
+      if (0 != result) {
+        return result;
+      }
+
+      return l->sin6_scope_id - r->sin6_scope_id;
+    }
+    default: {
+      throw std::runtime_error("Invalid argument");
+    }
+    }
+  }
+  else {
+    if (this->addr_.ss_family == AF_INET && other.addr_.ss_family == AF_INET6) {
+      const auto l = reinterpret_cast<const sockaddr_in *>(&this->addr_);
+      const auto r = reinterpret_cast<const sockaddr_in6 *>(&other.addr_);
+      if (IN6_IS_ADDR_V4MAPPED(&r->sin6_addr)) {
+#ifdef _WIN32
+        const auto result = l->sin_addr.s_addr - r->sin6_addr.u.Word[3];
+#else
+        const auto result = l->sin_addr.s_addr - r->sin6_addr.s6_addr32[3];
+#endif
+        if (0 != result) {
+          return result;
+        }
+
+        return l->sin_port - r->sin6_port;
+      }
+    }
+    else
+      if (this->addr_.ss_family == AF_INET6 && other.addr_.ss_family == AF_INET) {
+        const auto l = reinterpret_cast<const sockaddr_in6 *>(&this->addr_);
+        const auto r = reinterpret_cast<const sockaddr_in *>(&other.addr_);
+        if (IN6_IS_ADDR_V4MAPPED(&l->sin6_addr)) {
+#ifdef _WIN32
+          const auto result = l->sin6_addr.u.Word[3] - r->sin_addr.s_addr;
+#else
+          const auto result = l->sin6_addr.s6_addr32[3] - r->sin_addr.s_addr;
+#endif
+          if (0 != result) {
+            return result;
+          }
+
+          return l->sin6_port - r->sin_port;
+        }
+      }
+
+    return this->addr_.ss_family - other.addr_.ss_family;
   }
 }
 

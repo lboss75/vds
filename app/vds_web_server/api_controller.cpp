@@ -96,9 +96,9 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::login(
   auto session = std::make_shared<auth_session>(sp, session_id, login, password);
   co_await session->load(sp);
 
-  auto item = std::make_shared<json_object>();
+  std::shared_ptr<json_object> item;
 
-  for (;;) {
+  for (int try_count = 1000; try_count > 0; --try_count) {
     co_await session->update();
 
     switch (session->get_login_state()) {
@@ -106,10 +106,12 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::login(
       continue;
 
     case user_manager::login_state_t::login_failed:
+      item = std::make_shared<json_object>();
       item->add_property("state", "failed");
       break;
 
     case user_manager::login_state_t::login_sucessful:
+      item = std::make_shared<json_object>();
       item->add_property("state", "sucessful");
       item->add_property("session", session_id);
       item->add_property("user_name", session->user_name());
@@ -121,6 +123,11 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::login(
       throw std::runtime_error("Invalid program");
     }
     break;
+  }
+
+  if (!item) {
+    item = std::make_shared<json_object>();
+    item->add_property("state", "failed");
   }
 
   co_return item;

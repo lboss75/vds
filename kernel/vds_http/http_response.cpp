@@ -7,6 +7,26 @@ All rights reserved
 #include "http_response.h"
 
 vds::http_response::http_response(
+  const http_message & message)
+{
+  auto p = message.headers().begin();
+  auto items = split_string(*p++, ' ', true, true);
+  
+  this->protocol_ = items.front();
+  items.pop_front();
+
+  this->code_ = atoi(items.front().c_str());
+  items.pop_front();
+
+  this->comment_ = items.front();
+  items.pop_front();
+
+  while (message.headers().end() != p) {
+    this->headers_.push_back(*p++);
+  }
+}
+
+vds::http_response::http_response(
   int code,
   const std::string & comment)
 : protocol_("HTTP/1.0"), code_(code), comment_(comment)

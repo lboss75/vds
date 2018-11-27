@@ -64,7 +64,7 @@ TEST(network_tests, test_server)
 
   auto s = vds::tcp_network_socket::connect(
     sp,
-    vds::network_address::ip4("localhost", 8000));
+    vds::network_address(AF_INET, SOCK_STREAM, AI_NUMERICSERV | AI_ALL | AI_V4MAPPED, 0,  "localhost", 8000));
 
   sp->get<vds::logger>()->debug("TCP", "Connected");
   auto [reader, writer] = s->start(sp);

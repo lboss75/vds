@@ -4,48 +4,50 @@ All rights reserved
 */
 #include "stdafx.h"
 #include "http_client.h"
-//#include "logger.h"
-//#include "http_pipeline.h"
-/*
-vds::http_client::http_client()
-{
-}
-
-vds::async_task<void> vds::http_client::send(
-  
-  const std::shared_ptr<vds::http_message>& message)
-{
-}
+#include "logger.h"
+#include "http_pipeline.h"
 
 
 vds::async_task<void> vds::http_client::start(
-  
-  const handler_type & handler)
-{
-  return async_series(
-    http_pipeline(sp, incoming_stream, this->input_commands_, this->output_commands_, outgoing_stream),
-    this->process_input_commands(sp, handler)
-  );
-}
+  const std::shared_ptr<vds::stream_input_async<uint8_t>> & input_stream,
+  const std::shared_ptr<vds::stream_output_async<uint8_t>> & output_stream) {
 
-vds::async_task<void> vds::http_client::process_input_commands(
-  
-  const handler_type & handler)
-{
-  return this->input_commands_->read_async(sp, &this->input_buffer_, 1)
-    .then([this, sp, handler](size_t readed) {
-    if (0 == readed) {
-      return handler(std::shared_ptr<vds::http_message>());
+  auto eof = std::make_shared<async_result<void>>();
+
+  this->output_ = std::make_shared<http_async_serializer>(output_stream);
+  this->pipeline_ = std::make_shared<client_pipeline>(
+    [pthis = this->shared_from_this(), eof](const http_message message) -> async_task<void> {
+
+    if (!message) {
+      vds_assert(!pthis->result_);
+      eof->set_value();
     }
     else {
-      return handler(this->input_buffer_)
-        .then([this, sp, handler]() {
-        return this->process_input_commands(sp, handler);
-      });
-    }
-  });
-}
-*/
-vds::http_client::http_client() {
+      vds_assert(pthis->result_);
 
+      auto result = std::move(pthis->result_);
+      result->set_value(message);
+    }
+    co_return;
+  });
+
+  co_await this->pipeline_->process(input_stream);
+  co_await eof->get_future();
+}
+
+
+
+vds::async_task<vds::http_message> vds::http_client::send(const vds::http_message message)
+{
+  vds_assert(!this->result_);
+  this->result_ = std::make_shared<async_result<vds::http_message>>();
+
+  co_await this->output_->write_async(message);
+
+  co_return co_await this->result_->get_future();
+}
+
+vds::http_client::client_pipeline::client_pipeline(
+  const std::function<vds::async_task<void>(const http_message message)>& message_callback)
+  : http_parser<client_pipeline>(message_callback) {
 }

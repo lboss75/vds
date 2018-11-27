@@ -44,7 +44,11 @@ namespace vds {
     }
 
     operator bool () const {
-      return this->body_.get() != nullptr;
+      return !this->headers_.empty();
+    }
+
+    bool operator ! () const {
+      return this->headers_.empty();
     }
 
     vds::async_task<void> ignore_empty_body() const;
