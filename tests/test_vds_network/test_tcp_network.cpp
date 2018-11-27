@@ -69,15 +69,15 @@ TEST(network_tests, test_server)
   sp->get<vds::logger>()->debug("TCP", "Connected");
   auto [reader, writer] = s->start(sp);
 
-  std::thread t1([sp, w = writer, &data]() {
-    auto rs = std::make_shared<random_stream<uint8_t>>(w);
+  std::thread t1([sp, writer, &data]() {
+    auto rs = std::make_shared<random_stream<uint8_t>>(writer);
     rs->write_async(data.data(), data.size()).get();
     rs->write_async(nullptr, 0).get();
   });
 
-  std::thread t2([sp, r = reader, &data]() {
+  std::thread t2([sp, reader, &data]() {
     const auto cd = std::make_shared<compare_data_async<uint8_t>>(data.data(), data.size());
-    copy_stream(r, cd).get();
+    copy_stream(reader, cd).get();
   });
 
   t1.join();
