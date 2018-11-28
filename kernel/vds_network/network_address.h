@@ -58,6 +58,23 @@ namespace vds {
       return network_address(AF_INET6, port);
     }
 
+    static network_address tcp_ip4(
+      const std::string & server,
+      uint16_t port);
+
+    static network_address tcp_ip6(
+      const std::string & server,
+      uint16_t port);
+
+    static network_address udp_ip4(
+      const std::string & server,
+      uint16_t port);
+
+    static network_address udp_ip6(
+      const std::string & server,
+      uint16_t port);
+
+
     operator const sockaddr * () const {
       return (const sockaddr *)&this->addr_;
     }

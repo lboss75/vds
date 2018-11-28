@@ -126,7 +126,7 @@ TEST(test_vds_dht_network, test_data_exchange) {
 
   auto session1 = std::make_shared<mock_session>(
     sp,
-    vds::network_address(AF_INET, SOCK_STREAM, AI_NUMERICSERV | AI_ALL | AI_V4MAPPED, 0, "8.8.8.8", 8050),
+    vds::network_address::tcp_ip4("8.8.8.8", 8050),
     node1,
     node2,
     session_key);
@@ -134,7 +134,7 @@ TEST(test_vds_dht_network, test_data_exchange) {
 
   auto session2 = std::make_shared<mock_session>(
     sp,
-    vds::network_address(AF_INET, SOCK_STREAM, AI_NUMERICSERV | AI_ALL | AI_V4MAPPED, 0, "8.8.8.8", 8051),
+    vds::network_address::tcp_ip4("8.8.8.8", 8051),
     node2,
     node1,
     session_key);

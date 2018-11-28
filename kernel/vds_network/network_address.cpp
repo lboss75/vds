@@ -200,6 +200,26 @@ vds::network_address vds::network_address::parse(sa_family_t family, const std::
 }
 
 
+vds::network_address vds::network_address::tcp_ip4(const std::string & server, uint16_t port)
+{
+  return network_address(AF_INET, SOCK_STREAM, AI_NUMERICSERV | AI_ALL | AI_V4MAPPED, 0, server, port);
+}
+
+vds::network_address vds::network_address::tcp_ip6(const std::string & server, uint16_t port)
+{
+  return network_address(AF_INET6, SOCK_STREAM, AI_NUMERICSERV | AI_ALL | AI_V4MAPPED, 0, server, port);
+}
+
+vds::network_address vds::network_address::udp_ip4(const std::string & server, uint16_t port)
+{
+  return network_address(AF_INET, SOCK_DGRAM, AI_NUMERICSERV | AI_ALL | AI_V4MAPPED, IPPROTO_UDP, server, port);
+}
+
+vds::network_address vds::network_address::udp_ip6(const std::string & server, uint16_t port)
+{
+  return network_address(AF_INET6, SOCK_DGRAM, AI_NUMERICSERV | AI_ALL | AI_V4MAPPED, IPPROTO_UDP, server, port);
+}
+
 sa_family_t vds::network_address::family() const {
   return reinterpret_cast<const sockaddr *>(&this->addr_)->sa_family;
 }

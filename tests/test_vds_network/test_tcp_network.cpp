@@ -64,20 +64,24 @@ TEST(network_tests, test_server)
 
   auto s = vds::tcp_network_socket::connect(
     sp,
-    vds::network_address(AF_INET, SOCK_STREAM, AI_NUMERICSERV | AI_ALL | AI_V4MAPPED, 0,  "localhost", 8000));
+    vds::network_address::tcp_ip4("localhost", 8000));
 
   sp->get<vds::logger>()->debug("TCP", "Connected");
   auto [reader, writer] = s->start(sp);
 
-  std::thread t1([sp, writer, &data]() {
-    auto rs = std::make_shared<random_stream<uint8_t>>(writer);
+  //workaround clang bug
+  auto r = reader;
+  auto w = writer;
+
+  std::thread t1([sp, w, &data]() {
+    auto rs = std::make_shared<random_stream<uint8_t>>(w);
     rs->write_async(data.data(), data.size()).get();
     rs->write_async(nullptr, 0).get();
   });
 
-  std::thread t2([sp, reader, &data]() {
+  std::thread t2([sp, r, &data]() {
     const auto cd = std::make_shared<compare_data_async<uint8_t>>(data.data(), data.size());
-    copy_stream(reader, cd).get();
+    copy_stream(r, cd).get();
   });
 
   t1.join();
