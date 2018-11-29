@@ -1,12 +1,11 @@
 #!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+rm -rf build
+mkdir build
 cd build
 
-export CC=/usr/bin/clang-6.0
-export CXX=/usr/bin/clang++-6.0
-
-cmake ..
+cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-6.0 -DCMAKE_C_COMPILER=/usr/bin/clang-6.0 ..
 make
 
 pkill -f vds_web_server
