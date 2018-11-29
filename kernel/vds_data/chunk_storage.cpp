@@ -82,9 +82,7 @@ vds::const_data_buffer vds::_chunk_storage::restore_data(
   }
   
   chunk_restore<uint16_t> restore(this->min_horcrux_, replicas.data());
-  binary_serializer s;
-  restore.restore(s, datas);
-
-  return s.move_data();
+  
+  return restore.restore(datas);
 }
 

@@ -70,7 +70,9 @@ namespace vds {
 				}
 
 				auto written = sizeof(buffer) - this->strm_.avail_out;
-        co_await this->target_->write_async(buffer, written);
+        if (0 != written) {
+          co_await this->target_->write_async(buffer, written);
+        }
 			} while (0 == this->strm_.avail_out);
 		}
 

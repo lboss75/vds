@@ -89,8 +89,7 @@ namespace vds {
           const chunk<cell_type> ** chunks
         );
             
-        void restore(
-          binary_serializer & s,
+        const_data_buffer restore(
           const std::vector<const_data_buffer> & chunks);
         
         const cell_type * multipliers() const
@@ -196,6 +195,7 @@ inline void vds::chunk_generator<cell_type>::write(binary_serializer & s, const 
   
   auto final = s.size();
   assert(expected_size == final - start);
+
   s << safe_cast<uint16_t>(size % (sizeof(cell_type) * this->k_));//Padding
 }
 
@@ -319,12 +319,13 @@ inline void vds::chunk_restore<cell_type>::restore(
 }
 
 template<typename cell_type>
-inline void vds::chunk_restore<cell_type>::restore(
-  binary_serializer & s,
+inline vds::const_data_buffer vds::chunk_restore<cell_type>::restore(
   const std::vector<const_data_buffer> & chunks)
 {
+  binary_serializer s;
   auto size = chunks.begin()->size();
   auto padding = uint16_t(chunks.begin()->data()[size - 2] << 8) | chunks.begin()->data()[size - 1];
+
   for (cell_type j = 1; j < this->k_; ++j) {
     vds_assert(size == chunks[j].size());
     vds_assert(padding == (uint16_t(chunks[j].data()[size - 2] << 8) | chunks[j].data()[size - 1]));
@@ -332,7 +333,7 @@ inline void vds::chunk_restore<cell_type>::restore(
 
   auto expected_size = (size - 2) * this->k_;
   if(0 != padding) {
-    expected_size -= sizeof(cell_type) * this->k_;
+    expected_size -= this->k_ * sizeof(cell_type);
     expected_size += padding;
   }
 
@@ -352,8 +353,8 @@ inline void vds::chunk_restore<cell_type>::restore(
               cell));
       }
       s << value;
-      if(s.size() == expected_size) {
-        return;
+      if(s.size() >= expected_size) {
+        return const_data_buffer(s.get_buffer(), expected_size);
       }
     }
   }

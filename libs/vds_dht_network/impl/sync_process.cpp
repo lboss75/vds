@@ -610,10 +610,8 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::sync_process::restore
 
   if (replicas.size() >= service::MIN_DISTRIBUTED_PIECES) {
     chunk_restore<uint16_t> restore(service::MIN_DISTRIBUTED_PIECES, replicas.data());
-    binary_serializer s;
-    restore.restore(s, datas);
+    auto data = restore.restore(datas);
 
-    auto data = s.move_data();
     if (object_id != hash::signature(hash::sha256(), data)) {
       throw std::runtime_error("Invalid error");
     }

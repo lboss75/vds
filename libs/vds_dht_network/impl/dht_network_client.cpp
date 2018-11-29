@@ -586,9 +586,7 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
 
     if (replicas.size() >= service::MIN_HORCRUX) {
       chunk_restore<uint16_t> restore(service::MIN_HORCRUX, replicas.data());
-      binary_serializer s;
-      restore.restore(s, datas);
-      *result = s.move_data();
+      *result = restore.restore(datas);
       *result_progress = 100;
       return true;
     }
