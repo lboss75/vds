@@ -8,6 +8,7 @@ All rights reserved
 
 #include <list>
 #include <string>
+#include <cctype>
 
 namespace vds {
 

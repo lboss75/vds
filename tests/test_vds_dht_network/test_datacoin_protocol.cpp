@@ -319,7 +319,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
    *      |\
    *      | * (log14) user1->user4:50                    root_user MAX-100 -  user1 50 +   user4 50 -
    */
-
+  /*
   //test invalid
   vds::const_data_buffer log14_id;
   sp->get<vds::db_model>()->async_transaction(
@@ -373,6 +373,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
       }
     }
   }).get();
+  */
   /*      0 - (root_source, consensus) creare root       root_user MAX +
    *      1 - creare user1                               root_user MAX +
    *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
@@ -386,7 +387,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
    *      |\
    *      | * (log14,leaf) user1->user4:50               root_user MAX-100 -  user1 50 +                           user4 50 -
    */
-
+  /*
   vds::const_data_buffer log14_log12_id;
   sp->get<vds::db_model>()->async_transaction(
     [
@@ -446,6 +447,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
       }
     }
   }).get();
+  */
   /*      0 - (root_source, consensus) creare root       root_user MAX +
    *      1 - creare user1                               root_user MAX +
    *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -

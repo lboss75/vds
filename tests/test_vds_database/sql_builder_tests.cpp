@@ -6,6 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "sql_builder_tests.h"
 #include "service_provider.h"
+#include "string_utils.h"
 
 vds::mock_database::mock_database()
 : impl_(nullptr)
@@ -44,12 +45,10 @@ vds::mock_sql_statement::~mock_sql_statement()
 {
 }
 
-static int int_parameter_index;
 static int int_parameter_value;
 
-void vds::mock_sql_statement::set_parameter(int index, int value)
+void vds::mock_sql_statement::set_parameter(int , int value)
 {
-  int_parameter_index = index;
   int_parameter_value = value;
 }
 
@@ -57,12 +56,10 @@ void vds::mock_sql_statement::set_parameter(int , int64_t )
 {
 }
 
-static int string_parameter_index;
 static std::string string_parameter_value;
 
-void vds::mock_sql_statement::set_parameter(int index, const std::string & value)
+void vds::mock_sql_statement::set_parameter(int , const std::string & value)
 {
-  string_parameter_index = index;
   string_parameter_value = value;
 }
 
@@ -102,12 +99,13 @@ TEST(sql_builder_tests, test_select) {
     return true;
   }).get();
 
-  ASSERT_EQ(result_sql,
-    "SELECT MAX(t0.column1),t0.column2,t1.column1 FROM test_table1 t0 INNER JOIN test_table2 t1 ON t0.column1=t1.column1 WHERE (t0.column1=?2) AND (t1.column2=?1) ORDER BY t0.column1,t0.column1 DESC");
+  vds::replace_string(result_sql, "?1", "?");
+  vds::replace_string(result_sql, "?2", "?");
 
-  ASSERT_EQ(int_parameter_index, 2);
+  ASSERT_EQ(result_sql,
+    "SELECT MAX(t0.column1),t0.column2,t1.column1 FROM test_table1 t0 INNER JOIN test_table2 t1 ON t0.column1=t1.column1 WHERE (t0.column1=?) AND (t1.column2=?) ORDER BY t0.column1,t0.column1 DESC");
+
   ASSERT_EQ(int_parameter_value, 10);
-  ASSERT_EQ(string_parameter_index, 1);
   ASSERT_EQ(string_parameter_value, "test");
 }
 
@@ -123,12 +121,13 @@ TEST(sql_builder_tests, test_insert) {
     return true;
   }).get();
 
-  ASSERT_EQ(result_sql,
-    "INSERT INTO test_table1(column1,column2) VALUES (?1,?2)");
+  vds::replace_string(result_sql, "?1", "?");
+  vds::replace_string(result_sql, "?2", "?");
 
-  ASSERT_EQ(int_parameter_index, 1);
+  ASSERT_EQ(result_sql,
+    "INSERT INTO test_table1(column1,column2) VALUES (?,?)");
+
   ASSERT_EQ(int_parameter_value, 10);
-  ASSERT_EQ(string_parameter_index, 2);
   ASSERT_EQ(string_parameter_value, "test");
 }
 
@@ -143,12 +142,14 @@ TEST(sql_builder_tests, test_update) {
   return true;
   }).get();
 
-  ASSERT_EQ(result_sql,
-    "UPDATE test_table1 SET column1=?2,column2=?3 WHERE column1=?1");
+  vds::replace_string(result_sql, "?1", "?");
+  vds::replace_string(result_sql, "?2", "?");
+  vds::replace_string(result_sql, "?3", "?");
 
-  ASSERT_EQ(int_parameter_index, 2);
+  ASSERT_EQ(result_sql,
+    "UPDATE test_table1 SET column1=?,column2=? WHERE column1=?");
+
   ASSERT_EQ(int_parameter_value, 10);
-  ASSERT_EQ(string_parameter_index, 3);
   ASSERT_EQ(string_parameter_value, "test");
 }
 
@@ -169,7 +170,6 @@ TEST(sql_builder_tests, test_insert_from) {
   ASSERT_EQ(result_sql,
      "INSERT INTO test_table1(column1,column2) SELECT MAX(t0.column1),t0.column1,MAX(LENGTH(t0.column2)) FROM test_table2 t0 WHERE t0.column2=?1");
 
-  ASSERT_EQ(string_parameter_index, 1);
   ASSERT_EQ(string_parameter_value, "test");
 }
 
@@ -185,8 +185,9 @@ TEST(sql_builder_tests, test_delete) {
   return true;
   }).get();
 
+  vds::replace_string(result_sql, "?1", "?");
+
   ASSERT_EQ(result_sql,
-    "DELETE FROM test_table1 WHERE test_table1.column1=?1");
-  ASSERT_EQ(int_parameter_index, 1);
+    "DELETE FROM test_table1 WHERE test_table1.column1=?");
   ASSERT_EQ(int_parameter_value, 10);
 }
