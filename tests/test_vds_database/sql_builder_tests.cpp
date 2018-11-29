@@ -149,7 +149,6 @@ TEST(sql_builder_tests, test_update) {
   ASSERT_EQ(result_sql,
     "UPDATE test_table1 SET column1=?,column2=? WHERE column1=?");
 
-  ASSERT_EQ(int_parameter_value, 10);
   ASSERT_EQ(string_parameter_value, "test");
 }
 
