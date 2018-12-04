@@ -21,8 +21,9 @@ namespace vds {
       const std::shared_ptr<vds::stream_input_async<uint8_t>> & input_stream,
       const std::shared_ptr<vds::stream_output_async<uint8_t>> & output_stream);
 
-    vds::async_task<vds::http_message> send(
-      const vds::http_message message);
+    vds::async_task<void> send(
+      const vds::http_message message,
+      const std::function<vds::async_task<void>(const vds::http_message response)> & response_handler);
 
   private:
     class client_pipeline : public http_parser<client_pipeline> {
@@ -33,8 +34,9 @@ namespace vds {
     };
     std::shared_ptr<http_async_serializer> output_;
     std::shared_ptr<client_pipeline> pipeline_;
-    std::shared_ptr<async_result<vds::http_message>> result_;
 
+    std::shared_ptr<async_result<void>> result_;
+    std::function<vds::async_task<void>(const vds::http_message response)> response_handler_;
   };
 }
 

@@ -180,6 +180,7 @@ namespace vds {
           this->processed_ = 0;
           this->readed_ = co_await this->input_stream_->read_async(this->buffer_, sizeof(this->buffer_));
           if (0 == this->readed_) {
+            vds_assert(0 == this->content_length_);
             this->eof_ = true;
             co_return 0;
           }

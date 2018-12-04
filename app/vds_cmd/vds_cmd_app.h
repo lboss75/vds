@@ -30,6 +30,7 @@ namespace vds {
 
     command_line_value server_;
 
+    command_line_value channel_id_;
     command_line_value message_;
     command_line_value attachment_;
     command_line_value output_folder_;

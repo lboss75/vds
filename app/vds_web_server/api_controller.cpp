@@ -69,7 +69,7 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_login
     break;
 
   case user_manager::login_state_t::login_sucessful:
-    item->add_property("state", "sucessful");
+    item->add_property("state", "successful");
     item->add_property("session", session_id);
     item->add_property("user_name", session->user_name());
 
@@ -112,7 +112,7 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::login(
 
     case user_manager::login_state_t::login_sucessful:
       item = std::make_shared<json_object>();
-      item->add_property("state", "sucessful");
+      item->add_property("state", "successful");
       item->add_property("session", session_id);
       item->add_property("user_name", session->user_name());
 

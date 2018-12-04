@@ -12,6 +12,11 @@ All rights reserved
 #include "http_serializer.h"
 #include "http_client.h"
 #include "http_response.h"
+#include "http_multipart_request.h"
+
+namespace vds {
+  class http_multipart_request;
+}
 
 vds::vds_cmd_app::vds_cmd_app()
 : file_upload_cmd_set_("Upload file", "Upload file on the network", "upload", "file"),
@@ -31,6 +36,11 @@ vds::vds_cmd_app::vds_cmd_app()
     "server",
     "Server URL",
     "Server URL to connect"),
+  channel_id_(
+    "c",
+    "channel",
+    "Channel ID",
+    "Channel identifier to send message"),
   message_(
     "m",
     "message",
@@ -59,29 +69,72 @@ void vds::vds_cmd_app::main(const service_provider * sp)
     auto client = std::make_shared<http_client>();
     auto f = client->start(reader, writer);
 
-    auto response = client->send(http_request::create(
+    bool operation_failed = true;
+    std::string session;
+    client->send(http_request::create(
       "GET",
       "/api/login?login=" + url_encode::encode(this->user_login_.value())
-      + "&password=" + url_encode::encode(this->user_password_.value())).get_message()).get();
+      + "&password=" + url_encode::encode(this->user_password_.value())).get_message(),
+      [server, &session, &operation_failed](const http_message response) -> async_task<void>{
 
-    http_response login_response(response);
+      http_response login_response(response);
 
-    if (login_response.code() != http_response::HTTP_OK) {
+      if (login_response.code() != http_response::HTTP_OK) {
+        std::cerr << "Login failed\n";
+        co_return;
+      }
+
+      auto body = json_parser::parse(
+        server + "/api/login",
+        co_await response.body()->read_all());
+
+      auto body_object = dynamic_cast<const json_object *>(body.get());
+
+      std::string value;
+      body_object->get_property("state", value);
+
+      if ("successful" != value) {
+        co_return;
+      }
+
+      body_object->get_property("session", session);
+      operation_failed = false;
+    }).get();
+
+    if(operation_failed) {
       std::cerr << "Login failed\n";
       return;
     }
 
-    auto body = json_parser::parse(
-      server + "/api/login",
-      response.body()->read_all().get());
+    std::cout << "Login successful" << std::endl;
 
-    auto body_object = dynamic_cast<const json_object *>(body.get());
+    http_multipart_request request(
+      "POST",
+      "/upload?session=" + url_encode::encode(session));
 
-    std::string value;
-    body_object->get_property("state", value);
+    request.add_string("channel_id", this->channel_id_.value());
+    if (!this->message_.value().empty()) {
+      request.add_string("message", this->message_.value());
+    }
 
-    if ("sucessful" != value) {
-      std::cerr << "Login failed\n";
+    filename fn(this->attachment_.value());
+    request.add_file(fn, fn.name());
+
+    operation_failed = true;
+    client->send(request.get_message(),
+      [server, &operation_failed](const http_message response) -> async_task<void> {
+
+      http_response login_response(response);
+
+      if (login_response.code() != http_response::HTTP_OK) {
+        co_return;
+      }
+
+      operation_failed = false;
+    }).get();
+
+    if (operation_failed) {
+      std::cerr << "Upload failed\n";
       return;
     }
 
@@ -104,6 +157,7 @@ void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
   this->file_upload_cmd_set_.required(this->user_login_);
   this->file_upload_cmd_set_.required(this->user_password_);
   this->file_upload_cmd_set_.optional(this->server_);
+  this->file_upload_cmd_set_.required(this->channel_id_);
   this->file_upload_cmd_set_.optional(this->message_);
   this->file_upload_cmd_set_.required(this->attachment_);
   this->file_upload_cmd_set_.optional(this->output_folder_);
@@ -112,6 +166,7 @@ void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
   this->file_download_cmd_set_.required(this->user_login_);
   this->file_download_cmd_set_.required(this->user_password_);
   this->file_download_cmd_set_.optional(this->server_);
+  this->file_download_cmd_set_.required(this->channel_id_);
   this->file_download_cmd_set_.optional(this->message_);
   this->file_download_cmd_set_.required(this->attachment_);
   this->file_download_cmd_set_.optional(this->output_folder_);

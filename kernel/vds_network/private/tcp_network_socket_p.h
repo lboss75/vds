@@ -203,6 +203,7 @@ namespace vds {
     vds::async_task<size_t> read_async(      
       uint8_t * buffer,
       size_t len) override {
+      vds_assert(!this->result_);
       memset(&this->overlapped_, 0, sizeof(this->overlapped_));
       this->wsa_buf_.len = len;
       this->wsa_buf_.buf = (CHAR *)buffer;
@@ -210,6 +211,7 @@ namespace vds {
       auto r = std::make_shared<vds::async_result<size_t>>();
       this->result_ = r;
 
+      std::cout << "Read HTTP\n";
       DWORD flags = 0;
       DWORD numberOfBytesRecvd;
       if (NOERROR != WSARecv((*this->owner_)->handle(),
@@ -251,6 +253,8 @@ namespace vds {
 
     void process(DWORD dwBytesTransfered) override
     {
+      std::cout << "HTTP: [" << std::string(this->wsa_buf_.buf, dwBytesTransfered) << "]\n";
+
       auto r = std::move(this->result_);
       auto pthis = std::move(this->pthis_);
 

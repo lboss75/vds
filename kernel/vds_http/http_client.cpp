@@ -24,9 +24,13 @@ vds::async_task<void> vds::http_client::start(
     }
     else {
       vds_assert(pthis->result_);
+      decltype(pthis->response_handler_) f;
+      pthis->response_handler_.swap(f);
+
+      co_await f(message);
 
       auto result = std::move(pthis->result_);
-      result->set_value(message);
+      result->set_value();
     }
     co_return;
   });
@@ -37,10 +41,13 @@ vds::async_task<void> vds::http_client::start(
 
 
 
-vds::async_task<vds::http_message> vds::http_client::send(const vds::http_message message)
+vds::async_task<void> vds::http_client::send(
+  const vds::http_message message,
+  const std::function<vds::async_task<void>(const vds::http_message response)> & response_handler)
 {
   vds_assert(!this->result_);
-  this->result_ = std::make_shared<async_result<vds::http_message>>();
+  this->result_ = std::make_shared<async_result<void>>();
+  this->response_handler_ = response_handler;
 
   co_await this->output_->write_async(message);
 
