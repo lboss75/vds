@@ -8,6 +8,7 @@ All rights reserved
 #include "http_response.h"
 #include "http_outgoing_stream.h"
 #include "http_request.h"
+#include "http_mimetype.h"
 
 
 vds::async_task<vds::http_message> vds::http_route_handler::static_handler::process(
@@ -22,22 +23,10 @@ vds::async_task<vds::http_message> vds::http_route_handler::file_handler::proces
   const service_provider * sp,
   const http_router* router,
   const http_request & request) const {
-  auto ext = this->fn_.extension();
-  std::string content_type;
-  if (".js" == ext) {
-    content_type = "application/javascript; charset=utf-8";
-  }
-  else if (".css" == ext) {
-    content_type = "text/css";
-  }
-  else if (".woff" == ext) {
-    content_type = "application/font-woff";
-  }
-  else if (".ttf" == ext) {
-    content_type = "application/font-tff";
-  }
-  else {
-    content_type = "text/html; charset=utf-8";
+
+  auto content_type = http_mimetype::mimetype(this->fn_);
+  if(content_type.empty()) {
+    content_type = "application/octet-stream";
   }
 
   co_await request.get_message().ignore_empty_body();

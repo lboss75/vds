@@ -81,14 +81,18 @@ namespace vds {
 
     static std::shared_ptr<json_value>
     get_invite(
-      
       user_manager& user_mng,
       const std::shared_ptr<_web_server>& owner,
       const http_message& message);
 
     static async_task<std::shared_ptr<json_value>> get_session(
       const std::shared_ptr<auth_session> & session);
-    
+
+    static vds::async_task<std::shared_ptr<vds::json_value>> create_message(
+      const vds::service_provider * sp,
+      const std::shared_ptr<user_manager> &user_mng,
+      const http_request & request);
+
   private:
     static std::shared_ptr<json_object> channel_serialize(const vds::user_channel & channel);
 

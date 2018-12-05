@@ -427,7 +427,7 @@ const vds::command_line_set* vds::command_line::parse(
   for(auto p : this->command_sets_){
     std::string last_error;
     auto left = p->try_parse(argc, argv, last_error);
-    if(0 == left) {
+    if(last_error.empty() && 0 == left) {
       return p;
     }
     if(nullptr == best || bestleft > left) {

@@ -24,6 +24,7 @@ namespace vds {
   private:
     command_line_set file_upload_cmd_set_;
     command_line_set file_download_cmd_set_;
+    command_line_set channel_list_cmd_set_;
 
     command_line_value user_login_;
     command_line_value user_password_;
@@ -35,9 +36,17 @@ namespace vds {
     command_line_value attachment_;
     command_line_value output_folder_;
 
+    command_line_value output_format_;
+
     task_manager task_manager_;
     mt_service mt_service_;
     network_service network_service_;
+
+    std::string login(const service_provider * sp);
+    void upload_file(const service_provider * sp, const std::string & session);
+
+    void channel_list(const service_provider * sp, const std::string & session);
+
   };
 }
 

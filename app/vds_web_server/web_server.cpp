@@ -190,6 +190,7 @@ router_({
   },
   {"/api/parse_join_request", "POST", &index_page::parse_join_request },
   {"/api/approve_join_request", "POST", &index_page::approve_join_request },
+  {"/api/upload", "POST", &api_controller::create_message },
   {"/upload", "POST", &index_page::create_message },
   {"/api/statistics", "GET", &api_controller::get_statistics },
   })

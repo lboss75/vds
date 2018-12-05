@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "http_message.h"
+#include <queue>
 
 namespace vds {
   class http_multipart_request {
@@ -21,6 +22,7 @@ namespace vds {
       const std::string & value);
 
     void add_file(
+      const std::string & name,
       const filename & body_file,
       const std::string & filename,
       const std::string & content_type = "application/octet-stream");
@@ -30,17 +32,20 @@ namespace vds {
 
   private:
     std::list<std::string> headers_;
+    std::string boundary_;
     size_t total_size_;
+    std::queue<std::shared_ptr<stream_input_async<uint8_t>>> inputs_;
 
     class multipart_body : public stream_input_async<uint8_t> {
     public:
+      multipart_body(std::queue<std::shared_ptr<stream_input_async<uint8_t>>> && inputs);
+
       vds::async_task<size_t> read_async(
         uint8_t * buffer,
         size_t len) override;
 
     private:
-
-      
+      std::queue<std::shared_ptr<stream_input_async<uint8_t>>> inputs_;
     };
   };
 }

@@ -154,7 +154,9 @@ namespace vds {
                 co_await
                 this->read_string_body(buffer, part);
 
-                static_cast<implementation_class *>(this->owner_.get())->on_field(simple_field_info{name, *buffer});
+                static_cast<implementation_class *>(this->owner_.get())->on_field(simple_field_info {
+                  name,
+                  url_encode::decode(*buffer)});
                 co_return;
               }
 

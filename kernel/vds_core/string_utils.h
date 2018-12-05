@@ -116,5 +116,14 @@ namespace vds {
       ++index;
     }
   }
+
+  static inline bool str_equal_ignore_case(const std::string & a, const std::string & b) {
+    return std::equal(
+      a.begin(), a.end(),
+      b.begin(), b.end(),
+      [](char ch_a, char ch_b) {
+      return tolower(ch_a) == tolower(ch_b);
+    });
+  }
 }
 #endif//__VDS_CORE_STRING_UTILS_H_

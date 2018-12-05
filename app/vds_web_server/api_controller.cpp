@@ -19,6 +19,7 @@
 #include "server.h"
 #include "http_response.h"
 #include "http_request.h"
+#include "private/create_message_form.h"
 
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
@@ -42,6 +43,21 @@ vds::api_controller::get_channels(
   }
 
   co_return std::static_pointer_cast<json_value>(result);
+}
+
+vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::create_message(const vds::service_provider* sp,
+  const std::shared_ptr<user_manager>& user_mng, const http_request& request) {
+
+  auto parser = std::make_shared<create_message_form>(sp, user_mng);
+
+  co_await parser->parse(request.get_message());
+  co_await parser->complete();
+
+  auto item = std::make_shared<json_object>();
+
+  item->add_property("state", "successful");
+
+  co_return item;
 }
 
 vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_login_state(

@@ -172,7 +172,9 @@ namespace vds {
 
 #ifdef DEBUG
     ~_async_task_state() noexcept(false) {
-      vds_assert(this->is_processed_);
+      if (!std::current_exception()) {
+        vds_assert(this->is_processed_);
+      }
     }
 #endif
 
@@ -305,7 +307,9 @@ namespace vds {
 
 #ifdef DEBUG
     ~async_task() noexcept(false) {
-      vds_assert(!this->state_ || this->state_->is_processed());
+      if (!std::current_exception()) {
+        vds_assert(!this->state_ || this->state_->is_processed());
+      }
     }
 #endif
 

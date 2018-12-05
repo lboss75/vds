@@ -13,6 +13,7 @@ All rights reserved
 #include "http_client.h"
 #include "http_response.h"
 #include "http_multipart_request.h"
+#include "http_mimetype.h"
 
 namespace vds {
   class http_multipart_request;
@@ -21,6 +22,7 @@ namespace vds {
 vds::vds_cmd_app::vds_cmd_app()
 : file_upload_cmd_set_("Upload file", "Upload file on the network", "upload", "file"),
   file_download_cmd_set_("Download file", "Download file from the network", "download", "file"),
+  channel_list_cmd_set_("Channel list", "List user channels", "list", "channel"),
   user_login_(
       "l",
       "login",
@@ -47,97 +49,32 @@ vds::vds_cmd_app::vds_cmd_app()
     "Message",
     "Message"),
   attachment_(
-    "f",
-    "file",
+    "a",
+    "attachment",
     "File(s) names",
     "Comma separated file names"),
   output_folder_(
     "o",
     "output",
     "output folder",
-    "Folder to store files") {
+    "Folder to store files"),
+  output_format_(
+    "f",
+    "format",
+    "Output format",
+    "Output format (json)"
+  ){
 }
 
 void vds::vds_cmd_app::main(const service_provider * sp)
 {
   if (this->current_command_set_ == &this->file_upload_cmd_set_) {
-    auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
-
-    auto s = tcp_network_socket::connect(sp, network_address::parse(server));
-    auto [reader, writer] = s->start(sp);
-
-    auto client = std::make_shared<http_client>();
-    auto f = client->start(reader, writer);
-
-    bool operation_failed = true;
-    std::string session;
-    client->send(http_request::create(
-      "GET",
-      "/api/login?login=" + url_encode::encode(this->user_login_.value())
-      + "&password=" + url_encode::encode(this->user_password_.value())).get_message(),
-      [server, &session, &operation_failed](const http_message response) -> async_task<void>{
-
-      http_response login_response(response);
-
-      if (login_response.code() != http_response::HTTP_OK) {
-        std::cerr << "Login failed\n";
-        co_return;
-      }
-
-      auto body = json_parser::parse(
-        server + "/api/login",
-        co_await response.body()->read_all());
-
-      auto body_object = dynamic_cast<const json_object *>(body.get());
-
-      std::string value;
-      body_object->get_property("state", value);
-
-      if ("successful" != value) {
-        co_return;
-      }
-
-      body_object->get_property("session", session);
-      operation_failed = false;
-    }).get();
-
-    if(operation_failed) {
-      std::cerr << "Login failed\n";
-      return;
-    }
-
-    std::cout << "Login successful" << std::endl;
-
-    http_multipart_request request(
-      "POST",
-      "/upload?session=" + url_encode::encode(session));
-
-    request.add_string("channel_id", this->channel_id_.value());
-    if (!this->message_.value().empty()) {
-      request.add_string("message", this->message_.value());
-    }
-
-    filename fn(this->attachment_.value());
-    request.add_file(fn, fn.name());
-
-    operation_failed = true;
-    client->send(request.get_message(),
-      [server, &operation_failed](const http_message response) -> async_task<void> {
-
-      http_response login_response(response);
-
-      if (login_response.code() != http_response::HTTP_OK) {
-        co_return;
-      }
-
-      operation_failed = false;
-    }).get();
-
-    if (operation_failed) {
-      std::cerr << "Upload failed\n";
-      return;
-    }
-
+    const auto session = this->login(sp);
+    this->upload_file(sp, session);
+  }
+  else if(this->current_command_set_ == &this->channel_list_cmd_set_) {
+    const auto session = this->login(sp);
+    this->channel_list(sp, session);
   }
 }
 
@@ -171,6 +108,12 @@ void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
   this->file_download_cmd_set_.required(this->attachment_);
   this->file_download_cmd_set_.optional(this->output_folder_);
 
+  cmd_line.add_command_set(this->channel_list_cmd_set_);
+  this->channel_list_cmd_set_.required(this->user_login_);
+  this->channel_list_cmd_set_.required(this->user_password_);
+  this->channel_list_cmd_set_.optional(this->server_);
+  this->channel_list_cmd_set_.optional(this->output_format_);
+
   //cmd_line.add_command_set(this->server_init_command_set_);
   //this->server_init_command_set_.required(this->user_login_);
   //this->server_init_command_set_.required(this->user_password_);
@@ -186,4 +129,127 @@ void vds::vds_cmd_app::start_services(service_registrator & registrator, service
 bool vds::vds_cmd_app::need_demonize()
 {
   return false;
+}
+
+std::string vds::vds_cmd_app::login(const service_provider * sp)
+{
+  auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
+
+  auto s = tcp_network_socket::connect(sp, network_address::parse(server));
+  auto[reader, writer] = s->start(sp);
+
+  auto client = std::make_shared<http_client>();
+  client->start(reader, writer).detach();
+
+  std::string session;
+  client->send(http_request::create(
+    "GET",
+    "/api/login?login=" + url_encode::encode(this->user_login_.value())
+    + "&password=" + url_encode::encode(this->user_password_.value())).get_message(),
+    [server, &session](const http_message response) -> async_task<void> {
+
+    http_response login_response(response);
+
+    if (login_response.code() != http_response::HTTP_OK) {
+      throw std::runtime_error("Login failed");
+    }
+
+    auto body = json_parser::parse(
+      server + "/api/login",
+      co_await response.body()->read_all());
+
+    auto body_object = dynamic_cast<const json_object *>(body.get());
+
+    std::string value;
+    body_object->get_property("state", value);
+
+    if ("successful" != value) {
+      co_return;
+    }
+
+    body_object->get_property("session", session);
+  }).get();
+
+  std::cout << "Login successful" << std::endl;
+  return session;
+}
+
+void vds::vds_cmd_app::upload_file(const service_provider * sp, const std::string & session) {
+  auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
+
+  auto s = tcp_network_socket::connect(sp, network_address::parse(server));
+  auto[reader, writer] = s->start(sp);
+
+  auto client = std::make_shared<http_client>();
+  client->start(reader, writer).detach();
+
+  http_multipart_request request(
+    "POST",
+    "/api/upload?session=" + url_encode::encode(session));
+
+  request.add_string("channel_id", this->channel_id_.value());
+  if (!this->message_.value().empty()) {
+    request.add_string("message", this->message_.value());
+  }
+
+  filename fn(this->attachment_.value());
+
+  auto mimetype = http_mimetype::mimetype(fn);
+  if(mimetype.empty()) {
+    mimetype = "application/octet-stream";
+  }
+  request.add_file("attachment", fn, fn.name(), mimetype);
+
+  client->send(request.get_message(),
+    [server](const http_message response) -> async_task<void> {
+
+    if (http_response(response).code() != http_response::HTTP_OK) {
+      throw std::runtime_error("Upload failed");
+    }
+  }).get();
+}
+
+void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::string& session) {
+  auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
+
+  auto s = tcp_network_socket::connect(sp, network_address::parse(server));
+  auto[reader, writer] = s->start(sp);
+
+  auto client = std::make_shared<http_client>();
+  client->start(reader, writer).detach();
+
+  client->send(http_request::create(
+    "GET",
+    "/api/channels?session=" + url_encode::encode(session)).get_message(),
+    [server, this](const http_message response) -> async_task<void> {
+
+    if (http_response(response).code() != http_response::HTTP_OK) {
+      throw std::runtime_error("Query channels failed");
+    }
+
+    if (this->output_format_.value() == "json") {
+      std::cout << co_await response.body()->read_all() << std::endl;
+    }
+    else {
+      auto body = json_parser::parse(
+        server + "/api/channels",
+        co_await response.body()->read_all());
+
+      std::cout << "ID                                          | Name\n";
+
+      auto body_array = dynamic_cast<const json_array *>(body.get());
+      for(size_t i = 0; i < body_array->size(); ++i) {
+        auto item = dynamic_cast<const json_object *>(body_array->get(i).get());
+
+        std::string value;
+        item->get_property("object_id", value);
+        std::cout << value << "|";
+
+        item->get_property("name", value);
+        std::cout << value << "\n";
+      }
+    }
+
+  }).get();
+
 }
