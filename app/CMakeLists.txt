@@ -8,3 +8,12 @@ add_subdirectory(vds_cmd)
 endif(CMAKE_SYSTEM_NAME STREQUAL 'Android')
 
 add_subdirectory(vds_embedded)
+
+IF(MSVC)
+
+INCLUDE_EXTERNAL_MSPROJECT(
+	vds_wf_client
+	${CMAKE_CURRENT_LIST_DIR}/vds_wf_client/vds_wf_client.csproj
+)
+
+ENDIF(MSVC)
