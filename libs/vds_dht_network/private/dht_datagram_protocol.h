@@ -54,7 +54,7 @@ namespace vds {
           uint8_t message_type,
           const const_data_buffer& target_node,
           const const_data_buffer& message) {
-          vds_assert(message.size() <= 0xFFFF);
+          vds_assert(message.size() <= 0xFFFFFFFF);
           vds_assert(target_node != this->this_node_id_);
 
           logger::get(this->sp_)->trace(
@@ -81,7 +81,7 @@ namespace vds {
           const const_data_buffer& source_node,
           const uint16_t hops,
           const const_data_buffer& message) {
-          vds_assert(message.size() <= 0xFFFF);
+          vds_assert(message.size() <= 0xFFFFFFFF);
           vds_assert(target_node != this->this_node_id_);
           vds_assert(source_node != this->partner_node_id_);
 
@@ -211,7 +211,7 @@ namespace vds {
           }
           default: {
             if (datagram.data()[0] == (uint8_t)protocol_message_type_t::ContinueData) {
-              if (datagram.size() < 34) {
+              if (datagram.size() < 1 + 32 + INDEX_SIZE) {
                 this->input_mutex_.unlock();
 
                 throw std::runtime_error("Invalid data");
@@ -225,7 +225,12 @@ namespace vds {
 
                 co_return;
               }
-              this->input_messages_[datagram.data()[1 + 32]] = datagram;
+              uint32_t index =
+                  (datagram.data()[1 + 32] << 24)
+                | (datagram.data()[1 + 32 + 1] << 16)
+                | (datagram.data()[1 + 32 + 2] << 8)
+                | (datagram.data()[1 + 32 + 3]);
+              this->input_messages_[index] = datagram;
 
               co_await this->continue_process_messages(s);
               co_return;
@@ -278,6 +283,9 @@ namespace vds {
         const service_provider * sp_;
 
       private:
+        static constexpr uint8_t INDEX_SIZE = 4;
+        static constexpr uint8_t SIZE_SIZE = 4;
+
         struct send_queue_item_t {
           std::shared_ptr<transport_type> transport;
           uint8_t message_type;
@@ -355,31 +363,37 @@ namespace vds {
               const auto message_id = hash::signature(hash::sha256(), bs.move_data());
               vds_assert(message_id.size() == 32);
 
-              uint16_t offset;
+              uint32_t offset;
 
               if (this->this_node_id_ == source_node) {
                 if (this->partner_node_id_ == target_node) {
                   buffer.add((uint8_t)((uint8_t)protocol_message_type_t::Data | message_type));//1
                   buffer += message_id;//32
+                  buffer.add((uint8_t)((message.size()) >> 24));//1
+                  buffer.add((uint8_t)((message.size()) >> 16));//1
                   buffer.add((uint8_t)((message.size()) >> 8));//1
                   buffer.add((uint8_t)((message.size()) & 0xFF));//1
-                  buffer.add(message.data(), this->mtu_ - (1 + 32 + 2));
-                  offset = this->mtu_ - (1 + 32 + 2);
+                  buffer.add(message.data(), this->mtu_ - (1 + 32 + SIZE_SIZE));
+                  offset = this->mtu_ - (1 + 32 + SIZE_SIZE);
                 }
                 else {
                   buffer.add((uint8_t)((uint8_t)protocol_message_type_t::RouteData | message_type));//1
                   buffer += message_id;//32
+                  buffer.add((uint8_t)((message.size()) >> 24));//1
+                  buffer.add((uint8_t)((message.size()) >> 16));//1
                   buffer.add((uint8_t)((message.size()) >> 8));//1
                   buffer.add((uint8_t)((message.size()) & 0xFF));//1
                   vds_assert(target_node.size() == 32);
                   buffer += target_node;//32
-                  buffer.add(message.data(), this->mtu_ - (1 + 32 + 2 + 32));
-                  offset = this->mtu_ - (1 + 32 + 2 + 32);
+                  buffer.add(message.data(), this->mtu_ - (1 + 32 + SIZE_SIZE + 32));
+                  offset = this->mtu_ - (1 + 32 + SIZE_SIZE + 32);
                 }
               }
               else {
                 buffer.add((uint8_t)((uint8_t)protocol_message_type_t::ProxyData | message_type));//1
                 buffer += message_id;//32
+                buffer.add((uint8_t)((message.size()) >> 24));//1
+                buffer.add((uint8_t)((message.size()) >> 16));//1
                 buffer.add((uint8_t)((message.size()) >> 8));//1
                 buffer.add((uint8_t)((message.size()) & 0xFF));//1
                 vds_assert(target_node.size() == 32);
@@ -387,8 +401,8 @@ namespace vds {
                 buffer += target_node;//32
                 buffer += source_node;//32
                 buffer.add((uint8_t)(hops));//1
-                buffer.add(message.data(), this->mtu_ - (1 + 32 + 2 + 32 + 32 + 1));
-                offset = this->mtu_ - (1 + 32 + 2 + 32 + 32 + 1);
+                buffer.add(message.data(), this->mtu_ - (1 + 32 + SIZE_SIZE + 32 + 32 + 1));
+                offset = this->mtu_ - (1 + 32 + SIZE_SIZE + 32 + 32 + 1);
               }
 
               buffer += hmac::signature(
@@ -405,9 +419,9 @@ namespace vds {
                 continue;
               }
 
-              uint8_t index = 1;
+              uint32_t index = 1;
               for (;;) {
-                auto size = this->mtu_ - (1 + 32 + 1 + 32);
+                auto size = this->mtu_ - (1 + 32 + INDEX_SIZE + 32);
                 if (size > message.size() - offset) {
                   size = message.size() - offset;
                 }
@@ -415,6 +429,9 @@ namespace vds {
                 resizable_data_buffer buffer;
                 buffer.add((uint8_t)protocol_message_type_t::ContinueData);//1
                 buffer += message_id;//32
+                buffer.add(index >> 24);//1
+                buffer.add(index >> 16);//1
+                buffer.add(index >> 8);//1
                 buffer.add(index);//1
                 buffer.add(message.data() + offset, size);//
 
@@ -438,6 +455,7 @@ namespace vds {
                 }
                 offset += size;
                 ++index;
+                vds_assert(index < 0xFFFFFF);
               }
             }
 
@@ -463,7 +481,11 @@ namespace vds {
           case protocol_message_type_t::RouteData:
           case protocol_message_type_t::ProxyData: {
             auto message_type = p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand;
-            size_t size = (p->second.data()[1 + 32] << 8) | (p->second.data()[1 + 32 + 1]);
+            size_t size =
+                          uint32_t(p->second.data()[1 + 32] << 24)
+                        | uint32_t(p->second.data()[1 + 32 + 1] << 16)
+                        | uint32_t(p->second.data()[1 + 32 + 2] << 8)
+                        | uint32_t(p->second.data()[1 + 32 + 3]);
 
             const_data_buffer target_node;
             const_data_buffer source_node;
@@ -475,47 +497,52 @@ namespace vds {
               (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
               ) {
             case protocol_message_type_t::Data: {
-              if (size <= p->second.size() - (1 + 32 + 2 + 32)) {
+              if (size <= p->second.size() - (1 + 32 + SIZE_SIZE + 32)) {
                 throw std::runtime_error("Invalid data");
               }
-              size -= p->second.size() - (1 + 32 + 2 + 32);
+              vds_assert(p->second.size() > (1 + 32 + SIZE_SIZE + 32));
+              size -= p->second.size() - (1 + 32 + SIZE_SIZE + 32);
 
               target_node = this->this_node_id_;
               source_node = this->partner_node_id_;
               hops = 0;
-              message.add(p->second.data() + 1 + 32 + 2, p->second.size() - (1 + 32 + 2 + 32));
+              message.add(p->second.data() + 1 + 32 + SIZE_SIZE, p->second.size() - (1 + 32 + SIZE_SIZE + 32));
               break;
             }
 
             case protocol_message_type_t::RouteData: {
-              if (size <= p->second.size() - (1 + 32 + 2 + 32 + 32)) {
+              if (size <= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32)) {
                 throw std::runtime_error("Invalid data");
               }
-              size -= p->second.size() - (1 + 32 + 2 + 32 + 32);
+              vds_assert(p->second.size() > (1 + 32 + SIZE_SIZE + 32 + 32));
+              size -= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32);
 
-              target_node = const_data_buffer(p->second.data() + 1 + 32 + 2, 32);
+              target_node = const_data_buffer(p->second.data() + 1 + 32 + SIZE_SIZE, 32);
               source_node = this->partner_node_id_;
               hops = 0;
-              message.add(p->second.data() + (1 + 32 + 2 + 32), p->second.size() - (1 + 32 + 2 + 32 + 32));
+              message.add(p->second.data() + (1 + 32 + SIZE_SIZE + 32), p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32));
               break;
             }
 
             case protocol_message_type_t::ProxyData: {
-              if (size <= p->second.size() - (1 + 32 + 2 + 32 + 32 + 1 + 32)) {
+              if (size <= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32 + 1 + 32)) {
                 throw std::runtime_error("Invalid data");
               }
-              size -= p->second.size() - (1 + 32 + 2 + 32 + 32 + 1 + 32);
+              vds_assert(p->second.size() > (1 + 32 + SIZE_SIZE + 32 + 32 + 1 + 32));
+              size -= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32 + 1 + 32);
 
-              target_node = const_data_buffer(p->second.data() + 1 + 32 + 2, 32);
-              source_node = const_data_buffer(p->second.data() + 1 + 32 + 2 + 32, 32);
+              target_node = const_data_buffer(p->second.data() + 1 + 32 + SIZE_SIZE, 32);
+              source_node = const_data_buffer(p->second.data() + 1 + 32 + SIZE_SIZE + 32, 32);
 
-              hops = p->second.data()[1 + 32 + 2 + 32 + 32];
-              message.add(p->second.data() + (1 + 32 + 2 + 32 + 32 + 1), p->second.size() - (1 + 32 + 2 + 32 + 32 + 1 + 32));
+              hops = p->second.data()[1 + 32 + SIZE_SIZE + 32 + 32];
+              message.add(p->second.data() + (1 + 32 + SIZE_SIZE + 32 + 32 + 1), p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32 + 1 + 32));
               break;
             }
+            default:
+              throw std::runtime_error("Invalid program");
             }
 
-            for (uint8_t index = 1;; ++index) {
+            for (uint32_t index = 1;; ++index) {
               auto p1 = this->input_messages_.find(index);
               if (this->input_messages_.end() == p1) {
                 break;
@@ -527,14 +554,15 @@ namespace vds {
                 throw std::runtime_error("Invalid data");
               }
 
-              if (size < p1->second.size() - (1 + 32 + 1 + 32)) {
+              if (size < p1->second.size() - (1 + 32 + INDEX_SIZE + 32)) {
                 this->input_mutex_.unlock();
 
                 throw std::runtime_error("Invalid data");
               }
 
-              message.add(p1->second.data() + (1 + 32 + 1), p1->second.size() - (1 + 32 + 1 + 32));
-              size -= p1->second.size() - (1 + 32 + 1 + 32);
+              message.add(p1->second.data() + (1 + 32 + INDEX_SIZE), p1->second.size() - (1 + 32 + INDEX_SIZE + 32));
+              vds_assert(p1->second.size() > (1 + 32 + INDEX_SIZE + 32));
+              size -= p1->second.size() - (1 + 32 + INDEX_SIZE + 32);
 
               if (0 == size) {
                 this->last_input_message_id_.clear();

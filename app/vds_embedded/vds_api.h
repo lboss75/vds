@@ -70,9 +70,13 @@ API api_void_ptr APICALL vds_init(APIENV_);
 API void APICALL vds_done(APIENV void * vds);
 API api_string APICALL vds_last_error(APIENV api_void_ptr vds);
 
-API void APICALL vds_set_root_folder(APIENV api_void_ptr vds, api_string root_folder);
+//Tasks
+API api_string APICALL vds_task_state(APIENV api_void_ptr task);
+API void APICALL vds_task_cancel(APIENV api_void_ptr task);
+API void APICALL vds_task_destroy(APIENV api_void_ptr task);
 
-API void APICALL vds_server_root (APIENV api_void_ptr vds, api_string login, api_string password);
+//Login
+API api_void_ptr APICALL vds_login_begin(APIENV api_void_ptr vds, api_string login, api_string password);
 
 #ifdef __cplusplus
 }

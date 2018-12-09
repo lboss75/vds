@@ -146,11 +146,13 @@ TEST(test_vds_dht_network, test_data_exchange) {
   send_message_check(node1, node2, session1, session2, transport12, transport21, 10);
   send_message_check(node1, node2, session1, session2, transport12, transport21, 10 * 1024);
   send_message_check(node1, node2, session1, session2, transport12, transport21, 0xFFFF);
+  send_message_check(node1, node2, session1, session2, transport12, transport21, 10 * 0xFFFF);
 
 
   proxy_message_check(node1, node2, session1, session2, transport12, transport21, 10);
   proxy_message_check(node1, node2, session1, session2, transport12, transport21, 10 * 1024);
   proxy_message_check(node1, node2, session1, session2, transport12, transport21, 0xFFFF);
+  proxy_message_check(node1, node2, session1, session2, transport12, transport21, 10 * 0xFFFF);
 
   registrator.shutdown();
 }

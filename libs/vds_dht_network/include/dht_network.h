@@ -25,7 +25,7 @@ namespace vds {
         static constexpr uint16_t MIN_DISTRIBUTED_PIECES = 8;
         static constexpr uint16_t GENERATE_DISTRIBUTED_PIECES = 16;
 
-        static constexpr size_t BLOCK_SIZE = 32 * 1024 * MIN_HORCRUX * MIN_DISTRIBUTED_PIECES;//32K 
+        static constexpr size_t BLOCK_SIZE = 16 * 1024 * 1024 * MIN_HORCRUX * MIN_DISTRIBUTED_PIECES;//32K 
         
         void register_services(service_registrator& registrator);
         void start(

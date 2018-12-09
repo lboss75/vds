@@ -12,7 +12,7 @@
 
 #define SERVER_COUNT 100
 
-TEST(test_vds_dht_network, test_sync_process) {
+TEST(DISABLED_test_vds_dht_network, test_sync_process) {
 #ifdef _WIN32
   //Initialize Winsock
   WSADATA wsaData;
