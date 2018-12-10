@@ -239,7 +239,7 @@ namespace vds{
         throw vds_exceptions::invalid_operation();
       }
 
-      void demonize()
+      int demonize()
       {
         SERVICE_TABLE_ENTRY DispatchTable[] =
         {
@@ -254,6 +254,8 @@ namespace vds{
           DWORD error = GetLastError();
           throw std::system_error(error, std::system_category(), "StartServiceCtrlDispatcher");
         }
+
+        return 0;
       }
 
       static VOID WINAPI SvcMain(DWORD dwArgc, LPTSTR *lpszArgv)

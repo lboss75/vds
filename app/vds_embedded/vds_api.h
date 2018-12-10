@@ -67,16 +67,14 @@ extern "C" {
 #endif
 
 API api_void_ptr APICALL vds_init(APIENV_);
-API void APICALL vds_done(APIENV void * vds);
+API void APICALL vds_done(APIENV api_void_ptr vds);
 API api_string APICALL vds_last_error(APIENV api_void_ptr vds);
 
-//Tasks
-API api_string APICALL vds_task_state(APIENV api_void_ptr task);
-API void APICALL vds_task_cancel(APIENV api_void_ptr task);
-API void APICALL vds_task_destroy(APIENV api_void_ptr task);
+API api_string APICALL vds_start(APIENV api_void_ptr vds);
 
 //Login
-API api_void_ptr APICALL vds_login_begin(APIENV api_void_ptr vds, api_string login, api_string password);
+API api_void_ptr APICALL vds_login(APIENV api_void_ptr vds, api_string login, api_string password);
+API void APICALL vds_session_destroy(APIENV api_void_ptr vds_session);
 
 #ifdef __cplusplus
 }
