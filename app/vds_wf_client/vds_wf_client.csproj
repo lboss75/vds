@@ -112,11 +112,19 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|Win32' ">
     <Content Include="..\..\build\app\vds_embedded\Debug\vds_embedded.dll">
       <Link>vds_embedded.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|Win32' ">
+    <Content Include="..\..\build\app\vds_embedded\Release\vds_embedded.dll">
+      <Link>vds_embedded.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="..\..\static\icon\TrayIcon.ico" />
   </ItemGroup>
   <ItemGroup>
