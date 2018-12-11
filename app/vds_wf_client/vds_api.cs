@@ -55,8 +55,6 @@ namespace vds_wf_client
                 this.session_ = session_ptr;
             }
 
-
-
             public void Dispose()
             {
                 vds_session_destroy(session_);

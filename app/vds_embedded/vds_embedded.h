@@ -21,7 +21,18 @@ namespace vds {
     const std::string & last_error() const {
       return this->last_error_;
     }
-    
+
+    void start();
+
+    class vds_session {
+    public:
+
+    private:
+
+    };
+
+    vds_session * login(const std::string & login, const std::string & password);
+
   private:
     std::string root_folder_;
     std::string last_error_;

@@ -84,6 +84,13 @@ void vds::vds_embedded::server_root(const std::string & /*login*/, const std::st
   }
 }
 
+void vds::vds_embedded::start() {
+}
+
+vds::vds_embedded::vds_session* vds::vds_embedded::login(const std::string& login, const std::string& password) {
+
+}
+
 void vds::vds_embedded::set_root_folder(const std::string & root_folder) {
   this->root_folder_ = root_folder;
 }

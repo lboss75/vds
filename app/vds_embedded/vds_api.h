@@ -72,6 +72,9 @@ API api_string APICALL vds_last_error(APIENV api_void_ptr vds);
 
 API api_string APICALL vds_start(APIENV api_void_ptr vds);
 
+API void APICALL vds_set_root_folder(APIENV api_void_ptr vds, api_string root_folder);
+API void APICALL vds_server_root(APIENV api_void_ptr vds, api_string login, api_string password);
+
 //Login
 API api_void_ptr APICALL vds_login(APIENV api_void_ptr vds, api_string login, api_string password);
 API void APICALL vds_session_destroy(APIENV api_void_ptr vds_session);
