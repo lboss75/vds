@@ -1870,6 +1870,21 @@ namespace vds {
   }
 
   template <typename value_type, typename db_value_type>
+  inline _database_expression_not_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> database_column<value_type, db_value_type>::operator != (value_type value) const {
+    return _database_expression_not_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>>(
+      _database_column_exp(this),
+      _database_value_exp<value_type, db_value_type>(value));
+  }
+
+  template <typename value_type, typename db_value_type>
+  inline _database_expression_not_equ_exp<_database_column_exp, _database_column_exp> database_column<value_type, db_value_type>::operator != (const database_column<value_type, db_value_type> & right) const {
+    return _database_expression_not_equ_exp<_database_column_exp, _database_column_exp>(
+      _database_column_exp(this),
+      _database_column_exp(&right));
+  }
+
+
+  template <typename value_type, typename db_value_type>
   inline bool database_column<value_type, db_value_type>::is_null(
       const sql_statement &statement) const{
     return statement.is_null(this->index_);

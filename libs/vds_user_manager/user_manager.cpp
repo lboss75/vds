@@ -44,7 +44,7 @@ vds::async_task<void> vds::user_manager::update() {
 }
 
 void vds::user_manager::load(
-  database_transaction & t,
+  database_read_transaction & t,
   const std::string & user_login,
   const std::string & user_password)
 {
@@ -243,8 +243,7 @@ vds::_user_manager::_user_manager(
 }
 
 void vds::_user_manager::update(
-		
-		database_transaction &t) {
+		database_read_transaction &t) {
 	const auto log = this->sp_->get<logger>();
 
   std::list<const_data_buffer> new_records;
@@ -281,7 +280,7 @@ void vds::_user_manager::update(
         if (this->user_credentials_key_ == message.user_credentials_key) {
           this->user_cert_ = message.user_cert;
           this->user_name_ = message.user_name;
-          this->login_state_ = user_manager::login_state_t::login_sucessful;
+          this->login_state_ = user_manager::login_state_t::login_successful;
           this->user_private_key_ = std::make_shared<asymmetric_private_key>(
             asymmetric_private_key::parse_der(message.user_private_key, this->user_password_));
 
@@ -304,7 +303,7 @@ void vds::_user_manager::update(
           this->user_name_ = message.user_name;
           this->user_private_key_ = std::make_shared<asymmetric_private_key>(
             asymmetric_private_key::parse_der(message.user_private_key, this->user_password_));
-          this->login_state_ = user_manager::login_state_t::login_sucessful;
+          this->login_state_ = user_manager::login_state_t::login_successful;
 
           auto cp = _user_channel::import_personal_channel(
             this->user_cert_,

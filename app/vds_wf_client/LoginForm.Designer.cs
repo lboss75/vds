@@ -62,6 +62,7 @@
             this.loginEdit.Name = "loginEdit";
             this.loginEdit.Size = new System.Drawing.Size(220, 22);
             this.loginEdit.TabIndex = 2;
+            this.loginEdit.Text = "vadim@iv-soft.ru";
             // 
             // passwordEdit
             // 
@@ -82,6 +83,7 @@
             this.okBtn.TabIndex = 4;
             this.okBtn.Text = "Вход";
             this.okBtn.UseVisualStyleBackColor = true;
+            this.okBtn.Click += new System.EventHandler(this.okBtn_Click);
             // 
             // cancelBtn
             // 
@@ -93,6 +95,7 @@
             this.cancelBtn.TabIndex = 5;
             this.cancelBtn.Text = "Отмена";
             this.cancelBtn.UseVisualStyleBackColor = true;
+            this.cancelBtn.Click += new System.EventHandler(this.cancelBtn_Click);
             // 
             // LoginForm
             // 
@@ -108,6 +111,7 @@
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Name = "LoginForm";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Вход в систему";
             this.ResumeLayout(false);
             this.PerformLayout();

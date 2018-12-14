@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace vds_wf_client
 {
@@ -18,11 +19,11 @@ namespace vds_wf_client
 
         public void start()
         {
-            check_error(vds_start(this.vds_));
+            check_error(vds_start(this.vds_, 0));
 
         }
 
-        private void check_error(IntPtr vds_result)
+        private static void check_error(IntPtr vds_result)
         {
             if (IntPtr.Zero != vds_result)
             {
@@ -46,13 +47,68 @@ namespace vds_wf_client
             }
         }
 
-        public class session : IDisposable
+        public class device_storage
+        {
+            public string node { get; set; }
+            public string name {get; set; }
+            public string local_path { get; set; }
+            public long reserved_size { get; set; }
+            public long used_size { get; set; }
+            public long free_size { get; set; }
+            public bool current { get; set; }
+        }
+
+    public class session : IDisposable
         {
             private IntPtr session_;
 
             public session(IntPtr session_ptr)
             {
                 this.session_ = session_ptr;
+            }
+
+            public bool check_auth()
+            {
+                var response = StringFromNativeUtf8(vds_session_check(this.session_));
+
+                switch (response)
+                {
+                    case "successful":
+                        return true;
+
+                    case "failed":
+                        throw new Exception("Invalid login");
+
+                    default:
+                        return false;
+                }
+            }
+
+            public device_storage[] get_device_storages()
+            {
+                var response_json = StringFromNativeUtf8(vds_get_device_storages(this.session_));
+                var response = JsonConvert.DeserializeObject<device_storage[]>(response_json);
+                return response;
+            }
+
+            public string prepare_device_storage()
+            {
+                return StringFromNativeUtf8(vds_prepare_device_storage(this.session_));
+            }
+
+            public void add_device_storage(string name, string local_path, int size)
+            {
+                var name_ptr = NativeUtf8FromString(name);
+                var local_path_ptr = NativeUtf8FromString(local_path);
+                try
+                {
+                    check_error(vds_add_device_storage(this.session_, name_ptr, local_path_ptr, size));
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(name_ptr);
+                    Marshal.FreeHGlobal(local_path_ptr);
+                }
             }
 
             public void Dispose()
@@ -100,7 +156,7 @@ namespace vds_wf_client
         private static extern void vds_done(IntPtr vds);
 
         [DllImport(lib_embedded, CharSet = CharSet.Ansi)]
-        private static extern IntPtr vds_start(IntPtr vds);
+        private static extern IntPtr vds_start(IntPtr vds, int port);
 
 
         [DllImport(lib_embedded, CharSet = CharSet.Ansi)]
@@ -115,7 +171,22 @@ namespace vds_wf_client
         [DllImport(lib_embedded, CharSet = CharSet.Ansi)]
         private static extern IntPtr vds_login(IntPtr vds, IntPtr login, IntPtr password);
         [DllImport(lib_embedded, CharSet = CharSet.Ansi)]
+        private static extern IntPtr vds_session_check(IntPtr vds_session);
+        [DllImport(lib_embedded, CharSet = CharSet.Ansi)]
         private static extern void vds_session_destroy(IntPtr vds_session);
+
+        [DllImport(lib_embedded, CharSet = CharSet.Ansi)]
+        private static extern IntPtr vds_get_device_storages(IntPtr vds_session);
+
+        [DllImport(lib_embedded, CharSet = CharSet.Ansi)]
+        private static extern IntPtr vds_prepare_device_storage(IntPtr vds_session);
+
+        [DllImport(lib_embedded, CharSet = CharSet.Ansi)]
+        private static extern IntPtr vds_add_device_storage(IntPtr vds_session, IntPtr name, IntPtr local_path, int size);
+
+        [DllImport(lib_embedded, CharSet = CharSet.Ansi)]
+        private static extern IntPtr vds_local_storage_exists(IntPtr vds);
+
 
         public void Dispose()
         {
@@ -139,6 +210,17 @@ namespace vds_wf_client
             byte[] buffer = new byte[len];
             Marshal.Copy(nativeUtf8, buffer, 0, buffer.Length);
             return Encoding.UTF8.GetString(buffer);
+        }
+
+        public bool local_storage_exists()
+        {
+            var result = StringFromNativeUtf8(vds_local_storage_exists(this.vds_));
+            if (result == "true" || result == "false")
+            {
+                return (result == "true");
+            }
+
+            throw new Exception(result);
         }
     }
 }

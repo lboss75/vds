@@ -26,7 +26,7 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
   CHAR result[MAX_PATH + 1];
   auto error = SHGetFolderPathA(
     NULL,
-    CSIDL_COMMON_DOCUMENTS,
+    CSIDL_PERSONAL,
     NULL,
     SHGFP_TYPE_CURRENT,
     result);
@@ -38,7 +38,7 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
     *p = '/';
   }
   
-  return foldername(result);
+  return foldername(foldername(result), ".vds");
 #endif
 }
 
@@ -67,6 +67,6 @@ vds::foldername vds::persistence::local_machine(const service_provider * sp)
     *p = '/';
   }
 
-  return foldername(result);
+  return foldername(foldername(result), ".vds");
 #endif
 }

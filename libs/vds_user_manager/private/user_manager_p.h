@@ -36,7 +36,7 @@ namespace vds {
     }
 
     void update(        
-        class database_transaction &t);
+        class database_read_transaction &t);
 
 
     std::shared_ptr<user_channel> get_channel(const const_data_buffer &channel_id) const {

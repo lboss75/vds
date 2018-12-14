@@ -23,7 +23,7 @@ namespace vds {
   public:
     enum class login_state_t {
       waiting,
-      login_sucessful,
+      login_successful,
       login_failed
     };
 
@@ -35,8 +35,7 @@ namespace vds {
     vds::async_task<void> update();
 
     void load(
-      
-      class database_transaction &t,
+      class database_read_transaction &t,
       const std::string & user_login,
       const std::string & user_password);
 

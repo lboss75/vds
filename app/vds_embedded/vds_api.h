@@ -69,15 +69,22 @@ extern "C" {
 API api_void_ptr APICALL vds_init(APIENV_);
 API void APICALL vds_done(APIENV api_void_ptr vds);
 API api_string APICALL vds_last_error(APIENV api_void_ptr vds);
+API api_string APICALL vds_local_storage_exists(APIENV api_void_ptr vds);
 
-API api_string APICALL vds_start(APIENV api_void_ptr vds);
+API api_string APICALL vds_start(APIENV api_void_ptr vds, int port);
 
 API void APICALL vds_set_root_folder(APIENV api_void_ptr vds, api_string root_folder);
 API void APICALL vds_server_root(APIENV api_void_ptr vds, api_string login, api_string password);
 
 //Login
 API api_void_ptr APICALL vds_login(APIENV api_void_ptr vds, api_string login, api_string password);
+API api_string APICALL vds_session_check(APIENV api_void_ptr vds_session);
 API void APICALL vds_session_destroy(APIENV api_void_ptr vds_session);
+
+API api_string APICALL vds_get_device_storages(APIENV api_void_ptr vds_session);
+API api_string APICALL vds_prepare_device_storage(APIENV api_void_ptr vds_session);
+API api_string APICALL vds_add_device_storage(APIENV api_void_ptr vds_session, api_string name, api_string local_path, int size);
+
 
 #ifdef __cplusplus
 }
