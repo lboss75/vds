@@ -311,7 +311,7 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_sessi
     result->add_property("state", "fail");
   }
   else {
-    result->add_property("state", "sucessful");
+    result->add_property("state", "successful");
     result->add_property("session", session->id());
     result->add_property("user_name", session->user_name());
   }

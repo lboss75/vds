@@ -127,7 +127,7 @@ function try_login() {
             '&password=' +
             encodeURIComponent(inputPassword.value),
         success: function(data) {
-            if ('sucessful' == data.state) {
+            if ('successful' == data.state) {
                 $('#processDialog').modal('hide');
                 //window.location.href = data.url;
                 sessionStorage.setItem("vds_session", data.session);

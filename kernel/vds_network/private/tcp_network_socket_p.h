@@ -211,7 +211,6 @@ namespace vds {
       auto r = std::make_shared<vds::async_result<size_t>>();
       this->result_ = r;
 
-      std::cout << "Read HTTP\n";
       DWORD flags = 0;
       DWORD numberOfBytesRecvd;
       if (NOERROR != WSARecv((*this->owner_)->handle(),
@@ -253,8 +252,6 @@ namespace vds {
 
     void process(DWORD dwBytesTransfered) override
     {
-      std::cout << "HTTP: [" << std::string(this->wsa_buf_.buf, dwBytesTransfered) << "]\n";
-
       auto r = std::move(this->result_);
       auto pthis = std::move(this->pthis_);
 

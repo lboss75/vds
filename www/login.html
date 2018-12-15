@@ -97,7 +97,7 @@
         function try_login() {
             $.getJSON('api/try_login?login=' + escape(inputEmail.value) + '&password=' + escape(inputPassword.value),
                 function (data) {
-                    if ('sucessful' == data.state) {
+                    if ('successful' == data.state) {
                         $('#processDialog').modal('hide');
                         window.location.href = data.url;
                     }
