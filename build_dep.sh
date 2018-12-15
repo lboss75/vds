@@ -33,12 +33,12 @@ make --quiet install-cxx install-cxxabi
 export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 cd ../..
+fi
 
 set +e
-git clone --quiet https://github.com/openssl/openssl.git
+git clone --single-branch --branch OpenSSL_1_1_1-stable --quiet https://github.com/openssl/openssl.git
 rm -rf openssl-out
 set -e
-fi
 
 export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
