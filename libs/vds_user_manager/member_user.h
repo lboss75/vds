@@ -31,6 +31,7 @@ namespace vds {
 
     user_channel create_channel(
       transactions::transaction_block_builder &log,
+      const std::string & channel_type,
       const std::string &name);
 
     user_channel personal_channel() const;

@@ -17,7 +17,7 @@ namespace vds {
       _user_channel();
       _user_channel(
         const const_data_buffer &id,
-        user_channel::channel_type_t channel_type,
+        const std::string & channel_type,
 		    const std::string & name,
         const std::shared_ptr<certificate> & read_cert,
         const std::shared_ptr<asymmetric_private_key> & read_private_key,
@@ -25,7 +25,7 @@ namespace vds {
         const std::shared_ptr<asymmetric_private_key> & write_private_key);
 
     const const_data_buffer &id() const { return this->id_;}
-    user_channel::channel_type_t channel_type() const { return this->channel_type_; }
+    const std::string & channel_type() const { return this->channel_type_; }
     const std::string &name() const { return this->name_; }
 
     const std::shared_ptr<vds::certificate> & read_cert() const {
@@ -138,7 +138,7 @@ namespace vds {
     friend class user_channel;
 
 		const_data_buffer id_;
-    user_channel::channel_type_t channel_type_;
+    std::string channel_type_;
 	  std::string name_;
 
     std::map<std::string, std::shared_ptr<certificate>> read_certificates_;

@@ -38,6 +38,7 @@ namespace vds {
 
     static vds::async_task<http_message> create_channel(
       const std::shared_ptr<user_manager> & user_mng,
+      const std::string & channel_type,
       const std::string & name);
 
     static vds::async_task<std::shared_ptr<json_value>> channel_feed(

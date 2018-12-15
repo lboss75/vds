@@ -26,6 +26,7 @@ std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   auto item = std::make_shared<json_object>();
   item->add_property("object_id", base64::from_bytes(channel.id()));
   item->add_property("name", channel.name());
+  item->add_property("type", channel.channel_type());
   return item;
 }
 
@@ -152,9 +153,10 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::login(
 vds::async_task<vds::http_message>
 vds::api_controller::create_channel(  
   const std::shared_ptr<user_manager> & user_mng,
+  const std::string & channel_type,
   const std::string & name) {
 
-  auto channel = std::move(co_await user_mng->create_channel(name));
+  auto channel = std::move(co_await user_mng->create_channel(channel_type, name));
   
   co_return http_response::simple_text_response(
         channel_serialize(channel)->json_value::str(),

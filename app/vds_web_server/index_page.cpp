@@ -20,12 +20,16 @@ vds::async_task<vds::http_message> vds::index_page::create_channel(
   const std::shared_ptr<user_manager> & user_mng,
   const http_request & message) {
 
-  auto parser = std::make_shared<http::simple_form_parser>(sp);
+  message.get_message().ignore_empty_body();
 
-  co_await parser->parse(message.get_message());
-  
-  auto name = parser->values().find("channelName");
-  co_return co_await api_controller::create_channel(user_mng, name->second);
+ 
+  auto type = message.get_parameter("type");
+  auto name = message.get_parameter("name");
+
+  co_return co_await api_controller::create_channel(
+    user_mng,
+    type,
+    name);
 }
 
 
@@ -50,7 +54,7 @@ public:
       : base_class(sp), successful_(false) {
   }
 
-  void on_field(const simple_field_info & field) {
+  void on_field(const simple_field_info & /*field*/) {
     //Ignore throw std::runtime_error("Invalid field " + field.name);
   }
 
@@ -115,7 +119,7 @@ public:
 
   }
 
-  void on_field(const simple_field_info & field) {
+  void on_field(const simple_field_info & /*field*/) {
     //Ignore
   }
 

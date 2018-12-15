@@ -40,7 +40,7 @@ namespace vds {
       const std::string & user_password);
 
     vds::async_task<vds::user_channel> create_channel(
-      
+      const std::string & channel_type,
       const std::string &name) const;
 
     void reset(

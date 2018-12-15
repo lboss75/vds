@@ -36,7 +36,7 @@ namespace vds {
       std::list<std::string> headers;
       headers.push_back(method + " " + url + " " + agent);
 
-      return http_request(headers, method, url, agent);
+      return http_request(headers, method, url, agent, body);
     }
 
     const std::string & url() const {

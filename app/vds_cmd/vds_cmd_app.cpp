@@ -14,6 +14,7 @@ All rights reserved
 #include "http_response.h"
 #include "http_multipart_request.h"
 #include "http_mimetype.h"
+#include <iomanip>
 
 namespace vds {
   class http_multipart_request;
@@ -23,6 +24,7 @@ vds::vds_cmd_app::vds_cmd_app()
 : file_upload_cmd_set_("Upload file", "Upload file on the network", "upload", "file"),
   file_download_cmd_set_("Download file", "Download file from the network", "download", "file"),
   channel_list_cmd_set_("Channel list", "List user channels", "list", "channel"),
+  channel_create_cmd_set_("Channel create", "Create new channel", "create", "channel"),
   user_login_(
       "l",
       "login",
@@ -63,7 +65,17 @@ vds::vds_cmd_app::vds_cmd_app()
     "format",
     "Output format",
     "Output format (json)"
-  ){
+  ),
+  channel_name_(
+    "cn",
+    "channel-name",
+    "Channel name",
+    "Name of channel"),
+  channel_type_(
+    "ct",
+    "channel-type",
+    "Channel type",
+    "Type of channel") {
 }
 
 void vds::vds_cmd_app::main(const service_provider * sp)
@@ -75,6 +87,10 @@ void vds::vds_cmd_app::main(const service_provider * sp)
   else if(this->current_command_set_ == &this->channel_list_cmd_set_) {
     const auto session = this->login(sp);
     this->channel_list(sp, session);
+  }
+  else if (this->current_command_set_ == &this->channel_create_cmd_set_) {
+    const auto session = this->login(sp);
+    this->channel_create(sp, session);
   }
 }
 
@@ -113,6 +129,13 @@ void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
   this->channel_list_cmd_set_.required(this->user_password_);
   this->channel_list_cmd_set_.optional(this->server_);
   this->channel_list_cmd_set_.optional(this->output_format_);
+
+  cmd_line.add_command_set(this->channel_create_cmd_set_);
+  this->channel_create_cmd_set_.required(this->user_login_);
+  this->channel_create_cmd_set_.required(this->user_password_);
+  this->channel_create_cmd_set_.optional(this->server_);
+  this->channel_create_cmd_set_.optional(this->channel_name_);
+  this->channel_create_cmd_set_.optional(this->channel_type_);
 
   //cmd_line.add_command_set(this->server_init_command_set_);
   //this->server_init_command_set_.required(this->user_login_);
@@ -235,7 +258,7 @@ void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::strin
         server + "/api/channels",
         co_await response.body()->read_all());
 
-      std::cout << "ID                                          | Name\n";
+      std::cout << "ID                                          |   Type   | Name\n";
 
       auto body_array = dynamic_cast<const json_array *>(body.get());
       for(size_t i = 0; i < body_array->size(); ++i) {
@@ -245,11 +268,35 @@ void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::strin
         item->get_property("object_id", value);
         std::cout << value << "|";
 
+        item->get_property("type", value);
+        std::cout << std::setw(10) << value << "|";
+
         item->get_property("name", value);
         std::cout << value << "\n";
       }
     }
-
   }).get();
+}
 
+void vds::vds_cmd_app::channel_create(const service_provider* sp, const std::string& session) {
+  auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
+
+  auto s = tcp_network_socket::connect(sp, network_address::parse(server));
+  auto[reader, writer] = s->start(sp);
+
+  auto client = std::make_shared<http_client>();
+  client->start(reader, writer).detach();
+
+  client->send(http_request::create(
+    "POST",
+    "/api/channels?session=" + url_encode::encode(session)
+    + "&name=" + url_encode::encode(this->channel_name_.value())
+    + "&type=" + url_encode::encode(this->channel_type_.value())
+    ).get_message(),
+    [server, this](const http_message response) -> async_task<void> {
+
+    if (http_response(response).code() != http_response::HTTP_OK) {
+      throw std::runtime_error("Create channel failed");
+    }
+  }).get();
 }

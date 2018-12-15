@@ -61,8 +61,11 @@ void vds::user_manager::load(
 }
 
 vds::async_task<vds::user_channel> vds::user_manager::create_channel(
+  const std::string & channel_type,
   const std::string& name) const {
-  return this->impl_->create_channel(name);
+  return this->impl_->create_channel(
+    channel_type,
+    name);
 }
 
 void vds::user_manager::reset(    
@@ -92,7 +95,7 @@ void vds::user_manager::reset(
       playback,
       message_create<transactions::channel_create_transaction>(
         channel_id,
-        std::to_string(user_channel::channel_type_t::news_channel),
+        user_channel::channel_type_t::news_channel,
         "Common news",
         cert_control::get_common_news_read_certificate(),
         cert_control::get_common_news_read_private_key(),
@@ -321,7 +324,7 @@ void vds::_user_manager::update(
               [this, channel_id = message.channel_id(), log](const transactions::channel_add_reader_transaction & message)->bool {
               auto cp = std::make_shared<user_channel>(
                 message.id,
-                string2channel_type(message.channel_type),
+                message.channel_type,
                 message.name,
                 message.read_cert,
                 message.read_private_key,
@@ -337,7 +340,7 @@ void vds::_user_manager::update(
               [this, channel_id = message.channel_id(), log](const transactions::channel_add_writer_transaction & message)->bool {
               auto cp = std::make_shared<user_channel>(
                 message.id,
-                string2channel_type(message.channel_type),
+                message.channel_type,
                 message.name,
                 message.read_cert,
                 message.read_private_key,
@@ -357,7 +360,7 @@ void vds::_user_manager::update(
               }
               auto cp = std::make_shared<user_channel>(
                 message.channel_id,
-                string2channel_type(message.channel_type),
+                message.channel_type,
                 message.name,
                 message.read_cert,
                 message.read_private_key,
@@ -472,19 +475,19 @@ vds::async_task<bool> vds::_user_manager::approve_join_request( const const_data
           userEmail,
           pthis->user_cert_->subject()));
 
-      auto channel_id = dht::dht_object_id::generate_random_id();
+      //auto channel_id = dht::dht_object_id::generate_random_id();
 
-      auto read_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-      auto write_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-      auto channel = member_user(pthis->user_cert_, pthis->user_private_key_).create_channel(
-        playback,
-        userName);
+      //auto read_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+      //auto write_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+      //auto channel = member_user(pthis->user_cert_, pthis->user_private_key_).create_channel(
+      //  playback,
+      //  userName);
 
-      channel->add_writer(
-        playback,
-        pthis->user_name_,
-        member_user(user_cert, std::shared_ptr<asymmetric_private_key>()),
-        member_user(pthis->user_cert_, pthis->user_private_key_));
+      //channel->add_writer(
+      //  playback,
+      //  pthis->user_name_,
+      //  member_user(user_cert, std::shared_ptr<asymmetric_private_key>()),
+      //  member_user(pthis->user_cert_, pthis->user_private_key_));
 
       playback.save(
         pthis->sp_,
@@ -544,17 +547,18 @@ bool vds::_user_manager::parse_join_request(
 }
 
 vds::async_task<vds::user_channel> vds::_user_manager::create_channel(
-  
+  const std::string & channel_type,
   const std::string& name) {
   auto result = std::make_shared<vds::user_channel>();
   co_await this->sp_->get<db_model>()->async_transaction(
-    [pthis = this->shared_from_this(), name, result](database_transaction & t)->bool {
+    [pthis = this->shared_from_this(), channel_type, name, result](database_transaction & t)->bool {
 
     vds::transactions::transaction_block_builder log(pthis->sp_, t);
     vds::asymmetric_private_key channel_read_private_key;
     vds::asymmetric_private_key channel_write_private_key;
     *result = member_user(pthis->user_cert_, pthis->user_private_key_).create_channel(
       log,
+      channel_type,
       name);
 
     log.save(

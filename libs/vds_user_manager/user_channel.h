@@ -33,12 +33,11 @@ namespace vds {
     user_channel(const user_channel &) = delete;
     user_channel & operator = (const user_channel &) = delete;
 
-    enum class channel_type_t {
-      personal_channel,
-      notes_channel,
-      inter_person,
-      news_channel,
-      files_channel
+    class channel_type_t {
+    public:
+      static constexpr const char * personal_channel = "core.personal";
+      static constexpr const char * notes_channel = "core.notes";
+      static constexpr const char * news_channel = "core.news";
     };
 
     user_channel();
@@ -46,7 +45,7 @@ namespace vds {
 
     user_channel(
       const const_data_buffer & id,
-      channel_type_t channel_type,
+      const std::string & channel_type,
       const std::string & name,
       const std::shared_ptr<certificate> & read_cert,
       const std::shared_ptr<asymmetric_private_key> & read_private_key,
@@ -56,7 +55,7 @@ namespace vds {
     ~user_channel();
 
     const const_data_buffer &id() const;
-    channel_type_t channel_type() const;
+    const std::string & channel_type() const;
     const std::string & name() const;
     const std::shared_ptr<certificate> & read_cert() const;
     const std::shared_ptr<certificate> & write_cert() const;
@@ -103,51 +102,6 @@ namespace vds {
       const uint8_t * data,
       size_t size);
   };
-
-  inline user_channel::channel_type_t string2channel_type(const std::string & val) {
-    if ("p" == val) {
-      return vds::user_channel::channel_type_t::personal_channel;
-    }
-    if ("n" == val) {
-      return vds::user_channel::channel_type_t::notes_channel;
-    }
-    if ("c" == val) {
-      return vds::user_channel::channel_type_t::inter_person;
-    }
-    if ("N" == val) {
-      return vds::user_channel::channel_type_t::news_channel;
-    }
-    if("f" == val) {
-      return vds::user_channel::channel_type_t::files_channel;
-    }
-
-    throw std::runtime_error("Invalid value");
-  }
-}
-namespace std {
-  inline string to_string(vds::user_channel::channel_type_t val) {
-    switch (val) {
-    case vds::user_channel::channel_type_t::personal_channel: {
-      return "p";
-    }
-    case vds::user_channel::channel_type_t::notes_channel: {
-      return "n";
-    }
-    case vds::user_channel::channel_type_t::inter_person: {
-      return "c";
-    }
-    case vds::user_channel::channel_type_t::news_channel: {
-      return "N";
-    }
-    case vds::user_channel::channel_type_t::files_channel: {
-      return "f";
-    }
-
-    default: {
-      throw std::runtime_error("Invalid value");
-    }
-    }
-  }
 }
 
 #endif // __VDS_USER_MANAGER_USER_CHANNEL_H_

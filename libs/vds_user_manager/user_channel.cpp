@@ -20,7 +20,7 @@ vds::user_channel::user_channel(user_channel&& other)
 
 vds::user_channel::user_channel(
   const const_data_buffer & id,
-  channel_type_t channel_type,
+  const std::string & channel_type,
   const std::string & name,
   const std::shared_ptr<certificate> & read_cert,
   const std::shared_ptr<asymmetric_private_key> & read_private_key,
@@ -36,6 +36,10 @@ vds::user_channel::~user_channel() {
 
 const vds::const_data_buffer &vds::user_channel::id() const {
   return this->impl_->id();
+}
+
+const std::string& vds::user_channel::channel_type() const {
+  return this->impl_->channel_type();
 }
 
 const std::string& vds::user_channel::name() const {
@@ -88,7 +92,7 @@ void vds::user_channel::add_to_log(
 /////////////////////////////////////////////////
 vds::_user_channel::_user_channel(
   const const_data_buffer &id,
-  user_channel::channel_type_t channel_type,
+  const std::string & channel_type,
 	const std::string & name,
 	const std::shared_ptr<certificate> & read_cert,
   const std::shared_ptr<asymmetric_private_key> & read_private_key,
@@ -122,7 +126,7 @@ void vds::_user_channel::add_reader(
     owner_user,
     message_create<transactions::channel_add_reader_transaction>(
       this->id_,
-      std::to_string(this->channel_type_),
+      this->channel_type_,
 			this->name_,
 			this->read_certificates_.find(this->current_read_certificate_)->second,
       this->read_private_keys_.find(this->current_read_certificate_)->second,
@@ -143,7 +147,7 @@ void vds::_user_channel::add_writer(
     owner_user,
     message_create<transactions::channel_add_writer_transaction>(
       this->id_,
-      std::to_string(this->channel_type_),
+      this->channel_type_,
       this->name_,
       this->read_certificates_.find(this->current_read_certificate_)->second,
       this->read_private_keys_.find(this->current_read_certificate_)->second,
@@ -167,7 +171,7 @@ void vds::_user_channel::add_writer(
     owner_user,
     message_create<transactions::channel_add_writer_transaction>(
       this->id_,
-      std::to_string(this->channel_type_),
+      this->channel_type_,
       name,
       this->read_certificates_.find(this->current_read_certificate_)->second,
       this->read_private_keys_.find(this->current_read_certificate_)->second,

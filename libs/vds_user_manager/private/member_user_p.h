@@ -31,9 +31,9 @@ namespace vds {
       return this->private_key_;
     }
 
-    user_channel create_channel(
-      
+    user_channel create_channel(      
       transactions::transaction_block_builder& log,
+      const std::string & channel_type,
       const std::string& name);
 
     static member_user create_root_user(

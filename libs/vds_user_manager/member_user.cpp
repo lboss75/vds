@@ -43,8 +43,13 @@ const std::shared_ptr<vds::asymmetric_private_key> & vds::member_user::private_k
 }
 
 vds::user_channel vds::member_user::create_channel(
-  transactions::transaction_block_builder& log, const std::string& name) {
-  return this->impl_->create_channel(log, name);
+  transactions::transaction_block_builder& log,
+  const std::string & channel_type, 
+  const std::string& name) {
+  return this->impl_->create_channel(
+    log,
+    channel_type,
+    name);
 }
 
 vds::user_channel vds::member_user::personal_channel() const {
@@ -76,8 +81,8 @@ vds::member_user vds::_member_user::create_user(
 }
 
 vds::user_channel vds::_member_user::create_channel(
-  
   transactions::transaction_block_builder& log,
+  const std::string & channel_type,
   const std::string& name) {
 
   auto read_private_key = std::make_shared<asymmetric_private_key>(asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
@@ -101,7 +106,7 @@ vds::user_channel vds::_member_user::create_channel(
     log,
     message_create<transactions::channel_create_transaction>(
       channel_id,
-      std::to_string(user_channel::channel_type_t::inter_person),
+      channel_type,
       name,
       read_cert,
       read_private_key,
@@ -110,7 +115,7 @@ vds::user_channel vds::_member_user::create_channel(
 
   return user_channel(
     channel_id,
-    user_channel::channel_type_t::inter_person,
+    channel_type,
     name,
     read_cert,
     read_private_key,

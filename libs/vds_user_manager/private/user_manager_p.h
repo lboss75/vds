@@ -81,6 +81,7 @@ namespace vds {
         std::string & userEmail);
 
     async_task<user_channel> create_channel(
+      const std::string & channel_type,
       const std::string& name) ;
 
     const std::list<std::shared_ptr<vds::user_wallet>>& wallets() const {

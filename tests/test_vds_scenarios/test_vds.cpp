@@ -18,7 +18,7 @@ TEST(test_vds, test_initial)
     mock.sync_wait();
 
     std::cout << "Create channel...\n";
-    auto channel = mock.create_channel(0, "Test file");
+    auto channel = mock.create_channel(0, "test", "Test file");
 
     size_t len;
     do

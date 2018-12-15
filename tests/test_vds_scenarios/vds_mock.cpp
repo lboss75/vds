@@ -572,7 +572,7 @@ vds_mock::download_data(
     output_stream);
 }
 
-vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
+vds::user_channel vds_mock::create_channel(int index, const std::string & channel_type, const std::string &name) {
 
   vds::user_channel result;
 
@@ -592,7 +592,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
     return true;
   }).get();
 
-  return std::move(user_mng->create_channel(name).get());
+  return std::move(user_mng->create_channel(channel_type, name).get());
 }
 
 const vds::service_provider * vds_mock::get_sp(int client_index) {

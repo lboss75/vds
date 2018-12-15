@@ -101,7 +101,7 @@ public:
   bool dump_statistic(std::ostream & logfile, std::vector<vds::server_statistic>& statistics);
   void sync_wait();
 
-  vds::user_channel create_channel(int index, const std::string &name);
+  vds::user_channel create_channel(int index, const std::string & channel_type, const std::string &name);
 
   const vds::service_provider * get_sp(int client_index);
 
