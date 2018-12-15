@@ -229,6 +229,8 @@ void vds::vds_cmd_app::upload_file(const service_provider * sp, const std::strin
     if (http_response(response).code() != http_response::HTTP_OK) {
       throw std::runtime_error("Upload failed");
     }
+
+    co_return;
   }).get();
 }
 
@@ -298,5 +300,7 @@ void vds::vds_cmd_app::channel_create(const service_provider* sp, const std::str
     if (http_response(response).code() != http_response::HTTP_OK) {
       throw std::runtime_error("Create channel failed");
     }
+
+    co_return;
   }).get();
 }
