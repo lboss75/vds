@@ -102,6 +102,10 @@ void vds::tcp_network_socket::process(uint32_t events) {
   this->impl_->process(events);
 }
 
+bool vds::tcp_network_socket::operator!() const {
+    return !(*this->impl_);
+}
+
 void vds::_tcp_network_socket::process(uint32_t events) {
   if(EPOLLOUT == (EPOLLOUT & events)){
     if(0 == (this->event_masks_ & EPOLLOUT)) {

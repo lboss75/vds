@@ -46,12 +46,12 @@ vds::async_task<void> vds::http_client::send(
   const std::function<vds::async_task<void>(const vds::http_message response)> & response_handler)
 {
   vds_assert(!this->result_);
-  this->result_ = std::make_shared<async_result<void>>();
+  auto r = std::make_shared<async_result<void>>();
+  this->result_ = r;
   this->response_handler_ = response_handler;
 
   co_await this->output_->write_async(message);
-
-  co_return co_await this->result_->get_future();
+  co_await r->get_future();
 }
 
 vds::http_client::client_pipeline::client_pipeline(

@@ -39,6 +39,8 @@ namespace vds {
       return this->impl_;
     }
 
+    bool operator ! () const;
+
 #ifndef _WIN32
     void process(uint32_t events) override;
 #endif

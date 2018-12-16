@@ -193,7 +193,6 @@ std::string vds::vds_cmd_app::login(const service_provider * sp)
     body_object->get_property("session", session);
   }).get();
 
-  std::cout << "Login successful" << std::endl;
   return session;
 }
 
@@ -260,7 +259,9 @@ void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::strin
         server + "/api/channels",
         co_await response.body()->read_all());
 
-      std::cout << "ID                                          |   Type   | Name\n";
+      std::cout << std::setw(44) << std::left << "ID" << "|"
+      << std::setw(15) << std::left << "Type" << "|"
+      << "Name" << std::endl;
 
       auto body_array = dynamic_cast<const json_array *>(body.get());
       for(size_t i = 0; i < body_array->size(); ++i) {
@@ -268,13 +269,13 @@ void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::strin
 
         std::string value;
         item->get_property("object_id", value);
-        std::cout << value << "|";
+        std::cout << std::setw(44) << value << "|";
 
         item->get_property("type", value);
-        std::cout << std::setw(10) << value << "|";
+        std::cout << std::setw(15) << std::left << value << "|";
 
         item->get_property("name", value);
-        std::cout << value << "\n";
+        std::cout << value << std::endl;
       }
     }
   }).get();

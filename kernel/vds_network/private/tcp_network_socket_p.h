@@ -79,6 +79,14 @@ namespace vds {
       return this->s_;
     }
 
+    bool operator ! () const {
+#ifdef _WIN32
+        return  (INVALID_SOCKET == this->s_);
+#else
+        return (0 >= this->s_);
+#endif
+    }
+
     static std::shared_ptr<tcp_network_socket> from_handle(
 #ifndef _WIN32
       const service_provider * sp,
@@ -369,6 +377,7 @@ namespace vds {
       auto r = std::make_shared<vds::async_result<void>>();
       if(0 == size){
         shutdown((*this->owner())->handle(), SHUT_WR);
+        r->set_value();
       }
       else {
         for (;;) {
@@ -472,6 +481,11 @@ namespace vds {
         uint8_t * buffer,
         size_t buffer_size) override {
       auto r = std::make_shared<vds::async_result<size_t>>();
+      if(!(*this->owner())){
+          r->set_value(0);
+          return r->get_future();
+      }
+
       int len = read(
           (*this->owner())->handle(),
           buffer,
@@ -485,7 +499,7 @@ namespace vds {
           this->result_ = r;
           (*this->owner())->change_mask(this->owner_, EPOLLIN);
         }
-        else if (0 == error && 0 == len) {
+        else if ((0 == error || EINTR == error) && 0 == len) {
           r->set_value(0);
         }
         else {
@@ -520,7 +534,7 @@ namespace vds {
         (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
 
         auto r = std::move(this->result_);
-        if (0 == error && 0 == len) {
+        if ((0 == error || EINTR == error) && 0 == len) {
           r->set_value(0);
         }
         else {
