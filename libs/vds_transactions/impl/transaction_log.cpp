@@ -86,11 +86,7 @@ void vds::transactions::transaction_log::process_block(
     t5.select(t1.consensus)
     .inner_join(t1, t1.id == t5.log_id)
     .where(t5.id == block.write_cert_id()));
-  if(!st.execute()) {
-    throw std::runtime_error("Invalid data");
-  }
-
-  if(!t1.consensus.get(st)) {
+  if(st.execute() && !t1.consensus.get(st)) {
     sp->get<logger>()->trace(
       ThisModule,
       "User %s is not in consensus. So ignore all actions from this user.",

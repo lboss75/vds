@@ -695,9 +695,20 @@ vds::async_task<std::list<uint16_t>> vds::dht::network::sync_process::prepare_re
   auto client = this->sp_->get<network::client>();
   std::list<uint16_t> replicas;
 
+  orm::chunk_dbo t1;
+  auto st = t.get_reader(
+    t1.select(t1.last_sync)
+    .where(t1.object_id == object_id));
+  if (st.execute()) {
+    for (uint16_t replica = 0; replica < service::MIN_DISTRIBUTED_PIECES; ++replica) {
+      replicas.push_back(replica);
+    }
+    co_return replicas;
+  }
+
   orm::chunk_replica_data_dbo t2;
   orm::device_record_dbo t4;
-  auto st = t.get_reader(
+  st = t.get_reader(
     t2.select(
         t2.replica)
       .inner_join(t4, t4.node_id == client->current_node_id() && t4.data_hash == t2.replica_hash)
