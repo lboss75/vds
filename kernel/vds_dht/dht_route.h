@@ -84,6 +84,7 @@ namespace vds {
           uint8_t hops,
           bool allow_skip) {
         vds_assert(id != this->current_node_id_);
+        vds_assert(proxy_session->partner_node_id() != this->current_node_id_);
 
         const auto index = dht_object_id::distance_exp(this->current_node_id_, id);
         std::shared_ptr<bucket> b;

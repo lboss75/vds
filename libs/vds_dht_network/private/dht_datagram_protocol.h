@@ -64,7 +64,7 @@ namespace vds {
             base64::from_bytes(this->this_node_id_).c_str(),
             base64::from_bytes(target_node).c_str());
 
-          co_await this->send_message_async(
+          return this->send_message_async(
             s,
             message_type,
             target_node,
@@ -92,7 +92,7 @@ namespace vds {
             base64::from_bytes(source_node).c_str(),
             base64::from_bytes(target_node).c_str());
 
-          co_await this->send_message_async(
+          return this->send_message_async(
             s,
             message_type,
             target_node,

@@ -23,7 +23,7 @@ vds::dht::network::_client::_client(
   const service_provider * sp,
   const std::shared_ptr<iudp_transport> & udp_transport,
   const std::shared_ptr<certificate> & node_cert,
-  const std::shared_ptr<asymmetric_private_key> & node_key)
+  const std::shared_ptr<asymmetric_private_key> & /*node_key*/)
   : sp_(sp),
     route_(sp, node_cert->fingerprint(hash::sha256())),
     update_timer_("DHT Network"),

@@ -2804,16 +2804,31 @@ vds::async_task<void> vds::dht::network::sync_process::replica_sync::object_info
         base64::from_bytes(*tail_node).c_str(),
         base64::from_bytes(*head_node).c_str());
       vds_assert(this->sync_leader_ == client->current_node_id());
-      co_await (*client)->send(
-        *tail_node,
-        message_create<messages::sync_offer_send_replica_operation_request>(
+      if(*tail_node == client->current_node_id()) {
+        co_await send_replica(
+          sp,
+          t,
+          *head_node,
           object_id,
+          minimal_replica,
+          client->current_node_id(),
           this->sync_generation_,
           this->sync_current_term_,
           this->sync_commit_index_,
-          this->sync_last_applied_,
-          minimal_replica,
-          *head_node));
+          this->sync_last_applied_);
+      }
+      else {
+        co_await(*client)->send(
+          *tail_node,
+          message_create<messages::sync_offer_send_replica_operation_request>(
+            object_id,
+            this->sync_generation_,
+            this->sync_current_term_,
+            this->sync_commit_index_,
+            this->sync_last_applied_,
+            minimal_replica,
+            *head_node));
+      }
 
       ++head_node;
       while (head->second.cend() == head_node) {
@@ -2895,7 +2910,7 @@ vds::async_task<void> vds::dht::network::sync_process::replica_sync::object_info
 
             vds_assert(this->sync_leader_ == client->current_node_id());
             if(node == client->current_node_id()) {
-              owner->remove_replica(t, object_id, replica, node);
+              co_await owner->remove_replica(t, object_id, replica, node);
             }
             else {
               co_await (*client)->send(

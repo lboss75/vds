@@ -358,6 +358,8 @@ inline vds::const_data_buffer vds::chunk_restore<cell_type>::restore(
       }
     }
   }
+
+  throw std::runtime_error("Fatal error at chunk_restore::restore");
 }
 
 #endif//__VDS_DATA_CHUNK_H_

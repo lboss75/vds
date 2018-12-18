@@ -194,7 +194,7 @@ const std::shared_ptr<vds::asymmetric_private_key> & vds::user_manager::get_curr
 }
 
 vds::const_data_buffer vds::user_manager::create_register_request(
-  const service_provider * sp,
+  const service_provider * /*sp*/,
   const std::string& userName,
   const std::string& user_email,
   const std::string& user_password) {
