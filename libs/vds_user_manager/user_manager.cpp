@@ -320,7 +320,7 @@ void vds::_user_manager::update(
         if (channel) {
           auto channel_read_key = channel->read_cert_private_key(message.channel_read_cert_subject());
           if (channel_read_key) {
-            message.walk_messages(*channel_read_key,
+            message.walk_messages(this->sp_, *channel_read_key,
               [this, channel_id = message.channel_id(), log](const transactions::channel_add_reader_transaction & message)->bool {
               auto cp = std::make_shared<user_channel>(
                 message.id,

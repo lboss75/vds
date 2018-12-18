@@ -96,6 +96,7 @@ namespace vds {
 
       template <typename... handler_types>
       void walk_messages(
+        const service_provider * sp,
         const asymmetric_private_key & channel_read_key,
         handler_types && ... handlers) const {
 
@@ -108,7 +109,7 @@ namespace vds {
         channel_messages_walker_lambdas<handler_types...> walker(
           std::forward<handler_types>(handlers)...);
 
-        walker.process(data);
+        walker.process(sp, data);
       }
 
     private:

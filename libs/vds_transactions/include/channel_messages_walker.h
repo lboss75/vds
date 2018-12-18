@@ -14,6 +14,7 @@ All rights reserved
 #include "user_message_transaction.h"
 #include "func_utils.h"
 #include "control_message_transaction.h"
+#include "logger.h"
 
 namespace vds {
   namespace transactions {
@@ -39,12 +40,24 @@ namespace vds {
         return true;
       }
 
-      bool process(const const_data_buffer & message_data) {
+      bool process(
+              const service_provider * sp,
+              const const_data_buffer & message_data) {
         binary_deserializer s(message_data);
+
+        std::string log;
+        for(size_t i = 0; i < message_data.size(); ++i){
+            char buf[3];
+            sprintf(buf, "%02X", message_data[i]);
+            log += buf;
+        }
+        sp->get<logger>()->debug("UserMng", "Process message [%s]", log.c_str());
 
         while(0 < s.size()) {
           uint8_t message_id;
           s >> message_id;
+
+          sp->get<logger>()->debug("UserMng", "Process message %d", message_id);
 
           switch((channel_message_id)message_id) {
           case channel_add_reader_transaction::message_id: {

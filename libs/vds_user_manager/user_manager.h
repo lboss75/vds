@@ -87,7 +87,7 @@ namespace vds {
             const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
             const auto data = symmetric_decrypt::decrypt(key, message.crypted_data());
 
-            return channel_handlers.process(data);
+            return channel_handlers.process(this->sp_, data);
           }
           return true;
         })) {
