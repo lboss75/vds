@@ -248,7 +248,7 @@ void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::strin
     [server, this](const http_message response) -> async_task<void> {
 
     if (http_response(response).code() != http_response::HTTP_OK) {
-      throw std::runtime_error("Query channels failed");
+      throw std::runtime_error("Query channels failed " + http_response(response).comment());
     }
 
     if (this->output_format_.value() == "json") {
