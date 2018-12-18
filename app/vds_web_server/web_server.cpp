@@ -232,12 +232,16 @@ vds::async_task<void> vds::_web_server::start(
           co_return http_message();
         }
 
-        std::string keep_alive_header;
+        sp->get<logger>()->debug(ThisModule, "Route [%s]", request.headers().front().c_str());
+
+        //std::string keep_alive_header;
         //bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
-        co_return co_await pthis->router_.route(sp, request);
+        auto response = co_await pthis->router_.route(sp, request);
+        sp->get<logger>()->debug(ThisModule, "Response [%s]", response.headers().front().c_str());
+        co_return response;
       }
       catch (const std::exception & ex) {
-        sp->get<logger>()->error(ThisModule, "%s at processing %s", ex.what(), request.headers().front().c_str());
+        sp->get<logger>()->error(ThisModule, "%s at processing [%s]", ex.what(), request.headers().front().c_str());
         co_return http_response::status_response(http_response::HTTP_Internal_Server_Error, ex.what());
       }
     });

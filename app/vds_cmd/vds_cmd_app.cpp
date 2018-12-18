@@ -187,7 +187,7 @@ std::string vds::vds_cmd_app::login(const service_provider * sp)
     body_object->get_property("state", value);
 
     if ("successful" != value) {
-      co_return;
+      throw std::runtime_error("Login failed " + value);
     }
 
     body_object->get_property("session", session);
