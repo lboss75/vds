@@ -78,7 +78,7 @@ namespace vds {
               break;
             }
             default: {
-            throw std::runtime_error("Invalid message");
+            throw std::runtime_error("Invalid channel message " + std::to_string(message_id));
           }
           }
         }
