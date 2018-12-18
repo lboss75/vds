@@ -237,6 +237,7 @@ vds::async_task<void> vds::_web_server::start(
         co_return co_await pthis->router_.route(sp, request);
       }
       catch (const std::exception & ex) {
+        sp->get<logger>()->error(ThisModule, "%s at processing %s", ex.what(), request.headers().front().c_str());
         co_return http_response::status_response(http_response::HTTP_Internal_Server_Error, ex.what());
       }
     });
