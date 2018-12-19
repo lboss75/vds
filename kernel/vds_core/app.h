@@ -175,7 +175,7 @@ namespace vds{
           registrator.add(this->logger_);
       }
 
-      void start_services(service_registrator &registrator, service_provider *sp) {
+      void start_services(service_registrator &registrator, service_provider * /*sp*/) {
           registrator.start();
           this->logger_.debug("core", "Start application");
       }

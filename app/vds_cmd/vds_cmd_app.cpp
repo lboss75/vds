@@ -242,42 +242,18 @@ void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::strin
   auto client = std::make_shared<http_client>();
   client->start(reader, writer).detach();
 
-  client->send(http_request::create(
+  auto request = http_request::create(
     "GET",
-    "/api/channels?session=" + url_encode::encode(session)).get_message(),
+    "/api/channels?session=" + url_encode::encode(session)).get_message();
+
+  client->send(request,
     [server, this](const http_message response) -> async_task<void> {
 
     if (http_response(response).code() != http_response::HTTP_OK) {
       throw std::runtime_error("Query channels failed " + http_response(response).comment());
     }
 
-    if (this->output_format_.value() == "json") {
-      std::cout << co_await response.body()->read_all() << std::endl;
-    }
-    else {
-      auto body = json_parser::parse(
-        server + "/api/channels",
-        co_await response.body()->read_all());
-
-      std::cout << std::setw(44) << std::left << "ID" << "|"
-      << std::setw(15) << std::left << "Type" << "|"
-      << "Name" << std::endl;
-
-      auto body_array = dynamic_cast<const json_array *>(body.get());
-      for(size_t i = 0; i < body_array->size(); ++i) {
-        auto item = dynamic_cast<const json_object *>(body_array->get(i).get());
-
-        std::string value;
-        item->get_property("object_id", value);
-        std::cout << std::setw(44) << value << "|";
-
-        item->get_property("type", value);
-        std::cout << std::setw(15) << std::left << value << "|";
-
-        item->get_property("name", value);
-        std::cout << value << std::endl;
-      }
-    }
+    return this->channel_list_out(server, response);
   }).get();
 }
 
@@ -304,4 +280,36 @@ void vds::vds_cmd_app::channel_create(const service_provider* sp, const std::str
 
     co_return;
   }).get();
+}
+
+vds::async_task<void> vds::vds_cmd_app::channel_list_out(const std::string& server, const http_message response) {
+
+  if (this->output_format_.value() == "json") {
+    std::cout << co_await response.body()->read_all() << std::endl;
+  }
+  else {
+    auto body = json_parser::parse(
+      server + "/api/channels",
+      co_await response.body()->read_all());
+
+    std::cout << std::setw(44) << std::left << "ID" << "|"
+      << std::setw(15) << std::left << "Type" << "|"
+      << "Name" << std::endl;
+
+    auto body_array = dynamic_cast<const json_array *>(body.get());
+    for (size_t i = 0; i < body_array->size(); ++i) {
+      auto item = dynamic_cast<const json_object *>(body_array->get(i).get());
+
+      std::string value;
+      item->get_property("object_id", value);
+      std::cout << std::setw(44) << value << "|";
+
+      item->get_property("type", value);
+      std::cout << std::setw(15) << std::left << value << "|";
+
+      item->get_property("name", value);
+      std::cout << value << std::endl;
+    }
+  }
+  co_return;
 }

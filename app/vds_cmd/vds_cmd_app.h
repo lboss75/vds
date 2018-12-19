@@ -8,6 +8,8 @@ All rights reserved
 #include "stdafx.h"
 
 namespace vds {
+  class http_message;
+
   class vds_cmd_app : public console_app<vds_cmd_app>
   {
     using base_class = console_app<vds_cmd_app>;
@@ -51,6 +53,8 @@ namespace vds {
 
     void channel_list(const service_provider * sp, const std::string & session);
     void channel_create(const service_provider * sp, const std::string & session);
+
+    async_task<void> channel_list_out(const std::string & server, const http_message response);
   };
 }
 
