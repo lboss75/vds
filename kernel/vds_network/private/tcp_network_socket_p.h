@@ -499,7 +499,7 @@ namespace vds {
           this->result_ = r;
           (*this->owner())->change_mask(this->owner_, EPOLLIN);
         }
-        else if ((0 == error || EINTR == error) && 0 == len) {
+        else if ((0 == error || EINTR == error || ENOENT == error) && 0 == len) {
           r->set_value(0);
         }
         else {
@@ -534,7 +534,7 @@ namespace vds {
         (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
 
         auto r = std::move(this->result_);
-        if ((0 == error || EINTR == error) && 0 == len) {
+        if ((0 == error || EINTR == error || ENOENT == error) && 0 == len) {
           r->set_value(0);
         }
         else {
