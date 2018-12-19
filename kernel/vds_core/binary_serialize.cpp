@@ -55,15 +55,16 @@ vds::binary_serializer & vds::binary_serializer::write_number(uint64_t value)
   
   value -= 128;
   
-  std::vector<uint8_t> data;
+  uint8_t data[8];
+  int index = 0;
   do {
-    data.push_back(value & 0xFF);
+    data[index++] = (value & 0xFF);
     value >>= 8;
   } while (0 != value);
   
-  this->data_.add((uint8_t)(0x80 | data.size()));
-  for(auto p = data.rbegin(); data.rend() != p; ++p){
-    this->data_.add(*p);
+  this->data_.add((uint8_t)(0x80 | index));
+  while(index > 0){
+    this->data_.add(data[--index]);
   }
   
   return *this;

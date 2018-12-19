@@ -22,13 +22,13 @@ namespace vds {
 				const_data_buffer block_id;
 				const_data_buffer block_key;
         std::vector<const_data_buffer> replica_hashes;
-        size_t block_size;
+        uint64_t block_size;
 			};
 
       struct file_info_t {
         std::string name;
         std::string mime_type;
-        size_t size;
+        uint64_t size;
         const_data_buffer file_id;
         std::list<file_block_t> file_blocks;
       };
