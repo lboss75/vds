@@ -229,6 +229,7 @@ void vds::vds_cmd_app::upload_file(const service_provider * sp, const std::strin
       throw std::runtime_error("Upload failed " + http_response(response).comment());
     }
 
+    co_return;
   }).get();
 }
 
