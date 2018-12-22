@@ -45,19 +45,19 @@ void vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
   int oflags;
   switch (mode) {
   case file_mode::append:
-    oflags = O_RDWR | O_CREAT | O_APPEND | O_BINARY | O_SEQUENTIAL;
+    oflags = O_RDWR | O_CREAT | O_APPEND;
     break;
 
   case file_mode::open_read:
-    oflags = O_RDONLY | O_BINARY | O_SEQUENTIAL;
+    oflags = O_RDONLY;
     break;
 
   case file_mode::open_write:
-    oflags = O_WRONLY | O_BINARY | O_SEQUENTIAL;
+    oflags = O_WRONLY;
     break;
 
   case file_mode::create_new:
-    oflags = O_RDWR | O_CREAT | O_BINARY | O_SEQUENTIAL;
+    oflags = O_RDWR | O_CREAT;
     break;
 
   case file_mode::truncate:
