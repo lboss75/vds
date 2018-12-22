@@ -250,7 +250,7 @@ vds::file_manager_private::_file_operations::pack_file(
   auto task = std::make_shared<_upload_stream_task>();
   auto file_blocks = co_await task->start(this->sp_, input_stream);
   
-  co_return pack_file_result{ task->result_hash(), task->total_size(), file_blocks };
+  co_return pack_file_result { task->result_hash(), task->total_size(), file_blocks };
 }
 
 vds::async_task<void> vds::file_manager_private::_file_operations::download_stream(

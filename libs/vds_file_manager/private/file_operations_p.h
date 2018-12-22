@@ -59,7 +59,7 @@ namespace vds {
 
       struct pack_file_result {
         const_data_buffer total_hash;
-        size_t total_size;
+        uint64_t total_size;
         std::list<transactions::user_message_transaction::file_block_t> file_blocks;
       };
 
