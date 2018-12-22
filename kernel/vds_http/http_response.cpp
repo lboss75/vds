@@ -86,7 +86,7 @@ vds::http_message vds::http_response::file_response(
 
 vds::http_message vds::http_response::file_response(
   const std::shared_ptr<stream_input_async<uint8_t>>& body,
-  size_t body_size,
+  uint64_t body_size,
   const std::string & filename,
   const std::string & content_type,
   int result_code,

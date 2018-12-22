@@ -27,10 +27,16 @@ vds::async_task<void> vds::http_client::start(
       decltype(pthis->response_handler_) f;
       pthis->response_handler_.swap(f);
 
-      co_await f(message);
+      try {
+        co_await f(message);
 
-      auto result = std::move(pthis->result_);
-      result->set_value();
+        auto result = std::move(pthis->result_);
+        result->set_value();
+      }
+      catch(...) {
+        auto result = std::move(pthis->result_);
+        result->set_exception(std::current_exception());
+      }
     }
     co_return;
   });

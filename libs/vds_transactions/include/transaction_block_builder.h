@@ -61,7 +61,7 @@ namespace vds {
         std::chrono::system_clock::time_point time_point_;
 
         std::set<const_data_buffer> ancestors_;
-        size_t order_no_;
+        uint64_t order_no_;
         binary_serializer data_;
 
         transaction_block_builder(const service_provider * sp);

@@ -1,12 +1,13 @@
 set root_folder=%~d0%~p0
-rmdir %root_folder%\Build-VC-64-debug /s /q
+rmdir %root_folder%\build_openssl /s /q
 
 set PATH=%PATH%;%HOMEDRIVE%%HOMEPATH%\AppData\Local\bin\NASM\;
 call ..\setenv.bat
 
-mkdir %root_folder%\Build-VC-64-debug
+mkdir %root_folder%\build_openssl
 cd %root_folder%\openssl
-perl Configure debug-VC-WIN64A no-shared no-tests --prefix=%root_folder%\Build-VC-64-debug --openssldir=%root_folder%\Build-VC-64-debug
+rem perl Configure debug-VC-WIN64A no-shared no-tests --prefix=%root_folder%\build_openssl --openssldir=%root_folder%\build_openssl
+perl Configure debug-VC-WIN32 no-shared no-tests --prefix=%root_folder%\build_openssl --openssldir=%root_folder%\build_openssl
 
 nmake -f makefile clean
 nmake -f makefile

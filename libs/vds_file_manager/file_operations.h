@@ -25,13 +25,13 @@ namespace vds {
       struct download_result_t {
         std::string name;
         std::string mime_type;
-        size_t size;
+        uint64_t size;
       };
 
       struct prepare_download_result_t {
         std::string name;
         std::string mime_type;
-        size_t size;
+        uint64_t size;
         int progress;
 
         std::map<const_data_buffer, dht::network::client::block_info_t> blocks;
