@@ -27,32 +27,20 @@ namespace vds {
         const service_provider * sp,
         const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 
-    const const_data_buffer & result_hash() const {
-      return this->result_hash_;
-    }
-
-    size_t total_size() const {
+    uint64_t total_size() const {
       return this->total_size_;
     }
 
+    const_data_buffer result_hash() const {
+      return this->total_hash_.signature();
+    }
+
   private:
+    uint64_t total_size_;
     hash total_hash_;
-    size_t total_size_;
 
-    uint8_t buffer_[vds::dht::network::service::BLOCK_SIZE];
-    size_t readed_;
-    std::list<transactions::user_message_transaction::file_block_t> file_blocks_;
-
-    const_data_buffer result_hash_;
-
-    vds::async_task<void> continue_read(
-      const service_provider * sp,
-        dht::network::client * network_client,
-        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
-
-    vds::async_task<void> process_data(
-        const service_provider * sp,
-        dht::network::client * network_client);
+    uint64_t readed_;
+    uint8_t buffer_[1024];
   };
 }
 

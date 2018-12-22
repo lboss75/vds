@@ -10,6 +10,7 @@ All rights reserved
 #include "const_data_buffer.h"
 #include "route_statistic.h"
 #include "session_statistic.h"
+#include "stream.h"
 
 namespace vds {
   class database_transaction;
@@ -45,9 +46,13 @@ namespace vds {
         };
 
         async_task<chunk_info> save(
-          
           database_transaction& t,
           const const_data_buffer& value);
+
+        async_task<chunk_info> start_save(
+          const service_provider * sp,
+          const std::function<async_task<void>(
+            const std::shared_ptr<stream_output_async<uint8_t>> & stream) > & data_writer);
 
         async_task<const_data_buffer> restore(          
           const chunk_info& block_id);

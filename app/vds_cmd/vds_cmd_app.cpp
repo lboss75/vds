@@ -226,10 +226,9 @@ void vds::vds_cmd_app::upload_file(const service_provider * sp, const std::strin
     [server](const http_message response) -> async_task<void> {
 
     if (http_response(response).code() != http_response::HTTP_OK) {
-      throw std::runtime_error("Upload failed");
+      throw std::runtime_error("Upload failed " + http_response(response).comment());
     }
 
-    co_return;
   }).get();
 }
 

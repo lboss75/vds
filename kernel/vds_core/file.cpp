@@ -2,6 +2,7 @@
 #include "stdafx.h"
 #include <sys/stat.h>
 #include "file.h"
+#include "persistence.h"
 
 vds::file::file()
 : handle_(0)
@@ -13,6 +14,11 @@ vds::file::file(const filename & filename, file_mode mode)
 : handle_(0)
 {
   this->open(filename, mode);
+}
+
+vds::file::file(file&& f) noexcept 
+: filename_(f.filename_), handle_(f.handle_){
+  f.handle_ = 0;
 }
 
 vds::file::~file()
@@ -39,29 +45,29 @@ void vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
   int oflags;
   switch (mode) {
   case file_mode::append:
-    oflags = O_WRONLY | O_CREAT | O_APPEND;
+    oflags = O_RDWR | O_CREAT | O_APPEND | O_BINARY | O_SEQUENTIAL;
     break;
 
   case file_mode::open_read:
-    oflags = O_RDONLY;
+    oflags = O_RDONLY | O_BINARY | O_SEQUENTIAL;
     break;
 
   case file_mode::open_write:
-    oflags = O_WRONLY;
+    oflags = O_WRONLY | O_BINARY | O_SEQUENTIAL;
     break;
 
   case file_mode::create_new:
-    oflags = O_WRONLY | O_CREAT;
+    oflags = O_RDWR | O_CREAT | O_BINARY | O_SEQUENTIAL;
     break;
 
   case file_mode::truncate:
-    oflags = O_WRONLY | O_CREAT | O_TRUNC;
+    oflags = O_RDWR | O_CREAT | O_TRUNC;
     break;
 
   case file_mode::open_or_create:
     //Try to create
 #ifndef _WIN32
-      this->handle_ = ::open(filename.local_name().c_str(), O_WRONLY | O_CREAT, S_IREAD | S_IWRITE);
+      this->handle_ = ::open(filename.local_name().c_str(), O_RDWR | O_CREAT, S_IREAD | S_IWRITE);
       if (0 > this->handle_) {
         auto error = errno;
         if(EEXIST != error) {
@@ -71,7 +77,7 @@ void vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
         return;
       }
 #else
-      this->handle_ = ::_open(this->filename_.local_name().c_str(), O_WRONLY | O_CREAT | O_BINARY | O_SEQUENTIAL, _S_IREAD | _S_IWRITE);
+      this->handle_ = ::_open(this->filename_.local_name().c_str(), O_RDWR | O_CREAT | O_BINARY | O_SEQUENTIAL, _S_IREAD | _S_IWRITE);
       if (0 > this->handle_) {
         auto error = GetLastError();
         if(EEXIST != error) {
@@ -144,6 +150,31 @@ void vds::file::write(
 
     buffer_len -= written;
     buffer = (const uint8_t *)buffer + written;
+  }
+}
+
+vds::file& vds::file::operator = (file&& f) {
+  this->close();
+  this->filename_ = std::move(f.filename_);
+  this->handle_ = f.handle_;
+  f.handle_ = 0;
+
+  return *this;
+}
+
+vds::file vds::file::create_temp(const service_provider * sp) {
+  foldername tmp_folder(persistence::current_user(sp), "tmp");
+  tmp_folder.create();
+
+  for (;;) {
+    try {
+      return file(filename(tmp_folder, std::to_string(std::rand()) + "." + std::to_string(std::rand()) + ".tmp"), file::file_mode::create_new);
+    }
+    catch(const std::system_error & ex) {
+      if(EEXIST != ex.code().value()) {
+        throw;
+      }      
+    }
   }
 }
 

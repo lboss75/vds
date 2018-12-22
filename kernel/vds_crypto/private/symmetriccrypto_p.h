@@ -109,7 +109,6 @@ namespace vds {
     }
     
     vds::async_task<void> write_async(
-      
         const uint8_t * input_buffer,
         size_t input_buffer_size) {
       if (0 < input_buffer_size) {
@@ -119,7 +118,7 @@ namespace vds {
             s = input_buffer_size;
           }
 
-          memcpy(this->input_buffer_, input_buffer, s);
+          memcpy(this->input_buffer_ + this->input_buffer_offset_, input_buffer, s);
 
           this->input_buffer_offset_ += s;
           input_buffer += s;

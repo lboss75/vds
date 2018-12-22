@@ -1,12 +1,44 @@
-//#include "stdafx.h"
-//#include "test_async_stream.h"
-//#include "mt_service.h"
-//#include "random_reader.h"
-//#include "compare_data.h"
-//
-//#include "async_buffer.h"
-//#include "random_buffer.h"
-//#include "test_config.h"
+#include "stdafx.h"
+#include "test_async_stream.h"
+#include "mt_service.h"
+#include "compare_data.h"
+
+#include "async_buffer.h"
+#include "random_buffer.h"
+#include "test_config.h"
+
+TEST(core_tests, test_file) {
+  
+  vds::filename fn1("file1");
+  vds::filename fn2("file2");
+
+  vds::file f1(fn1, vds::file::file_mode::create_new);
+  f1.close();
+
+  try {
+    vds::file f2(fn1, vds::file::file_mode::create_new);
+    f2.close();
+  }
+  catch (const std::system_error & ex) {
+    if (EEXIST != ex.code().value()) {
+      GTEST_FATAL_FAILURE_("file_mode::create_new failed");
+    }
+  }
+
+  vds::file f3(fn1, vds::file::file_mode::open_read);
+  f3.close();
+
+  try {
+    vds::file f4(fn2, vds::file::file_mode::open_write);
+    GTEST_FATAL_FAILURE_("file_mode::open_write failed");
+  }
+  catch (const std::system_error & ex) {
+    if (ENOENT != ex.code().value()) {
+      GTEST_FATAL_FAILURE_("file_mode::open_write failed");
+    }
+  }
+}
+
 //
 //TEST(mt_tests, test_async_stream) {
 //  vds::service_registrator registrator;

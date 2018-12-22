@@ -12,6 +12,7 @@ All rights reserved
 #include "gf.h"
 #include "binary_serialize.h"
 #include "vds_debug.h"
+#include "stream.h"
 
 namespace vds {
     template<typename cell_type>
@@ -62,13 +63,22 @@ namespace vds {
         chunk_generator(cell_type k, cell_type n);
         ~chunk_generator();
 
+        const cell_type k() const {
+          return this->k_;
+        }
+
+        const cell_type n() const {
+          return this->n_;
+        }
+
         const cell_type * multipliers() const
         {
           return this->multipliers_;
         }
 
-        void write(binary_serializer & s, const void * data, size_t size);
-        
+        void write(binary_serializer & s, const void * data, size_t size, bool write_padding = true);
+        void write_padding(binary_serializer & s, uint64_t size);
+
     private:        
         cell_type k_;
         cell_type n_;
@@ -91,7 +101,8 @@ namespace vds {
             
         const_data_buffer restore(
           const std::vector<const_data_buffer> & chunks);
-        
+
+
         const cell_type * multipliers() const
         {
           return this->multipliers_;
@@ -101,6 +112,67 @@ namespace vds {
         cell_type k_;
         cell_type * multipliers_;
     };
+
+    template<typename cell_type>
+    class chunk_output_async : public stream_output_async<uint8_t> {
+    public:
+    chunk_output_async(
+      chunk_generator<cell_type> & generator,
+      const std::shared_ptr<stream_output_async<uint8_t>> & target)
+    : generator_(generator),
+      target_(target),
+      size_(0),
+      buffer_(new uint8_t[1024 * generator.k() * sizeof(cell_type)]),
+      buffer_position_(0) {
+    }
+
+    async_task<void> write_async(
+      const uint8_t * data,
+      size_t len) override {
+
+      if (0 != len) {
+        this->size_ += len;
+        while (len > 0) {
+          auto l = len;
+          if(l > 1024 * this->generator_.k() * sizeof(cell_type) - this->buffer_position_) {
+            l = 1024 * this->generator_.k() * sizeof(cell_type) - this->buffer_position_;
+          }
+
+          memcpy(this->buffer_.get() + this->buffer_position_, data, l);
+          data += l;
+          len -= l;
+          this->buffer_position_ += l;
+
+          if (1024 * this->generator_.k() * sizeof(cell_type) == this->buffer_position_) {
+            binary_serializer s;
+            this->generator_.write(s, this->buffer_.get(), this->buffer_position_, false);
+            co_await this->target_->write_async(s.get_buffer(), s.size());
+            this->buffer_position_ = 0;
+          }
+        }
+      }
+      else {
+        binary_serializer s;
+        if (0 != this->buffer_position_) {
+          this->generator_.write(s, this->buffer_.get(), this->buffer_position_);
+        }
+        else {
+          this->generator_.write_padding(s, this->size_);
+        }
+        co_await this->target_->write_async(s.get_buffer(), s.size());
+        co_await this->target_->write_async(nullptr, 0);
+      }
+    }
+
+  private:
+    chunk_generator<cell_type> & generator_;
+    std::shared_ptr<stream_output_async<uint8_t>> target_;
+    uint64_t size_;
+
+    std::unique_ptr<uint8_t> buffer_;
+    size_t buffer_position_;
+  };
+
 }
 
 template<typename cell_type>
@@ -169,10 +241,10 @@ inline vds::chunk_generator<cell_type>::~chunk_generator()
 }
 
 template<typename cell_type>
-inline void vds::chunk_generator<cell_type>::write(binary_serializer & s, const void * data, size_t size)
+inline void vds::chunk_generator<cell_type>::write(binary_serializer & s, const void * data, size_t size, bool write_padding)
 {
-  uint64_t expected_size = ((size + sizeof(cell_type) * this->k_ - 1)/ sizeof(cell_type) / this->k_) * sizeof(cell_type);
-  auto start = s.size();
+  const uint64_t expected_size = ((size + sizeof(cell_type) * this->k_ - 1)/ sizeof(cell_type) / this->k_) * sizeof(cell_type);
+  const auto start = s.size();
 
   for (size_t i = 0; i < size; i += sizeof(cell_type) * this->k_) {
     cell_type value = 0;
@@ -192,10 +264,21 @@ inline void vds::chunk_generator<cell_type>::write(binary_serializer & s, const 
 
     s << value;
   }
-  
-  auto final = s.size();
-  assert(expected_size == final - start);
 
+  auto final_size = s.size();
+  assert(expected_size == final_size - start);
+
+  if (write_padding) {
+    s << safe_cast<uint16_t>(size % (sizeof(cell_type) * this->k_));//Padding
+  }
+  else {
+    vds_assert(0 == size % (sizeof(cell_type) * this->k_));
+  }
+}
+
+template<typename cell_type>
+inline void vds::chunk_generator<cell_type>::write_padding(binary_serializer & s, uint64_t size)
+{
   s << safe_cast<uint16_t>(size % (sizeof(cell_type) * this->k_));//Padding
 }
 

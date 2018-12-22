@@ -12,64 +12,63 @@ vds::async_task<std::list<vds::transactions::user_message_transaction::file_bloc
   const service_provider * sp,
     const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
 
+  auto result = std::list<transactions::user_message_transaction::file_block_t>();
+
   auto network_client = sp->get<dht::network::client>();
-  co_await this->continue_read(sp, network_client, input_stream);
-  co_return this->file_blocks_;
-}
+  for (bool is_eof = false; !is_eof;) {
+    uint64_t readed;
+    if (this->readed_ == 0) {
+      this->readed_ = co_await input_stream->read_async(this->buffer_, sizeof(this->buffer_));
 
-vds::async_task<void>
-vds::_upload_stream_task::continue_read(
-  const service_provider * sp,
-  dht::network::client * network_client,
-  const std::shared_ptr<vds::stream_input_async<uint8_t>> &input_stream) {
-  for (;;) {
-    size_t readed = co_await input_stream->read_async(this->buffer_ + this->readed_, sizeof(this->buffer_) - this->readed_);
-
-    if (0 == readed) {
-      co_await this->process_data(sp, network_client);
-      this->total_hash_.final();
-      this->result_hash_ = this->total_hash_.signature();
-      co_return;
-    }
-    else {
-      this->readed_ += readed;
-      if (this->readed_ == sizeof(this->buffer_)) {
-        co_await this->process_data(sp, network_client);
+      if (this->readed_ == 0) {
+        break;
       }
+
+      this->total_size_ += this->readed_;
+      this->total_hash_.update(this->buffer_, this->readed_);
     }
-  }
-}
 
-vds::async_task<void> vds::_upload_stream_task::process_data(
-  const service_provider * sp,
-  dht::network::client * network_client) {
+    auto block_info = co_await network_client->start_save(sp, [pthis = this->shared_from_this(), input_stream, &readed, &is_eof](
+      const std::shared_ptr<stream_output_async<uint8_t>>& stream) -> async_task<void> {
+      readed = 0;
+      for(;;) {
+        if(pthis->readed_ == 0) {
+          pthis->readed_ = co_await input_stream->read_async(pthis->buffer_, sizeof(pthis->buffer_));
 
-  if(0 == this->readed_) {
-    co_return;
-  }
-  else {
-    this->total_hash_.update(this->buffer_, this->readed_);
-    this->total_size_ += this->readed_;
-  }
+          if(pthis->readed_ == 0) {
+            is_eof = true;
+            break;
+          }
 
-  co_await sp->get<db_model>()->async_transaction([pthis = this->shared_from_this(), network_client](
-    database_transaction &t)->bool{
+          pthis->total_size_ += pthis->readed_;
+          pthis->total_hash_.update(pthis->buffer_, pthis->readed_);
+        }
 
-    auto block_info = network_client->save(
-      t,
-      vds::const_data_buffer(pthis->buffer_, pthis->readed_)).get();
+        auto len = pthis->readed_;
+        if(len + readed > dht::network::service::BLOCK_SIZE) {
+          len = dht::network::service::BLOCK_SIZE - readed;
+        }
+        co_await stream->write_async(pthis->buffer_, len);
+        
+        readed += len;
+        pthis->readed_ -= len;
+        if(0 != pthis->readed_) {
+          memmove(pthis->buffer_, pthis->buffer_ + len, pthis->readed_);
+        }
+        if (readed >= dht::network::service::BLOCK_SIZE) {
+          break;
+        }
+      }
+      co_await stream->write_async(nullptr, 0);
+    });
 
-    pthis->file_blocks_.push_back(transactions::user_message_transaction::file_block_t{
+    result.push_back(transactions::user_message_transaction::file_block_t{
       /*block_id =*/ block_info.id,
       /*block_key =*/ block_info.key,
       /*object_ids*/block_info.object_ids,
-      /*block_size =*/ pthis->readed_
+      /*block_size =*/ readed
     });
 
-    pthis->readed_ = 0;
-
-    return true;
-  });
+  }
+  co_return result;
 }
-
-

@@ -47,6 +47,8 @@ namespace vds {
 
     file();
     file(const filename & filename, file_mode mode);
+    file(const file & f) = delete;
+    file(file && f) noexcept;
     ~file();
 
     void open(const filename & filename, file_mode mode);
@@ -62,6 +64,15 @@ namespace vds {
 
     void write(
       const const_data_buffer & buf) { this->write(buf.data(), buf.size()); }
+
+    const filename & name() const {
+      return this->filename_;
+    }
+
+    file & operator = (const file & f) = delete;
+    file & operator = (file && f);
+
+    static file create_temp(const service_provider * sp);
 
     size_t length() const;
 

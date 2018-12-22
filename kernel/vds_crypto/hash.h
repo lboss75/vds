@@ -1,5 +1,6 @@
 #ifndef __VDS_CRYPTO_HASH_H_
 #define __VDS_CRYPTO_HASH_H_
+#include "stream.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -36,6 +37,26 @@ namespace vds {
   private:
     class _hash * impl_;
   };
+
+  class hash_stream_output_async : public stream_output_async<uint8_t> {
+  public:
+    hash_stream_output_async(
+      const hash_info & info,
+      const std::shared_ptr<stream_output_async<uint8_t>> & target);
+
+    async_task<void> write_async(
+      const uint8_t *data,
+      size_t len) override;
+
+    const_data_buffer signature() const {
+      return this->hash_.signature();
+    }
+
+  private:
+    hash hash_;
+    std::shared_ptr<stream_output_async<uint8_t>> target_;
+  };
+
 
   class _hmac;
   class hmac

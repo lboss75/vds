@@ -39,6 +39,8 @@ namespace vds {
 
   namespace dht {
     namespace network {
+      class client_save_stream;
+
       class _client : public std::enable_shared_from_this<_client> {
       public:
         _client(
@@ -64,10 +66,17 @@ namespace vds {
           const const_data_buffer& data_hash,
           const const_data_buffer& data);
 
+        static filename save_data(
+          const service_provider * sp,
+          database_transaction& t,
+          const const_data_buffer& data_hash,
+          const filename & original_file);
+
         async_task<std::vector<vds::const_data_buffer>> save(
-          
           database_transaction& t,
           const const_data_buffer& value);
+
+        std::shared_ptr<client_save_stream> create_save_stream();
 
         const const_data_buffer& current_node_id() const {
           return this->route_.current_node_id();
@@ -287,6 +296,7 @@ namespace vds {
         friend class sync_process;
         friend class dht_session;
         friend class mock_server;
+        friend class client_save_stream;
 
         const service_provider * sp_;
         std::shared_ptr<iudp_transport> udp_transport_;

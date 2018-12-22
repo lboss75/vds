@@ -45,13 +45,13 @@ namespace vds {
               const const_data_buffer & message_data) {
         binary_deserializer s(message_data);
 
-        std::string log;
-        for(size_t i = 0; i < message_data.size(); ++i){
-            char buf[3];
-            sprintf(buf, "%02X", message_data[i]);
-            log += buf;
-        }
-        sp->get<logger>()->debug("UserMng", "Process message [%s]", log.c_str());
+        //std::string log;
+        //for(size_t i = 0; i < message_data.size(); ++i){
+        //    char buf[3];
+        //    sprintf(buf, "%02X", message_data[i]);
+        //    log += buf;
+        //}
+        //sp->get<logger>()->debug("UserMng", "Process message [%s]", log.c_str());
 
         while(0 < s.size()) {
           uint8_t message_id;

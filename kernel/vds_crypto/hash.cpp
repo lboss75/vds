@@ -72,6 +72,23 @@ vds::const_data_buffer vds::hash::signature(
   
   return h.signature();
 }
+
+vds::hash_stream_output_async::hash_stream_output_async(const hash_info& info,
+  const std::shared_ptr<stream_output_async<uint8_t>>& target)
+: hash_(info), target_(target){
+}
+
+vds::async_task<void> vds::hash_stream_output_async::write_async(const uint8_t* data, size_t len) {
+  if(len != 0) {
+    this->hash_.update(data, len);
+    co_await this->target_->write_async(data, len);
+  }
+  else {
+    this->hash_.final();
+    co_await this->target_->write_async(data, len);
+  }
+}
+
 ///////////////////////////////////////////////////////////////
 vds::_hash::_hash(const hash_info & info)
   : info_(info)

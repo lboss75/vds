@@ -155,6 +155,10 @@ vds::symmetric_encrypt::~symmetric_encrypt() {
   delete this->impl_;
 }
 
+vds::async_task<void> vds::symmetric_encrypt::write_async(const uint8_t* data, size_t len) {
+  return this->impl_->write_async(data, len);
+}
+
 vds::const_data_buffer vds::symmetric_encrypt::encrypt(
   const vds::symmetric_key& key,
   const void * input_buffer,

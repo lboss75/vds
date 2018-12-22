@@ -18,6 +18,7 @@ All rights reserved
 #include "well_known_node_dbo.h"
 #include "dht_network.h"
 #include "sync_replica_map_dbo.h"
+#include "dht_client_save_stream.h"
 
 vds::dht::network::_client::_client(
   const service_provider * sp,
@@ -38,7 +39,6 @@ vds::dht::network::_client::_client(
 }
 
 vds::async_task<std::vector<vds::const_data_buffer>> vds::dht::network::_client::save(
-  
   database_transaction& t,
   const const_data_buffer& value) {
 
@@ -48,35 +48,39 @@ vds::async_task<std::vector<vds::const_data_buffer>> vds::dht::network::_client:
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
     const auto replica_data = s.move_data();
     const auto replica_hash = hash::signature(hash::sha256(), replica_data);
-    const auto& object_id = replica_hash;
 
     orm::chunk_dbo t1;
     orm::sync_replica_map_dbo t2;
-    auto st = t.get_reader(t1.select(t1.object_id).where(t1.object_id == object_id));
+    auto st = t.get_reader(t1.select(t1.object_id).where(t1.object_id == replica_hash));
     if (!st.execute()) {
       auto client = this->sp_->get<dht::network::client>();
       save_data(this->sp_, t, replica_hash, replica_data);
       t.execute(
         t1.insert(
-          t1.object_id = object_id,
+          t1.object_id = replica_hash,
           t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
         ));
       for (uint16_t distributed_replica = 0; distributed_replica < service::GENERATE_DISTRIBUTED_PIECES; ++distributed_replica) {
         t.execute(
           t2.insert(
-            t2.object_id = object_id,
+            t2.object_id = replica_hash,
             t2.node = client->current_node_id(),
             t2.replica = distributed_replica,
             t2.last_access = std::chrono::system_clock::now()
           ));
       }
 
-      co_await this->sync_process_.add_sync_entry(t, object_id, replica_data.size());
+      co_await this->sync_process_.add_sync_entry(t, replica_hash, replica_data.size());
     }
     result[replica] = replica_hash;
   }
 
   co_return result;
+}
+
+
+std::shared_ptr<vds::dht::network::client_save_stream> vds::dht::network::_client::create_save_stream() {
+  return std::make_shared<client_save_stream>(this->sp_, this->generators_);
 }
 
 vds::async_task<void> vds::dht::network::_client::apply_message(
@@ -378,6 +382,59 @@ vds::filename vds::dht::network::_client::save_data(
     t4.local_path = fn.full_name(),
     t4.data_hash = data_hash,
     t4.data_size = data.size()));
+
+  return fn;
+}
+
+vds::filename vds::dht::network::_client::save_data(const service_provider* sp, database_transaction& t,
+  const const_data_buffer& data_hash, const filename& original_file) {
+  auto client = sp->get<network::client>();
+
+  uint64_t allowed_size = 0;
+  std::string local_path;
+
+  orm::device_config_dbo t3;
+  orm::device_record_dbo t4;
+  db_value<int64_t> data_size;
+  auto st = t.get_reader(
+    t3.select(t3.local_path, t3.reserved_size, db_sum(t4.data_size).as(data_size))
+    .left_join(t4, t4.node_id == t3.node_id && t4.storage_path == t3.local_path)
+    .where(t3.node_id == client->current_node_id())
+    .group_by(t3.local_path, t3.reserved_size));
+  while (st.execute()) {
+    const int64_t size = data_size.is_null(st) ? 0 : data_size.get(st);
+    if (t3.reserved_size.get(st) > size && allowed_size < (t3.reserved_size.get(st) - size)) {
+      allowed_size = (t3.reserved_size.get(st) - size);
+      local_path = t3.local_path.get(st);
+    }
+  }
+  auto size = file::length(original_file);
+  if (local_path.empty() || allowed_size < size) {
+    throw std::runtime_error("No disk space");
+  }
+
+  auto append_path = base64::from_bytes(data_hash);
+  str_replace(append_path, '+', '#');
+  str_replace(append_path, '/', '_');
+
+  foldername fl(local_path);
+  fl.create();
+
+  fl = foldername(fl, append_path.substr(0, 10));
+  fl.create();
+
+  fl = foldername(fl, append_path.substr(10, 10));
+  fl.create();
+
+  filename fn(fl, append_path.substr(20));
+  file::move(original_file, fn);
+
+  t.execute(t4.insert(
+    t4.node_id = client->current_node_id(),
+    t4.storage_path = local_path,
+    t4.local_path = fn.full_name(),
+    t4.data_hash = data_hash,
+    t4.data_size = size));
 
   return fn;
 }
@@ -710,6 +767,77 @@ vds::async_task<vds::dht::network::client::chunk_info> vds::dht::network::client
 
   auto crypted_data = symmetric_encrypt::encrypt(key2, zipped);
   auto info = co_await this->impl_->save(t, crypted_data);
+  co_return chunk_info
+  {
+    key_data,
+    key_data2,
+    info
+  };
+}
+
+
+vds::async_task<vds::dht::network::client::chunk_info> vds::dht::network::client::start_save(
+  const service_provider * sp,
+  const std::function<async_task<void>(const std::shared_ptr<stream_output_async<uint8_t>>& stream)>& data_writer) {
+
+  auto tmp_file = std::make_shared<file>(file::create_temp(sp));
+  auto original_file = std::make_shared<file_stream_output_async>(tmp_file.get());
+  auto original_hash = std::make_shared<hash_stream_output_async>(hash::sha256(), original_file);
+
+  co_await data_writer(original_hash);
+
+  auto key_data = original_hash->signature();
+
+  if (key_data.size() != symmetric_crypto::aes_256_cbc().key_size()
+    || sizeof(pack_block_iv) != symmetric_crypto::aes_256_cbc().iv_size()) {
+    throw std::runtime_error("Design error");
+  }
+
+  auto key = symmetric_key::create(
+    symmetric_crypto::aes_256_cbc(),
+    key_data.data(),
+    pack_block_iv);
+
+  auto null_steam = std::make_shared<null_stream_output_async>();
+  auto crypto_hash = std::make_shared<hash_stream_output_async>(hash::sha256(), null_steam);
+  auto crypto_stream = std::make_shared<symmetric_encrypt>(key, crypto_hash);
+
+  tmp_file->seek(0);
+
+  uint8_t buffer[16 * 1024];
+  for(;;) {
+    const auto readed = tmp_file->read(buffer, sizeof(buffer));
+    co_await crypto_stream->write_async(buffer, readed);
+
+    if(0 == readed) {
+      break;
+    }
+  }
+
+  auto key_data2 = crypto_hash->signature();
+
+  auto key2 = symmetric_key::create(
+    symmetric_crypto::aes_256_cbc(),
+    key_data2.data(),
+    pack_block_iv);
+
+
+  auto save_stream = this->impl_->create_save_stream();
+  crypto_stream = std::make_shared<symmetric_encrypt>(key2, save_stream);
+  auto deflate_steam = std::make_shared<deflate>(crypto_stream);
+
+  tmp_file->seek(0);
+  for (;;) {
+    const auto readed = tmp_file->read(buffer, sizeof(buffer));
+    co_await deflate_steam->write_async(buffer, readed);
+
+    if (0 == readed) {
+      break;
+    }
+  }
+  
+  auto info = co_await save_stream->save();
+
   co_return chunk_info
   {
     key_data,

@@ -90,6 +90,11 @@ namespace vds {
 
     ~symmetric_encrypt();
 
+    async_task<void> write_async(
+      const uint8_t *data,
+      size_t len) override;
+
+
     static const_data_buffer encrypt(
       const symmetric_key & key,
       const void * input_buffer,

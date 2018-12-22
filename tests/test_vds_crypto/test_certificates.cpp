@@ -23,7 +23,7 @@ TEST(test_certificates, test_pem)
 
 
     {
-      auto sp = registrator.build();
+      registrator.build();
       registrator.start();
 
       //Generate CA certificate

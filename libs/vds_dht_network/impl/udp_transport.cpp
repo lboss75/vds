@@ -362,7 +362,9 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
       }
       else {
         logger::get(this->sp_)->trace(ThisModule, "Block session %s", datagram.address().to_string().c_str());
-        (*this->sp_->get<client>())->remove_session(session_info.session_);
+        if (session_info.session_) {
+          (*this->sp_->get<client>())->remove_session(session_info.session_);
+        }
         session_info.blocked_ = true;
         session_info.session_.reset();
         session_info.update_time_ = std::chrono::steady_clock::now();

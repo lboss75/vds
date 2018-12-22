@@ -23,6 +23,27 @@ namespace vds {
   };
 
 
+  class file_stream_output_async : public stream_output_async<uint8_t> {
+  public:
+    file_stream_output_async(const filename & fn, const file::file_mode mode);
+    explicit file_stream_output_async(file * f);
+    ~file_stream_output_async();
+
+    vds::async_task<void> write_async(
+      const uint8_t *data,
+      size_t len) override;
+
+  private:
+    file own_file_;
+    file * f_;
+  };
+
+  class null_stream_output_async : public stream_output_async<uint8_t> {
+  public:
+    vds::async_task<void> write_async(
+      const uint8_t *data,
+      size_t len) override;
+  };
   ///////////////////////////////////////////////////////////
 
   template <typename item_type>
