@@ -157,6 +157,8 @@ bool vds::vds_cmd_app::need_demonize()
 std::string vds::vds_cmd_app::login(const service_provider * sp)
 {
   auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
+  
+  std::cout << "Logging in into " << server << "..." << std::endl;
 
   auto s = tcp_network_socket::connect(sp, network_address::parse(server));
   auto[reader, writer] = s->start(sp);
@@ -193,11 +195,16 @@ std::string vds::vds_cmd_app::login(const service_provider * sp)
     body_object->get_property("session", session);
   }).get();
 
+  std::cout << "Login successful" << std::endl;
+
   return session;
 }
 
 void vds::vds_cmd_app::upload_file(const service_provider * sp, const std::string & session) {
   auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
+  
+  filename fn(this->attachment_.value());
+  std::cout << "Uploading " << fn.name() << "(" << file::length(fn) << "bytes) to " << server << std::endl;
 
   auto s = tcp_network_socket::connect(sp, network_address::parse(server));
   auto[reader, writer] = s->start(sp);
@@ -214,7 +221,6 @@ void vds::vds_cmd_app::upload_file(const service_provider * sp, const std::strin
     request.add_string("message", this->message_.value());
   }
 
-  filename fn(this->attachment_.value());
 
   auto mimetype = http_mimetype::mimetype(fn);
   if(mimetype.empty()) {
@@ -231,6 +237,8 @@ void vds::vds_cmd_app::upload_file(const service_provider * sp, const std::strin
 
     co_return;
   }).get();
+
+  std::cout << "Upload completed" << std::endl;
 }
 
 void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::string& session) {
