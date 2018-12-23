@@ -35,6 +35,10 @@ namespace vds {
     user_manager::login_state_t get_login_state() const;
     const std::string & user_name();
 
+    const std::chrono::steady_clock::time_point & last_update() const {
+      return this->last_update_;
+    }
+
   private:
     std::string session_id_;
     std::string login_;

@@ -193,7 +193,8 @@ router_({
   {"/api/upload", "POST", &api_controller::create_message },
   {"/upload", "POST", &index_page::create_message },
   {"/api/statistics", "GET", &api_controller::get_statistics },
-  })
+  }),
+  update_timer_("web session timer")
 {
   this->router_.auth_callback([this](const http_request & message) {
     return this->get_secured_context(message.get_parameter("session"));
@@ -246,6 +247,26 @@ vds::async_task<void> vds::_web_server::start(
       }
     });
     co_await session->handler_->process(reader);
+  });
+
+  this->update_timer_.start(this->sp_, std::chrono::minutes(1), [pthis = this->shared_from_this()]()->async_task<bool> {
+    std::set<std::string> to_kill;
+
+    auto dest_point = std::chrono::steady_clock::now() - std::chrono::minutes(30);
+
+    std::shared_lock<std::shared_mutex> lock(pthis->auth_session_mutex_);
+    for(auto p : pthis->auth_sessions_) {
+      if(p.second->last_update() < dest_point) {
+        to_kill.emplace(p.first);
+      }
+    }
+    lock.unlock();
+
+    for(auto session : to_kill) {
+      pthis->kill_session(session);
+    }
+
+    co_return !pthis->sp_->get_shutdown_event().is_shuting_down();
   });
 }
 

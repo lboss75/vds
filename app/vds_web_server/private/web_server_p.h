@@ -40,11 +40,11 @@ namespace vds {
   private:
     const service_provider * sp_;
     tcp_socket_server server_;
-    //http_middleware<_web_server> middleware_;
     http_router router_;
 
     mutable std::shared_mutex auth_session_mutex_;
     std::map<std::string, std::shared_ptr<auth_session>> auth_sessions_;
+    timer update_timer_;
 
     void load_web(const std::string& path, const foldername & folder);
 
