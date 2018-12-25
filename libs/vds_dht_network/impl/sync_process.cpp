@@ -2501,16 +2501,18 @@ vds::async_task<void> vds::dht::network::sync_process::sync_local_queues(
                            .where(t1.last_send <= std::chrono::system_clock::now() - LOCAL_QUEUE_TIMEOUT()));
   std::set<uint64_t> processed;
   while (st.execute()) {
-    co_await (*client)->send(
-      t3.voted_for.get(st),
-      message_create<messages::sync_add_message_request>(
-        t1.object_id.get(st),
+    if (client->current_node_id() != t3.voted_for.get(st)) {
+      co_await(*client)->send(
         t3.voted_for.get(st),
-        client->current_node_id(),
-        t1.local_index.get(st),
-        t1.message_type.get(st),
-        t1.member_node.get(st),
-        t1.replica.get(st)));
+        message_create<messages::sync_add_message_request>(
+          t1.object_id.get(st),
+          t3.voted_for.get(st),
+          client->current_node_id(),
+          t1.local_index.get(st),
+          t1.message_type.get(st),
+          t1.member_node.get(st),
+          t1.replica.get(st)));
+    }
     processed.emplace(t1.local_index.get(st));
   }
 

@@ -587,7 +587,7 @@ vds::async_task<void> vds::dht::network::_client::restore(
       throw vds_exceptions::not_found();
     }
 
-    std::this_thread::sleep_for(std::chrono::minutes(2));
+    std::this_thread::sleep_for(std::chrono::seconds(10));
   }
 }
 
