@@ -28,11 +28,11 @@ namespace vds {
       static std::string get_ip_address_string(const sockaddr_in & from);
       
       _network_service * operator -> () const {
-        return this->impl_;
+        return this->impl_.get();
       }
 
     private:
-      _network_service * const impl_;
+      std::shared_ptr<_network_service> impl_;
     };
 }
 

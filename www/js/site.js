@@ -53,7 +53,7 @@ function load_channel(session_id, channel_id, channel_name) {
                         $('#feed_records')
                             .append($('<div class="panel panel-default" />')
                                 .append($('<div class="panel-heading" />')
-                                    .text(this.message)
+                                    .text(this.message.message + "(" + this.time_point + ")")
                                     .append(files)));
                 }
             );

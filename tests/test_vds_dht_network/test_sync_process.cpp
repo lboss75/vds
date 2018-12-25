@@ -309,12 +309,11 @@ vds::async_task<void> mock_server::process_datagram(
     vds::const_data_buffer(datagram.data(), datagram.data_size()));
 }
 
-void mock_server::add_session(
-  
+vds::async_task<void> mock_server::add_session(
   const std::shared_ptr<vds::dht::network::dht_session>& session) {
   this->sessions_.emplace(session->address(), session);
 
-  (*this->sp_->get<vds::dht::network::client>())->add_session(session, 0);
+  return (*this->sp_->get<vds::dht::network::client>())->add_session(session, 0);
 }
 
 const vds::network_address& mock_server::address() const {
@@ -331,7 +330,6 @@ const vds::network_address& mock_server::address() const {
          t,\
          message,\
          message_info).get();\
-        return true;\
       });\
       break;\
     }
@@ -443,12 +441,13 @@ vds::async_task<void> mock_server::prepare_to_stop() {
   co_return;
 }
 
-void mock_transport::start(
+vds::async_task<void> mock_transport::start(
   const vds::service_provider * /*sp*/,
   const std::shared_ptr<vds::certificate> & node_cert,
   const std::shared_ptr<vds::asymmetric_private_key> & /*node_key*/,
   uint16_t /*port*/) {
   this->node_id_ = node_cert->fingerprint();
+  co_return;
 }
 
 void mock_transport::stop() {

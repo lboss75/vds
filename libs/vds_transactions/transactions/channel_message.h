@@ -98,6 +98,7 @@ namespace vds {
       void walk_messages(
         const service_provider * sp,
         const asymmetric_private_key & channel_read_key,
+        const message_environment_t & message_environment,
         handler_types && ... handlers) const {
 
         const auto decrypted_data = channel_read_key.decrypt(this->crypted_key_);
@@ -109,7 +110,7 @@ namespace vds {
         channel_messages_walker_lambdas<handler_types...> walker(
           std::forward<handler_types>(handlers)...);
 
-        walker.process(sp, data);
+        walker.process(sp, data, message_environment);
       }
 
     private:

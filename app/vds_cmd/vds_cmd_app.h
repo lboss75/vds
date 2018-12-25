@@ -49,6 +49,8 @@ namespace vds {
     network_service network_service_;
 
     std::string login(const service_provider * sp);
+    void logout(const service_provider * sp, const std::string & session);
+
     void upload_file(const service_provider * sp, const std::string & session);
 
     void channel_list(const service_provider * sp, const std::string & session);

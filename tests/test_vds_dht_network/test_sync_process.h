@@ -63,7 +63,7 @@ public:
     mock_server * owner,
     const std::shared_ptr<transport_hab> & hab);
 
-  void start(
+  vds::async_task<void> start(
     const vds::service_provider * sp,
     const std::shared_ptr<vds::certificate> & node_cert,
     const std::shared_ptr<vds::asymmetric_private_key> & node_key,
@@ -104,14 +104,12 @@ public:
   void stop() override;
   vds::async_task<void> prepare_to_stop() override;
 
-  vds::async_task<void> process_datagram(
-    
+  vds::async_task<void> process_datagram(    
     const vds::udp_datagram& datagram,
     const vds::const_data_buffer& source_node_id,
     const vds::network_address & source_address);
 
-  void add_session(
-    
+  vds::async_task<void> add_session(    
     const std::shared_ptr<vds::dht::network::dht_session> & session);
 
   const vds::network_address & address() const;

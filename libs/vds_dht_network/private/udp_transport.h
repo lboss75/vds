@@ -30,7 +30,7 @@ namespace vds {
         udp_transport(udp_transport&&) = delete;
         ~udp_transport();
 
-        void start(
+        async_task<void> start(
           const service_provider * sp,
           const std::shared_ptr<certificate> & node_cert,
           const std::shared_ptr<asymmetric_private_key> & node_key,

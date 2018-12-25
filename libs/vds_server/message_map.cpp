@@ -18,7 +18,6 @@
          t,\
          message,\
          message_info).get();\
-        return true;\
       });\
       break;\
     }

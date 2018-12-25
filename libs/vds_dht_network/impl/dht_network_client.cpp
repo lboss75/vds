@@ -147,11 +147,11 @@ vds::async_task<void> vds::dht::network::_client::apply_message(
   co_return;
 }
 
-void vds::dht::network::_client::add_session(
+vds::async_task<void> vds::dht::network::_client::add_session(
   const std::shared_ptr<dht_session>& session,
   uint8_t hops) {
   this->route_.add_node(session->partner_node_id(), session, hops, false);
-  this->sp_->get<db_model>()->async_transaction([address = session->address().to_string()](database_transaction& t) {
+  return this->sp_->get<db_model>()->async_transaction([address = session->address().to_string()](database_transaction& t) {
     orm::well_known_node_dbo t1;
     auto st = t.get_reader(t1.select(t1.last_connect).where(t1.address == address));
     if(st.execute()) {
@@ -160,7 +160,7 @@ void vds::dht::network::_client::add_session(
     else {
       t.execute(t1.insert(t1.last_connect = std::chrono::system_clock::now(), t1.address = address));
     }
-  }).detach();
+  });
 }
 
 vds::async_task<void> vds::dht::network::_client::send(
@@ -612,7 +612,7 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
   auto result_progress = std::make_shared<uint8_t>();
   co_await this->sp_->get<db_model>()->async_transaction(
     [pthis = this->shared_from_this(), object_ids, result, result_progress](
-      database_transaction& t) -> bool {
+      database_transaction& t) {
 
     std::vector<uint16_t> replicas;
     std::vector<const_data_buffer> datas;
@@ -645,14 +645,13 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
       chunk_restore<uint16_t> restore(service::MIN_HORCRUX, replicas.data());
       *result = restore.restore(datas);
       *result_progress = 100;
-      return true;
+      return;
     }
 
     *result_progress = 99 * replicas.size() / service::MIN_HORCRUX;
     for (const auto& replica : unknonw_replicas) {
-      pthis->sync_process_.restore_replica(t, replica).detach();
+      pthis->sync_process_.restore_replica(t, replica).get();
     }
-    return true;
   });
 
   co_return *result_progress;

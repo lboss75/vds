@@ -20,7 +20,6 @@ vds::network_service::network_service()
 
 vds::network_service::~network_service()
 {
-  delete this->impl_;
 }
 
 void vds::network_service::register_services(service_registrator & registator)
@@ -74,8 +73,9 @@ std::string vds::network_service::get_ip_address_string(const sockaddr_in & from
 #define NETWORK_EXIT 0xA1F8
 
 vds::_network_service::_network_service()
+  : worker_timer_("Network Service")
 #ifdef _WIN32
-  : handle_(NULL)
+  , handle_(NULL)
 #endif
 {
 }
@@ -157,7 +157,27 @@ void vds::_network_service::start(const service_provider * sp)
       }
   });
 #endif
- 
+ this->worker_timer_.start(sp, std::chrono::minutes(1), [sp, pthis = this->shared_from_this()]() -> async_task<bool> {
+   std::lock_guard<std::mutex> lock(pthis->connections_mutex_);
+   auto p = pthis->connections_.begin();
+   while(pthis->connections_.end() != p) {
+     if(p->is_ready()) {
+       try {
+         p->get();
+       }
+       catch (...) {
+         /* Ignore error */
+       }
+
+       p = pthis->connections_.erase(p);       
+     }
+     else {
+       ++p;
+     }
+   }
+
+   co_return !sp->get_shutdown_event().is_shuting_down();
+ });
 }
 
 void vds::_network_service::stop()
@@ -199,6 +219,16 @@ void vds::_network_service::stop()
 
 vds::async_task<void> vds::_network_service::prepare_to_stop()
 {
+  std::lock_guard<std::mutex> lock(this->connections_mutex_);
+  auto p = this->connections_.begin();
+  while (this->connections_.end() != p) {
+    try {
+      p->get();
+    }catch(...) {      
+    }
+
+    p = this->connections_.erase(p);
+  }
   co_return;
   /*
   std::set<SOCKET_HANDLE> processed;
@@ -231,7 +261,13 @@ vds::async_task<void> vds::_network_service::prepare_to_stop()
    */
 }
 
+void vds::_network_service::add_connection(async_task<void>&& new_connection) {
+  std::lock_guard<std::mutex> lock(this->connections_mutex_);
+  this->connections_.push_back(std::move(new_connection));
+}
+
 #ifdef _WIN32
+
 void vds::_network_service::associate(SOCKET_HANDLE s)
 {
   if (NULL == CreateIoCompletionPort((HANDLE)s, this->handle_, NULL, 0)) {

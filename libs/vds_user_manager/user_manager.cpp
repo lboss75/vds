@@ -319,13 +319,15 @@ void vds::_user_manager::update(
         }
         return true;
       },
-        [this, &new_channels, log](const transactions::channel_message  & message)->bool {
+        [this, &new_channels, log, tp = block.time_point()](const transactions::channel_message  & message)->bool {
         auto channel = this->get_channel(message.channel_id());
         if (channel) {
           auto channel_read_key = channel->read_cert_private_key(message.channel_read_cert_subject());
           if (channel_read_key) {
-            message.walk_messages(this->sp_, *channel_read_key,
-              [this, channel_id = message.channel_id(), log](const transactions::channel_add_reader_transaction & message)->bool {
+            message.walk_messages(this->sp_, *channel_read_key, transactions::message_environment_t { tp },
+              [this, channel_id = message.channel_id(), log](
+                const transactions::channel_add_reader_transaction & message,
+                const transactions::message_environment_t & /*message_environment*/)->bool {
               auto cp = std::make_shared<user_channel>(
                 message.id,
                 message.channel_type,
@@ -341,7 +343,9 @@ void vds::_user_manager::update(
 
               return true;
             },
-              [this, channel_id = message.channel_id(), log](const transactions::channel_add_writer_transaction & message)->bool {
+              [this, channel_id = message.channel_id(), log](
+                const transactions::channel_add_writer_transaction & message,
+                const transactions::message_environment_t & /*message_environment*/)->bool {
               auto cp = std::make_shared<user_channel>(
                 message.id,
                 message.channel_type,
@@ -358,7 +362,9 @@ void vds::_user_manager::update(
 
               return true;
             },
-              [this, channel_id = message.channel_id(), log, &new_channels](const transactions::channel_create_transaction & message)->bool {
+              [this, channel_id = message.channel_id(), log, &new_channels](
+                const transactions::channel_create_transaction & message,
+                const transactions::message_environment_t & /*message_environment*/)->bool {
               if (new_channels.end() == new_channels.find(channel_id)) {
                 new_channels.emplace(message.channel_id);
               }
@@ -381,7 +387,9 @@ void vds::_user_manager::update(
 
               return true;
             },
-              [this, channel_id = message.channel_id(), log](const transactions::control_message_transaction & message)->bool {
+              [this, channel_id = message.channel_id(), log](
+                const transactions::control_message_transaction & message,
+                const transactions::message_environment_t & /*message_environment*/)->bool {
               auto msg = std::dynamic_pointer_cast<json_object>(message.message);
               std::string type;
                 if(msg && msg->get_property("$type", type)) {

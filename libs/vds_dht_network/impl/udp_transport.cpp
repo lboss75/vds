@@ -18,7 +18,7 @@ vds::dht::network::udp_transport::udp_transport(){
 vds::dht::network::udp_transport::~udp_transport() {
 }
 
-void vds::dht::network::udp_transport::start(
+vds::async_task<void> vds::dht::network::udp_transport::start(
   const service_provider * sp,
   const std::shared_ptr<certificate> & node_cert,
   const std::shared_ptr<asymmetric_private_key> & node_key,
@@ -40,7 +40,7 @@ void vds::dht::network::udp_transport::start(
     this->writer_ = writer;
   }
 
-      this->continue_read().detach();
+  return this->continue_read();
 }
 
 void vds::dht::network::udp_transport::stop() {
@@ -238,9 +238,6 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
           partner_node_id,
           session_info.session_key_);
 
-        this->sp_->get<logger>()->debug(ThisModule, "Add session %s", datagram.address().to_string().c_str());
-        (*this->sp_->get<client>())->add_session(session_info.session_, 0);
-
         resizable_data_buffer out_message;
         out_message.add(static_cast<uint8_t>(protocol_message_type_t::Welcome));
         out_message.add(MAGIC_LABEL >> 24);
@@ -254,6 +251,9 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
           << partner_node_cert.public_key().encrypt(session_info.session_key_);
 
         session_info.session_mutex_.unlock();
+
+        this->sp_->get<logger>()->debug(ThisModule, "Add session %s", datagram.address().to_string().c_str());
+        co_await(*this->sp_->get<client>())->add_session(session_info.session_, 0);
 
         out_message += bs.move_data();
         co_await this->write_async(udp_datagram(datagram.address(), out_message.move_data(), false));
@@ -296,10 +296,8 @@ vds::async_task<void> vds::dht::network::udp_transport::continue_read(
         session_info.session_mutex_.unlock();
 
         this->sp_->get<logger>()->debug(ThisModule, "Add session %s", datagram.address().to_string().c_str());
-        (*this->sp_->get<client>())->add_session(session, 0);
-
-        co_await this->sp_->get<imessage_map>()->on_new_session(
-          partner_id);
+        co_await (*this->sp_->get<client>())->add_session(session, 0);
+        co_await this->sp_->get<imessage_map>()->on_new_session(partner_id);
       }
       else {
         session_info.session_mutex_.unlock();

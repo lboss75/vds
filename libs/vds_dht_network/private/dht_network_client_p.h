@@ -252,9 +252,11 @@ namespace vds {
           co_await this->send_neighbors(message_type::message_id, message_serialize(message));
         }
 
-        void add_session( const std::shared_ptr<dht_session>& session, uint8_t hops);
+        async_task<void> add_session(
+          const std::shared_ptr<dht_session>& session,
+          uint8_t hops);
 
-        vds::async_task<void> restore(          
+        async_task<void> restore(          
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);

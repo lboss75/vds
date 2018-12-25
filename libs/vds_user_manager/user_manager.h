@@ -79,7 +79,7 @@ namespace vds {
       while (st.execute()) {
         transactions::transaction_block block(t1.data.get(st));
         if (!block.walk_messages(
-          [this, channel_id, &channel_handlers](const transactions::channel_message & message)->bool {
+          [this, channel_id, &channel_handlers, tp = block.time_point()](const transactions::channel_message & message)->bool {
           if (channel_id == message.channel_id()) {
 
             auto read_cert_key = this->get_channel(channel_id)->read_cert_private_key(message.channel_read_cert_subject());
@@ -87,7 +87,7 @@ namespace vds {
             const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
             const auto data = symmetric_decrypt::decrypt(key, message.crypted_data());
 
-            return channel_handlers.process(this->sp_, data);
+            return channel_handlers.process(this->sp_, data, transactions::message_environment_t { tp } );
           }
           return true;
         })) {

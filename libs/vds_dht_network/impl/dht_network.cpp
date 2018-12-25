@@ -72,11 +72,11 @@ void vds::dht::network::service::start(
           t2.private_key = storage_key->der(std::string())));
     }
 
-    udp_transport->start(
+    this->udp_transport_task_ = std::make_unique<async_task<void>>(udp_transport->start(
       sp,
       node_cert,
       node_key, 
-      port);
+      port));
 
     this->client_.start(
         sp,
@@ -89,6 +89,10 @@ void vds::dht::network::service::start(
 
 void vds::dht::network::service::stop() {
   this->client_.stop();
+  if (this->udp_transport_task_) {
+    this->udp_transport_task_->get();
+    this->udp_transport_task_.reset();
+  }
 }
 
 vds::async_task<void> vds::dht::network::service::prepare_to_stop() {

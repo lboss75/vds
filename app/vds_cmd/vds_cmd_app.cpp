@@ -83,14 +83,17 @@ void vds::vds_cmd_app::main(const service_provider * sp)
   if (this->current_command_set_ == &this->file_upload_cmd_set_) {
     const auto session = this->login(sp);
     this->upload_file(sp, session);
+    this->logout(sp, session);
   }
   else if(this->current_command_set_ == &this->channel_list_cmd_set_) {
     const auto session = this->login(sp);
     this->channel_list(sp, session);
+    this->logout(sp, session);
   }
   else if (this->current_command_set_ == &this->channel_create_cmd_set_) {
     const auto session = this->login(sp);
     this->channel_create(sp, session);
+    this->logout(sp, session);
   }
 }
 
@@ -158,13 +161,11 @@ std::string vds::vds_cmd_app::login(const service_provider * sp)
 {
   auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
   
-  std::cout << "Logging in into " << server << "..." << std::endl;
-
   auto s = tcp_network_socket::connect(sp, network_address::parse(server));
   auto[reader, writer] = s->start(sp);
 
   auto client = std::make_shared<http_client>();
-  client->start(reader, writer).detach();
+  auto client_task = client->start(reader, writer);
 
   std::string session;
   client->send(http_request::create(
@@ -195,22 +196,51 @@ std::string vds::vds_cmd_app::login(const service_provider * sp)
     body_object->get_property("session", session);
   }).get();
 
-  std::cout << "Login successful" << std::endl;
+  client_task.get();
 
   return session;
 }
 
-void vds::vds_cmd_app::upload_file(const service_provider * sp, const std::string & session) {
+void vds::vds_cmd_app::logout(const service_provider* sp, const std::string& session) {
   auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
-  
-  filename fn(this->attachment_.value());
-  std::cout << "Uploading " << fn.name() << "(" << file::length(fn) << "bytes) to " << server << std::endl;
 
   auto s = tcp_network_socket::connect(sp, network_address::parse(server));
   auto[reader, writer] = s->start(sp);
 
   auto client = std::make_shared<http_client>();
-  client->start(reader, writer).detach();
+  auto client_task = client->start(reader, writer);
+
+  auto request = http_request::create(
+    "POST",
+    "/api/logout?session=" + url_encode::encode(session)).get_message();
+
+  client->send(request,
+    [server, this](const http_message response) -> async_task<void> {
+
+    if (http_response(response).code() != http_response::HTTP_OK && http_response(response).code() != http_response::HTTP_Found) {
+      throw std::runtime_error("Logout failed " + http_response(response).comment());
+    }
+
+    //Workaround Visual Studio fail
+    //co_return;
+    async_result<void> r;
+    r.set_value();
+    return r.get_future();
+  }).get();
+
+  client_task.get();
+}
+
+
+void vds::vds_cmd_app::upload_file(const service_provider * sp, const std::string & session) {
+  auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
+  
+  filename fn(this->attachment_.value());
+  auto s = tcp_network_socket::connect(sp, network_address::parse(server));
+  auto[reader, writer] = s->start(sp);
+
+  auto client = std::make_shared<http_client>();
+  auto client_task = client->start(reader, writer);
 
   http_multipart_request request(
     "POST",
@@ -235,10 +265,14 @@ void vds::vds_cmd_app::upload_file(const service_provider * sp, const std::strin
       throw std::runtime_error("Upload failed " + http_response(response).comment());
     }
 
-    co_return;
+    //Workaround Visual Studio fail
+    //co_return;
+    async_result<void> r;
+    r.set_value();
+    return r.get_future();
   }).get();
+  client_task.get();
 
-  std::cout << "Upload completed" << std::endl;
 }
 
 void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::string& session) {
@@ -248,7 +282,7 @@ void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::strin
   auto[reader, writer] = s->start(sp);
 
   auto client = std::make_shared<http_client>();
-  client->start(reader, writer).detach();
+  auto client_task = client->start(reader, writer);
 
   auto request = http_request::create(
     "GET",
@@ -263,6 +297,8 @@ void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::strin
 
     return this->channel_list_out(server, response);
   }).get();
+
+  client_task.get();
 }
 
 void vds::vds_cmd_app::channel_create(const service_provider* sp, const std::string& session) {
@@ -272,7 +308,7 @@ void vds::vds_cmd_app::channel_create(const service_provider* sp, const std::str
   auto[reader, writer] = s->start(sp);
 
   auto client = std::make_shared<http_client>();
-  client->start(reader, writer).detach();
+  auto client_task = client->start(reader, writer);
 
   client->send(http_request::create(
     "POST",
@@ -288,6 +324,8 @@ void vds::vds_cmd_app::channel_create(const service_provider* sp, const std::str
 
     co_return;
   }).get();
+
+  client_task.get();
 }
 
 vds::async_task<void> vds::vds_cmd_app::channel_list_out(const std::string& server, const http_message response) {

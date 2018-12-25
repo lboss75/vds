@@ -55,7 +55,15 @@ void vds::timer::stop()
 
 void vds::timer::execute()
 {
-  this->execute_async().detach();
+  try {
+    this->execute_async().get();
+  }
+  catch (const std::exception & ex) {
+    this->sp_->get<logger>()->warning("tm", "Timer execute error %s", ex.what());
+  }
+  catch(...) {
+    this->sp_->get<logger>()->warning("tm", "Timer execute unexpected");
+  }
 }
 
 void vds::timer::schedule()
@@ -84,24 +92,19 @@ void vds::timer::schedule()
 }
 
 vds::async_task<void> vds::timer::execute_async() {
-  try {
-    if (!this->is_shuting_down_) {
-      co_await this->current_state_->change_state(state_t::scheduled, state_t::in_handler);
-      if (co_await this->handler_()) {
-        co_await this->current_state_->change_state(state_t::in_handler, state_t::scheduled);
-        this->schedule();
-      }
-      else {
-        co_await this->current_state_->change_state(state_t::in_handler, state_t::eof);
-      }
+  if (!this->is_shuting_down_) {
+    co_await this->current_state_->change_state(state_t::scheduled, state_t::in_handler);
+    if (co_await this->handler_()) {
+      co_await this->current_state_->change_state(state_t::in_handler, state_t::scheduled);
+      this->schedule();
     }
     else {
-      co_await this->current_state_->change_state(state_t::scheduled, state_t::eof);
+      co_await this->current_state_->change_state(state_t::in_handler, state_t::eof);
     }
   }
-  catch (...) {
+  else {
+    co_await this->current_state_->change_state(state_t::scheduled, state_t::eof);
   }
-
 }
 
 

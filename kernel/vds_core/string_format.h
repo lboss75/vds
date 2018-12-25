@@ -32,8 +32,11 @@ namespace vds {
 #pragma GCC diagnostic pop
 #endif
 
+}
+
+namespace std {
   template<typename _Clock, typename _Dur>
-  inline std::string to_string(const std::chrono::time_point<_Clock, _Dur> & time){
+  inline std::string to_string(const std::chrono::time_point<_Clock, _Dur> & time) {
     time_t ctime = _Clock::to_time_t(time);
 
     char buf[sizeof "2011-10-08T07:07:09Z"];

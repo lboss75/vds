@@ -20,6 +20,7 @@
 #include "http_response.h"
 #include "http_request.h"
 #include "private/create_message_form.h"
+#include "string_format.h"
 
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
@@ -172,9 +173,12 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_f
     user_mng->walk_messages(
       channel_id,
       t,
-      [result](const transactions::user_message_transaction& message)-> bool {
+      [result](
+        const transactions::user_message_transaction& message,
+        const transactions::message_environment_t & message_environment)-> bool {
       auto record = std::make_shared<json_object>();
       record->add_property("message", message.message);
+      record->add_property("time_point", std::to_string(message_environment.time_point_));
       auto files = std::make_shared<json_array>();
         for(const auto & file : message.files) {
           auto item = std::make_shared<json_object>();

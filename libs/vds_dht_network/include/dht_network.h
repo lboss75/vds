@@ -37,6 +37,7 @@ namespace vds {
 
       private:
         client client_;
+        std::unique_ptr<async_task<void>> udp_transport_task_;
       };
     }
   }

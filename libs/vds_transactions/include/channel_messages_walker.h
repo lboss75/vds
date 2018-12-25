@@ -18,31 +18,37 @@ All rights reserved
 
 namespace vds {
   namespace transactions {
+    struct message_environment_t {
+      std::chrono::system_clock::time_point time_point_;
+      std::string user_name_;
+    };
+
     class channel_messages_walker {
     public:
-      virtual bool visit(const channel_add_reader_transaction & /*message*/) {
+      virtual bool visit(const channel_add_reader_transaction & /*message*/, const message_environment_t & message_environment) {
         return true;
       }
 
-      virtual bool visit(const channel_add_writer_transaction & /*message*/) {
+      virtual bool visit(const channel_add_writer_transaction & /*message*/, const message_environment_t & message_environment) {
         return true;
       }
 
-      virtual bool visit(const channel_create_transaction & /*message*/) {
+      virtual bool visit(const channel_create_transaction & /*message*/, const message_environment_t & message_environment) {
         return true;
       }
 
-      virtual bool visit(const user_message_transaction & /*message*/) {
+      virtual bool visit(const user_message_transaction & /*message*/, const message_environment_t & message_environment) {
         return true;
       }
 
-      virtual bool visit(const control_message_transaction & /*message*/) {
+      virtual bool visit(const control_message_transaction & /*message*/, const message_environment_t & message_environment) {
         return true;
       }
 
       bool process(
               const service_provider * sp,
-              const const_data_buffer & message_data) {
+              const const_data_buffer & message_data,
+              const message_environment_t & message_environment) {
         binary_deserializer s(message_data);
 
         //std::string log;
@@ -61,31 +67,31 @@ namespace vds {
 
           switch((channel_message_id)message_id) {
           case channel_add_reader_transaction::message_id: {
-            if (!this->visit(message_deserialize<channel_add_reader_transaction>(s))) {
+            if (!this->visit(message_deserialize<channel_add_reader_transaction>(s), message_environment)) {
               return false;
             }
             break;
           }
             case channel_add_writer_transaction::message_id: {
-              if (!this->visit(message_deserialize<channel_add_writer_transaction>(s))) {
+              if (!this->visit(message_deserialize<channel_add_writer_transaction>(s), message_environment)) {
                 return false;
               }
               break;
             }
             case channel_create_transaction::message_id: {
-              if (!this->visit(message_deserialize<channel_create_transaction>(s))) {
+              if (!this->visit(message_deserialize<channel_create_transaction>(s), message_environment)) {
                 return false;
               }
               break;
             }
             case user_message_transaction::message_id: {
-              if (!this->visit(message_deserialize<user_message_transaction>(s))) {
+              if (!this->visit(message_deserialize<user_message_transaction>(s), message_environment)) {
                 return false;
               }
               break;
             }
             case control_message_transaction::message_id: {
-              if (!this->visit(message_deserialize<control_message_transaction>(s))) {
+              if (!this->visit(message_deserialize<control_message_transaction>(s), message_environment)) {
                 return false;
               }
               break;
@@ -125,8 +131,10 @@ namespace vds {
         first_handler_(std::forward<first_handler_type>(first_handler)) {
       }
 
-      bool visit(const typename functor_info<first_handler_type>::argument_type & message) override{
-        return this->first_handler_(message);
+      bool visit(
+        const typename std::tuple_element_t<0, typename functor_info<first_handler_type>::arguments_tuple> & message,
+        const message_environment_t & message_environment) override {
+        return this->first_handler_(message, message_environment);
       }
 
     private:

@@ -16,7 +16,7 @@ namespace vds {
     namespace network {
       class iudp_transport : public std::enable_shared_from_this<iudp_transport> {
       public:
-        virtual void start(
+        virtual async_task<void> start(
           const service_provider * sp,
           const std::shared_ptr<certificate> & node_cert,
           const std::shared_ptr<asymmetric_private_key> & node_key,

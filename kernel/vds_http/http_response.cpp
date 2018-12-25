@@ -20,6 +20,11 @@ vds::http_response::http_response(
 
   this->comment_ = items.front();
   items.pop_front();
+  while(!items.empty()) {
+    this->comment_ += ' ';
+    this->comment_ += items.front();
+    items.pop_front();
+  }
 
   while (message.headers().end() != p) {
     this->headers_.push_back(*p++);

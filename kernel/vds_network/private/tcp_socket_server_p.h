@@ -90,7 +90,7 @@ namespace vds {
                 sp->get<logger>()->trace("TCP", "Connection from %s", network_service::to_string(client_address).c_str());
                 (*sp->get<network_service>())->associate(socket);
                 auto s = _tcp_network_socket::from_handle(socket);
-                new_connection(s).detach();
+                (*sp->get<network_service>())->add_connection(new_connection(s));
               }
             }
           }

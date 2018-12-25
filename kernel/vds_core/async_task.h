@@ -277,16 +277,16 @@ namespace vds {
       this->state_->then(f);
     }
 
-    void detach() {
-      auto s = std::move(this->state_);
-      s->then([s]() {
-        try {
-          s->get();
-        }
-        catch(...) {          
-        }
-      });
-    }
+    //void detach() {
+    //  auto s = std::move(this->state_);
+    //  s->then([s]() {
+    //    try {
+    //      s->get();
+    //    }
+    //    catch(...) {          
+    //    }
+    //  });
+    //}
   private:
     std::shared_ptr<_async_task_state<result_type>> state_;
   };  
@@ -330,16 +330,16 @@ namespace vds {
       this->state_->then(f);
     }
 
-    void detach() {
-      auto s = std::move(this->state_);
-      s->then([s]() {
-        try {
-          s->get();
-        }
-        catch (...) {
-        }
-      });
-    }
+    //void detach() {
+    //  auto s = std::move(this->state_);
+    //  s->then([s]() {
+    //    try {
+    //      s->get();
+    //    }
+    //    catch (...) {
+    //    }
+    //  });
+    //}
   private:
     std::shared_ptr<_async_task_state<void>> state_;
   };

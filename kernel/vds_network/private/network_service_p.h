@@ -23,7 +23,7 @@ namespace vds {
     class network_service;
     class socket_base;
 
-    class _network_service
+    class _network_service : public std::enable_shared_from_this<_network_service>
     {
     public:
         _network_service();
@@ -36,6 +36,7 @@ namespace vds {
         
         void remove(socket_base * socket);
 
+        void add_connection(async_task<void>&& new_connection);
 #ifdef _WIN32
         void associate(SOCKET_HANDLE s);
 
@@ -64,6 +65,8 @@ namespace vds {
         std::mutex tasks_mutex_;
         std::condition_variable tasks_cond_;
 
+        timer worker_timer_;
+
 #ifdef _WIN32
         HANDLE handle_;
         void thread_loop();
@@ -73,6 +76,10 @@ namespace vds {
         int epoll_set_;
       std::thread epoll_thread_;
 #endif//_WIN32
+
+
+      std::mutex connections_mutex_;
+      std::list<async_task<void>> connections_;
     };
 }
 

@@ -107,7 +107,9 @@ vds::async_task<vds::file_manager::file_operations::download_result_t> vds::file
         user_mng->walk_messages(
             channel_id,
             t,
-            [pthis, result, target_file, output_stream](const transactions::user_message_transaction &message) -> bool {
+            [pthis, result, target_file, output_stream](
+              const transactions::user_message_transaction &message,
+              const transactions::message_environment_t & /*message_environment*/) -> bool {
           for (const auto & file : message.files) {
             if (target_file == file.file_id) {
               result->name = file.name;
@@ -147,7 +149,9 @@ vds::async_task<vds::file_manager::file_operations::prepare_download_result_t> v
     user_mng->walk_messages(
       channel_id,
       t,
-      [pthis, &t, result, target_file](const transactions::user_message_transaction &message) -> bool {
+      [pthis, &t, result, target_file](
+        const transactions::user_message_transaction &message,
+        const transactions::message_environment_t & /*message_environment*/) -> bool {
       for (const auto & file : message.files) {
         if (target_file == file.file_id) {
           result->name = file.name;

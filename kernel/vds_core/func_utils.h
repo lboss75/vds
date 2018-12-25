@@ -18,7 +18,7 @@ namespace vds {
     typedef result signature(arg_type);
 
     typedef typename std::remove_const<typename std::remove_reference<arg_type>::type>::type argument_type;
-    typedef std::tuple<arg_type> arguments_typle;
+    typedef std::tuple<arg_type> arguments_tuple;
     typedef std::function<signature> function_type;
     typedef result result_type;
 
@@ -37,7 +37,7 @@ namespace vds {
   {
     typedef result signature(arg_type);
     typedef typename std::remove_const<typename std::remove_reference<arg_type>::type>::type argument_type;
-    typedef std::tuple<arg_type> arguments_typle;
+    typedef std::tuple<arg_type> arguments_tuple;
     typedef std::function<signature> function_type;
     typedef result result_type;
 
@@ -57,7 +57,7 @@ namespace vds {
   {
     typedef result signature(arg_types...);
     
-    typedef std::tuple<arg_types...> arguments_typle;
+    typedef std::tuple<arg_types...> arguments_tuple;
     typedef std::function<signature> function_type;
     typedef result result_type;
     
@@ -75,7 +75,7 @@ namespace vds {
   struct _functor_info<functor_type, result(class_name::*)(arg_types...) const>
   {
     typedef result signature(arg_types...);
-    typedef std::tuple<arg_types...> arguments_typle;
+    typedef std::tuple<arg_types...> arguments_tuple;
     typedef std::function<signature> function_type;
     typedef result result_type;
     
