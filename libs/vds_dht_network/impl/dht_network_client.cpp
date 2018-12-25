@@ -19,6 +19,7 @@ All rights reserved
 #include "dht_network.h"
 #include "sync_replica_map_dbo.h"
 #include "dht_client_save_stream.h"
+#include "chunk_replica_data_dbo.h"
 
 vds::dht::network::_client::_client(
   const service_provider * sp,
@@ -616,7 +617,7 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
 
     std::vector<uint16_t> replicas;
     std::vector<const_data_buffer> datas;
-    std::list<const_data_buffer> unknonw_replicas;
+    std::map<uint16_t, const_data_buffer> unknonw_replicas;
 
     orm::chunk_dbo t1;
     orm::device_record_dbo t4;
@@ -637,7 +638,57 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
         }
       }
       else {
-        unknonw_replicas.push_back(object_ids[replica]);
+        unknonw_replicas[replica] = object_ids[replica];
+      }
+    }
+
+    if (replicas.size() < service::MIN_HORCRUX) {
+      for (auto p = unknonw_replicas.begin(); unknonw_replicas.end() != p; ) {
+        std::vector<uint16_t> piece_replicas;
+        std::vector<const_data_buffer> piece_datas;
+
+        orm::chunk_replica_data_dbo t2;
+        auto st = t.get_reader(
+          t2.select(
+            t2.replica, t2.replica_hash, t4.local_path)
+          .inner_join(t4, t4.node_id == pthis->current_node_id() && t4.data_hash == t2.replica_hash)
+          .where(t2.object_id == p->second));
+        while (st.execute()) {
+          piece_replicas.push_back(t2.replica.get(st));
+          piece_datas.push_back(
+            _client::read_data(
+              t2.replica_hash.get(st),
+              filename(t4.local_path.get(st))));
+
+          if (piece_replicas.size() >= service::MIN_DISTRIBUTED_PIECES) {
+            break;
+          }
+        }
+
+        if (piece_replicas.size() >= service::MIN_DISTRIBUTED_PIECES) {
+          chunk_restore<uint16_t> restore(service::MIN_DISTRIBUTED_PIECES, piece_replicas.data());
+          auto data = restore.restore(piece_datas);
+
+          if (p->second != hash::signature(hash::sha256(), data)) {
+            throw std::runtime_error("Invalid error");
+          }
+          _client::save_data(pthis->sp_, t, p->second, data);
+
+          pthis->sp_->get<logger>()->trace(SyncModule, "Restored object %s", base64::from_bytes(p->second).c_str());
+
+          t.execute(
+            t1.insert(
+              t1.object_id = p->second,
+              t1.last_sync = std::chrono::system_clock::now()));
+
+          replicas.push_back(p->second);
+          datas.push_back(data);
+
+          p = unknonw_replicas.erase(p);
+        }
+        else {
+          ++p;
+        }
       }
     }
 
@@ -649,8 +700,8 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
     }
 
     *result_progress = 99 * replicas.size() / service::MIN_HORCRUX;
-    for (const auto& replica : unknonw_replicas) {
-      pthis->sync_process_.restore_replica(t, replica).get();
+    for (const auto replica : unknonw_replicas) {
+      pthis->sync_process_.restore_replica(t, replica.second).get();
     }
   });
 
