@@ -27,6 +27,7 @@ namespace vds {
     void final();
 
     const const_data_buffer & signature() const {
+      vds_assert(this->sig_);
       return this->sig_;
     }
 

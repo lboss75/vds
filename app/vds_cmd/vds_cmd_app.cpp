@@ -196,6 +196,7 @@ std::string vds::vds_cmd_app::login(const service_provider * sp)
     body_object->get_property("session", session);
   }).get();
 
+  s->close();
   client_task.get();
 
   return session;
@@ -227,7 +228,7 @@ void vds::vds_cmd_app::logout(const service_provider* sp, const std::string& ses
     r.set_value();
     return r.get_future();
   }).get();
-
+  s->close();
   client_task.get();
 }
 
@@ -271,8 +272,9 @@ void vds::vds_cmd_app::upload_file(const service_provider * sp, const std::strin
     r.set_value();
     return r.get_future();
   }).get();
-  client_task.get();
 
+  s->close();
+  client_task.get();
 }
 
 void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::string& session) {
@@ -298,6 +300,7 @@ void vds::vds_cmd_app::channel_list(const service_provider* sp, const std::strin
     return this->channel_list_out(server, response);
   }).get();
 
+  s->close();
   client_task.get();
 }
 
@@ -325,6 +328,7 @@ void vds::vds_cmd_app::channel_create(const service_provider* sp, const std::str
     co_return;
   }).get();
 
+  s->close();
   client_task.get();
 }
 

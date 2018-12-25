@@ -68,7 +68,8 @@ vds::async_task<std::list<vds::transactions::user_message_transaction::file_bloc
       /*object_ids*/block_info.object_ids,
       /*block_size =*/ readed
     });
-
   }
+  this->total_hash_.final();
+
   co_return result;
 }
