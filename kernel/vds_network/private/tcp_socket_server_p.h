@@ -178,7 +178,7 @@ namespace vds {
                       auto s = _tcp_network_socket::from_handle(sp, socket);
                       (*s)->make_socket_non_blocking();
                       (*s)->set_timeouts();
-                      this->new_connection_(s).detach();
+                      (*sp->get<network_service>())->add_connection(this->new_connection_(s));
                     }
                   }
                 }
