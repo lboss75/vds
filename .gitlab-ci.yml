@@ -4,58 +4,16 @@ build-ubuntu:
     script:
     - apt-get -qq update
     - apt-get -qq install -y git cmake clang-6.0 gcovr subversion
-    - export CC=/usr/bin/clang-6.0
-    - export CXX=/usr/bin/clang++-6.0
-    - export CFLAGS="-fPIC"
-    - export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -fPIC"
-    - export LDFLAGS="-lstdc++ -Wl"
-    - cd externals
-    - svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
-    - cd llvm/projects
-    - svn -q co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
-    - svn -q co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
-    - cd ..
+    - build_dep.sh
     - mkdir build
-    - cd build
-    - cmake ..
-    - make --quiet cxx
-    - make --quiet install-cxx install-cxxabi
-    - export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
-    - export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
-    - cd ../..
-    - git clone --quiet https://github.com/openssl/openssl.git
-    - cd openssl
-    - ./Configure linux-x86_64-clang no-tests --prefix=$PWD/../openssl-out --openssldir=$PWD/../openssl-out
-    - make --quiet
-    - make --quiet install
-    - cd ..
-    - git clone --quiet https://github.com/madler/zlib.git
-    - mkdir zlib_out
-    - cd zlib_out
-    - cmake ../zlib
-    - make --quiet
-    - make --quiet install
-    - cd ..
-    - git clone --quiet https://github.com/google/googletest.git
-    - mkdir gtest_out
-    - cd gtest_out
-    - cmake -Dgtest_force_shared_crt=ON ../googletest/googletest
-    - make --quiet
-    - cd ../..
-    - mkdir build
-    - cd build
-    - ls -R $PWD/../externals/zlib_out/
-    - ls -R $PWD/../externals/gtest_out/
-    - cmake -DZLIB_INCLUDE_DIR=$PWD/../externals/zlib_out/include -DZLIB_LIBRARY=$PWD/../externals/zlib_out/libz.a -DOPENSSL_ROOT_DIR=$PWD/../externals/openssl-out/ -DGTEST_LIBRARY=$PWD/../externals/gtest_out/lib/libgtest.a -DGTEST_INCLUDE_DIR=$PWD/../externals/googletest/googletest/include -DGTEST_MAIN_LIBRARY=$PWD/../externals/gtest_out/lib/libgtest_main.a .. 
-    - make -j4 VERBOSE=1
-    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
-    - tests/test_vds_core/test_vds_core
-    - tests/test_vds_crypto/test_vds_crypto
-    - tests/test_vds_data/test_vds_data
-    - tests/test_vds_database/test_vds_database
-    - tests/test_vds_dht_network/test_vds_dht_network
-    - tests/test_vds_network/test_vds_network
-    - tests/test_vds_parser/test_vds_parser
-    - tests/test_vds_scenarios/test_vds_scenarios
-    - tests/test_vds_user_manager/test_vds_user_manager
+    - build.sh
+    - build/tests/test_vds_core/test_vds_core
+    - build/tests/test_vds_crypto/test_vds_crypto
+    - build/tests/test_vds_data/test_vds_data
+    - build/tests/test_vds_database/test_vds_database
+    - build/tests/test_vds_dht_network/test_vds_dht_network
+    - build/tests/test_vds_network/test_vds_network
+    - build/tests/test_vds_parser/test_vds_parser
+    - build/tests/test_vds_scenarios/test_vds_scenarios
+    - build/tests/test_vds_user_manager/test_vds_user_manager
     
