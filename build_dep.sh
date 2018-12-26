@@ -29,8 +29,8 @@ cd build
 cmake ..
 make --quiet cxx
 make --quiet install-cxx install-cxxabi
-export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC -static"
-export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl -static"
+export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
+export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 cd ../..
 
 set +e
@@ -38,8 +38,8 @@ git clone --single-branch --branch OpenSSL_1_1_1-stable --quiet https://github.c
 rm -rf openssl-out
 set -e
 
-export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC -static"
-export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl -static"
+export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
+export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 
 cd openssl
 ./Configure linux-armv4 no-tests no-asm --prefix=$PWD/../openssl-out --openssldir=$PWD/../openssl-out
