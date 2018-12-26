@@ -129,10 +129,6 @@ void vds::task_manager::stop()
 
 vds::async_task<void> vds::task_manager::prepare_to_stop() {
   this->is_shuting_down_ = true;
-  if (this->work_thread_.joinable()) {
-    this->work_thread_.join();
-  }
-
   co_return;
 }
 

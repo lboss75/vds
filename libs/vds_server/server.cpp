@@ -102,13 +102,14 @@ void vds::_server::stop()
   }
 
   this->dht_network_service_->stop();
-  this->udp_transport_->stop();
   this->db_model_->stop();
+  this->udp_transport_.reset();
   this->file_manager_.reset();
   this->db_model_.reset();
 }
 
 vds::async_task<void> vds::_server::prepare_to_stop() {
+  this->udp_transport_->stop();
   co_await this->dht_network_service_->prepare_to_stop();
   co_await this->db_model_->prepare_to_stop();
 }
