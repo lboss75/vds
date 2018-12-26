@@ -25,7 +25,7 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
     bufsize = 0x4000; // = all zeroes with the 14th bit set (1 << 14)
   }
 
-  std::unique_ptr<void *> buf(malloc(bufsize));
+  auto buf = malloc(bufsize);
   if (buf == NULL) {
     throw std::runtime_error("Out of memory");
   }
@@ -34,6 +34,7 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
   struct passwd *result;
   auto s = getpwuid_r(getuid(), &pwd, buf.get(), bufsize, &result);
   if (result == NULL) {
+    free(buf);
     if (s == 0) {
       throw std::runtime_error("Not found user folder");
     } else {
@@ -41,7 +42,9 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
     }
   }
 
-  return foldername(result->pw_dir);
+  foldername result(result->pw_dir);
+  free(buf);
+  return result;
 
   //struct passwd *pw = getpwuid(getuid());
   //return foldername(pw->pw_dir);
