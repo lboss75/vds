@@ -8,9 +8,9 @@ export CC=/usr/bin/clang-6.0
 export CXX=/usr/bin/clang++-6.0
 
 export LD=/usr/bin/clang++-6.0
-export CFLAGS="-fPIE -I/usr/include/arm-linux-gnueabihf/"
-export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -fPIE -static"
-export LDFLAGS="-lstdc++ -Wl -static -pie"
+export CFLAGS="-fPIC -I/usr/include/arm-linux-gnueabihf/"
+export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -fPIC"
+export LDFLAGS="-lstdc++ -Wl"
 cd externals
 
 svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
@@ -26,11 +26,11 @@ set -e
 
 mkdir build
 cd build
-cmake ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr ..
 make --quiet cxx
 make --quiet install-cxx install-cxxabi
-export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIE -static"
-export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl -pie -static"
+export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
+export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 cd ../..
 
 set +e
@@ -38,8 +38,8 @@ git clone --single-branch --branch OpenSSL_1_1_1-stable --quiet https://github.c
 rm -rf openssl-out
 set -e
 
-export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIE"
-export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl -pie"
+export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
+export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 
 cd openssl
 ./Configure linux-armv4 no-tests no-asm --prefix=$PWD/../openssl-out --openssldir=$PWD/../openssl-out
