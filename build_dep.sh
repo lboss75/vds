@@ -13,7 +13,6 @@ export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -fPIC"
 export LDFLAGS="-lstdc++ -Wl"
 cd externals
 
-if false; then
 svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
 
 cd llvm/projects
@@ -33,7 +32,6 @@ make --quiet install-cxx install-cxxabi
 export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 cd ../..
-fi
 
 set +e
 git clone --single-branch --branch OpenSSL_1_1_1-stable --quiet https://github.com/openssl/openssl.git
