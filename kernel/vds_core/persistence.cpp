@@ -32,7 +32,7 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
 
   struct passwd pwd;
   struct passwd *result;
-  auto s = getpwuid_r(getuid(), &pwd, buf.get(), bufsize, &result);
+  auto s = getpwuid_r(getuid(), &pwd, buf, bufsize, &result);
   if (result == NULL) {
     free(buf);
     if (s == 0) {
@@ -42,9 +42,9 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
     }
   }
 
-  foldername result(result->pw_dir);
+  foldername r(result->pw_dir);
   free(buf);
-  return result;
+  return r;
 
   //struct passwd *pw = getpwuid(getuid());
   //return foldername(pw->pw_dir);
