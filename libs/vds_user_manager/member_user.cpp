@@ -125,9 +125,7 @@ vds::user_channel vds::_member_user::create_channel(
 }
 
 vds::member_user vds::_member_user::create_root_user(
-  
   transactions::transaction_block_builder& playback,
-  database_transaction& t,
   const std::string& root_user_name,
   const std::string& root_password,
   const std::shared_ptr<vds::asymmetric_private_key> & root_private_key) {

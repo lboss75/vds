@@ -34,7 +34,7 @@ export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 cd ../..
 
 set +e
-git clone --single-branch --branch OpenSSL_1_1_1-stable --quiet https://github.com/openssl/openssl.git
+git clone --depth=1 --single-branch --branch OpenSSL_1_1_1-stable --quiet https://github.com/openssl/openssl.git
 rm -rf openssl-out
 set -e
 
@@ -49,7 +49,7 @@ make --quiet install
 cd ..
 
 set +e
-git clone --quiet https://github.com/madler/zlib.git
+git clone --depth=1 --quiet https://github.com/madler/zlib.git
 rm -rf zlib_out
 set -e
 
@@ -61,7 +61,7 @@ make --quiet install
 cd ..
 
 set +e
-git clone --quiet https://github.com/google/googletest.git
+git clone --depth=1 --quiet https://github.com/google/googletest.git
 rm -rf gtest_out
 set -e
 

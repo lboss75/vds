@@ -37,9 +37,7 @@ namespace vds {
       const std::string& name);
 
     static member_user create_root_user(
-      
       transactions::transaction_block_builder &playback,
-      database_transaction & t,
       const std::string &root_user_name,
       const std::string &root_password,
       const std::shared_ptr<asymmetric_private_key> &root_private_key);

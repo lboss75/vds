@@ -243,10 +243,6 @@ vds::async_task<void> vds::file_manager_private::_file_operations::prepare_to_st
   co_return;
 }
 
-struct buffer_data : public std::enable_shared_from_this<buffer_data> {
-  uint8_t buffer[vds::dht::network::service::BLOCK_SIZE];
-};
-
 vds::async_task<vds::file_manager_private::_file_operations::pack_file_result>
 vds::file_manager_private::_file_operations::pack_file(
   

@@ -22,7 +22,7 @@ namespace vds {
     namespace network {
       class udp_transport : public iudp_transport {
       public:
-        static constexpr uint32_t MAGIC_LABEL = 0xAFAFAFAF;
+        static uint32_t MAGIC_LABEL;
         static constexpr uint8_t PROTOCOL_VERSION = 0;
 
         udp_transport();

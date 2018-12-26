@@ -80,7 +80,6 @@ void vds::user_manager::reset(
     //Create root user
     auto root_user = _member_user::create_root_user(
       playback,
-      t,
       root_user_name,
       root_password,
       private_info.root_private_key_);

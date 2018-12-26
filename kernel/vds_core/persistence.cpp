@@ -20,8 +20,31 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
   }
 
 #ifndef _WIN32
-  struct passwd *pw = getpwuid(getuid());
-  return foldername(pw->pw_dir);
+  auto bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+  if (bufsize == -1) {
+    bufsize = 0x4000; // = all zeroes with the 14th bit set (1 << 14)
+  }
+
+  std::unique_ptr<void *> buf(malloc(bufsize));
+  if (buf == NULL) {
+    throw std::runtime_error("Out of memory");
+  }
+
+  struct passwd pwd;
+  struct passwd *result;
+  auto s = getpwuid_r(getuid(), &pwd, buf.get(), bufsize, &result);
+  if (result == NULL) {
+    if (s == 0) {
+      throw std::runtime_error("Not found user folder");
+    } else {
+      throw std::system_error(s, std::system_category(), "getpwnam_r");
+    }
+  }
+
+  return foldername(result->pw_dir);
+
+  //struct passwd *pw = getpwuid(getuid());
+  //return foldername(pw->pw_dir);
 #else
   CHAR result[MAX_PATH + 1];
   auto error = SHGetFolderPathA(

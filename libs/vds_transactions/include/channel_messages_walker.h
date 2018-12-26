@@ -25,23 +25,23 @@ namespace vds {
 
     class channel_messages_walker {
     public:
-      virtual bool visit(const channel_add_reader_transaction & /*message*/, const message_environment_t & message_environment) {
+      virtual bool visit(const channel_add_reader_transaction & /*message*/, const message_environment_t & /*message_environment*/) {
         return true;
       }
 
-      virtual bool visit(const channel_add_writer_transaction & /*message*/, const message_environment_t & message_environment) {
+      virtual bool visit(const channel_add_writer_transaction & /*message*/, const message_environment_t & /*message_environment*/) {
         return true;
       }
 
-      virtual bool visit(const channel_create_transaction & /*message*/, const message_environment_t & message_environment) {
+      virtual bool visit(const channel_create_transaction & /*message*/, const message_environment_t & /*message_environment*/) {
         return true;
       }
 
-      virtual bool visit(const user_message_transaction & /*message*/, const message_environment_t & message_environment) {
+      virtual bool visit(const user_message_transaction & /*message*/, const message_environment_t & /*message_environment*/) {
         return true;
       }
 
-      virtual bool visit(const control_message_transaction & /*message*/, const message_environment_t & message_environment) {
+      virtual bool visit(const control_message_transaction & /*message*/, const message_environment_t & /*message_environment*/) {
         return true;
       }
 

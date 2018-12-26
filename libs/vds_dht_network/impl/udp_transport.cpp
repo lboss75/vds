@@ -12,6 +12,8 @@ All rights reserved
 #include "dht_network_client.h"
 #include "dht_network_client_p.h"
 
+uint32_t vds::dht::network::udp_transport::MAGIC_LABEL = 0xAFAFAFAF;
+
 vds::dht::network::udp_transport::udp_transport(){
 }
 
