@@ -8,8 +8,8 @@ export CC=/usr/bin/clang-6.0
 export CXX=/usr/bin/clang++-6.0
 
 export LD=/usr/bin/clang++-6.0
-export CFLAGS="-fPIC -I/usr/include/arm-linux-gnueabihf/"
-export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -fPIC"
+export CFLAGS="-fPIE -I/usr/include/arm-linux-gnueabihf/"
+export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -fPIE"
 export LDFLAGS="-lstdc++ -Wl"
 cd externals
 
@@ -29,7 +29,7 @@ cd build
 cmake ..
 make --quiet cxx
 make --quiet install-cxx install-cxxabi
-export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
+export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIE"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 cd ../..
 
@@ -38,7 +38,7 @@ git clone --single-branch --branch OpenSSL_1_1_1-stable --quiet https://github.c
 rm -rf openssl-out
 set -e
 
-export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
+export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIE"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 
 cd openssl

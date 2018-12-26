@@ -6,8 +6,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export CC=/usr/bin/clang-6.0
 export CXX=/usr/bin/clang++-6.0
-export CFLAGS="-fPIC -static"
-export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC -static"
+export CFLAGS="-fPIE -static"
+export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIE -static"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl -static"
 
 cd build
