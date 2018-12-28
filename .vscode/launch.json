@@ -1,0 +1,64 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "cppdbg",
+            "request": "launch",
+            "name": "test_vds_network Launch",
+            "program": "${workspaceFolder}/build/tests/test_vds_network/test_vds_network",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Catch all exception",
+                    "text": "catch throw",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "type": "cppdbg",
+            "request": "launch",
+            "name": "vds_web_server Launch",
+            "program": "${workspaceFolder}/build/app/vds_web_server/vds_web_server",
+            "args": [
+                "server", 
+                "start",
+                "--root-folder", "~/.vds",
+                "--web", "${workspaceFolder}/www/",
+                "-lm", "\\*",
+                "-ll", "trace"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Catch all exception",
+                    "text": "-exec catch throw",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}

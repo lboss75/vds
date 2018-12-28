@@ -63,6 +63,7 @@ namespace vds {
 #else
       if (0 <= this->s_) {
         shutdown(this->s_, 2);
+        ::close(this->s_);
         this->s_ = -1;
       }
 #endif
@@ -163,13 +164,13 @@ namespace vds {
       }
 
       if(0 != last_mask && 0 != this->event_masks_){
-        (*this->sp_->get<network_service>())->set_events(this->s_, this->event_masks_);
+        (*this->sp_->get<network_service>())->set_events(this->s_, this->event_masks_ | EPOLLRDHUP | EPOLLERR | EPOLLET);
       }
       else if (0 == this->event_masks_){
         (*this->sp_->get<network_service>())->remove_association(this->s_);
       }
       else {
-        (*this->sp_->get<network_service>())->associate(this->s_, s, this->event_masks_);
+        (*this->sp_->get<network_service>())->associate(this->s_, s, this->event_masks_ | EPOLLRDHUP | EPOLLERR | EPOLLET);
       }
     }
 
@@ -377,6 +378,7 @@ namespace vds {
       auto r = std::make_shared<vds::async_result<void>>();
       if(0 == size){
         shutdown((*this->owner())->handle(), SHUT_WR);
+        (*this->owner())->close(),
         r->set_value();
       }
       else {
@@ -525,7 +527,7 @@ namespace vds {
           this->buffer_,
           this->buffer_size_);
 
-      if (len <= 0) {
+      if (len < 0) {
         int error = errno;
         if (EAGAIN == error) {
           return;
@@ -553,6 +555,13 @@ namespace vds {
       }
     }
 
+    void close_read() {
+      (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
+      (*this->owner())->close();
+
+      auto r = std::move(this->result_);
+      r->set_value(0);
+    }
 
   private:
     const service_provider * sp_;

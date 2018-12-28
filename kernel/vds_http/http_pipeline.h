@@ -22,9 +22,7 @@ namespace vds {
         const http_message message)->vds::async_task<void> {
       auto pthis = this->shared_from_this();
       auto response = co_await message_callback(message);
-      if (nullptr != response.body()) {
-        co_await this->output_stream_->write_async(response);
-      }
+      co_await this->output_stream_->write_async(response);
     }),
       output_stream_(output_stream) {
     }

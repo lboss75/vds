@@ -122,6 +122,13 @@ void vds::_tcp_network_socket::process(uint32_t events) {
 
     this->read_task_.lock()->process();
   }
+
+  if(0 != ((EPOLLRDHUP | EPOLLHUP | EPOLLERR) & events)){
+    auto pthis = this->read_task_.lock();
+    if(pthis){
+      pthis->close_read();
+    }
+  }
 }
 
 #endif

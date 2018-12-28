@@ -45,10 +45,12 @@ clients/windows/win_clients.VC.db
 .vs/
 externals/build_zlib/
 externals/zlib/
-externals/Build-VC-64-debug/
+externals/openssl-out/
 externals/build_gtest/
 externals/googletest/
 externals/zlib_out/
+externals/gtest_out/
+externals/llvm/
 *.user
 obj/
 bin/
