@@ -57,59 +57,16 @@ void vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
     break;
 
   case file_mode::create_new:
-    oflags = O_RDWR | O_CREAT;
+    oflags = O_RDWR | O_CREAT | O_EXCL;
     break;
 
   case file_mode::truncate:
        //Try to create
-#ifndef _WIN32
-          this->handle_ = ::open(filename.local_name().c_str(), O_RDWR | O_CREAT, S_IREAD | S_IWRITE);
-          if (0 > this->handle_) {
-            auto error = errno;
-            if(EEXIST != error) {
-              throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
-            }
-          } else {
-            return;
-          }
-#else
-    this->handle_ = ::_open(this->filename_.local_name().c_str(), O_RDWR | O_CREAT | O_BINARY | O_SEQUENTIAL, _S_IREAD | _S_IWRITE);
-      if (0 > this->handle_) {
-        auto error = GetLastError();
-        if(EEXIST != error) {
-          throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
-        }
-      } else {
-        return;
-      }
-#endif
-      oflags = O_RDWR | O_TRUNC;
+      oflags = O_RDWR | O_CREAT | O_TRUNC;
     break;
 
   case file_mode::open_or_create:
-    //Try to create
-#ifndef _WIN32
-      this->handle_ = ::open(filename.local_name().c_str(), O_RDWR | O_CREAT, S_IREAD | S_IWRITE);
-      if (0 > this->handle_) {
-        auto error = errno;
-        if(EEXIST != error) {
-          throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
-        }
-      } else {
-        return;
-      }
-#else
-      this->handle_ = ::_open(this->filename_.local_name().c_str(), O_RDWR | O_CREAT | O_BINARY | O_SEQUENTIAL, _S_IREAD | _S_IWRITE);
-      if (0 > this->handle_) {
-        auto error = GetLastError();
-        if(EEXIST != error) {
-          throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
-        }
-      } else {
-        return;
-      }
-#endif
-    oflags = O_RDWR;
+    oflags = O_RDWR | O_CREAT;
     break;
 
 
