@@ -207,7 +207,7 @@ bool vds::foldername::exist() const
   return (0 == access(this->local_name().c_str(), 0));
 }
 
-void vds::foldername::create()
+void vds::foldername::create() const
 {
   auto contains_folder = this->contains_folder();
   if (contains_folder != *this && !contains_folder.exist()) {
