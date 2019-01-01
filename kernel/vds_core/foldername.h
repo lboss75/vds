@@ -64,7 +64,7 @@ namespace vds {
         const std::function<bool(const filename & name)> & callback
       ) const;
 
-      void create();
+      void create() const;
       void delete_folder(bool recurcive) const;
 
       std::string relative_path(const filename & fn, bool allow_pass_border = false) const;
