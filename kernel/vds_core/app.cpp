@@ -43,13 +43,6 @@ void vds::app::kill_prev(const vds::foldername &root_folder, const std::string &
             throw;
         }
     }
-    catch (const std::system_error &ex) {
-        if (ex.code().category() != std::system_category()
-            || ex.code().value() != ENOENT) {
-            std::cout << "Fatal " << ex.code().value() << " " << ex.code().category().name() << "\n";
-            throw;
-        }
-    }
 
     signal(SIGHUP, SIG_IGN);
 }
@@ -91,14 +84,6 @@ void vds::app::demonize(const vds::foldername &root_folder, const std::string & 
       to the children */
 
     setpgrp();
-
-
-    sigset_t sigset;
-    sigaddset(&sigset, SIGQUIT);
-    sigaddset(&sigset, SIGINT);
-    sigaddset(&sigset, SIGTERM);
-    sigaddset(&sigset, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &sigset, NULL);
 }
 
 #ifndef _WIN32

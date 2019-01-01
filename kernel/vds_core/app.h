@@ -381,6 +381,13 @@ namespace vds{
                   foldername(this->root_folder_.value()),
                   this->current_process_.name_without_extension());
 
+          sigset_t sigset;
+          sigaddset(&sigset, SIGQUIT);
+          sigaddset(&sigset, SIGINT);
+          sigaddset(&sigset, SIGTERM);
+          sigaddset(&sigset, SIGCHLD);
+          sigprocmask(SIG_BLOCK, &sigset, NULL);
+
           for (bool bContinue = true; bContinue;) {
               auto cur_pid = fork();
 
