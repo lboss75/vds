@@ -91,6 +91,8 @@ std::tuple<
   (*this)->read_task_ = reader;
   (*this)->write_task_ = writer;
 
+  reader->start(sp);
+
   return std::make_tuple(reader, writer);
 }
 
@@ -132,3 +134,34 @@ void vds::_tcp_network_socket::process(uint32_t events) {
 }
 
 #endif
+
+void vds::_tcp_network_socket::close()
+{
+#ifdef _WIN32
+  if (INVALID_SOCKET != this->s_) {
+    shutdown(this->s_, SD_BOTH);
+    closesocket(this->s_);
+    this->s_ = INVALID_SOCKET;
+  }
+#else
+  if (0 <= this->s_) {
+    if (0 != this->event_masks_){
+      this->event_masks_ = 0;
+      (*this->sp_->get<network_service>())->remove_association(this->s_);
+    }
+    auto r = this->read_task_.lock();
+    if(r){
+      r->close_read();
+    }
+
+    auto w = this->write_task_.lock();
+    if(w) {
+      w->close_write();
+    }
+
+    shutdown(this->s_, 2);
+    ::close(this->s_);
+    this->s_ = -1;
+  }
+#endif
+}

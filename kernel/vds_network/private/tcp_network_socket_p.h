@@ -52,22 +52,7 @@ namespace vds {
       this->close();
     }
 
-    void close()
-    {
-#ifdef _WIN32
-      if (INVALID_SOCKET != this->s_) {
-        shutdown(this->s_, SD_BOTH);
-        closesocket(this->s_);
-        this->s_ = INVALID_SOCKET;
-      }
-#else
-      if (0 <= this->s_) {
-        shutdown(this->s_, 2);
-        ::close(this->s_);
-        this->s_ = -1;
-      }
-#endif
-    }
+    void close();
 
     SOCKET_HANDLE handle() const {
 #ifdef _WIN32
@@ -142,10 +127,10 @@ namespace vds {
     }
     void set_timeouts()
     {
-      //       struct timeval tv;
-      //       tv.tv_sec = 30;        // 30 Secs Timeout
-      //       tv.tv_usec = 0;
-      //       setsockopt(this->handle(), SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(struct timeval));
+      // struct timeval tv;
+      // tv.tv_sec = 30;        // 30 Secs Timeout
+      // tv.tv_usec = 0;
+      // setsockopt(this->handle(), SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(struct timeval));
     }
 
     void process(uint32_t events);
@@ -212,13 +197,15 @@ namespace vds {
     vds::async_task<size_t> read_async(      
       uint8_t * buffer,
       size_t len) override {
+
       vds_assert(!this->result_);
+      auto r = std::make_shared<vds::async_result<size_t>>();
+      this->result_ = r;
+
       memset(&this->overlapped_, 0, sizeof(this->overlapped_));
       this->wsa_buf_.len = len;
       this->wsa_buf_.buf = (CHAR *)buffer;
       this->pthis_ = this->shared_from_this();
-      auto r = std::make_shared<vds::async_result<size_t>>();
-      this->result_ = r;
 
       DWORD flags = 0;
       DWORD numberOfBytesRecvd;
@@ -242,6 +229,7 @@ namespace vds {
           }
           else {
             auto t = std::move(this->result_);
+
             t->set_exception(
               std::make_exception_ptr(std::system_error(errorCode, std::system_category(), "read from tcp socket")));
             return t->get_future();
@@ -378,7 +366,6 @@ namespace vds {
       auto r = std::make_shared<vds::async_result<void>>();
       if(0 == size){
         shutdown((*this->owner())->handle(), SHUT_WR);
-        (*this->owner())->close(),
         r->set_value();
       }
       else {
@@ -455,6 +442,16 @@ namespace vds {
       }
     }
 
+    void close_write() {
+      (*this->owner())->change_mask(this->owner_, 0, EPOLLOUT);
+
+      if(this->result_){
+        auto r = std::move(this->result_);
+        r->set_exception(std::make_exception_ptr(
+            std::system_error(ECONNRESET, std::generic_category(), "Send TCP")));
+      }
+    }
+
   private:
     std::shared_ptr<socket_base> owner_;
     std::shared_ptr<vds::async_result<void>> result_;
@@ -473,19 +470,50 @@ namespace vds {
         const service_provider * sp,
         const std::shared_ptr<socket_base> &owner)
         : sp_(sp),
-          owner_(owner) {
+          owner_(owner),
+          timeout_timer_("TCP Read socket"),
+          read_count_(0) {
     }
 
     ~_read_socket_task() {
     }
+
+    void start(const service_provider * sp){
+        timeout_timer_.start(sp, std::chrono::seconds(30), [sp, pthis_ = this->shared_from_this()]() -> async_task<bool>{
+            auto pthis = static_cast<_read_socket_task *>(pthis_.get());
+            if(pthis->read_count_ < 0){
+                co_return false;
+            }
+
+            if(pthis->read_count_ == 0){
+                std::unique_lock<std::mutex> lock(pthis->result_mutex_);
+
+                if(pthis->result_){
+                    auto r = std::move(pthis->result_);
+                    lock.unlock();
+
+                    r->set_exception(std::make_exception_ptr(
+                            std::system_error(
+                                    ECONNRESET,
+                                    std::generic_category(),
+                                    "Read TCP")));
+                }
+            }
+
+            pthis->read_count_ = 0;
+            co_return !sp->get_shutdown_event().is_shuting_down();
+        });
+    }
+
 
     vds::async_task<size_t> read_async(
         uint8_t * buffer,
         size_t buffer_size) override {
       auto r = std::make_shared<vds::async_result<size_t>>();
       if(!(*this->owner())){
-          r->set_value(0);
-          return r->get_future();
+        this->read_count_ = -1;
+        r->set_value(0);
+        return r->get_future();
       }
 
       int len = read(
@@ -498,13 +526,20 @@ namespace vds {
         if (EAGAIN == error) {
           this->buffer_ = buffer;
           this->buffer_size_ = buffer_size;
+
+          std::unique_lock<std::mutex> lock(this->result_mutex_);
+          vds_assert(!this->result_);
           this->result_ = r;
+          lock.unlock();
+
           (*this->owner())->change_mask(this->owner_, EPOLLIN);
         }
         else if ((0 == error || EINTR == error || ENOENT == error) && 0 == len) {
+          this->read_count_ = -1;
           r->set_value(0);
         }
         else {
+          this->read_count_ = -1;
           this->sp_->get<logger>()->trace("TCP", "Read error %d", error);
           r->set_exception(std::make_exception_ptr(
               std::system_error(
@@ -514,6 +549,7 @@ namespace vds {
         }
       }
       else {
+        this->read_count_++;
         this->sp_->get<logger>()->trace("TCP", "Read %d bytes", len);
         r->set_value(len);
       }
@@ -534,8 +570,12 @@ namespace vds {
         }
 
         (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
-
+        
+        std::unique_lock<std::mutex> lock(this->result_mutex_);
         auto r = std::move(this->result_);
+        lock.unlock();
+
+        this->read_count_ = -1;
         if ((0 == error || EINTR == error || ENOENT == error) && 0 == len) {
           r->set_value(0);
         }
@@ -549,26 +589,40 @@ namespace vds {
       }
       else {
         (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
-
+        
+        std::unique_lock<std::mutex> lock(this->result_mutex_);
         auto r = std::move(this->result_);
+        lock.unlock();
+
+        this->read_count_++;
         r->set_value(len);
       }
     }
 
     void close_read() {
+      this->read_count_ = -1;
       (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
-      (*this->owner())->close();
 
-      auto r = std::move(this->result_);
-      r->set_value(0);
+      std::unique_lock<std::mutex> lock(this->result_mutex_);
+      if(this->result_){
+        auto r = std::move(this->result_);
+        lock.unlock();
+
+        r->set_value(0);
+      }
     }
 
   private:
     const service_provider * sp_;
     std::shared_ptr<socket_base> owner_;
+
+    std::mutex result_mutex_;
     std::shared_ptr<vds::async_result<size_t>> result_;
+
     uint8_t * buffer_;
     size_t buffer_size_;
+    timer timeout_timer_;
+    int read_count_;
 
     tcp_network_socket * owner() const {
       return static_cast<tcp_network_socket *>(this->owner_.get());

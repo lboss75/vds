@@ -20,9 +20,15 @@ namespace vds {
       const std::function<vds::async_task<http_message>(const http_message message)> &message_callback)
       : http_parser([message_callback, this](
         const http_message message)->vds::async_task<void> {
-      auto pthis = this->shared_from_this();
-      auto response = co_await message_callback(message);
-      co_await this->output_stream_->write_async(response);
+          if(message) {
+              auto pthis = this->shared_from_this();
+
+              //std::string keep_alive_header;
+              //bool keep_alive = message.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
+              auto response = co_await
+              message_callback(message);
+              co_await this->output_stream_->write_async(response);
+          }
     }),
       output_stream_(output_stream) {
     }
