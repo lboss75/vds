@@ -4,8 +4,9 @@ set -x
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-export CC=/usr/bin/clang-6.0
+export CC=/usr/bin/clang++-6.0
 export CXX=/usr/bin/clang++-6.0
+
 export CFLAGS="-fPIC"
 export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
