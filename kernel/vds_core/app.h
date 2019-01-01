@@ -390,7 +390,6 @@ namespace vds{
           catch (const std::system_error &ex) {
               if (ex.code().category() != std::system_category()
                   || ex.code().value() != ENOENT) {
-                  std::cout << "Fatal " << ex.code().value() << " " << ex.code().category().name() << "\n";
                   throw;
               }
           }
