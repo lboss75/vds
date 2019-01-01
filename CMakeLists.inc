@@ -11,7 +11,7 @@ else()
   #set(LIBCXXABI_ENABLE_SHARED OFF)
   #set(LIBCXXABI_ENABLE_STATIC_ABI_LIBRARY ON)
 
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -fexceptions")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++17 -fcoroutines-ts -fexceptions -stdlib=libc++")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++ -lc++ -lc++abi -lm")
   #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -fcoroutines-ts -stdlib=libc++")
