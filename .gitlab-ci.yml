@@ -21,6 +21,8 @@ build-raspbian:
     image: arm32v7/ubuntu:16.04
     stage: build
     script:
+        - sudo aptitude update
+        - sudo aptitude reinstall apt
         - apt-get -qq update
         - apt-get -qq install -y git cmake clang-6.0 gcovr subversion
         - ./build_dep.sh
