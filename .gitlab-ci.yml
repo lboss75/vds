@@ -18,7 +18,7 @@
 #    - build/tests/test_vds_user_manager/test_vds_user_manager
 
 build-raspbian:
-    image: ppa:fo0bar/rpi2
+    image: resin/rpi-raspbian:stretch
     stage: build
     script:
         - apt-get -qq update
