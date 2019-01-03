@@ -1,22 +1,3 @@
-#build-ubuntu:
-#    image: ubuntu:16.04
-#    stage: build
-#    script:
-#    - apt-get -qq update
-#    - apt-get -qq install -y git cmake clang-6.0 gcovr subversion
-#    - ./build_dep.sh
-#    - mkdir build
-#    - ./build.sh
-#    - build/tests/test_vds_core/test_vds_core
-#    - build/tests/test_vds_crypto/test_vds_crypto
-#    - build/tests/test_vds_data/test_vds_data
-#    - build/tests/test_vds_database/test_vds_database
-#    - build/tests/test_vds_dht_network/test_vds_dht_network
-#    - build/tests/test_vds_network/test_vds_network
-#    - build/tests/test_vds_parser/test_vds_parser
-#    - build/tests/test_vds_scenarios/test_vds_scenarios
-#    - build/tests/test_vds_user_manager/test_vds_user_manager
-
 build-raspbian:
     image: arm32v7/ubuntu:16.04
     stage: build
