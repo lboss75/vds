@@ -4,9 +4,9 @@ set -x
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-export CC=/usr/bin/clang-6.0
-export CXX=/usr/bin/clang++-6.0
-export LD=/usr/bin/clang++-6.0
+export CC=/usr/bin/clang-4.0
+export CXX=/usr/bin/clang++-4.0
+export LD=/usr/bin/clang++-4.0
 
 export CFLAGS="-fPIC -fexceptions -I/usr/include/arm-linux-gnueabihf/"
 export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -fPIC"
@@ -20,6 +20,10 @@ svn -q co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
 svn -q co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
 cd ..
 
+cd runtimes
+svn co http://llvm.org/svn/llvm-project/libunwind/trunk libunwind
+cd ..
+
 set +e
 rm -rf build
 set -e
@@ -27,8 +31,9 @@ set -e
 mkdir build
 cd build
 cmake -DCMAKE_INSTALL_PREFIX=/usr ..
-make --quiet cxx
-make --quiet install-cxx install-cxxabi
+make --quiet unwind cxx
+make --quiet check-unwind
+make --quiet install-cxx install-cxxabi install-unwind
 export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -stdlib=libc++ -fPIC"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 cd ../..
