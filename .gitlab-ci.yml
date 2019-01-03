@@ -18,7 +18,7 @@
 #    - build/tests/test_vds_user_manager/test_vds_user_manager
 
 build-raspbian:
-    image: ubuntu:arm:16.04
+    image: ppa:fo0bar/rpi2
     stage: build
     script:
         - apt-get -qq update
