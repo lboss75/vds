@@ -1,3 +1,0 @@
-[submodule "externals/openssl"]
-	path = externals/openssl
-	url = https://github.com/openssl/openssl
