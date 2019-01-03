@@ -4,9 +4,9 @@ set -x
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-export CC=/usr/bin/clang-4.0
-export CXX=/usr/bin/clang++-4.0
-export LD=/usr/bin/clang++-4.0
+export CC=clang
+export CXX=clang++
+export LD=clang++
 
 export CFLAGS="-fPIC -fexceptions -I/usr/include/arm-linux-gnueabihf/"
 export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -fPIC"
