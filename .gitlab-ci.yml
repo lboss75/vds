@@ -18,8 +18,8 @@
 #    - build/tests/test_vds_user_manager/test_vds_user_manager
 
 build-raspbian:
-    image:
-        arm32v7/ubuntu:16.04
+    image: armv7/armhf-ubuntu
+        #arm32v7/ubuntu:16.04
     stage: build
     script:
         - ls /usr/bin/
