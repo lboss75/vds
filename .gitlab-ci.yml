@@ -18,12 +18,11 @@
 #    - build/tests/test_vds_user_manager/test_vds_user_manager
 
 build-raspbian:
-    image: resin/rpi-raspbian
-        #arm32v7/ubuntu:16.10
+    image: arm32v7/ubuntu:16.04
     stage: build
     script:
         - apt-get -qq update
-        - apt-get -qq install -y git cmake clang-4.0 gcovr subversion
+        - apt-get -qq install -y git cmake clang-6.0 gcovr subversion
         - ./build_dep.sh
         - mkdir build
         - ./build.sh
