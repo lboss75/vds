@@ -19,7 +19,6 @@
 
 build-raspbian:
     image: armv7/armhf-ubuntu
-        #arm32v7/ubuntu:16.04
     stage: build
     script:
         - ls /usr/bin/
