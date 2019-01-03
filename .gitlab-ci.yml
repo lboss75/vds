@@ -23,7 +23,7 @@ build-raspbian:
     stage: build
     script:
         - apt-get -qq update
-        - apt-get -qq install -y git cmake clang-5.0 gcovr subversion
+        - apt-get -qq install -y git cmake clang-4.0 gcovr subversion
         - ./build_dep.sh
         - mkdir build
         - ./build.sh
