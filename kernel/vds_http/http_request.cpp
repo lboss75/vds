@@ -9,9 +9,7 @@ All rights reserved
 vds::http_request::http_request(const http_message & message)
   : message_(message)
 {
-  if (0 == message.headers().size()) {
-    throw std::runtime_error("Invalid HTTP Request");
-  }
+  vds_assert(0 != message.headers().size());
 
   int index = 0;
   for (auto ch : *(message.headers().begin())) {

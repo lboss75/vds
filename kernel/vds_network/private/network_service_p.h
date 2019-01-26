@@ -30,15 +30,15 @@ namespace vds {
         ~_network_service();
 
         // Inherited via iservice
-        void start(const service_provider *);
-        void stop();
-        vds::async_task<void> prepare_to_stop();
+        expected<void> start(const service_provider *);
+        expected<void> stop();
+        vds::async_task<vds::expected<void>> prepare_to_stop();
         
         void remove(socket_base * socket);
 
-        void add_connection(async_task<void>&& new_connection);
+        void add_connection(async_task<expected<void>>&& new_connection);
 #ifdef _WIN32
-        void associate(SOCKET_HANDLE s);
+        expected<void> associate(SOCKET_HANDLE s);
 
 #else
         void associate(
@@ -51,8 +51,6 @@ namespace vds {
         void remove_association(
           SOCKET_HANDLE s);
 #endif
-        static std::string to_string(const sockaddr_in & from);
-        static std::string get_ip_address_string(const sockaddr_in & from);
         
     private:
         friend class network_socket;
@@ -79,7 +77,7 @@ namespace vds {
 
 
       std::mutex connections_mutex_;
-      std::list<async_task<void>> connections_;
+      std::list<async_task<expected<void>>> connections_;
     };
 }
 

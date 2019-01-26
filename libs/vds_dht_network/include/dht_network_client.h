@@ -27,13 +27,13 @@ namespace vds {
 
       class client {
       public:
-        void start(
+        expected<void> start(
           const service_provider * sp,
           const std::shared_ptr<certificate> & node_cert,
           const std::shared_ptr<asymmetric_private_key> & node_key,
           const std::shared_ptr<iudp_transport> & udp_transport);
 
-        void stop();
+        expected<void> stop();
 
         struct chunk_info {
           const_data_buffer id;
@@ -45,19 +45,19 @@ namespace vds {
           std::map<const_data_buffer, std::list<uint16_t>> replicas;
         };
 
-        async_task<chunk_info> save(
+        async_task<expected<chunk_info>> save(
           database_transaction& t,
           const const_data_buffer& value);
 
-        async_task<chunk_info> start_save(
+        async_task<expected<chunk_info>> start_save(
           const service_provider * sp,
-          const std::function<async_task<void>(
+          const std::function<async_task<expected<void>>(
             const std::shared_ptr<stream_output_async<uint8_t>> & stream) > & data_writer);
 
-        async_task<const_data_buffer> restore(          
+        async_task<expected<const_data_buffer>> restore(          
           const chunk_info& block_id);
 
-        async_task<block_info_t> prepare_restore(
+        async_task<expected<block_info_t>> prepare_restore(
           database_read_transaction & t,
           const chunk_info& block_id);
 

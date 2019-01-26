@@ -83,7 +83,7 @@
 //  this->ssl_ctx_ = SSL_CTX_new(is_client ? SSLv23_client_method() : SSLv23_server_method());
 //  if(nullptr == this->ssl_ctx_){
 //    auto error = ERR_get_error();
-//    throw crypto_exception("SSL_CTX_new failed", error);
+//    return vds::make_unexpected<crypto_exception>("SSL_CTX_new failed", error);
 //  }
 //  
 //  SSL_CTX_set_verify(this->ssl_ctx_, SSL_VERIFY_PEER, verify_callback);
@@ -93,38 +93,38 @@
 //    int result = SSL_CTX_use_certificate(this->ssl_ctx_, cert->impl_->cert());
 //    if (0 >= result) {
 //      int ssl_error = SSL_get_error(this->ssl_, result);
-//      throw crypto_exception("SSL_CTX_use_certificate", ssl_error);
+//      return vds::make_unexpected<crypto_exception>("SSL_CTX_use_certificate", ssl_error);
 //    }
 //
 //    result = SSL_CTX_use_PrivateKey(this->ssl_ctx_, key->impl_->key());
 //    if (0 >= result) {
 //      int ssl_error = SSL_get_error(this->ssl_, result);
-//      throw crypto_exception("SSL_CTX_use_PrivateKey", ssl_error);
+//      return vds::make_unexpected<crypto_exception>("SSL_CTX_use_PrivateKey", ssl_error);
 //    }
 //
 //    result = SSL_CTX_check_private_key(this->ssl_ctx_);
 //    if (0 >= result) {
 //      int ssl_error = SSL_get_error(this->ssl_, result);
-//      throw crypto_exception("SSL_CTX_check_private_key", ssl_error);
+//      return vds::make_unexpected<crypto_exception>("SSL_CTX_check_private_key", ssl_error);
 //    }
 //  }
 //  
 //  this->ssl_ = SSL_new(this->ssl_ctx_);
 //  if(nullptr == this->ssl_){
 //    auto error = ERR_get_error();
-//    throw crypto_exception("SSL_new failed", error);
+//    return vds::make_unexpected<crypto_exception>("SSL_new failed", error);
 //  }
 //  
 //  this->input_bio_ = BIO_new(BIO_s_mem());
 //  if(nullptr == this->input_bio_){
 //    auto error = ERR_get_error();
-//    throw crypto_exception("BIO_new failed", error);
+//    return vds::make_unexpected<crypto_exception>("BIO_new failed", error);
 //  }
 //  
 //  this->output_bio_ = BIO_new(BIO_s_mem());
 //  if(nullptr == this->output_bio_){
 //    auto error = ERR_get_error();
-//    throw crypto_exception("BIO_new failed", error);
+//    return vds::make_unexpected<crypto_exception>("BIO_new failed", error);
 //  }
 //  
 //  SSL_set_bio(this->ssl_, this->input_bio_, this->output_bio_);

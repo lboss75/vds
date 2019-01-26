@@ -33,7 +33,6 @@ namespace vds {
   class asymmetric_crypto
   {
   public:
-    static const asymmetric_crypto_info & unknown();
     static const asymmetric_crypto_info & rsa2048();
     static const asymmetric_crypto_info & rsa4096();
   };
@@ -43,25 +42,27 @@ namespace vds {
   {
   public:
     asymmetric_private_key();
-    asymmetric_private_key(asymmetric_private_key && original);
-    asymmetric_private_key(const asymmetric_crypto_info & info);
+    asymmetric_private_key(const asymmetric_private_key & original) = delete;
+    asymmetric_private_key(asymmetric_private_key && original) noexcept;
     ~asymmetric_private_key();
-    
-    static asymmetric_private_key generate(const asymmetric_crypto_info & info);
 
-    static asymmetric_private_key parse(const std::string & value, const std::string & password = std::string());
-    std::string str(const std::string & password = std::string()) const;
+    expected<void> create(const asymmetric_crypto_info & info);
+
+    static expected<asymmetric_private_key> generate(const asymmetric_crypto_info & info);
+
+    static expected<asymmetric_private_key> parse(const std::string & value, const std::string & password = std::string());
+    expected<std::string> str(const std::string & password = std::string()) const;
     
-    const_data_buffer der(const std::string &password) const;
-    static asymmetric_private_key parse_der(
+    expected<const_data_buffer> der(const std::string &password) const;
+    static expected<asymmetric_private_key> parse_der(
       const const_data_buffer & value,
       const std::string & password);
 
-    void load(const filename & filename, const std::string & password = std::string());
-    void save(const filename & filename, const std::string & password = std::string()) const;
+    expected<void> load(const filename & filename, const std::string & password = std::string());
+    expected<void> save(const filename & filename, const std::string & password = std::string()) const;
 
-    const_data_buffer decrypt(const const_data_buffer & data) const;
-    const_data_buffer decrypt(const void * data, size_t size) const;
+    expected<const_data_buffer> decrypt(const const_data_buffer & data) const;
+    expected<const_data_buffer> decrypt(const void * data, size_t size) const;
     
     asymmetric_private_key & operator = (asymmetric_private_key && original);
 
@@ -81,21 +82,33 @@ namespace vds {
   class asymmetric_public_key
   {
   public:
-    asymmetric_public_key(const asymmetric_public_key & original);
-    asymmetric_public_key(const asymmetric_private_key & key);
+    asymmetric_public_key();
+    asymmetric_public_key(const asymmetric_public_key & original) = delete;
+    asymmetric_public_key(asymmetric_public_key && original);
     ~asymmetric_public_key();
 
-    static asymmetric_public_key parse(const std::string & format);
-    std::string str() const;
+    static expected<asymmetric_public_key> create(const asymmetric_private_key & key);
 
-    static asymmetric_public_key parse_der(const const_data_buffer & value);
-    const_data_buffer der() const;
+    static expected<asymmetric_public_key> parse(const std::string & format);
+    expected<std::string> str() const;
 
-    void load(const filename & filename);
-    void save(const filename & filename);
+    static expected<asymmetric_public_key> parse_der(const const_data_buffer & value);
+    expected<const_data_buffer> der() const;
 
-    const_data_buffer encrypt(const const_data_buffer & data);
-    const_data_buffer encrypt(const void * data, size_t data_size);
+    expected<void> load(const filename & filename);
+    expected<void> save(const filename & filename);
+
+    expected<const_data_buffer> encrypt(const const_data_buffer & data);
+    expected<const_data_buffer> encrypt(const void * data, size_t data_size);
+    expected<const_data_buffer> encrypt(expected<const_data_buffer> && data) {
+      if(data.has_error()) {
+        return unexpected(std::move(data.error()));
+      }
+
+      return this->encrypt(data.value());
+    }
+
+    asymmetric_public_key & operator = (asymmetric_public_key && original) noexcept;
 
   private:
     asymmetric_public_key(_asymmetric_public_key * impl);
@@ -110,26 +123,28 @@ namespace vds {
   class asymmetric_sign : public stream_output_async<uint8_t>
   {
   public:
-    asymmetric_sign(
-      const hash_info & hash_info,
-      const asymmetric_private_key & key);
+    asymmetric_sign();
 
     ~asymmetric_sign();
 
-    const_data_buffer signature();
+    expected<void> create(
+      const hash_info & hash_info,
+      const asymmetric_private_key & key);
 
-    static const_data_buffer signature(
+    expected<const_data_buffer> signature();
+
+    static expected<const_data_buffer> signature(
       const hash_info & hash_info,
       const asymmetric_private_key & key,
       const const_data_buffer & data);
 
-    static const_data_buffer signature(
+    static expected<const_data_buffer> signature(
       const hash_info & hash_info,
       const asymmetric_private_key & key,
       const void * data,
       size_t data_size);
 
-    vds::async_task<void> write_async(
+    vds::async_task<vds::expected<void>> write_async(
       
       const uint8_t  *data,
       size_t len) override;
@@ -141,29 +156,31 @@ namespace vds {
   class asymmetric_sign_verify : public stream_output_async<uint8_t>
   {
   public:
-    asymmetric_sign_verify(
+    asymmetric_sign_verify();
+
+    ~asymmetric_sign_verify();
+
+    expected<void> create(
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & sig);
 
-    ~asymmetric_sign_verify();
+    expected<bool> result() const;
     
-    bool result() const;
-    
-    static bool verify(
+    static expected<bool> verify(
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & signature,
       const void * data,
       size_t data_size);
 
-    static bool verify(
+    static expected<bool> verify(
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & signature,
       const const_data_buffer & data);
 
-    vds::async_task<void> write_async(      
+    vds::async_task<vds::expected<void>> write_async(      
       const uint8_t *data,
       size_t len) override;
 
@@ -208,18 +225,18 @@ namespace vds {
     certificate(certificate && original);
     ~certificate();
 
-    static certificate parse(const std::string & format);
-    std::string str() const;
+    static expected<certificate> parse(const std::string & format);
+    expected<std::string> str() const;
 
-    static certificate parse_der(const const_data_buffer & body);
-    const_data_buffer der() const;
+    static expected<certificate> parse_der(const const_data_buffer & body);
+    expected<const_data_buffer> der() const;
 
-    void load(const filename & filename);
-    void save(const filename & filename) const;
+    expected<void> load(const filename & filename);
+    expected<void> save(const filename & filename) const;
 
     std::string subject() const;
     std::string issuer() const;
-    const_data_buffer fingerprint(const hash_info & hash_algo = hash::sha256()) const;
+    expected<const_data_buffer> fingerprint(const hash_info & hash_algo = hash::sha256()) const;
 
     class create_options
     {
@@ -240,13 +257,13 @@ namespace vds {
       std::list<certificate_extension> extensions;
     };
 
-    static certificate create_new(
+    static expected<certificate> create_new(
       const asymmetric_public_key & new_certificate_public_key,
       const asymmetric_private_key & new_certificate_private_key,
       const create_options & options
     );
 
-    asymmetric_public_key public_key() const;
+    expected<asymmetric_public_key> public_key() const;
     
     bool is_ca_cert() const;
     
@@ -254,7 +271,7 @@ namespace vds {
     
     int extension_count() const;
     int extension_by_NID(int nid) const;
-    certificate_extension get_extension(int index) const;
+    expected<certificate_extension> get_extension(int index) const;
 
     certificate & operator = (const certificate & original) = delete;
     certificate & operator = (certificate && original);
@@ -276,8 +293,10 @@ namespace vds {
     certificate_store();
     ~certificate_store();
 
-    void add(const certificate & cert);
-    void load_locations(const std::string & location);
+    expected<void> create();
+
+    expected<void> add(const certificate & cert);
+    expected<void> load_locations(const std::string & location);
     
     struct verify_result
     {
@@ -286,36 +305,40 @@ namespace vds {
       std::string issuer;
     };
     
-    verify_result verify(const certificate & cert) const;
+    expected<verify_result> verify(const certificate & cert) const;
     
   private:
     _certificate_store * impl_;
   };
 
-inline vds::binary_serializer & operator << (vds::binary_serializer & s, const std::shared_ptr<vds::certificate> & cert)
+inline expected<void> serialize(vds::binary_serializer & s, const std::shared_ptr<vds::certificate> & cert)
 {
-	return s << cert->der();
+  GET_EXPECTED(der, cert->der());
+  return serialize(s, der);
 }
 
-inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, std::shared_ptr<vds::certificate> & cert)
+inline expected<void> deserialize(vds::binary_deserializer & s, std::shared_ptr<vds::certificate> & cert)
 {
 	vds::const_data_buffer cert_data;
-	s >> cert_data;
-	cert = std::make_shared<vds::certificate>(vds::certificate::parse_der(cert_data));
-	return s;
+	CHECK_EXPECTED(s.get(cert_data));
+  GET_EXPECTED(der, vds::certificate::parse_der(cert_data));
+	cert = std::make_shared<vds::certificate>(std::move(der));
+	return expected<void>();
 }
 
-inline vds::binary_serializer & operator << (vds::binary_serializer & s, const std::shared_ptr<vds::asymmetric_private_key> & key)
+inline expected<void> serialize(vds::binary_serializer & s, const std::shared_ptr<vds::asymmetric_private_key> & key)
 {
-  return s << key->der(std::string());
+  GET_EXPECTED(der, key->der(std::string()));
+  return serialize(s, der);
 }
 
-inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, std::shared_ptr<vds::asymmetric_private_key> & key)
+inline expected<void> deserialize(vds::binary_deserializer & s, std::shared_ptr<vds::asymmetric_private_key> & key)
 {
   vds::const_data_buffer key_data;
-  s >> key_data;
-  key = std::make_shared<vds::asymmetric_private_key>(vds::asymmetric_private_key::parse_der(key_data, std::string()));
-  return s;
+  CHECK_EXPECTED(deserialize(s, key_data));
+  GET_EXPECTED(der, vds::asymmetric_private_key::parse_der(key_data, std::string()));
+  key = std::make_shared<vds::asymmetric_private_key>(std::move(der));
+  return expected<void>();
 }
 
 }

@@ -14,11 +14,11 @@ namespace vds {
   public:
     web_server();
     ~web_server();
-    
-    void register_services(service_registrator &) override;
-    void start(const service_provider *) override;
-    void stop() override;
-    vds::async_task<void> prepare_to_stop() override;
+
+    expected<void> register_services(service_registrator &) override;
+    expected<void> start(const service_provider *) override;
+    expected<void> stop() override;
+    vds::async_task<vds::expected<void>> prepare_to_stop() override;
 
     operator bool () const {
       return nullptr != this->impl_;

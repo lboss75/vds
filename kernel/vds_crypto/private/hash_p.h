@@ -15,16 +15,16 @@ namespace vds {
   class _hash
   {
   public:
-    static const hash_info & sha256();
-
-    _hash(const hash_info & info);
+    _hash();
     ~_hash();
 
-    void update(
+    expected<void> create(const hash_info & info);
+
+    expected<void> update(
       const void * data,
       size_t len);
 
-    void final();
+    expected<void> final();
 
     const const_data_buffer & signature() const {
       vds_assert(this->sig_);
@@ -32,7 +32,7 @@ namespace vds {
     }
 
   private:
-    const hash_info & info_;
+    const hash_info * info_;
 
     EVP_MD_CTX * ctx_;
     const_data_buffer sig_;
@@ -44,11 +44,11 @@ namespace vds {
     _hmac(const const_data_buffer & key, const hash_info & info = hash::sha256());
     ~_hmac();
 
-    void update(
+    expected<void> update(
       const void * data,
       size_t len);
 
-    const_data_buffer final();
+    expected<const_data_buffer> final();
 
   private:
     const hash_info & info_;

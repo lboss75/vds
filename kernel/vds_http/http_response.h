@@ -46,7 +46,7 @@ namespace vds {
       int result_code = HTTP_OK,
       const std::string & message = "OK");
 
-    static http_message file_response(
+    static expected<http_message> file_response(
       const filename & body_file,
       const std::string & out_filename,
       const std::string & content_type,

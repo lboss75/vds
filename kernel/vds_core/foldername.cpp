@@ -27,8 +27,8 @@ vds::foldername::foldername(
 }
 
 
-void vds::foldername::folders(
-  const std::function< bool(const foldername &) >& callback
+vds::expected<void> vds::foldername::folders(
+  const std::function<expected<bool> (const foldername &) >& callback
 ) const
 {
 #ifdef _WIN32
@@ -36,26 +36,26 @@ void vds::foldername::folders(
   HANDLE hFind = FindFirstFile((this->local_name() + "\\*.*").c_str(), &ff);
   if (hFind == INVALID_HANDLE_VALUE) {
     auto error = GetLastError();
-    throw std::system_error(error, std::system_category(), "get folders of " + this->value_);
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "get folders of " + this->value_);
   }
   else {
-    try {
-      do
-      {
-        if (
-          FILE_ATTRIBUTE_DIRECTORY == (ff.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-          && nullptr == strstr("..", ff.cFileName)
-          ) {
-          if (!callback(foldername(*this, ff.cFileName))) {
-            break;
-          }
+    do
+    {
+      if (
+        FILE_ATTRIBUTE_DIRECTORY == (ff.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        && nullptr == strstr("..", ff.cFileName)
+        ) {
+        auto r = callback(foldername(*this, ff.cFileName));
+        if(r.has_error()) {
+          FindClose(hFind);
+          return unexpected(std::move(r.error()));
         }
-      } while (FindNextFile(hFind, &ff));
-    }
-    catch (...) {
-      FindClose(hFind);
-      throw;
-    }
+
+        if (!r.value()) {
+          break;
+        }
+      }
+    } while (FindNextFile(hFind, &ff));
     FindClose(hFind);
   }
 #else
@@ -84,91 +84,89 @@ void vds::foldername::folders(
     closedir(d);
   }
 #endif
+  return expected<void>();
 }
 
-void vds::foldername::files(
-  const std::function< bool (const filename &)>& callback) const
+vds::expected<void> vds::foldername::files(
+  const std::function<expected<bool> (const filename &)>& callback) const
 {
 #ifdef _WIN32
   WIN32_FIND_DATA ff;
   HANDLE hFind = FindFirstFile((this->local_name() + "\\*.*").c_str(), &ff);
   if (hFind == INVALID_HANDLE_VALUE) {
     auto error = GetLastError();
-    throw std::system_error(error, std::system_category(), "get folders of " + this->value_);
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "get folders of " + this->value_);
   }
   else {
-    try {
-      do
-      {
-        if (
-          FILE_ATTRIBUTE_DIRECTORY != (ff.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-          ) {
-          if (!callback(filename(*this, ff.cFileName))) {
-            break;
-          }
+    do
+    {
+      if (
+        FILE_ATTRIBUTE_DIRECTORY != (ff.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        ) {
+        auto r = callback(filename(*this, ff.cFileName));
+        if(r.has_error()) {
+          FindClose(hFind);
+          return unexpected(std::move(r.error()));
         }
-      } while (FindNextFile(hFind, &ff));
-    }
-    catch (...) {
-      FindClose(hFind);
-      throw;
-    }
+        if (!r.value()) {
+          break;
+        }
+      }
+    } while (FindNextFile(hFind, &ff));
     FindClose(hFind);
   }
 #else
   DIR * d = opendir(this->local_name().c_str());
   if (d) {
-    try{
-      struct dirent *dir;
-      struct stat statbuf;
-      while ((dir = readdir(d)) != NULL) {
-        if(nullptr == strstr("..", dir->d_name)) {
-          if (
-              stat(filename(*this, dir->d_name).local_name().c_str(), &statbuf) != -1
-              && S_ISREG(statbuf.st_mode)) {
-            if (!callback(filename(*this, dir->d_name))) {
-              break;
-            }
+    struct dirent *dir;
+    struct stat statbuf;
+    while ((dir = readdir(d)) != NULL) {
+      if(nullptr == strstr("..", dir->d_name)) {
+        if (
+            stat(filename(*this, dir->d_name).local_name().c_str(), &statbuf) != -1
+            && S_ISREG(statbuf.st_mode)) {
+          if (!callback(filename(*this, dir->d_name))) {
+            break;
           }
         }
       }
-    }
-    catch(...) {
-      closedir(d);
-      throw;
     }
     
     closedir(d);
   }
 #endif
+
+  return expected<void>();
 }
 
-void vds::foldername::delete_folder(bool recurcive) const
+vds::expected<void> vds::foldername::delete_folder(bool recurcive) const
 {
   if (!this->exist()) {
-    return;
+    return expected<void>();
   }
 
   if (recurcive) {
-    this->folders([](const foldername & f) -> bool{
-      f.delete_folder(true);
+    CHECK_EXPECTED(this->folders([](const foldername & f) -> expected<bool> {
+      CHECK_EXPECTED(f.delete_folder(true));
       return true;
-    });
+    }));
 
-    this->files([](const filename & f) -> bool {
-      file::delete_file(f);
+    CHECK_EXPECTED(this->files([](const filename & f) -> expected<bool> {
+      CHECK_EXPECTED(file::delete_file(f));
       return true;
-    });
+    }));
   }
 
   if (0 != rmdir(this->local_name().c_str())) {
     auto err = errno;
-    throw std::system_error(err, std::system_category(), "Unable to delete folder " + this->name());
+    return vds::make_unexpected<std::system_error>(err, std::system_category(), "Unable to delete folder " + this->name());
   }
+
+  return expected<void>();
 }
 
 
-std::string vds::foldername::relative_path(const vds::filename & fn, bool allow_pass_border) const
+vds::expected<std::string> vds::foldername::relative_path(const vds::filename & fn, bool allow_pass_border) const
 {
   if (fn.value_.length() > this->value_.length()
     && 0 == memcmp(fn.value_.c_str(), this->value_.c_str(), this->value_.length())
@@ -177,7 +175,7 @@ std::string vds::foldername::relative_path(const vds::filename & fn, bool allow_
     return fn.value_.substr(this->value_.length() + 1);
   }
 
-  throw std::runtime_error("Not implemented");
+  return vds::make_unexpected<std::runtime_error>("Not implemented");
 }
 
 std::string vds::foldername::name() const
@@ -207,11 +205,11 @@ bool vds::foldername::exist() const
   return (0 == access(this->local_name().c_str(), 0));
 }
 
-void vds::foldername::create() const
+vds::expected<void> vds::foldername::create() const
 {
   auto contains_folder = this->contains_folder();
   if (contains_folder != *this && !contains_folder.exist()) {
-    contains_folder.create();
+    CHECK_EXPECTED(contains_folder.create());
   }
 
 #ifdef _WIN32
@@ -221,17 +219,19 @@ void vds::foldername::create() const
 #endif//_WIN32
     auto error = errno;
     if (EEXIST != error) {
-      throw std::system_error(error, std::system_category(), "create folder " + this->name());
+      return vds::make_unexpected<std::system_error>(error, std::system_category(), "create folder " + this->name());
     }
   }
+
+  return expected<void>();
 }
 
-uint64_t vds::foldername::free_size() const {
+vds::expected<uint64_t> vds::foldername::free_size() const {
 #ifndef _WIN32
   struct statvfs buf;
   if(0 != statvfs(this->local_name().c_str(), &buf)){
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "Get Free Size");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Get Free Size");
   }
   return buf.f_bfree * buf.f_frsize;
 #else// _WIN32
@@ -243,18 +243,18 @@ uint64_t vds::foldername::free_size() const {
     &totalNumberOfBytes,
     NULL)){
     auto error = GetLastError();
-    throw std::system_error(error, std::system_category(), "Get Free Size");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Get Free Size");
   }
   return freeBytesAvailable.QuadPart;
 #endif// _WIN32
 }
 
-uint64_t vds::foldername::total_size() const {
+vds::expected<uint64_t> vds::foldername::total_size() const {
 #ifndef _WIN32
   struct statvfs buf;
   if(0 != statvfs(this->local_name().c_str(), &buf)){
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "Get Free Size");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Get Free Size");
   }
   return buf.f_bsize * buf.f_frsize / (1024 * 1024 * 1024);
 #else// _WIN32
@@ -266,7 +266,7 @@ uint64_t vds::foldername::total_size() const {
     &totalNumberOfBytes,
     NULL)){
     auto error = GetLastError();
-    throw std::system_error(error, std::system_category(), "Get Free Size");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Get Free Size");
   }
   return totalNumberOfBytes.QuadPart;
 #endif// _WIN32

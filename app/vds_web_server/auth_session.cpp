@@ -17,17 +17,17 @@ vds::auth_session::auth_session(
 }
 
 
-vds::async_task<void> vds::auth_session::load(const service_provider * sp) {
+vds::async_task<vds::expected<void>> vds::auth_session::load(const service_provider * sp) {
   this->last_update_ = std::chrono::steady_clock::now();
-  return sp->get<db_model>()->async_transaction([pthis = this->shared_from_this()](database_transaction & t) {
-    pthis->user_mng_->load(
+  return sp->get<db_model>()->async_transaction([pthis = this->shared_from_this()](database_transaction & t) -> expected<void> {
+    return pthis->user_mng_->load(
       t,
       pthis->login_,
       pthis->password_);
   });
 }
 
-vds::async_task<void> vds::auth_session::update() {
+vds::async_task<vds::expected<void>> vds::auth_session::update() {
   this->last_update_ = std::chrono::steady_clock::now();
   return this->user_mng_->update();
 }

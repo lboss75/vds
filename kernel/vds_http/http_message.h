@@ -9,7 +9,6 @@ All rights reserved
 #include <memory>
 #include <list>
 
-#include "filename.h"
 #include "async_buffer.h"
 
 namespace vds {
@@ -51,8 +50,8 @@ namespace vds {
       return this->headers_.empty();
     }
 
-    vds::async_task<void> ignore_empty_body() const;
-    vds::async_task<void> ignore_body() const;
+    vds::async_task<vds::expected<void>> ignore_empty_body() const;
+    vds::async_task<vds::expected<void>> ignore_body() const;
 
   private:
     std::list<std::string> headers_;
@@ -61,7 +60,7 @@ namespace vds {
     struct buffer_t {
       uint8_t data_[1024];
     };
-    static vds::async_task<void> ignore_body(
+    static vds::async_task<vds::expected<void>> ignore_body(
       
       const std::shared_ptr<stream_input_async<uint8_t>> & body,
       const std::shared_ptr<buffer_t> & buffer);

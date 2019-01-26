@@ -14,8 +14,8 @@ namespace vds {
   class persistence
   {
   public:
-    static foldername current_user(const service_provider * sp);
-    static foldername local_machine(const service_provider * sp);
+    static expected<foldername> current_user(const service_provider * sp);
+    static expected<foldername> local_machine(const service_provider * sp);
   };
 }
 

@@ -19,7 +19,7 @@ namespace vds {
         const_data_buffer source_node;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->leafs,
             this->source_node
@@ -35,7 +35,7 @@ namespace vds {
         const_data_buffer source_node;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->transaction_id,
             this->source_node
@@ -51,7 +51,7 @@ namespace vds {
         const_data_buffer data;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->record_id,
             this->data

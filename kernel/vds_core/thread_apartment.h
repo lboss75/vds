@@ -10,6 +10,7 @@ All rights reserved
 #include <mutex>
 #include "mt_service.h"
 #include "vds_debug.h"
+#include "logger.h"
 
 namespace vds {
 
@@ -20,17 +21,10 @@ namespace vds {
     }
 
     ~thread_apartment() {
-#ifdef DEBUG
-      try {
-        vds_assert(this->task_queue_.empty());
-      }
-      catch (...){
-
-      }
-#endif
+      vds_assert(this->task_queue_.empty());
     }
 
-    void schedule(const std::function<void(void)> & callback) {
+    void schedule(const std::function<expected<void>(void)> & callback) {
       std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
       vds_assert(!this->is_stopping_);
 
@@ -45,10 +39,9 @@ namespace vds {
             auto f = pthis->task_queue_.front();
             lock.unlock();
 
-            try {
-              f();
-            }
-            catch (...) {
+            auto callback_result = f();
+            if(callback_result.has_error()) {
+              pthis->sp_->get<logger>()->warning("Core", "%s at process callback", callback_result.error()->what());
             }
 
             lock.lock();
@@ -56,7 +49,7 @@ namespace vds {
             if (pthis->task_queue_.empty()) {
               if(pthis->empty_query_) {
                 auto r = std::move(pthis->empty_query_);
-                r->set_value();
+                r->set_value(expected<void>());
               }
               break;
             }
@@ -66,17 +59,17 @@ namespace vds {
       }
     }
 
-    vds::async_task<void> prepare_to_stop() {
+    vds::async_task<vds::expected<void>> prepare_to_stop() {
       std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
       vds_assert(!this->is_stopping_);
       this->is_stopping_ = true;
       if(task_queue_.empty()) {
-        auto r = vds::async_result<void>();
-        r.set_value();
+        auto r = vds::async_result<vds::expected<void>>();
+        r.set_value(expected<void>());
         return r.get_future();
       }
 
-      this->empty_query_ = std::make_unique<vds::async_result<void>>();
+      this->empty_query_ = std::make_unique<vds::async_result<vds::expected<void>>>();
       return this->empty_query_->get_future();
     }
 
@@ -93,8 +86,8 @@ namespace vds {
     const service_provider * sp_;
     bool is_stopping_;
     mutable std::mutex task_queue_mutex_;
-    std::queue<std::function<void(void)>> task_queue_;
-    std::unique_ptr<vds::async_result<void>> empty_query_;
+    std::queue<std::function<expected<void>(void)>> task_queue_;
+    std::unique_ptr<async_result<expected<void>>> empty_query_;
   };
 }
 

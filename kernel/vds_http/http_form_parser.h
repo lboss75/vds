@@ -7,8 +7,6 @@ All rights reserved
 
 #include "http_message.h"
 #include "http_multipart_reader.h"
-#include "deflate.h"
-#include "inflate.h"
 
 namespace vds {
   namespace http {
@@ -32,13 +30,13 @@ namespace vds {
         std::shared_ptr<stream_input_async<uint8_t>> stream;
       };
       //To override
-//      void on_field( const simple_field_info & field) {
+//      expected<void> on_field( const simple_field_info & field) {
 //      }
 //
-//      vds::async_task<void> on_file( const file_info & file) {
+//      vds::async_task<vds::expected<void>> on_file( const file_info & file) {
 //      }
 
-      vds::async_task<void> parse(
+      vds::async_task<vds::expected<void>> parse(
         const http_message & message);
 
     protected:
@@ -51,7 +49,7 @@ namespace vds {
           : owner_(owner) {
         }
 
-        vds::async_task<void> read_part(
+        vds::async_task<vds::expected<void>> read_part(
           
           const http_message& part);
 
@@ -59,17 +57,17 @@ namespace vds {
         std::shared_ptr<form_parser> owner_;
         uint8_t buffer_[1024];
 
-        vds::async_task<void> read_string_body(
+        vds::async_task<vds::expected<void>> read_string_body(
             
           const std::shared_ptr<std::string>& buffer,
           const http_message& part);
 
-        vds::async_task<void> read_file(
+        vds::async_task<vds::expected<void>> read_file(
           
           const std::shared_ptr<stream_output_async<uint8_t>> & buffer,
           const http_message& part);
 
-          vds::async_task<void> skip_part(
+          vds::async_task<vds::expected<void>> skip_part(
             
           const vds::http_message& part);
 
@@ -77,7 +75,7 @@ namespace vds {
     };
 
     template <typename implementation_class>
-    vds::async_task<void> form_parser<implementation_class>::parse(const http_message& message) {
+    vds::async_task<vds::expected<void>> form_parser<implementation_class>::parse(const http_message& message) {
       std::string content_type;
       if (message.get_header("Content-Type", content_type)) {
         static const char multipart_form_data[] = "multipart/form-data;";
@@ -89,27 +87,27 @@ namespace vds {
             boundary.erase(0, sizeof(boundary_prefix) - 1);
 
             auto task = std::make_shared<_form_parser>(this->shared_from_this());
-            auto reader = std::make_shared<http_multipart_reader>(this->sp_, "--" + boundary, [task](const http_message& part)->vds::async_task<void> {
+            auto reader = std::make_shared<http_multipart_reader>(this->sp_, "--" + boundary, [task](const http_message& part)->vds::async_task<vds::expected<void>> {
               return task->read_part(part);
             });
 
             co_return co_await reader->process(message.body());
           }
           else {
-            throw std::runtime_error("Invalid content type " + content_type);
+            co_return vds::make_unexpected<std::runtime_error>("Invalid content type " + content_type);
           }
         }
         else {
-          throw std::runtime_error("Invalid content type " + content_type);
+          co_return vds::make_unexpected<std::runtime_error>("Invalid content type " + content_type);
         }
       }
       else {
-        throw std::runtime_error("Invalid content type");
+        co_return vds::make_unexpected<std::runtime_error>("Invalid content type");
       }
     }
 
     template <typename implementation_class>
-    vds::async_task<void> form_parser<implementation_class>::_form_parser::read_part(
+    vds::async_task<vds::expected<void>> form_parser<implementation_class>::_form_parser::read_part(
       const http_message& part) {
       for(;;) {
         std::string content_disposition;
@@ -151,21 +149,18 @@ namespace vds {
               auto fname = values.find("filename");
               if (values.end() == fname) {
                 auto buffer = std::make_shared<std::string>();
-                co_await
-                this->read_string_body(buffer, part);
-
-                static_cast<implementation_class *>(this->owner_.get())->on_field(simple_field_info {
+                CHECK_EXPECTED_ASYNC(co_await this->read_string_body(buffer, part));
+                CHECK_EXPECTED_ASYNC(co_await static_cast<implementation_class *>(this->owner_.get())->on_field(simple_field_info {
                   name,
-                  url_encode::decode(*buffer)});
-                co_return;
+                  url_encode::decode(*buffer)}));
+                co_return expected<void>();
               }
 
               std::string content_type;
               if (part.get_header("Content-Type", content_type)) {
-                co_await
-                static_cast<implementation_class *>(this->owner_.get())->on_file(
-                    file_info{name, fname->second, content_type, part.body() });
-                co_return;
+                CHECK_EXPECTED_ASYNC(co_await static_cast<implementation_class *>(this->owner_.get())->on_file(
+                    file_info{name, fname->second, content_type, part.body() }));
+                co_return  expected<void>();
                 //if("application/x-zip-compressed" == content_type) {
                 //  auto stream = std::make_shared<continuous_buffer<uint8_t>>(sp);
                 //  auto buffer = std::make_shared<inflate_async>(*stream);
@@ -173,59 +168,58 @@ namespace vds {
                 //  return this->read_file(buffer, part).then([stream](){});
                 //}
               }
-              throw std::runtime_error("Not implemented");
+              co_return vds::make_unexpected<std::runtime_error>("Not implemented");
             }
             co_await this->skip_part(part);
-            co_return;
+            co_return expected<void>();
           }
         }
 
-        auto readed = co_await
-        part.body()->read_async(this->buffer_, sizeof(this->buffer_));
+        GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
         if (0 == readed) {
-          co_return;
+          co_return expected<void>();
         }
       }
     }
 
     template <typename implementation_class>
-    vds::async_task<void> form_parser<implementation_class>::_form_parser::read_string_body(
+    vds::async_task<vds::expected<void>> form_parser<implementation_class>::_form_parser::read_string_body(
         
       const std::shared_ptr<std::string>& buffer, const http_message& part) {
       for(;;){
-        auto readed = co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_));
+        GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
         if (0 == readed) {
-          co_return;
+          co_return expected<void>();
         }
         *buffer += std::string((const char *)this->buffer_, readed);
       }
     }
 
     template <typename implementation_class>
-    vds::async_task<void> form_parser<implementation_class>::_form_parser::read_file(
+    vds::async_task<vds::expected<void>> form_parser<implementation_class>::_form_parser::read_file(
       
       const std::shared_ptr<stream_output_async<uint8_t>>& buffer,
       const http_message& part) {
       for(;;){
-        auto readed = co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_));
+        GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
 
         if (0 == readed) {
           co_await buffer->write_async(nullptr, 0);
-          co_return;
+          co_return expected<void>();
         }
 
-        co_await buffer->write_async(this->buffer_, readed);
+        CHECK_EXPECTED_ASYNC(co_await buffer->write_async(this->buffer_, readed));
       }
     }
 
     template <typename implementation_class>
-    vds::async_task<void> form_parser<implementation_class>::_form_parser::skip_part(
+    vds::async_task<vds::expected<void>> form_parser<implementation_class>::_form_parser::skip_part(
       
       const vds::http_message& part) {
       for (;;) {
-        auto readed = co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_));
+        GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
         if (0 == readed) {
-          co_return;
+          co_return expected<void>();
         }
       }
     }

@@ -58,10 +58,10 @@ namespace vds{
 
 #ifndef _WIN32
     static barrier stop_barrier;
-#endif
-
     static void kill_prev(const foldername & root_folder, const std::string & process_name);
     static void demonize(const foldername & root_folder, const std::string & process_name);
+#endif
+
   };
   
   template <typename app_impl>
@@ -78,50 +78,52 @@ namespace vds{
       }
 
       int run(int argc, const char **argv) {
-          try {
-              this->current_process_ = filename(argv[0]);
+        auto result = run_app(argc, argv);
+        if(result.has_error()) {
+          std::cerr << result.error()->what() << "\n";
+          return 1;
+        }
+        return result.value();
+      }
+
+      expected<int> run_app(int argc, const char **argv) {
+        this->current_process_ = filename(argv[0]);
 #ifndef _WIN32
-              // core dumps may be disallowed by parent of this process; change that
-              struct rlimit core_limits;
-              core_limits.rlim_cur = core_limits.rlim_max = RLIM_INFINITY;
-              setrlimit(RLIMIT_CORE, &core_limits);
+        // core dumps may be disallowed by parent of this process; change that
+        struct rlimit core_limits;
+        core_limits.rlim_cur = core_limits.rlim_max = RLIM_INFINITY;
+        setrlimit(RLIMIT_CORE, &core_limits);
 #endif
-              setlocale(LC_ALL, "Russian");
+        setlocale(LC_ALL, "Russian");
 
-              auto pthis = static_cast<app_impl *>(this);
-              command_line cmd_line(
-                      pthis->app_name(),
-                      pthis->app_description(),
-                      pthis->app_version()
-              );
+        auto pthis = static_cast<app_impl *>(this);
+        command_line cmd_line(
+          pthis->app_name(),
+          pthis->app_description(),
+          pthis->app_version()
+        );
 
-              pthis->register_command_line(cmd_line);
-              pthis->register_common_parameters(cmd_line);
+        pthis->register_command_line(cmd_line);
+        pthis->register_common_parameters(cmd_line);
 
-              this->current_command_set_ = cmd_line.parse(argc, argv);
+        GET_EXPECTED_VALUE(this->current_command_set_, cmd_line.parse(argc, argv));
 
-              pthis->process_common_parameters();
+        pthis->process_common_parameters();
 
-              if (
-                      nullptr == this->current_command_set_
-                      || this->current_command_set_ == &this->help_cmd_set_) {
-                  cmd_line.show_help(this->current_process_.name_without_extension());
-                  return 0;
-              }
+        if (
+          nullptr == this->current_command_set_
+          || this->current_command_set_ == &this->help_cmd_set_) {
+          cmd_line.show_help(this->current_process_.name_without_extension());
+          return 1;
+        }
 
-              if (pthis->need_demonize()) {
-                  return pthis->demonize();
-              } else {
-                  pthis->start();
-              }
-
-              return 0;
-          }
-          catch (const std::exception &ex) {
-              std::cerr << ex.what() << "\n";
-              return 1;
-
-          }
+        if (pthis->need_demonize()) {
+          return pthis->demonize();
+        }
+        else {
+          CHECK_EXPECTED(pthis->start());
+          return 2;
+        }
       }
 
   protected:
@@ -132,7 +134,7 @@ namespace vds{
       const command_line_set *current_command_set_;
       filename current_process_;
 
-      void start() {
+      expected<void> start() {
           vds::service_registrator registrator;
 
           auto pthis = static_cast<app_impl *>(this);
@@ -140,59 +142,37 @@ namespace vds{
 
           if (!this->root_folder_.value().empty()) {
               vds::foldername folder(this->root_folder_.value());
-              folder.create();
+            CHECK_EXPECTED(folder.create());
 
               registrator.current_user(folder);
               registrator.local_machine(folder);
           }
 
-          auto sp = registrator.build();
-          try {
-              pthis->prepare(sp);
-              pthis->start_services(registrator, sp);
-              pthis->before_main(sp);
-              pthis->main(sp);
-          }
-          catch (const std::exception &ex) {
-              this->logger_.error("core", "Application error %s", ex.what());
-              try {
-                  registrator.shutdown();
-              }
-              catch (...) {}
-              throw;
-          }
-          catch (...) {
-              this->logger_.error("core", "Unexpected application error");
-              try {
-                  registrator.shutdown();
-              }
-              catch (...) {}
-              throw;
-          }
+          GET_EXPECTED(sp, registrator.build());
+          CHECK_EXPECTED(pthis->prepare(sp));
+          CHECK_EXPECTED(pthis->start_services(registrator, sp));
+          CHECK_EXPECTED(pthis->before_main(sp));
+          CHECK_EXPECTED(pthis->main(sp));
 
-          registrator.shutdown();
+          return registrator.shutdown();
       }
 
       void register_services(service_registrator &registrator) {
           registrator.add(this->logger_);
       }
 
-      void start_services(service_registrator &registrator, service_provider * /*sp*/) {
-          registrator.start();
+      expected<void> start_services(service_registrator &registrator, service_provider * /*sp*/) {
+        CHECK_EXPECTED(registrator.start());
           this->logger_.debug("core", "Start application");
+          return expected<void>();
       }
 
-      void before_main(service_provider *sp) {
+      expected<void> before_main(service_provider * /*sp*/) {
+        return expected<void>();
       }
 
-      void prepare(service_provider *sp) {
-      }
-
-      void on_exception(service_provider *sp, const std::exception_ptr &ex) {
-          sp->get<logger>()->error("VDS", "Fatal error");
-          sp->get<logger>()->flush();
-
-          exit(1);
+      expected<void> prepare(service_provider * /*sp*/) {
+        return expected<void>();
       }
 
       void register_command_line(command_line &cmd_line) {
@@ -241,7 +221,7 @@ namespace vds{
         throw vds_exceptions::invalid_operation();
       }
 
-      int demonize()
+      expected<int> demonize()
       {
         SERVICE_TABLE_ENTRY DispatchTable[] =
         {
@@ -254,7 +234,7 @@ namespace vds{
 
         if (!StartServiceCtrlDispatcher(DispatchTable)) {
           DWORD error = GetLastError();
-          throw std::system_error(error, std::system_category(), "StartServiceCtrlDispatcher");
+          return vds::make_unexpected<std::system_error>(error, std::system_category(), "StartServiceCtrlDispatcher");
         }
 
         return 0;
@@ -303,7 +283,7 @@ namespace vds{
         }
 
         //::Sleep(60 * 1000);
-        static_cast<app_impl *>(this)->start();
+        (void)static_cast<app_impl *>(this)->start();
       }
 
       void waiting_stop_signal() {
@@ -371,7 +351,7 @@ namespace vds{
                   break;
 
               case -1: /* error - bail out (fork failing is very bad) */
-                  throw std::system_error(errno, std::system_category(), "initial fork");
+                  return vds::make_unexpected<std::system_error>(errno, std::system_category(), "initial fork");
 
               default: /* we are the parent, so exit */
                   return 0;
@@ -400,7 +380,7 @@ namespace vds{
 
 
                   case -1: /* error - bail out (fork failing is very bad) */
-                      throw std::system_error(errno, std::system_category(), "initial fork");
+                      return vds::make_unexpected<std::system_error>(errno, std::system_category(), "initial fork");
 
                   default: {/* we are the parent */
                       siginfo_t siginfo;
@@ -448,13 +428,6 @@ namespace vds{
   public:
     console_app()
     {
-    }
-    
-    void on_exception(service_provider * sp, const std::exception_ptr & ex)
-    {
-      std::cerr << "Fatal error\n";
-      
-      app_base<app_impl>::on_exception(sp, ex);
     }
   };
 }

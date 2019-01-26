@@ -43,40 +43,47 @@ namespace vds {
 
       class _client : public std::enable_shared_from_this<_client> {
       public:
+
         _client(
+          const service_provider * sp,
+          const std::shared_ptr<iudp_transport> & udp_transport,
+          const const_data_buffer & this_node_id,
+          const std::shared_ptr<asymmetric_private_key> & node_key);
+
+        static expected<std::shared_ptr<_client>> create(
           const service_provider * sp,
           const std::shared_ptr<iudp_transport> & udp_transport,
           const std::shared_ptr<certificate> & node_cert,
           const std::shared_ptr<asymmetric_private_key> & node_key);
 
-        void start();
+        expected<void> start();
         void stop();
         void get_neighbors(
           
           std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>& result);
         
-        async_task<void> on_new_session(
+        async_task<expected<void>> on_new_session(
           
           database_read_transaction& t,
           const const_data_buffer& partner_id);
 
-        static filename save_data(
+        static expected<filename> save_data(
           const service_provider * sp,
           database_transaction& t,
           const const_data_buffer& data_hash,
           const const_data_buffer& data);
 
-        static filename save_data(
+        static expected<filename> save_data(
           const service_provider * sp,
           database_transaction& t,
           const const_data_buffer& data_hash,
           const filename & original_file);
 
-        async_task<std::vector<vds::const_data_buffer>> save(
+        async_task<expected<std::vector<vds::const_data_buffer>>> save(
           database_transaction& t,
           const const_data_buffer& value);
 
-        std::shared_ptr<client_save_stream> create_save_stream();
+        expected<std::shared_ptr<client_save_stream>> create_save_stream();
 
         const const_data_buffer& current_node_id() const {
           return this->route_.current_node_id();
@@ -90,116 +97,116 @@ namespace vds {
           this->route_.neighbors(key, result, max_count);
         }
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           const messages::dht_find_node& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           const messages::dht_find_node_response& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           const messages::dht_ping& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           const messages::dht_pong& message,
           const imessage_map::message_info_t& message_info);
 
         //Sync messages
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           database_transaction& t,
           const messages::sync_new_election_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_new_election_response& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(          
+        async_task<expected<void>> apply_message(          
           database_transaction& t,
           const messages::sync_add_message_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_leader_broadcast_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_leader_broadcast_response& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_replica_operations_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_replica_operations_response& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_looking_storage_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_looking_storage_response& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_snapshot_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_snapshot_response& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_offer_send_replica_operation_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_offer_remove_replica_operation_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_replica_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_replica_data& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<void> apply_message(
+        async_task<expected<void>> apply_message(
           
           database_transaction& t,
           const messages::sync_replica_query_operations_request & message,
@@ -207,65 +214,67 @@ namespace vds {
 
         //
         template <typename message_type>
-        async_task<void> send(
+        async_task<expected<void>> send(
           const const_data_buffer& node_id,
-          const message_type& message) {
-          co_await this->send(node_id, message_type::message_id, message_serialize(message));
+          expected<message_type> && message) {
+          CHECK_EXPECTED_ERROR(message);
+          return this->send(node_id, message_type::message_id, message_serialize(message.value()));
         }
 
-        async_task<void> send(
-          
+        async_task<expected<void>> send(
           const const_data_buffer& node_id,
           message_type_t message_id,
-          const const_data_buffer& message);
+          expected<const_data_buffer> && message);
 
-        async_task<void> find_nodes(
+        async_task<expected<void>> find_nodes(
             
             const const_data_buffer& node_id,
             size_t radius);
 
         template <typename message_type>
-        async_task<void> send_near(
+        async_task<expected<void>> send_near(
           
           const const_data_buffer& node_id,
           size_t radius,
-          const message_type& message) {
-
-          co_await this->send_near(node_id, radius, message_type::message_id, message_serialize(message));
+          expected<message_type> && message) {
+          CHECK_EXPECTED_ERROR(message);
+          GET_EXPECTED(message_data, message_serialize(message.value()));
+          return this->send_near(node_id, radius, message_type::message_id, message_data);
         }
 
         template <typename message_type>
-        async_task<void> send_near(
-          
+        async_task<expected<void>> send_near(
           const const_data_buffer& node_id,
           size_t radius,
-          const message_type& message,
-          const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter) {
-
-          co_await this->send_near(node_id, radius, message_type::message_id, message_serialize(message), filter);
+          expected<message_type> && message,
+          const std::function<expected<bool>(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter) {
+          GET_EXPECTED(message_data, message_serialize(message.value()));
+          return this->send_near(node_id, radius, message_type::message_id, message_data, filter);
         }
 
         template <typename message_type>
-        vds::async_task<void> send_neighbors(
-          const message_type& message) {
+        vds::async_task<vds::expected<void>> send_neighbors(
+          expected<message_type> && message) {
 
-          co_await this->send_neighbors(message_type::message_id, message_serialize(message));
+          CHECK_EXPECTED_ERROR(message);
+
+          return this->send_neighbors(message_type::message_id, message_serialize(message.value()));
         }
 
-        async_task<void> add_session(
+        async_task<expected<void>> add_session(
           const std::shared_ptr<dht_session>& session,
           uint8_t hops);
 
-        async_task<void> restore(          
+        async_task<expected<void>> restore(          
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);
 
-        vds::async_task<client::block_info_t> prepare_restore(
+        vds::async_task<vds::expected<client::block_info_t>> prepare_restore(
           database_read_transaction & t,
           const std::vector<const_data_buffer>& object_ids);
 
-        vds::async_task<uint8_t> restore_async(
+        vds::async_task<vds::expected<uint8_t>> restore_async(
           
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result);
@@ -283,7 +292,7 @@ namespace vds {
           
           const std::shared_ptr<dht_session>& session);
 
-        async_task<void> add_sync_entry(
+        async_task<expected<void>> add_sync_entry(
             database_transaction& t,
             const const_data_buffer& object_id,
             uint32_t object_size) {
@@ -309,28 +318,26 @@ namespace vds {
         timer update_timer_;
         uint32_t update_route_table_counter_;
         bool update_wellknown_connection_enabled_;
-        vds::async_task<void> update_route_table();
-        vds::async_task<void> process_update(
+        vds::async_task<vds::expected<void>> update_route_table();
+        vds::async_task<vds::expected<void>> process_update(
           
           database_transaction& t);
 
 
-        vds::async_task<void> send_near(
-          
+        async_task<vds::expected<void>> send_near(
           const const_data_buffer& node_id,
           size_t radius,
           message_type_t message_id,
           const const_data_buffer& message);
 
-        vds::async_task<void> send_near(
-          
+        async_task<vds::expected<void>> send_near(
           const const_data_buffer& node_id,
           size_t radius,
           message_type_t message_id,
           const const_data_buffer& message,
-          const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter);
+          const std::function<expected<bool>(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter);
 
-        vds::async_task<void> proxy_message(
+        vds::async_task<vds::expected<void>> proxy_message(
             
             const const_data_buffer &node_id,
             message_type_t message_id,
@@ -338,24 +345,22 @@ namespace vds {
             const const_data_buffer &source_node,
             uint16_t hops);
 
-        vds::async_task<void> send_neighbors(
-          
+        vds::async_task<vds::expected<void>> send_neighbors(
           message_type_t message_id,
-          const const_data_buffer& message);
+          expected<const_data_buffer> && message);
 
-        static const_data_buffer replica_id(
+        static expected<const_data_buffer> replica_id(
           const std::string& key,
           uint16_t replica);
 
-        vds::async_task<void> update_wellknown_connection(
-          
+        expected<void> update_wellknown_connection(          
           database_transaction& t);
 
-        static const_data_buffer read_data(
+        static expected<const_data_buffer> read_data(
           const const_data_buffer& data_hash,
           const filename& data_path);
 
-        static void delete_data(
+        static expected<void> delete_data(
           const const_data_buffer& replica_hash,
           const filename& filename);
       };

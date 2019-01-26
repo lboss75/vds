@@ -17,19 +17,19 @@ namespace vds {
   class inflate : public stream_output_async<uint8_t>
   {
   public:
-    inflate(const std::shared_ptr<stream_output_async<uint8_t>> & target);
+    inflate();
     ~inflate();
 
-	  static const_data_buffer decompress(
-      
+    expected<void> create(
+      const std::shared_ptr<stream_output_async<uint8_t>> & target);
+
+	  static expected<const_data_buffer> decompress(
       const void * data,
       size_t size);
 
-    vds::async_task<void> write_async(
-        
+    vds::async_task<vds::expected<void>> write_async(        
         const uint8_t * data,
         size_t len) override ;
-
 
   private:
     _inflate_handler * impl_;

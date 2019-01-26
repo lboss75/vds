@@ -8,6 +8,9 @@ All rights reserved
 
 vds::app * vds::app::the_app_ = nullptr;
 
+#ifndef _WIN32
+vds::barrier vds::app::stop_barrier;
+
 void vds::app::kill_prev(const vds::foldername &root_folder, const std::string & process_name) {
     chdir("/");
 
@@ -24,7 +27,7 @@ void vds::app::kill_prev(const vds::foldername &root_folder, const std::string &
         auto pid = strtoul(buffer, (char **) nullptr, 10);
 
         if (0 == kill(pid, 0)) {
-            throw std::runtime_error(
+            return vds::make_unexpected<std::runtime_error>(
                     string_format(
                             "A lock file %s has been detected. It appears it is owned\nby the (active) process with PID %ld.",
                             pid_file_name.name().c_str(),
@@ -32,7 +35,7 @@ void vds::app::kill_prev(const vds::foldername &root_folder, const std::string &
         } else {
             auto error = errno;
             if (ESRCH != error) {
-                throw std::system_error(error, std::system_category(), "acquire exclusive lock on lock file");
+                return vds::make_unexpected<std::system_error>(error, std::system_category(), "acquire exclusive lock on lock file");
             }
         }
     }
@@ -53,7 +56,7 @@ void vds::app::demonize(const vds::foldername &root_folder, const std::string & 
       detaching us from a controlling TTY */
 
     if (setsid() < 0) {
-        throw std::system_error(errno, std::system_category(), "setsid");
+        return vds::make_unexpected<std::system_error>(errno, std::system_category(), "setsid");
     }
 
     /* ignore SIGHUP as this signal is sent when session leader terminates */
@@ -86,6 +89,4 @@ void vds::app::demonize(const vds::foldername &root_folder, const std::string & 
     setpgrp();
 }
 
-#ifndef _WIN32
-vds::barrier vds::app::stop_barrier;
 #endif

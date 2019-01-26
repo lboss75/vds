@@ -28,9 +28,14 @@ const vds::hash_info & vds::hash::sha256()
   return result;
 }
 ///////////////////////////////////////////////////////////////
-vds::hash::hash(const hash_info & info)
-: impl_(new _hash(info))
+vds::hash::hash()
+: impl_(nullptr)
 {
+}
+
+vds::hash::hash(hash&& original) noexcept
+: impl_(original.impl_){
+  original.impl_ = nullptr;
 }
 
 vds::hash::~hash()
@@ -38,14 +43,21 @@ vds::hash::~hash()
   delete this->impl_;
 }
 
-void vds::hash::update(const void * data, size_t len)
+vds::expected<vds::hash> vds::hash::create(const hash_info & info)
 {
-  this->impl_->update(data, len);
+  auto impl = std::make_unique<_hash>();
+  CHECK_EXPECTED(impl->create(info));
+  return hash(impl.release());
 }
 
-void vds::hash::final()
+vds::expected<void> vds::hash::update(const void * data, size_t len)
 {
-  this->impl_->final();
+  return this->impl_->update(data, len);
+}
+
+vds::expected<void> vds::hash::final()
+{
+  return this->impl_->final();
 }
 
 const vds::const_data_buffer& vds::hash::signature() const
@@ -54,57 +66,69 @@ const vds::const_data_buffer& vds::hash::signature() const
 
 }
 
-vds::const_data_buffer vds::hash::signature(
+vds::expected<vds::const_data_buffer> vds::hash::signature(const hash_info& info, expected<const_data_buffer>&& data) {
+  CHECK_EXPECTED_ERROR(data);
+  return signature(info, data.value());
+}
+
+vds::expected<vds::const_data_buffer> vds::hash::signature(
   const vds::hash_info& info,
   const const_data_buffer& data)
 {
   return signature(info, data.data(), data.size());
 }
 
-vds::const_data_buffer vds::hash::signature(
+vds::expected<vds::const_data_buffer> vds::hash::signature(
   const vds::hash_info& info,
   const void * data,
   size_t data_size)
 {
-  hash h(info);
-  h.update(data, data_size);
-  h.final();
+  GET_EXPECTED(h, hash::create(info));
+  CHECK_EXPECTED(h.update(data, data_size));
+  CHECK_EXPECTED(h.final());
   
   return h.signature();
 }
 
-vds::hash_stream_output_async::hash_stream_output_async(const hash_info& info,
-  const std::shared_ptr<stream_output_async<uint8_t>>& target)
-: hash_(info), target_(target){
+vds::hash& vds::hash::operator=(hash&& original) noexcept {
+  delete this->impl_;
+  this->impl_ = original.impl_;
+  original.impl_ = nullptr;
+  return *this;
 }
 
-vds::async_task<void> vds::hash_stream_output_async::write_async(const uint8_t* data, size_t len) {
+vds::hash_stream_output_async::hash_stream_output_async() {
+}
+
+vds::hash_stream_output_async::hash_stream_output_async(hash&& hash,
+  std::shared_ptr<stream_output_async<uint8_t>>&& target)
+: hash_(std::move(hash)), target_(std::move(target)){
+}
+
+vds::expected<std::shared_ptr<vds::hash_stream_output_async>> vds::hash_stream_output_async::create(
+  const hash_info& info,
+  std::shared_ptr<stream_output_async<uint8_t>> && target) {
+  GET_EXPECTED(h, hash::create(info));
+  return std::make_shared<hash_stream_output_async>(std::move(h), std::move(target));
+}
+
+
+vds::async_task<vds::expected<void>> vds::hash_stream_output_async::write_async(const uint8_t* data, size_t len) {
   if(len != 0) {
-    this->hash_.update(data, len);
-    co_await this->target_->write_async(data, len);
+    CHECK_EXPECTED_ASYNC(this->hash_.update(data, len));
+    CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(data, len));
   }
   else {
-    this->hash_.final();
-    co_await this->target_->write_async(data, len);
+    CHECK_EXPECTED_ASYNC(this->hash_.final());
+    CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(data, len));
   }
+  co_return expected<void>();
 }
 
 ///////////////////////////////////////////////////////////////
-vds::_hash::_hash(const hash_info & info)
-  : info_(info)
+vds::_hash::_hash()
+  : info_(nullptr), ctx_(nullptr)
 {
-  this->ctx_ = EVP_MD_CTX_create();
-
-  if (nullptr == this->ctx_) {
-    auto error = ERR_get_error();
-    throw crypto_exception("EVP_MD_CTX_create", error);
-  }
-
-  if (1 != EVP_DigestInit_ex(this->ctx_, info.type, NULL)) {
-    auto error = ERR_get_error();
-    throw crypto_exception("EVP_DigestInit_ex", error);
-  }
-
 }
 
 vds::_hash::~_hash()
@@ -114,27 +138,49 @@ vds::_hash::~_hash()
   }
 }
 
-void vds::_hash::update(const void * data, size_t len)
+vds::expected<void> vds::_hash::create(const hash_info & info)
+{
+  this->info_ = &info;
+    this->ctx_ = EVP_MD_CTX_create();
+
+  if (nullptr == this->ctx_) {
+    auto error = ERR_get_error();
+    return vds::make_unexpected<crypto_exception>("EVP_MD_CTX_create", error);
+  }
+
+  if (1 != EVP_DigestInit_ex(this->ctx_, info.type, NULL)) {
+    auto error = ERR_get_error();
+    return vds::make_unexpected<crypto_exception>("EVP_DigestInit_ex", error);
+  }
+
+  return expected<void>();
+}
+
+vds::expected<void> vds::_hash::update(const void * data, size_t len)
 {
   if (1 != EVP_DigestUpdate(this->ctx_, data, len)) {
     auto error = ERR_get_error();
-    throw crypto_exception("EVP_DigestUpdate", error);
+    return vds::make_unexpected<crypto_exception>("EVP_DigestUpdate", error);
   }
+
+  return expected<void>();
 }
 
-void vds::_hash::final()
+vds::expected<void> vds::_hash::final()
 {
-  auto len = (unsigned int)EVP_MD_size(this->info_.type);
+  auto len = (unsigned int)EVP_MD_size(this->info_->type);
   this->sig_.resize(len);
 
   if (1 != EVP_DigestFinal_ex(this->ctx_, this->sig_.data(), &len)) {
     auto error = ERR_get_error();
-    throw crypto_exception("EVP_DigestFinal_ex", error);
+    return vds::make_unexpected<crypto_exception>("EVP_DigestFinal_ex", error);
   }
 
   if (len != this->sig_.size()) {
-    throw std::runtime_error("len != this->sig_len_");
+    return vds::make_unexpected<std::runtime_error>("len != this->sig_len_");
   }
+
+  return expected<void>();
 }
 ///////////////////////////////////////////////////////////////
 vds::hmac::hmac(const const_data_buffer & key, const hash_info & info)
@@ -147,12 +193,12 @@ vds::hmac::~hmac()
   delete this->impl_;
 }
 
-void vds::hmac::update(const void * data, size_t len)
+vds::expected<void> vds::hmac::update(const void * data, size_t len)
 {
-  this->impl_->update(data, len);
+  return this->impl_->update(data, len);
 }
 
-vds::const_data_buffer vds::hmac::final()
+vds::expected<vds::const_data_buffer> vds::hmac::final()
 {
   return this->impl_->final();
 }
@@ -183,25 +229,27 @@ vds::_hmac::~_hmac()
 #endif//_WIN32
 }
 
-void vds::_hmac::update(const void * data, size_t len) {
+vds::expected<void> vds::_hmac::update(const void * data, size_t len) {
   if (1 != HMAC_Update(this->ctx_, reinterpret_cast<const unsigned char *>(data), len)) {
     auto error = ERR_get_error();
-    throw crypto_exception("EVP_DigestUpdate", error);
+    return vds::make_unexpected<crypto_exception>("EVP_DigestUpdate", error);
   }
+
+  return expected<void>();
 }
 
-vds::const_data_buffer vds::_hmac::final() {
+vds::expected<vds::const_data_buffer> vds::_hmac::final() {
 
   auto result_len = (unsigned int)EVP_MD_size(this->info_.type);
   const_data_buffer result;
   result.resize(result_len);
   if (1 != HMAC_Final(this->ctx_, result.data(), &result_len)) {
     auto error = ERR_get_error();
-    throw crypto_exception("HMAC_Final", error);
+    return vds::make_unexpected<crypto_exception>("HMAC_Final", error);
   }
 
   if (result_len != result.size()) {
-    throw std::runtime_error("len != this->sig_len_");
+    return vds::make_unexpected<std::runtime_error>("len != this->sig_len_");
   }
 
   return result;

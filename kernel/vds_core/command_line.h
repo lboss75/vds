@@ -7,6 +7,7 @@ All rights reserved
 #include <map>
 #include <list>
 #include "filename.h"
+#include "expected.h"
 
 namespace vds {
   class command_line_item_error : public std::runtime_error
@@ -25,7 +26,7 @@ namespace vds {
       const std::string & description);
     virtual ~command_line_item();
     
-    virtual int try_parse(int argc, const char** argv) = 0;
+    virtual expected<int> try_parse(int argc, const char** argv) = 0;
     virtual void print_usage(std::map<std::string, const command_line_item *> & items) const = 0;
     virtual void print_help() const = 0;
     virtual void clear() = 0;
@@ -54,7 +55,7 @@ namespace vds {
     );
     
     const std::string & value() const;
-    int try_parse(int argc, const char** argv) override;
+    expected<int> try_parse(int argc, const char** argv) override;
     void print_usage(std::map<std::string, const command_line_item *> & items) const override;
     void print_help() const override;
     void clear() override;
@@ -76,7 +77,7 @@ namespace vds {
     );
     
     const std::list<std::string> & values() const;
-    int try_parse(int argc, const char** argv) override;
+    expected<int> try_parse(int argc, const char** argv) override;
     void print_usage(std::map<std::string, const command_line_item *> & items) const override;
     void print_help() const override;
     void clear() override;
@@ -99,7 +100,7 @@ namespace vds {
     
     bool value() const;
     
-    int try_parse(int argc, const char** argv) override;
+    expected<int> try_parse(int argc, const char** argv) override;
     void print_usage(std::map<std::string, const command_line_item *> & items) const override;
     void print_help() const override;
     void clear() override;
@@ -124,7 +125,7 @@ namespace vds {
     void required(command_line_item & );
     
     void print_usage(std::map<std::string, const command_line_item *> & items) const;
-    int try_parse(
+    expected<int> try_parse(
       int argc,
       const char** argv,
       std::string & last_error);
@@ -148,8 +149,8 @@ namespace vds {
       const std::string & version);
     
     void add_command_set(command_line_set &);
-    
-    const command_line_set * parse(int argc, const char** argv) const;
+
+    expected<const command_line_set *> parse(int argc, const char** argv) const;
     
     void show_help(const std::string & app_name);
 

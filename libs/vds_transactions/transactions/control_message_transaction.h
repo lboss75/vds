@@ -9,6 +9,7 @@ All rights reserved
 #include "binary_serialize.h"
 #include "channel_message_id.h"
 #include "json_object.h"
+#include "json_parser.h"
 #include "cert_control.h"
 
 namespace vds {
@@ -32,7 +33,7 @@ namespace vds {
 
       static constexpr const char * create_wallet_type = "create_wallet";
 
-      static control_message_transaction create_wallet_message(
+      static expected<control_message_transaction> create_wallet_message(
         const std::string & name,
         const certificate & cert,
         const asymmetric_private_key & private_key) {
@@ -41,8 +42,8 @@ namespace vds {
         message->add_property("name", name);
 
         std::map<std::string, const_data_buffer> attachments;
-        attachments["cert"] = cert.der();
-        attachments["key"] = private_key.der(std::string());
+        GET_EXPECTED_VALUE(attachments["cert"], cert.der());
+        GET_EXPECTED_VALUE(attachments["key"], private_key.der(std::string()));
 
         return message_create<transactions::control_message_transaction>(
           std::move(message),

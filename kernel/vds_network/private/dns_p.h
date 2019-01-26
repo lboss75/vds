@@ -20,13 +20,17 @@ namespace vds {
   class _dns
   {
   public:
-    static std::string hostname();
+    static expected<std::string> hostname();
   };
 
   class _dns_address_info
   {
   public:
-    _dns_address_info(const std::string & hostname);
+    _dns_address_info();
+    explicit _dns_address_info(addrinfo * first);
+    ~_dns_address_info();
+
+    static expected<_dns_address_info> create(const std::string & hostname);
 
     addrinfo * first() const
     {

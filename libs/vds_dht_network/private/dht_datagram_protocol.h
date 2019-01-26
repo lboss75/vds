@@ -49,7 +49,15 @@ namespace vds {
           this->mtu_ = value;
         }
 
-        vds::async_task<void> send_message(
+        vds::async_task<vds::expected<void>> send_message(
+          const std::shared_ptr<transport_type>& s,
+          uint8_t message_type,
+          const const_data_buffer& target_node,
+          expected<const_data_buffer> && message) {
+          CHECK_EXPECTED_ERROR(message);
+          return this->send_message(s, message_type, target_node, message.value());
+        }
+          vds::async_task<vds::expected<void>> send_message(
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
           const const_data_buffer& target_node,
@@ -73,7 +81,7 @@ namespace vds {
             message);
         }
 
-        vds::async_task<void> proxy_message(
+        vds::async_task<vds::expected<void>> proxy_message(
           
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
@@ -101,7 +109,7 @@ namespace vds {
             message);
         }
 
-        vds::async_task<void> process_datagram(
+        vds::async_task<vds::expected<void>> process_datagram(
           
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
@@ -109,8 +117,7 @@ namespace vds {
           if(protocol_message_type_t::MTUTest == static_cast<protocol_message_type_t>(*datagram.data())) {
             const_data_buffer data = datagram;
             data[0] = (uint8_t)protocol_message_type_t::MTUTestPassed;
-            co_await s->write_async(udp_datagram(this->address_, data, false));
-            co_return;
+            co_return co_await s->write_async(udp_datagram(this->address_, data));
           }
           if (protocol_message_type_t::MTUTestPassed == static_cast<protocol_message_type_t>(*datagram.data())) {
             if(this->mtu_ < datagram.size()) {
@@ -118,13 +125,13 @@ namespace vds {
               this->check_mtu_ = 0;
               logger::get(this->sp_)->trace("dht_session", "Change MTU size to %d", this->mtu_);
             }
-            co_return;
+            co_return expected<void>();
           }
 
           this->input_mutex_.lock();
           if (datagram.size() < 33) {
             this->input_mutex_.unlock();
-            throw std::runtime_error("Invalid data");
+            co_return vds::make_unexpected<std::runtime_error>("Invalid data");
           }
 
           if (!hmac::verify(
@@ -134,7 +141,7 @@ namespace vds {
             datagram.data() + datagram.size() - 32, 32)) {
             this->input_mutex_.unlock();
 
-            throw std::runtime_error("Invalid signature");
+            co_return vds::make_unexpected<std::runtime_error>("Invalid signature");
           }
 
           switch (static_cast<protocol_message_type_t>((uint8_t)protocol_message_type_t::SpecialCommand & *datagram.data())) {
@@ -190,7 +197,7 @@ namespace vds {
               source_node,
               hops,
               message);
-            co_return;
+            co_return expected<void>();
           }
 
           case protocol_message_type_t::Data:
@@ -199,7 +206,7 @@ namespace vds {
             if (datagram.size() < 33) {
               this->input_mutex_.unlock();
 
-              throw std::runtime_error("Invalid data");
+              co_return vds::make_unexpected<std::runtime_error>("Invalid data");
             }
 
             this->last_input_message_id_ = const_data_buffer(datagram.data() + 1, 32);
@@ -207,14 +214,14 @@ namespace vds {
             this->input_messages_[0] = datagram;
             this->input_mutex_.unlock();
 
-            co_return;
+            co_return expected<void>();
           }
           default: {
             if (datagram.data()[0] == (uint8_t)protocol_message_type_t::ContinueData) {
               if (datagram.size() < 1 + 32 + INDEX_SIZE) {
                 this->input_mutex_.unlock();
 
-                throw std::runtime_error("Invalid data");
+                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
               }
 
               const auto message_id = const_data_buffer(datagram.data() + 1, 32);
@@ -223,7 +230,7 @@ namespace vds {
                 this->input_messages_.clear();
                 this->input_mutex_.unlock();
 
-                co_return;
+                co_return expected<void>();
               }
               uint32_t index =
                   (datagram.data()[1 + 32] << 24)
@@ -233,11 +240,11 @@ namespace vds {
               this->input_messages_[index] = datagram;
 
               co_await this->continue_process_messages(s);
-              co_return;
+              co_return expected<void>();
             }
             else {
               this->input_mutex_.unlock();
-              throw std::runtime_error("Invalid data");
+              co_return vds::make_unexpected<std::runtime_error>("Invalid data");
             }
           }
           }
@@ -248,7 +255,7 @@ namespace vds {
           return this->address_;
         }
 
-        const const_data_buffer this_node_id() const {
+        const const_data_buffer& this_node_id() const {
           return this->this_node_id_;
         }
 
@@ -256,7 +263,7 @@ namespace vds {
           return this->partner_node_id_;
         }
 
-        vds::async_task<void> on_timer(
+        vds::async_task<vds::expected<void>> on_timer(
           const std::shared_ptr<transport_type>& s) {
           this->check_mtu_++;
           if (this->check_mtu_ < CHECK_MTU_TIMEOUT) {
@@ -265,17 +272,15 @@ namespace vds {
               out_message.resize_data(this->mtu_ + 256);
               out_message.add((uint8_t)protocol_message_type_t::MTUTest);
 
-              try {
-                co_await s->write_async(udp_datagram(this->address_, out_message.move_data(), false));
-              }
-              catch (...) {
-              }
+              (void)co_await s->write_async(udp_datagram(this->address_, out_message.move_data()));
             }
           }
           else if(this->mtu_ > 1024) {
             this->mtu_ -= 256;
             this->check_mtu_ = 0;
           }
+
+          co_return expected<void>();
         }
 
 
@@ -308,7 +313,7 @@ namespace vds {
         uint32_t next_sequence_number_;
 
 
-        vds::async_task<void> send_message_async(
+        vds::async_task<vds::expected<void>> send_message_async(
           
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
@@ -337,30 +342,33 @@ namespace vds {
                 buffer.add(hops);
               }
               buffer += message;
-              buffer += hmac::signature(
+              GET_EXPECTED_ASYNC(sig, hmac::signature(
                 this->session_key_,
                 hash::sha256(),
                 buffer.data(),
-                buffer.size());
+                buffer.size()));
+              buffer += sig;
 
               const_data_buffer datagram = buffer.move_data();
-              try {
-                co_await s->write_async( udp_datagram(this->address_, datagram, false));
-              }
-              catch (const udp_datagram_size_exception & ex) {
-                this->mtu_ /= 2;
-                continue;;
+              auto write_result = co_await s->write_async(udp_datagram(this->address_, datagram));
+              if(write_result.has_error()) {
+                auto error = dynamic_cast<udp_datagram_size_exception *>(write_result.error().get());
+                if(nullptr != error) {
+                  this->mtu_ /= 2;
+                  continue;;
+                }
+                co_return unexpected(std::move(write_result.error()));
               }
             }
             else {
               binary_serializer bs;
-              bs
-                << message_type
-                << target_node
-                << source_node
-                << hops
-                << message;
-              const auto message_id = hash::signature(hash::sha256(), bs.move_data());
+              CHECK_EXPECTED_ASYNC(serialize(bs, message_type));
+              CHECK_EXPECTED_ASYNC(serialize(bs, target_node));
+                CHECK_EXPECTED_ASYNC(serialize(bs, source_node));
+                  CHECK_EXPECTED_ASYNC(serialize(bs, hops));
+                    CHECK_EXPECTED_ASYNC(serialize(bs,  message));
+
+              GET_EXPECTED_ASYNC(message_id, hash::signature(hash::sha256(), bs.move_data()));
               vds_assert(message_id.size() == 32);
 
               uint32_t offset;
@@ -405,18 +413,22 @@ namespace vds {
                 offset = this->mtu_ - (1 + 32 + SIZE_SIZE + 32 + 32 + 1);
               }
 
-              buffer += hmac::signature(
+              GET_EXPECTED_ASYNC(sig, hmac::signature(
                 this->session_key_,
                 hash::sha256(),
                 buffer.data(),
-                buffer.size());
+                buffer.size()));
+
+              buffer += sig;
               const_data_buffer datagram = buffer.move_data();
-              try {
-                co_await s->write_async(udp_datagram(this->address_, datagram, false));
-              }
-              catch (const udp_datagram_size_exception &) {
-                this->mtu_ /= 2;
-                continue;
+              auto write_result = co_await s->write_async(udp_datagram(this->address_, datagram));
+              if (write_result.has_error()) {
+                auto error = dynamic_cast<udp_datagram_size_exception *>(write_result.error().get());
+                if (nullptr != error) {
+                  this->mtu_ /= 2;
+                  continue;;
+                }
+                co_return unexpected(std::move(write_result.error()));
               }
 
               uint32_t index = 1;
@@ -435,19 +447,22 @@ namespace vds {
                 buffer.add(index);//1
                 buffer.add(message.data() + offset, size);//
 
-                buffer += hmac::signature(
+                GET_EXPECTED_ASYNC(sig, hmac::signature(
                   this->session_key_,
                   hash::sha256(),
                   buffer.data(),
-                  buffer.size());
+                  buffer.size()));
+                buffer += sig;
 
                 const_data_buffer datagram = buffer.move_data();
-                try {
-                  co_await s->write_async(udp_datagram(this->address_, datagram, false));
-                }
-                catch (const udp_datagram_size_exception &) {
-                  this->mtu_ /= 2;
-                  continue;
+                auto write_result = co_await s->write_async(udp_datagram(this->address_, datagram));
+                if (write_result.has_error()) {
+                  auto error = dynamic_cast<udp_datagram_size_exception *>(write_result.error().get());
+                  if (nullptr != error) {
+                    this->mtu_ /= 2;
+                    continue;;
+                  }
+                  co_return unexpected(std::move(write_result.error()));
                 }
 
                 if (offset + size >= message.size()) {
@@ -463,14 +478,14 @@ namespace vds {
           }
         }
 
-        vds::async_task<void> continue_process_messages(
+        vds::async_task<vds::expected<void>> continue_process_messages(
           
           const std::shared_ptr<transport_type>& s) {
           auto p = this->input_messages_.find(0);
           if (p == this->input_messages_.end()) {
             this->input_mutex_.unlock();
 
-            co_return;
+            co_return expected<void>();
           }
 
           switch (
@@ -498,7 +513,7 @@ namespace vds {
               ) {
             case protocol_message_type_t::Data: {
               if (size <= p->second.size() - (1 + 32 + SIZE_SIZE + 32)) {
-                throw std::runtime_error("Invalid data");
+                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
               }
               vds_assert(p->second.size() > (1 + 32 + SIZE_SIZE + 32));
               size -= p->second.size() - (1 + 32 + SIZE_SIZE + 32);
@@ -512,7 +527,7 @@ namespace vds {
 
             case protocol_message_type_t::RouteData: {
               if (size <= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32)) {
-                throw std::runtime_error("Invalid data");
+                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
               }
               vds_assert(p->second.size() > (1 + 32 + SIZE_SIZE + 32 + 32));
               size -= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32);
@@ -526,7 +541,7 @@ namespace vds {
 
             case protocol_message_type_t::ProxyData: {
               if (size <= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32 + 1 + 32)) {
-                throw std::runtime_error("Invalid data");
+                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
               }
               vds_assert(p->second.size() > (1 + 32 + SIZE_SIZE + 32 + 32 + 1 + 32));
               size -= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32 + 1 + 32);
@@ -539,7 +554,7 @@ namespace vds {
               break;
             }
             default:
-              throw std::runtime_error("Invalid program");
+              co_return vds::make_unexpected<std::runtime_error>("Invalid program");
             }
 
             for (uint32_t index = 1;; ++index) {
@@ -551,13 +566,13 @@ namespace vds {
               if ((uint8_t)protocol_message_type_t::ContinueData != p1->second.data()[0]) {
                 this->input_mutex_.unlock();
 
-                throw std::runtime_error("Invalid data");
+                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
               }
 
               if (size < p1->second.size() - (1 + 32 + INDEX_SIZE + 32)) {
                 this->input_mutex_.unlock();
 
-                throw std::runtime_error("Invalid data");
+                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
               }
 
               message.add(p1->second.data() + (1 + 32 + INDEX_SIZE), p1->second.size() - (1 + 32 + INDEX_SIZE + 32));
@@ -577,7 +592,7 @@ namespace vds {
                   hops,
                   message.move_data());
 
-                co_return;
+                co_return expected<void>();
               }
             }
 

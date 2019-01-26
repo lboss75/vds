@@ -27,34 +27,40 @@ namespace vds {
 
     json_parser(
       const std::string &stream_name,
-      const std::function<void(const std::shared_ptr<json_value> &)> &result,
+      const std::function<expected<void>(const std::shared_ptr<json_value> &)> &result,
       const options &parse_options = options());
 
-    vds::async_task<void> write_async(
+    vds::async_task<vds::expected<void>> write_async(
       
       const unsigned char* data,
       size_t len) override {
-      this->write(data, len);
-      co_return;
+      co_return this->write(data, len);      
     }
     
-    void write(
+    expected<void> write(
       const uint8_t * input_buffer,
       size_t input_len);
 
-    static std::shared_ptr<json_value> parse(const std::string &stream_name, const const_data_buffer & data) {
+    static expected<std::shared_ptr<json_value>> parse(const std::string &stream_name, const const_data_buffer & data) {
       std::shared_ptr<json_value> result;
       auto parser = std::make_shared<json_parser>(stream_name, [&result](const std::shared_ptr<json_value> & items) {
         result = items;
+        return expected<void>();
       });
-      parser->write(data.data() , data.size());
-      parser->write(nullptr, 0);
+      CHECK_EXPECTED(parser->write(data.data() , data.size()));
+      CHECK_EXPECTED(parser->write(nullptr, 0));
 
       return result;
     }
+
+    static expected<std::shared_ptr<json_value>> parse(const std::string &stream_name, expected<const_data_buffer> && data) {
+      CHECK_EXPECTED_ERROR(data);
+
+      return parse(stream_name, data.value());
+    }
   private:
     std::string stream_name_;
-    std::function<void(const std::shared_ptr<json_value> &)> result_;
+    std::function<expected<void>(const std::shared_ptr<json_value> &)> result_;
     options parse_options_;
 
     enum State {
@@ -99,11 +105,11 @@ namespace vds {
     std::string buffer_;
     uint32_t num_buffer_;
 
-    void final_data();
+    expected<void> final_data();
 
-    void after_slesh() {
+    expected<void> after_slesh() {
       if (!this->parse_options_.enable_inline_comments) {
-        throw parse_error(
+        return vds::make_unexpected<parse_error>(
           this->stream_name_,
           this->line_,
           this->column_,
@@ -112,9 +118,10 @@ namespace vds {
 
       this->saved_states_.push(this->state_);
       this->state_ = ST_AFTER_SLESH;
+      return expected<void>();
     }
 
-    void start_array() {
+    expected<void> start_array() {
       auto new_object = std::make_shared<json_array>(this->line_, this->column_);
 
       switch (this->state_) {
@@ -127,7 +134,7 @@ namespace vds {
         break;
 
       default:
-        throw parse_error(
+        return vds::make_unexpected<parse_error>(
           this->stream_name_,
           this->line_,
           this->column_,
@@ -136,9 +143,10 @@ namespace vds {
 
       this->current_object_ = new_object;
       this->state_ = ST_ARRAY;
+      return expected<void>();
     }
 
-    void final_array() {
+    expected<void> final_array() {
       this->state_ = this->saved_states_.top();
       this->saved_states_.pop();
 
@@ -147,15 +155,16 @@ namespace vds {
           this->state_ = ST_EOF;
         }
 
-        this->result_(this->root_object_);
+        return this->result_(this->root_object_);
       }
       else {
         this->current_object_ = this->current_path_.top();
         this->current_path_.pop();
+        return expected<void>();
       }
     }
 
-    void start_object() {
+    expected<void> start_object() {
       auto new_object = std::make_shared<json_object>(this->line_, this->column_);
 
       switch (this->state_) {
@@ -171,7 +180,7 @@ namespace vds {
         this->current_path_.push(this->current_object_);
         break;
       default:
-        throw parse_error(
+        return vds::make_unexpected<parse_error>(
           this->stream_name_,
           this->line_,
           this->column_,
@@ -180,9 +189,10 @@ namespace vds {
 
       this->current_object_ = new_object;
       this->state_ = ST_OBJECT;
+      return expected<void>();
     }
 
-    void final_object() {
+    expected<void> final_object() {
       this->state_ = this->saved_states_.top();
       this->saved_states_.pop();
 
@@ -191,11 +201,12 @@ namespace vds {
           this->state_ = ST_EOF;
         }
 
-        this->result_(this->root_object_);
+        return this->result_(this->root_object_);
       }
       else {
         this->current_object_ = this->current_path_.top();
         this->current_path_.pop();
+        return expected<void>();
       }
     }
 
@@ -224,10 +235,10 @@ namespace vds {
   
 
   inline json_parser::json_parser(const std::string &stream_name,
-                                  const std::function<void(const std::shared_ptr<json_value> &)> &result,
+                                  const std::function<expected<void>(const std::shared_ptr<json_value> &)> &result,
                                   const json_parser::options &parse_options)
       : stream_name_(stream_name),
-        result_(std::move(result)),
+        result_(result),
         parse_options_(parse_options),
         state_(ST_BOF),
         current_object_(nullptr),
@@ -235,10 +246,9 @@ namespace vds {
 
   }
 
-  inline void json_parser::write(const uint8_t * input_buffer, size_t input_len) {
+  inline expected<void> json_parser::write(const uint8_t * input_buffer, size_t input_len) {
     if (nullptr == input_buffer || 0 == input_len) {
-      this->final_data();
-      return;
+      return this->final_data();
     }
 
     while (0 < input_len--) {
@@ -262,16 +272,16 @@ namespace vds {
         case ST_BOF:
           switch (current_symbol) {
             case '/':
-              this->after_slesh();
+              CHECK_EXPECTED(this->after_slesh());
               break;
 
             case '[':
-              this->start_array();
+              CHECK_EXPECTED(this->start_array());
               this->root_object_ = this->current_object_;
               break;
 
             case '{':
-              this->start_object();
+              CHECK_EXPECTED(this->start_object());
               this->root_object_ = this->current_object_;
               break;
 
@@ -280,7 +290,7 @@ namespace vds {
                 continue;
               }
 
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -293,7 +303,7 @@ namespace vds {
               this->state_ = ST_INLINE_COMMENT;
               break;
             default:
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -313,19 +323,19 @@ namespace vds {
         case ST_ARRAY:
           switch (current_symbol) {
             case ']':
-              this->final_array();
+              CHECK_EXPECTED(this->final_array());
               break;
 
             case '[':
-              this->start_array();
+              CHECK_EXPECTED(this->start_array());
               break;
 
             case '{':
-              this->start_object();
+              CHECK_EXPECTED(this->start_object());
               break;
 
             case '/':
-              this->after_slesh();
+              CHECK_EXPECTED(this->after_slesh());
               break;
 
             case '\"':
@@ -345,7 +355,7 @@ namespace vds {
                 continue;
               }
 
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -356,7 +366,7 @@ namespace vds {
         case ST_ARRAY_ITEM:
           switch (current_symbol) {
             case ']':
-              this->final_array();
+              CHECK_EXPECTED(this->final_array());
               break;
 
             case ',':
@@ -368,7 +378,7 @@ namespace vds {
                 continue;
               }
 
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -385,7 +395,7 @@ namespace vds {
               break;
 
             case '}':
-              this->final_object();
+              CHECK_EXPECTED(this->final_object());
               break;
 
             default:
@@ -393,7 +403,7 @@ namespace vds {
                 continue;
               }
 
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -404,7 +414,7 @@ namespace vds {
         case ST_OBJECT_ITEM:
           switch (current_symbol) {
             case '}':
-              this->final_object();
+              CHECK_EXPECTED(this->final_object());
               break;
 
             case ',':
@@ -416,7 +426,7 @@ namespace vds {
                 continue;
               }
 
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -452,7 +462,7 @@ namespace vds {
                   break;
 
                 default:
-                  throw parse_error(
+                  return vds::make_unexpected<parse_error>(
                       this->stream_name_,
                       this->line_,
                       this->column_,
@@ -503,7 +513,7 @@ namespace vds {
               break;
 
             default:
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -564,7 +574,7 @@ namespace vds {
               break;
 
             default:
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -626,7 +636,7 @@ namespace vds {
               break;
 
             default:
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -689,7 +699,7 @@ namespace vds {
               break;
 
             default:
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -751,13 +761,13 @@ namespace vds {
               break;
 
             default:
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
                   std::string("Unexpected char ") + current_symbol);
           }
-          utf8::add(this->buffer_, (wchar_t) this->num_buffer_);
+          CHECK_EXPECTED(utf8::add(this->buffer_, (wchar_t) this->num_buffer_));
           break;
 
         case ST_OBJECT_PROPERTY_NAME:
@@ -771,7 +781,7 @@ namespace vds {
                 continue;
               }
 
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -786,11 +796,11 @@ namespace vds {
               break;
 
             case '{':
-              this->start_object();
+              CHECK_EXPECTED(this->start_object());
               break;
 
             case '[':
-              this->start_array();
+              CHECK_EXPECTED(this->start_array());
               break;
 
             default:
@@ -798,7 +808,7 @@ namespace vds {
                 continue;
               }
 
-              throw parse_error(
+              return vds::make_unexpected<parse_error>(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -807,16 +817,18 @@ namespace vds {
           break;
 
         default:
-          throw parse_error(
+          return vds::make_unexpected<parse_error>(
               this->stream_name_,
               this->line_,
               this->column_,
               std::string("Unexpected char ") + current_symbol);
       }
     }
+
+    return expected<void>();
   }
 
-  inline void json_parser::final_data() {
+  inline expected<void> json_parser::final_data() {
     switch (this->state_) {
       case ST_EOF:
         break;
@@ -828,25 +840,27 @@ namespace vds {
         //break;
 
       default:
-        throw parse_error(
+        return vds::make_unexpected<parse_error>(
             this->stream_name_,
             this->line_,
             this->column_,
             "Unexpected end of data");
     }
+    return expected<void>();
   }
 
-  inline vds::binary_deserializer & operator >> (
+  inline expected<void> deserialize (
     vds::binary_deserializer & s,
     std::shared_ptr<json_value> & value) {
 
     std::string value_str;
-    s >> value_str;
+    CHECK_EXPECTED(deserialize(s, value_str));
 
-    value = json_parser::parse(
+    GET_EXPECTED_VALUE(value, json_parser::parse(
       "deserialize",
-      const_data_buffer(value_str.c_str(), value_str.length()));
-    return s;
+      const_data_buffer(value_str.c_str(), value_str.length())));
+
+    return expected<void>();
   }
 
 }

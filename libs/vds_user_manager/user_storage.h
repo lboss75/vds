@@ -13,16 +13,16 @@ All rights reserved
 namespace vds {
   class user_storage {
   public:
-    static async_task<std::shared_ptr<json_value>>
+    static async_task<expected<std::shared_ptr<json_value>>>
       device_storages(
         const service_provider * sp,
         const std::shared_ptr<user_manager> & user_mng);
 
-    static std::shared_ptr<json_value>
+    static expected<std::shared_ptr<json_value>>
       device_storage_label(
         const std::shared_ptr<user_manager> &user_mng);
 
-    static async_task<void>
+    static async_task<expected<void>>
       add_device_storage(
         const service_provider * sp,
         const std::shared_ptr<user_manager> & user_mng,
@@ -30,7 +30,7 @@ namespace vds {
         const std::string &local_path,
         uint64_t reserved_size);
 
-    static async_task<bool>
+    static async_task<expected<bool>>
       local_storage_exists(
         const service_provider * sp);
   };

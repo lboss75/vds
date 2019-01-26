@@ -23,14 +23,14 @@ start_web_(
 {
 }
 
-void vds::web_server_app::main(const service_provider * sp)
+vds::expected<void> vds::web_server_app::main(const service_provider * sp)
 {
   if (this->current_command_set_ == &this->server_start_command_set_
     || this->current_command_set_ == &this->server_service_command_set_) {
     std::shared_ptr<std::exception> error;
 
-    auto port = (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10));
-    this->server_.start_network(port).get();
+    const auto port = (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10));
+    CHECK_EXPECTED(this->server_.start_network(port).get());
     
     std::cout << "Open http://localhost:" << port << "\n";
 
@@ -50,6 +50,8 @@ void vds::web_server_app::main(const service_provider * sp)
       this->waiting_stop_signal();
     }
   }
+
+  return expected<void>();
 }
 
 void vds::web_server_app::register_services(vds::service_registrator& registrator)

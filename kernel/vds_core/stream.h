@@ -17,7 +17,7 @@ namespace vds {
 
     virtual ~stream_output_async() {}
 
-    virtual vds::async_task<void> write_async(
+    virtual vds::async_task<vds::expected<void>> write_async(
         const item_type *data,
         size_t len) = 0;
   };
@@ -25,22 +25,31 @@ namespace vds {
 
   class file_stream_output_async : public stream_output_async<uint8_t> {
   public:
-    file_stream_output_async(const filename & fn, const file::file_mode mode);
-    explicit file_stream_output_async(file * f);
-    ~file_stream_output_async();
+    file_stream_output_async() = default;
+    file_stream_output_async(file && f);
+    file_stream_output_async(const file_stream_output_async &) = delete;
+    file_stream_output_async(file_stream_output_async &&) = default;
 
-    vds::async_task<void> write_async(
+    static expected<std::shared_ptr<file_stream_output_async>> create(const filename & fn, file::file_mode mode);
+    static expected<std::shared_ptr<file_stream_output_async>> create_tmp(const service_provider * sp);
+
+    vds::async_task<vds::expected<void>> write_async(
       const uint8_t *data,
       size_t len) override;
 
+    file & target() {
+      return this->f_;
+    }
+
+    file_stream_output_async & operator = (file_stream_output_async &&) = default;
+
   private:
-    file own_file_;
-    file * f_;
+    file f_;
   };
 
   class null_stream_output_async : public stream_output_async<uint8_t> {
   public:
-    vds::async_task<void> write_async(
+    vds::async_task<vds::expected<void>> write_async(
       const uint8_t *data,
       size_t len) override;
   };
@@ -51,15 +60,15 @@ namespace vds {
   public:
     virtual ~stream_input_async() {}
 
-    virtual vds::async_task<size_t> read_async(      
+    virtual vds::async_task<vds::expected<size_t>> read_async(      
       item_type * buffer,
       size_t len) = 0;
 
-    vds::async_task<const_data_buffer> read_all() {
+    vds::async_task<vds::expected<const_data_buffer>> read_all() {
       auto result = std::make_shared<resizable_data_buffer>();
       for(;;) {
         result->resize_data(result->size() + 1024);
-        auto readed = co_await this->read_async(const_cast<uint8_t *>(result->data() + result->size()), 1024);
+        GET_EXPECTED_ASYNC(readed, co_await this->read_async(const_cast<uint8_t *>(result->data() + result->size()), 1024));
         if(readed == 0) {
           co_return result->move_data();
         }
@@ -81,11 +90,11 @@ namespace vds {
     : data_(std::move(data)), readed_(0) {      
     }
 
-    vds::async_task<size_t> read_async(      
+    vds::async_task<vds::expected<size_t>> read_async(      
       uint8_t * buffer,
       size_t len) override {
       if(this->readed_ > this->data_.size()) {
-        co_return 0;
+        co_return (size_t)0;
       }
 
       if(len > this->data_.size() - this->readed_) {
@@ -105,15 +114,17 @@ namespace vds {
 
   class file_stream_input_async : public stream_input_async<uint8_t> {
   public:
-    file_stream_input_async(const filename & fn)
-      : f_(fn, file::file_mode::open_read),
-    processed_(0),
-    readed_(0),
-    eof_(0) {
+    file_stream_input_async()
+    : processed_(0),
+      readed_(0),
+      eof_(false) {
     }
 
-    vds::async_task<size_t> read_async(
-      
+    expected<void> open(const filename & fn) {
+      return this->f_.open(fn, file::file_mode::open_read);
+    }
+
+    vds::async_task<vds::expected<size_t>> read_async(
       uint8_t * buffer,
       size_t len) override {
       for (;;) {
@@ -130,7 +141,7 @@ namespace vds {
           co_return 0;
         }
         this->processed_ = 0;
-        this->readed_ = this->f_.read(this->buffer_, sizeof(this->buffer_));
+        GET_EXPECTED_VALUE_ASYNC(this->readed_, this->f_.read(this->buffer_, sizeof(this->buffer_)));
         if (0 == this->readed_) {
           this->eof_ = true;
           co_return 0;
@@ -154,14 +165,12 @@ namespace vds {
   class collect_data : public stream_output_async<item_type>
   {
   public:
-    collect_data() {
-    }
 
-    vds::async_task<void> write_async(
+    async_task<expected<void>> write_async(
       const item_type *data,
       size_t len) override {
         this->data_.add(data, len);
-        co_return;
+        co_return expected<void>();
       }
 
       const_data_buffer move_data() {

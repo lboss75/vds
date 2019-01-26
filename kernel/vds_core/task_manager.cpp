@@ -30,40 +30,39 @@ vds::task_manager::~task_manager()
 }
 
 
-void vds::timer::start(
+vds::expected<void> vds::timer::start(
   const service_provider * sp,
   const std::chrono::steady_clock::duration & period,
-  const std::function<async_task<bool>(void) >& callback)
+  const std::function<async_task<expected<bool>>(void) >& callback)
 {
   this->sp_ = sp;
-  this->current_state_->change_state(state_t::bof, state_t::scheduled).get();
+  CHECK_EXPECTED(this->current_state_->change_state(state_t::bof, state_t::scheduled).get());
   this->period_ = period;
   this->handler_ = callback;
   
   this->schedule();
+
+  return expected<void>();
 }
 
-void vds::timer::stop()
+vds::expected<void> vds::timer::stop()
 {
 	auto manager = static_cast<task_manager *>(this->sp_->get<task_manager>());
 
 	std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
 	manager->scheduled_.remove(this);
   this->is_shuting_down_ = true;
-	this->current_state_->wait(state_t::eof).get();
+  CHECK_EXPECTED(this->current_state_->wait(state_t::eof).get());
+
+  return expected<void>();
 }
 
 void vds::timer::execute()
 {
-  try {
-    this->execute_async().get();
-  }
-  catch (const std::exception & ex) {
-    this->sp_->get<logger>()->warning("tm", "Timer execute error %s", ex.what());
-  }
-  catch(...) {
-    this->sp_->get<logger>()->warning("tm", "Timer execute unexpected");
-  }
+    auto r = this->execute_async().get();
+    if(r.has_error()) {
+      this->sp_->get<logger>()->warning("tm", "Timer execute error %s", r.error()->what());
+    }
 }
 
 void vds::timer::schedule()
@@ -91,45 +90,56 @@ void vds::timer::schedule()
   }
 }
 
-vds::async_task<void> vds::timer::execute_async() {
+vds::async_task<vds::expected<void>> vds::timer::execute_async() {
   if (!this->is_shuting_down_) {
-    co_await this->current_state_->change_state(state_t::scheduled, state_t::in_handler);
-    if (co_await this->handler_()) {
-      co_await this->current_state_->change_state(state_t::in_handler, state_t::scheduled);
+    CHECK_EXPECTED_ASYNC(co_await this->current_state_->change_state(state_t::scheduled, state_t::in_handler));
+
+    auto r = co_await this->handler_();
+    if (r.has_error()) {
+      co_return vds::unexpected(std::move(r.error()));
+    }
+
+    if (r.value()) {
+      CHECK_EXPECTED_ASYNC(co_await this->current_state_->change_state(state_t::in_handler, state_t::scheduled));
       this->schedule();
     }
     else {
-      co_await this->current_state_->change_state(state_t::in_handler, state_t::eof);
+      CHECK_EXPECTED_ASYNC(co_await this->current_state_->change_state(state_t::in_handler, state_t::eof));
     }
   }
   else {
-    co_await this->current_state_->change_state(state_t::scheduled, state_t::eof);
+    CHECK_EXPECTED_ASYNC(co_await this->current_state_->change_state(state_t::scheduled, state_t::eof));
   }
+  co_return vds::expected<void>();
 }
 
 
-void vds::task_manager::register_services(service_registrator & registrator)
+vds::expected<void> vds::task_manager::register_services(service_registrator & registrator)
 {
   registrator.add_service<task_manager>(this);
+  return expected<void>();
 }
 
-void vds::task_manager::start(const service_provider * sp)
+vds::expected<void> vds::task_manager::start(const service_provider * sp)
 {
   this->sp_ = sp;
+  return expected<void>();
 }
 
-void vds::task_manager::stop()
+vds::expected<void> vds::task_manager::stop()
 {
   this->sp_->get<logger>()->debug("tm", "Stopping task manager");
 
   if (this->work_thread_.joinable()) {
     this->work_thread_.join();
   }
+
+  return expected<void>();
 }
 
-vds::async_task<void> vds::task_manager::prepare_to_stop() {
+vds::async_task<vds::expected<void>> vds::task_manager::prepare_to_stop() {
   this->is_shuting_down_ = true;
-  co_return;
+  co_return expected<void>();
 }
 
 void vds::task_manager::work_thread()

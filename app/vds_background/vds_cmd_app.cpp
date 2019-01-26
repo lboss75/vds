@@ -30,41 +30,43 @@ vds::vds_cmd_app::vds_cmd_app()
 {
 }
 
-void vds::vds_cmd_app::main(const service_provider * sp)
+vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
 {
   if (this->current_command_set_ == &this->server_start_command_set_
     || &this->server_root_cmd_set_ == this->current_command_set_) {
 
-    this->server_
+    CHECK_EXPECTED(this->server_
       .start_network((uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
-      .get();
+      .get());
 
     if (&this->server_root_cmd_set_ == this->current_command_set_) {
-      const auto data = file::read_all(filename("keys"));
+      GET_EXPECTED(data, file::read_all(filename("keys")));
       const_data_buffer root_private_key, common_news_write_private_key, common_news_admin_private_key;
       binary_deserializer s(data);
-      s
-        >> root_private_key
-        >> common_news_write_private_key
-        >> common_news_admin_private_key
-        ;
+      CHECK_EXPECTED(vds::deserialize(s, root_private_key));
+      CHECK_EXPECTED(vds::deserialize(s, common_news_write_private_key));
+      CHECK_EXPECTED(vds::deserialize(s, common_news_admin_private_key));
+
+      GET_EXPECTED(root_private_key_cert, asymmetric_private_key::parse_der(root_private_key, this->user_password_.value()));
 
       cert_control::private_info_t private_info;
-      private_info.root_private_key_ = std::make_shared<asymmetric_private_key>(
-        asymmetric_private_key::parse_der(root_private_key, this->user_password_.value()));
+      private_info.root_private_key_ = std::make_shared<asymmetric_private_key>(std::move(root_private_key_cert));
 
-      private_info.common_news_write_private_key_ = std::make_shared<asymmetric_private_key>(
+      GET_EXPECTED(common_news_write_private_key_key, 
         asymmetric_private_key::parse_der(common_news_write_private_key, this->user_password_.value()));
 
-      private_info.common_news_admin_private_key_ = std::make_shared<asymmetric_private_key>(
+      private_info.common_news_write_private_key_ = std::make_shared<asymmetric_private_key>(std::move(common_news_write_private_key_key));
+
+      GET_EXPECTED(common_news_admin_private_key_key,
         asymmetric_private_key::parse_der(common_news_admin_private_key, this->user_password_.value()));
+      private_info.common_news_admin_private_key_ = std::make_shared<asymmetric_private_key>(std::move(common_news_admin_private_key_key));
 
 
       auto user_mng = std::make_shared<user_manager>(sp);
-      user_mng->reset(
+      CHECK_EXPECTED(user_mng->reset(
         this->user_login_.value(),
         this->user_password_.value(),
-        private_info);
+        private_info));
     }
     else {
       for (;;) {
@@ -80,11 +82,14 @@ void vds::vds_cmd_app::main(const service_provider * sp)
 
     }
   }
+
+  return expected<void>();
 }
 
 void vds::vds_cmd_app::register_services(vds::service_registrator& registrator)
 {
   base_class::register_services(registrator);
+
   registrator.add(this->mt_service_);
   registrator.add(this->task_manager_);
   registrator.add(this->network_service_);
@@ -116,13 +121,13 @@ void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
   //this->server_init_command_set_.optional(this->port_);
 }
 
-void vds::vds_cmd_app::start_services(service_registrator & registrator, service_provider * sp)
+vds::expected<void> vds::vds_cmd_app::start_services(service_registrator & registrator, service_provider * sp)
 {
   if (&this->server_root_cmd_set_ == this->current_command_set_) {
-    auto folder = persistence::current_user(sp);
-    folder.delete_folder(true);
-    folder.create();
-    registrator.start();
+    GET_EXPECTED(folder, persistence::current_user(sp));
+    CHECK_EXPECTED(folder.delete_folder(true));
+    CHECK_EXPECTED(folder.create());
+    CHECK_EXPECTED(registrator.start());
   //} else if (&this->server_init_command_set_ == this->current_command_set_) {
   //  foldername folder(persistence::current_user(sp), ".vds");
   //  folder.delete_folder(true);
@@ -130,8 +135,10 @@ void vds::vds_cmd_app::start_services(service_registrator & registrator, service
   //  registrator.start(sp);
   }
   else {
-    base_class::start_services(registrator, sp);
+    CHECK_EXPECTED(base_class::start_services(registrator, sp));
   }
+
+  return expected<void>();
 }
 
 bool vds::vds_cmd_app::need_demonize()

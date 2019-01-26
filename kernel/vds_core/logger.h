@@ -202,9 +202,9 @@ namespace vds {
       console_logger(log_level level, const std::unordered_set<std::string> & modules);
 
       //iservice_factory
-      void register_services(service_registrator &) override;
-      void start(const service_provider *) override;
-      void stop() override;
+      expected<void> register_services(service_registrator &) override;
+      expected<void> start(const service_provider *) override;
+      expected<void> stop() override;
 
       //log_writer
       void write( const log_record & record) override;
@@ -218,9 +218,9 @@ namespace vds {
       file_logger(log_level level, const std::unordered_set<std::string> & modules);
 
       //iservice_factory
-      void register_services(service_registrator &) override;
-      void start(const service_provider * sp) override;
-      void stop() override;
+      expected<void> register_services(service_registrator &) override;
+      expected<void> start(const service_provider * sp) override;
+      expected<void> stop() override;
 
       //log_writer
       void write(const log_record & record) override;

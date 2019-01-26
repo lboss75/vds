@@ -7,6 +7,7 @@ All rights reserved
 */
 #include <string>
 #include <algorithm>
+#include "expected.h"
 
 namespace vds {
   class foldername;
@@ -75,7 +76,7 @@ namespace vds {
         return this->value_.empty();
       }
 
-      static filename current_process();
+      static expected<filename> current_process();
   private:
     friend class foldername;
     std::string value_;

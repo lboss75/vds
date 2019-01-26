@@ -15,19 +15,19 @@ namespace vds {
 
     std::string str() const;
 
-    void write_string_value(const std::string & value);
-    void write_null_value();
+    expected<void> write_string_value(const std::string & value);
+    expected<void> write_null_value();
 
-    void start_property(const std::string & name);
-    void end_property();
+    expected<void> start_property(const std::string & name);
+    expected<void> end_property();
 
-    void write_property(const std::string & name, const std::string & value);
+    expected<void> write_property(const std::string & name, const std::string & value);
 
-    void start_object();
-    void end_object();
+    expected<void> start_object();
+    expected<void> end_object();
 
-    void start_array();
-    void end_array();
+    expected<void> start_array();
+    expected<void> end_array();
 
   private:
     std::stringstream stream_;
@@ -46,7 +46,7 @@ namespace vds {
     State state_;
     std::stack<State> state_path_;
 
-    void write_string(const std::string & value);
+    expected<void> write_string(const std::string & value);
   };
 }
 

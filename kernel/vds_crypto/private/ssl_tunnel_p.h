@@ -117,7 +117,7 @@
 //    void start_decrypted_input()
 //    {
 //      if(this->decrypted_input_eof_){
-//        throw std::runtime_error("Login error");
+//        return vds::make_unexpected<std::runtime_error>("Login error");
 //      }
 //      
 //      try {
@@ -158,7 +158,7 @@
 //          int bytes = BIO_write(this->input_bio_, this->crypted_input_data_, (int)this->crypted_input_data_size_);
 //          if (bytes <= 0) {
 //            if (!BIO_should_retry(this->input_bio_)) {
-//              throw std::runtime_error("BIO_write failed");
+//              return vds::make_unexpected<std::runtime_error>("BIO_write failed");
 //            }
 //          }
 //          else {
@@ -180,7 +180,7 @@
 //            case SSL_ERROR_WANT_ACCEPT:
 //              break;
 //            default:
-//              throw crypto_exception("SSL_write", ssl_error);
+//              return vds::make_unexpected<crypto_exception>("SSL_write", ssl_error);
 //            }
 //          }
 //          else {
@@ -227,7 +227,7 @@
 //              }
 //              break;
 //            default:
-//              throw crypto_exception("SSL_read", ssl_error);
+//              return vds::make_unexpected<crypto_exception>("SSL_read", ssl_error);
 //            }
 //          }
 //          else {
@@ -269,7 +269,7 @@
 //            case SSL_ERROR_WANT_ACCEPT:
 //              break;
 //            default:
-//              throw crypto_exception("BIO_read", ssl_error);
+//              return vds::make_unexpected<crypto_exception>("BIO_read", ssl_error);
 //            }
 //          }
 //          else {

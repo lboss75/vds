@@ -46,32 +46,46 @@ namespace vds {
 
     };
 	}
-inline vds::binary_serializer & operator << (
+inline expected<void> serialize (
 	vds::binary_serializer & s,
 	const vds::transactions::user_message_transaction::file_block_t & data) {
-	s << data.block_id << data.block_key << data.replica_hashes << data.block_size;
-  return s;
+  CHECK_EXPECTED(serialize(s, data.block_id));
+  CHECK_EXPECTED(serialize(s, data.block_key));
+  CHECK_EXPECTED(serialize(s, data.replica_hashes));
+  CHECK_EXPECTED(serialize(s, data.block_size));
+  return expected<void>();
 }
 
-inline vds::binary_deserializer & operator >> (
+inline expected<void> deserialize(
 	vds::binary_deserializer & s,
 	vds::transactions::user_message_transaction::file_block_t & data) {
-	s >> data.block_id >> data.block_key >> data.replica_hashes >> data.block_size;
-  return s;
+  CHECK_EXPECTED(deserialize(s, data.block_id));
+  CHECK_EXPECTED(deserialize(s, data.block_key));
+  CHECK_EXPECTED(deserialize(s, data.replica_hashes));
+  CHECK_EXPECTED(deserialize(s, data.block_size));
+  return expected<void>();
 }
 
-inline vds::binary_serializer & operator << (
+inline expected<void> serialize(
   vds::binary_serializer & s,
   const vds::transactions::user_message_transaction::file_info_t & data) {
-  s << data.name << data.mime_type << data.size << data.file_id << data.file_blocks;
-  return s;
+  CHECK_EXPECTED(serialize(s, data.name));
+  CHECK_EXPECTED(serialize(s, data.mime_type));
+  CHECK_EXPECTED(serialize(s, data.size));
+  CHECK_EXPECTED(serialize(s, data.file_id));
+  CHECK_EXPECTED(serialize(s, data.file_blocks));
+  return expected<void>();
 }
 
-inline vds::binary_deserializer & operator >> (
+inline expected<void> deserialize(
   vds::binary_deserializer & s,
   vds::transactions::user_message_transaction::file_info_t & data) {
-  s >> data.name >> data.mime_type >> data.size >> data.file_id >> data.file_blocks;
-  return s;
+  CHECK_EXPECTED(deserialize(s, data.name));
+  CHECK_EXPECTED(deserialize(s, data.mime_type));
+  CHECK_EXPECTED(deserialize(s, data.size));
+  CHECK_EXPECTED(deserialize(s, data.file_id));
+  CHECK_EXPECTED(deserialize(s, data.file_blocks));
+  return expected<void>();
 }
 }
 

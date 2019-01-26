@@ -10,7 +10,7 @@ public:
   mock_dg_transport(mock_session & s)
   : s_(s){
   }
-  vds::async_task<void> write_async(
+  vds::async_task<vds::expected<void>> write_async(
       
       const vds::udp_datagram & data);
 
@@ -30,7 +30,7 @@ public:
     : base_class(sp, address, this_node_id, partner_node_id, session_key) {
   }
 
-  vds::async_task<void> process_message(
+  vds::async_task<vds::expected<void>> process_message(
       
       const std::shared_ptr<mock_dg_transport>& transport,
       uint8_t message_type,
@@ -45,11 +45,11 @@ public:
     this->source_node_ = source_node;
     this->hops_ = hops;
 
-    co_return;
+    co_return vds::expected<void>();
   }
 
 
-  void check_message(uint8_t message_type, const vds::const_data_buffer & message){
+  vds::expected<void> check_message(uint8_t message_type, const vds::const_data_buffer & message){
     for(int i = 0; i < 10; ++i) {
       if(!this->message_) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -59,16 +59,17 @@ public:
       }
     }
     if(message_type != this->message_type_) {
-      throw std::runtime_error("Invalid message type");
+      return vds::make_unexpected<std::runtime_error>("Invalid message type");
     }
     if (message != this->message_) {
-      throw std::runtime_error("Invalid message");
+      return vds::make_unexpected<std::runtime_error>("Invalid message");
     }
 
     this->message_.clear();
+    return vds::expected<void>();
   }
 
-  void check_message(
+  vds::expected<void> check_message(
     uint8_t message_type,
     const vds::const_data_buffer & message,
     const vds::const_data_buffer & target_node,
@@ -84,22 +85,23 @@ public:
       }
     }
     if (message_type != this->message_type_) {
-      throw std::runtime_error("Invalid message type");
+      return vds::make_unexpected<std::runtime_error>("Invalid message type");
     }
     if (message != this->message_) {
-      throw std::runtime_error("Invalid message");
+      return vds::make_unexpected<std::runtime_error>("Invalid message");
     }
     if (target_node != this->target_node_) {
-      throw std::runtime_error("Invalid target_node");
+      return vds::make_unexpected<std::runtime_error>("Invalid target_node");
     }
     if (source_node != this->source_node_) {
-      throw std::runtime_error("Invalid source_node");
+      return vds::make_unexpected<std::runtime_error>("Invalid source_node");
     }
     if (hops != this->hops_) {
-      throw std::runtime_error("Invalid hops");
+      return vds::make_unexpected<std::runtime_error>("Invalid hops");
     }
 
     this->message_.clear();
+    return vds::expected<void>();
   }
 
   private:

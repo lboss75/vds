@@ -6,9 +6,9 @@ All rights reserved
 #include "stdafx.h"
 #include "url_parser.h"
 
-bool vds::url_parser::parse_addresses(
+vds::expected<bool> vds::url_parser::parse_addresses(
   const std::string & addresses,
-  const std::function<bool(const std::string& protocol, const std::string& address)> & handler)
+  const std::function<expected<bool>(const std::string& protocol, const std::string& address)> & handler)
 {
   std::string::size_type start = 0;
   auto p = addresses.find(';', start);
@@ -25,9 +25,9 @@ bool vds::url_parser::parse_addresses(
   return parse_address(addresses.substr(start), handler);
 }
 
-bool vds::url_parser::parse_address(
+vds::expected<bool> vds::url_parser::parse_address(
   const std::string & address,
-  const std::function<bool(const std::string&protocol, const std::string&address)> & handler)
+  const std::function<vds::expected<bool>(const std::string&protocol, const std::string&address)> & handler)
 {
   auto p = address.find(':');
   if (std::string::npos == p) {

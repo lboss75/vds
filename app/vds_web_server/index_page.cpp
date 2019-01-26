@@ -15,12 +15,12 @@ All rights reserved
 #include "http_request.h"
 #include "private/create_message_form.h"
 
-vds::async_task<vds::http_message> vds::index_page::create_channel(
+vds::async_task<vds::expected<vds::http_message>> vds::index_page::create_channel(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager> & user_mng,
   const http_request & message) {
 
-  message.get_message().ignore_empty_body();
+  CHECK_EXPECTED_ASYNC(co_await message.get_message().ignore_empty_body());
 
  
   auto type = message.get_parameter("type");
@@ -33,15 +33,15 @@ vds::async_task<vds::http_message> vds::index_page::create_channel(
 }
 
 
-vds::async_task<vds::http_message> vds::index_page::create_message(
+vds::async_task<vds::expected<vds::http_message>> vds::index_page::create_message(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
   const http_request & request) {
 
   auto parser = std::make_shared<create_message_form>(sp ,user_mng);
 
-  co_await parser->parse(request.get_message());
-  co_await parser->complete();
+  CHECK_EXPECTED_ASYNC(co_await parser->parse(request.get_message()));
+  CHECK_EXPECTED_ASYNC(co_await parser->complete());
   
   co_return http_response::redirect("/");
 }
@@ -54,18 +54,18 @@ public:
       : base_class(sp), successful_(false) {
   }
 
-  void on_field(const simple_field_info & /*field*/) {
-    //Ignore throw std::runtime_error("Invalid field " + field.name);
+  vds::async_task<vds::expected<void>> on_field(const simple_field_info & /*field*/) {
+    //Ignore return vds::make_unexpected<std::runtime_error>("Invalid field " + field.name);
+    co_return vds::expected<void>();
   }
 
-  vds::async_task<void> on_file( const file_info & file) {
-
-    auto buffer = co_await file.stream->read_all();
-
-    this->successful_ = vds::user_manager::parse_join_request(
+  vds::async_task<vds::expected<void>> on_file( const file_info & file) {
+    GET_EXPECTED_ASYNC(buffer, co_await file.stream->read_all());
+    GET_EXPECTED_VALUE_ASYNC(this->successful_, vds::user_manager::parse_join_request(
         buffer,
         this->userName_,
-        this->userEmail_);
+        this->userEmail_));
+    co_return vds::expected<void>();
   }
 
   bool successful() const {
@@ -86,14 +86,14 @@ private:
   std::string userEmail_;
 };
 
-vds::async_task<std::shared_ptr<vds::json_value>> vds::index_page::parse_join_request(
+vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::index_page::parse_join_request(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
   const http_request & message) {
 
   auto parser = std::make_shared<parse_request_form>(sp);
 
-  co_await parser->parse(message.get_message());
+  CHECK_EXPECTED_ASYNC(co_await parser->parse(message.get_message()));
 
   auto result = std::make_shared<json_object>();
   if (parser->successful()) {
@@ -119,14 +119,14 @@ public:
 
   }
 
-  void on_field(const simple_field_info & /*field*/) {
-    //Ignore
+  vds::async_task<vds::expected<void>> on_field(const simple_field_info & /*field*/) {
+    co_return vds::expected<void>();
   }
 
-  vds::async_task<void> on_file( const file_info & file) {
-    auto buffer = co_await file.stream->read_all();
-
-    this->successful_ = co_await this->user_mng_->approve_join_request(buffer);
+  vds::async_task<vds::expected<void>> on_file( const file_info & file) {
+    GET_EXPECTED_ASYNC(buffer, co_await file.stream->read_all());
+    GET_EXPECTED_VALUE_ASYNC(this->successful_, co_await this->user_mng_->approve_join_request(buffer));
+    co_return vds::expected<void>();
   }
 
   bool successful() const {
@@ -139,14 +139,14 @@ private:
 };
 
 
-vds::async_task<vds::http_message> vds::index_page::approve_join_request(
+vds::async_task<vds::expected<vds::http_message>> vds::index_page::approve_join_request(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng,
   const http_request& message) {
 
   auto parser = std::make_shared<approve_join_request_form>(sp, user_mng);
 
-  co_await parser->parse(message.get_message());
+  CHECK_EXPECTED_ASYNC(co_await parser->parse(message.get_message()));
 
   co_return http_response::redirect(parser->successful() ? "/?message=approve_successful" : "/?message=approve_failed");
 }

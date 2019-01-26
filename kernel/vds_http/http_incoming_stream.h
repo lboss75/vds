@@ -17,23 +17,24 @@ namespace vds {
     : handler_(nullptr)
     {
     }
-   
-    void push_data(
-      
+
+    vds::expected<void> push_data(      
       const void * data,
       size_t len)
     {
       if (nullptr == this->handler_) {
         if (0 < len) {
-          throw std::logic_error("Read handler for http_incoming_stream have not set");
+          return vds::make_unexpected<std::logic_error>("Read handler for http_incoming_stream have not set");
         }
       }
       else {
-        this->handler_->push_data(
+        return this->handler_->push_data(
           data,
           len
         );
       }
+
+      return expected<void>();
     }    
    
     class read_handler
@@ -43,8 +44,7 @@ namespace vds {
       {
       }
       
-      virtual void push_data(
-        
+      virtual expected<void> push_data(
         const void * data,
         size_t len
       ) = 0;

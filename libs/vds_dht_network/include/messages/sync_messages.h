@@ -21,7 +21,7 @@ namespace vds {
         std::set<uint16_t> exist_replicas;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->object_id,
             this->exist_replicas
@@ -41,7 +41,7 @@ namespace vds {
         uint64_t last_applied;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->object_id,
             this->generation,
@@ -64,7 +64,7 @@ namespace vds {
         uint64_t last_applied;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->object_id,
             this->generation,
@@ -87,10 +87,9 @@ namespace vds {
         uint16_t replica;
         const_data_buffer message_source_node;
         uint64_t message_source_index;
-
-
+        
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return sync_base_message_request::visit<visitor_type>(v)
           (
             this->message_type,
@@ -127,7 +126,7 @@ namespace vds {
         uint16_t replica;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->object_id,
             this->leader_node,
@@ -152,7 +151,7 @@ namespace vds {
         const_data_buffer source_node;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->object_id,
             this->generation,
@@ -172,7 +171,7 @@ namespace vds {
         const_data_buffer source_node;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->object_id,
             this->generation,
@@ -196,7 +195,7 @@ namespace vds {
         uint32_t object_size;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return base_class::visit(v)(
             this->object_size
             );
@@ -211,7 +210,7 @@ namespace vds {
         std::set<uint16_t> replicas;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->object_id,
             this->replicas
@@ -228,7 +227,7 @@ namespace vds {
         const_data_buffer source_node;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->object_id,
             this->source_node
@@ -258,7 +257,7 @@ namespace vds {
         std::map<const_data_buffer, member_state> members;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return v(
             this->object_id,
             this->object_size,
@@ -296,7 +295,7 @@ namespace vds {
         const_data_buffer target_node;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return base_class::visit(v)(
             this->replica,
             this->target_node
@@ -313,7 +312,7 @@ namespace vds {
         uint16_t replica;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return base_class::visit(v)(
             this->member_node,
             this->replica
@@ -331,7 +330,7 @@ namespace vds {
         const_data_buffer leader_node;
 
         template <typename visitor_type>
-        auto visit(visitor_type & v) {
+        auto & visit(visitor_type & v) {
           return base_class::visit(v)(
             this->replica,
             this->data,
@@ -343,33 +342,38 @@ namespace vds {
     }
   }
 
-  inline binary_serializer& operator <<(
+  inline expected<void> serialize(
     binary_serializer& s,
     const orm::sync_message_dbo::message_type_t & f) {
-    return s << (uint8_t)f;
+    return vds::serialize(s, (uint8_t)f);
   }
 
-  inline binary_deserializer& operator >>(
+  inline expected<void> deserialize(
     binary_deserializer& s,
     orm::sync_message_dbo::message_type_t & f) {
     uint8_t v;
-    s >> v;
+    CHECK_EXPECTED(vds::deserialize(s, v));
     f = static_cast<orm::sync_message_dbo::message_type_t>(v);
-    return s;
+    return expected<void>();
   }
 
-  inline binary_serializer& operator <<(
+  inline expected<void> serialize(
     binary_serializer& s,
     const dht::messages::sync_snapshot_response::member_state & f) {
-    return s << f.voted_for << f.cert << f.sign;
+    CHECK_EXPECTED(vds::serialize(s, f.voted_for));
+    CHECK_EXPECTED(vds::serialize(s, f.cert));
+    CHECK_EXPECTED(vds::serialize(s, f.sign));
+    return expected<void>();
   }
 
-  inline binary_deserializer& operator >>(
+  inline expected<void> deserialize(
     binary_deserializer& s,
     dht::messages::sync_snapshot_response::member_state & f) {
-    return s >> f.voted_for >> f.cert >> f.sign;
+    CHECK_EXPECTED(vds::deserialize(s, f.voted_for));
+    CHECK_EXPECTED(vds::deserialize(s, f.cert));
+    CHECK_EXPECTED(vds::deserialize(s, f.sign));
+    return expected<void>();
   }
-
 }
 
 #endif//__VDS_DHT_NETWORK_SYNC_MESSAGES_H__

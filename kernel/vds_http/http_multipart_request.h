@@ -21,7 +21,7 @@ namespace vds {
       const std::string & name,
       const std::string & value);
 
-    void add_file(
+    expected<void> add_file(
       const std::string & name,
       const filename & body_file,
       const std::string & filename,
@@ -40,7 +40,7 @@ namespace vds {
     public:
       multipart_body(std::queue<std::shared_ptr<stream_input_async<uint8_t>>> && inputs);
 
-      vds::async_task<size_t> read_async(
+      vds::async_task<vds::expected<size_t>> read_async(
         uint8_t * buffer,
         size_t len) override;
 

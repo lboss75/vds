@@ -16,7 +16,7 @@ namespace vds {
     {
     }
 
-    vds::async_task<network_socket &> connect(const std::string & address, uint16_t port)
+    vds::async_task<vds::expected<network_socket &>> connect(const std::string & address, uint16_t port)
     {
       return create_std::future([address, port](const std::function<void( network_socket &)> & done, const error_handler & on_error, ){
         network_socket s(

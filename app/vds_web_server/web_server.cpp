@@ -4,7 +4,6 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include <queue>
 #include "private/api_controller.h"
 #include "web_server.h"
 #include "private/web_server_p.h"
@@ -13,14 +12,10 @@ All rights reserved
 #include "http_serializer.h"
 #include "http_multipart_reader.h"
 #include "file_operations.h"
-#include "string_format.h"
 #include "http_pipeline.h"
 #include "user_manager.h"
 #include "private/auth_session.h"
-#include "private/login_page.h"
 #include "private/index_page.h"
-#include "db_model.h"
-#include "chunk_dbo.h"
 #include "storage_api.h"
 
 vds::web_server::web_server()
@@ -30,19 +25,22 @@ vds::web_server::web_server()
 vds::web_server::~web_server() {
 }
 
-void vds::web_server::register_services(service_registrator&) {
+vds::expected<void> vds::web_server::register_services(service_registrator&) {
+  return expected<void>();
 }
 
-void vds::web_server::start(const service_provider * sp) {
+vds::expected<void> vds::web_server::start(const service_provider * sp) {
   this->impl_ = std::make_shared<_web_server>(sp);
-  this->impl_->start(this->root_folder_, this->port_).get();
+  return this->impl_->start(this->root_folder_, this->port_).get();
 }
 
-void vds::web_server::stop() {
+vds::expected<void> vds::web_server::stop() {
   this->impl_.reset();
+
+  return expected<void>();
 }
 
-vds::async_task<void> vds::web_server::prepare_to_stop() {
+vds::async_task<vds::expected<void>> vds::web_server::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
 }
 
@@ -57,11 +55,11 @@ router_({
   { "/api/channels", "POST", &index_page::create_channel },
   { "/api/try_login", "GET", [this](
     const vds::service_provider * sp,
-    const http_request & request) -> async_task<std::shared_ptr<json_value>> {
+    const http_request & request) -> async_task<expected<std::shared_ptr<json_value>>> {
       const auto login = request.get_parameter("login");
       const auto password = request.get_parameter("password");
 
-      co_await request.get_message().ignore_empty_body();
+    CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
       co_return co_await api_controller::get_login_state(
         sp,
@@ -73,11 +71,11 @@ router_({
     },
   { "/api/login", "GET", [this](
     const vds::service_provider * sp,
-    const http_request & request) -> async_task<std::shared_ptr<json_value>> {
+    const http_request & request) -> async_task<expected<std::shared_ptr<json_value>>> {
       const auto login = request.get_parameter("login");
       const auto password = request.get_parameter("password");
 
-      co_await request.get_message().ignore_empty_body();
+      CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
       co_return co_await api_controller::login(
         sp,
@@ -89,10 +87,10 @@ router_({
     },
   {"/api/session", "GET", [this](
     const vds::service_provider * sp,
-    const http_request & request) -> async_task<std::shared_ptr<json_value>> {
+    const http_request & request) -> async_task<expected<std::shared_ptr<json_value>>> {
     const auto session_id = request.get_parameter("session");
 
-    co_await request.get_message().ignore_empty_body();
+    CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
     co_return co_await api_controller::get_session(
       this->get_session(session_id));
@@ -100,47 +98,48 @@ router_({
   },
   {"/api/logout", "POST", [this](
     const vds::service_provider * sp,
-    const http_request & request) -> async_task<http_message> {
+    const http_request & request) -> async_task<expected<http_message>> {
     const auto session_id = request.get_parameter("session");
 
-    co_await request.get_message().ignore_empty_body();
+    CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
       this->kill_session(session_id);
 
     co_return http_response::redirect("/");
     }
   },
-  {"/api/channel_feed", "GET", [this](
+  {"/api/channel_feed", "GET", [](
     const vds::service_provider * sp,
     const std::shared_ptr<user_manager> & user_mng,
-    const http_request & request) -> async_task<std::shared_ptr<json_value>> {
-            const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
+    const http_request & request) -> async_task<expected<std::shared_ptr<json_value>>> {
+            GET_EXPECTED_ASYNC(channel_id, base64::to_bytes(request.get_parameter("channel_id")));
 
-            co_await request.get_message().ignore_empty_body();
-            
-      co_return co_await api_controller::channel_feed(
+    CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
+
+    GET_EXPECTED_ASYNC(result, co_await api_controller::channel_feed(
               sp,
               user_mng,
-              channel_id);
+              channel_id));
+    co_return result;
     }
   },
   {"/api/devices", "GET", &storage_api::device_storages },
   {"/api/devices", "POST", [](
     const vds::service_provider * sp,
     const std::shared_ptr<user_manager> & user_mng,
-    const http_request & request) -> async_task<http_message> {
+    const http_request & request) -> async_task<expected<http_message>> {
             const auto name = request.get_parameter("name");
             const auto reserved_size = safe_cast<uint64_t>(std::atoll(request.get_parameter("size").c_str()));
             const auto local_path = request.get_parameter("path");
       
-      co_await request.get_message().ignore_empty_body();
+            CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
-      co_await storage_api::add_device_storage(
+            CHECK_EXPECTED_ASYNC(co_await storage_api::add_device_storage(
               sp,
               user_mng,
               name,
               local_path,
-              reserved_size);
+              reserved_size));
 
             co_return http_response::status_response(
                           http_response::HTTP_OK,
@@ -150,20 +149,20 @@ router_({
   {"/api/download", "GET", [](
     const vds::service_provider * sp,
     const std::shared_ptr<user_manager> & user_mng,
-    const http_request & request) -> async_task<http_message> {
-                  const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
-                  const auto file_hash = base64::to_bytes(request.get_parameter("object_id"));
+    const http_request & request) -> async_task<expected<http_message>> {
+                  GET_EXPECTED_ASYNC(channel_id, base64::to_bytes(request.get_parameter("channel_id")));
+                  GET_EXPECTED_ASYNC(file_hash, base64::to_bytes(request.get_parameter("object_id")));
 
                   auto buffer = std::make_shared<continuous_buffer<uint8_t>>(sp);
 
-      co_await request.get_message().ignore_empty_body();
+                  CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
-                  auto result = co_await api_controller::download_file(
+                  GET_EXPECTED_ASYNC(result, co_await api_controller::download_file(
                     sp,
                     user_mng,
                     channel_id,
                     file_hash,
-                    std::make_shared<continuous_stream_output_async<uint8_t>>(buffer));
+                    std::make_shared<continuous_stream_output_async<uint8_t>>(buffer)));
 
                     co_return http_response::file_response(
                         std::make_shared<continuous_stream_input_async<uint8_t>>(buffer),
@@ -175,11 +174,11 @@ router_({
   {"/api/prepare_download", "GET", [](
     const vds::service_provider * sp,
     const std::shared_ptr<user_manager> & user_mng,
-    const http_request & request) -> async_task<std::shared_ptr<json_value>> {
-                  const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
-                  const auto file_hash = base64::to_bytes(request.get_parameter("object_id"));
+    const http_request & request) -> async_task<expected<std::shared_ptr<json_value>>> {
+                  GET_EXPECTED_ASYNC(channel_id, base64::to_bytes(request.get_parameter("channel_id")));
+                  GET_EXPECTED_ASYNC(file_hash, base64::to_bytes(request.get_parameter("object_id")));
 
-      co_await request.get_message().ignore_empty_body();
+                  CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
                   co_return co_await api_controller::prepare_download_file(
                     sp,
@@ -204,55 +203,54 @@ router_({
 vds::_web_server::~_web_server() {
 }
 
-struct session_data : public std::enable_shared_from_this<session_data> {
-  std::shared_ptr<vds::stream_output_async<uint8_t>> target_;
-  std::shared_ptr<vds::http_async_serializer> stream_;
-  std::shared_ptr<vds::http_pipeline> handler_;
-
-  session_data(const std::shared_ptr<vds::stream_output_async<uint8_t>> & target)
-    : target_(target),
-      stream_(std::make_shared<vds::http_async_serializer>(target)) {
+vds::async_task<vds::expected<vds::http_message>> vds::_web_server::process_message(
+  const std::shared_ptr<session_data> & session,
+  const vds::http_message request) {
+  if (request.headers().empty()) {
+    this->sp_->get<vds::logger>()->debug(ThisModule, "Route end");
+    session->stream_.reset();
+    session->handler_.reset();
+    co_return vds::http_message();
   }
-};
 
-vds::async_task<void> vds::_web_server::start(
+  this->sp_->get<vds::logger>()->debug(ThisModule, "Route [%s]", request.headers().front().c_str());
+
+  //std::string keep_alive_header;
+  //bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
+  GET_EXPECTED_ASYNC(response, co_await this->router_.route(this->sp_, request));
+  this->sp_->get<logger>()->debug(ThisModule, "Response [%s]", response.headers().front().c_str());
+  co_return response;
+}
+
+vds::async_task<vds::expected<void>> vds::_web_server::start(
     const std::string & root_folder,
     uint16_t port) {
-  this->load_web("/", foldername(root_folder));
-  co_await this->server_.start(this->sp_, network_address::any_ip4(port),
-    [sp = this->sp_, pthis = this->shared_from_this()](std::shared_ptr<tcp_network_socket> s) -> vds::async_task<void>{
+  CHECK_EXPECTED_ASYNC(this->load_web("/", foldername(root_folder)));
+  this->web_task_ = this->server_.start(this->sp_, network_address::any_ip4(port),
+    [sp = this->sp_, pthis = this->shared_from_this()](std::shared_ptr<tcp_network_socket> s) -> vds::async_task<vds::expected<void>>{
     auto[reader, writer] = s->start(sp);
     auto session = std::make_shared<session_data>(writer);
     session->handler_ = std::make_shared<http_pipeline>(
         session->stream_,
-      [sp, pthis, session](const http_message request) -> vds::async_task<http_message> {
-      try {
-        if (request.headers().empty()) {
-          session->stream_.reset();
-          session->handler_.reset();
-          co_return http_message();
-        }
-
-        sp->get<logger>()->debug(ThisModule, "Route [%s]", request.headers().front().c_str());
-
-        //std::string keep_alive_header;
-        //bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
-        auto response = co_await pthis->router_.route(sp, request);
-        sp->get<logger>()->debug(ThisModule, "Response [%s]", response.headers().front().c_str());
-        co_return response;
+      [sp, pthis, session](const http_message request) -> vds::async_task<vds::expected<http_message>> {
+      auto result = co_await pthis->process_message(session, request);
+      if(result.has_error()) {
+        sp->get<logger>()->error(ThisModule, "%s at processing [%s]", result.error()->what(), request.headers().front().c_str());
+        co_return http_response::status_response(http_response::HTTP_Internal_Server_Error, result.error()->what());
       }
-      catch (const std::exception & ex) {
-        sp->get<logger>()->error(ThisModule, "%s at processing [%s]", ex.what(), request.headers().front().c_str());
-        co_return http_response::status_response(http_response::HTTP_Internal_Server_Error, ex.what());
+      else {
+        co_return std::move(result.value());
       }
     });
-    co_await session->handler_->process(reader);
+    CHECK_EXPECTED_ASYNC(co_await session->handler_->process(reader));
+    co_return expected<void>();
   });
 
-  this->update_timer_.start(this->sp_, std::chrono::minutes(1), [pthis = this->shared_from_this()]()->async_task<bool> {
+  CHECK_EXPECTED_ASYNC(this->update_timer_.start(
+    this->sp_, std::chrono::minutes(1), [pthis = this->shared_from_this()]()->async_task<expected<bool>> {
     std::set<std::string> to_kill;
 
-    auto dest_point = std::chrono::steady_clock::now() - std::chrono::minutes(30);
+    const auto dest_point = std::chrono::steady_clock::now() - std::chrono::minutes(30);
 
     std::shared_lock<std::shared_mutex> lock(pthis->auth_session_mutex_);
     for(auto p : pthis->auth_sessions_) {
@@ -267,11 +265,13 @@ vds::async_task<void> vds::_web_server::start(
     }
 
     co_return !pthis->sp_->get_shutdown_event().is_shuting_down();
-  });
+  }));
+
+  co_return vds::expected<void>();
 }
 
-vds::async_task<void> vds::_web_server::prepare_to_stop() {
-  co_return;
+vds::async_task<vds::expected<void>> vds::_web_server::prepare_to_stop() {
+  return std::move(this->web_task_);
 }
 
 //  if (request.url() == "/api/offer_device") {
@@ -320,9 +320,8 @@ vds::async_task<void> vds::_web_server::prepare_to_stop() {
 //  co_return co_await this->router_.route(message, request.url());
 //}
 
-void vds::_web_server::load_web(const std::string& path, const foldername & folder) {
-  foldername f(folder);
-  f.files([this, path](const filename & fn) -> bool{
+vds::expected<void> vds::_web_server::load_web(const std::string& path, const foldername & folder) {
+  CHECK_EXPECTED(folder.files([this, path](const filename & fn) -> expected<bool>{
     if(".html" == fn.extension()) {
       if(fn.name_without_extension() == "index") {
         this->router_.add_file(path, fn);
@@ -335,11 +334,13 @@ void vds::_web_server::load_web(const std::string& path, const foldername & fold
       this->router_.add_file(path + fn.name(), fn);
     }
     return true;
-  });
-  f.folders([this, path](const foldername & fn) -> bool {
-    this->load_web(path + fn.name() + "/", fn);
+  }));
+  CHECK_EXPECTED(folder.folders([this, path](const foldername & fn) -> expected<bool> {
+    CHECK_EXPECTED(this->load_web(path + fn.name() + "/", fn));
     return true;
-  });
+  }));
+
+  return expected<void>();
 }
 
 void vds::_web_server::add_auth_session(

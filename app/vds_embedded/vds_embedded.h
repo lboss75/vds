@@ -39,7 +39,7 @@ namespace vds {
         service_provider * sp,
         const std::shared_ptr<user_manager> & user_mng);
 
-      const char * get_login_state() const;
+      const char * get_login_state();
       const char * get_device_storages();
 
       const char * prepare_device_storage();
@@ -70,6 +70,13 @@ namespace vds {
     server server_;
 
     service_provider * sp_;
+
+    expected<void> do_server_root(const std::string & login, const std::string & password);
+    expected<void> do_start(int port);
+    expected<void> do_stop();
+    expected<bool> do_local_storage_exists();
+
+
   };
 }
 

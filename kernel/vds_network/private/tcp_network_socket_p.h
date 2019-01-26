@@ -37,12 +37,10 @@ namespace vds {
 #endif
     {
 #ifdef _WIN32
-      if (INVALID_SOCKET == s) {
+      vds_assert(INVALID_SOCKET != s);
 #else
-      if (s < 0) {
+      vds_assert(s > 0);
 #endif
-        throw std::runtime_error("Invalid socket handle");
-      }
     }
 
     _tcp_network_socket(const _tcp_network_socket &) = delete;
@@ -54,13 +52,13 @@ namespace vds {
 
     void close();
 
-    SOCKET_HANDLE handle() const {
+    expected<SOCKET_HANDLE> handle() const {
 #ifdef _WIN32
       if (INVALID_SOCKET == this->s_) {
 #else
       if (0 >= this->s_) {
 #endif
-        throw std::logic_error("network_socket::handle without open socket");
+        return vds::make_unexpected<std::logic_error>("network_socket::handle without open socket");
       }
       return this->s_;
     }
@@ -102,7 +100,7 @@ namespace vds {
     //#endif//_WIN32
     //    }
     //
-    //    vds::async_task<void> write_async(const uint8_t * data, size_t size) {
+    //    vds::async_task<vds::expected<void>> write_async(const uint8_t * data, size_t size) {
     //#ifdef _WIN32
     //      return static_cast<_write_socket_task *>(this->socket_task_.get())->write_async(data, size);
     //#else
@@ -116,13 +114,13 @@ namespace vds {
     {
       auto flags = fcntl(this->handle(), F_GETFL, 0);
       if (flags == -1) {
-        throw std::runtime_error("fcntl");
+        return vds::make_unexpected<std::runtime_error>("fcntl");
       }
 
       flags |= O_NONBLOCK;
       auto s = fcntl(this->handle(), F_SETFL, flags);
       if (s == -1) {
-        throw std::runtime_error("fcntl");
+        return vds::make_unexpected<std::runtime_error>("fcntl");
       }
     }
     void set_timeouts()
@@ -194,13 +192,20 @@ namespace vds {
     }
 
 
-    vds::async_task<size_t> read_async(      
+    vds::async_task<vds::expected<size_t>> read_async(      
       uint8_t * buffer,
       size_t len) override {
 
       vds_assert(!this->result_);
-      auto r = std::make_shared<vds::async_result<size_t>>();
+      auto r = std::make_shared<vds::async_result<vds::expected<size_t>>>();
       this->result_ = r;
+
+      auto handle = (*this->owner_)->handle();
+      if (handle.has_error()) {
+        auto t = std::move(this->result_);
+        t->set_value(unexpected(std::move(handle.error())));
+        return t->get_future();
+      }
 
       memset(&this->overlapped_, 0, sizeof(this->overlapped_));
       this->wsa_buf_.len = len;
@@ -209,7 +214,8 @@ namespace vds {
 
       DWORD flags = 0;
       DWORD numberOfBytesRecvd;
-      if (NOERROR != WSARecv((*this->owner_)->handle(),
+      if (NOERROR != WSARecv(
+        handle.value(),
         &this->wsa_buf_,
         1,
         &numberOfBytesRecvd,
@@ -230,8 +236,8 @@ namespace vds {
           else {
             auto t = std::move(this->result_);
 
-            t->set_exception(
-              std::make_exception_ptr(std::system_error(errorCode, std::system_category(), "read from tcp socket")));
+            t->set_value(
+              make_unexpected<std::system_error>(errorCode, std::system_category(), "read from tcp socket"));
             return t->get_future();
           }
         }
@@ -245,7 +251,7 @@ namespace vds {
     const service_provider * sp_;
     std::shared_ptr<tcp_network_socket> owner_;
     std::shared_ptr<stream_input_async<uint8_t>> pthis_;
-    std::shared_ptr<vds::async_result<size_t>> result_;
+    std::shared_ptr<vds::async_result<vds::expected<size_t>>> result_;
 
     void process(DWORD dwBytesTransfered) override
     {
@@ -268,7 +274,7 @@ namespace vds {
       else {
         auto pthis = std::move(this->pthis_);
         auto r = std::move(this->result_);
-        r->set_exception(std::make_exception_ptr(std::system_error(error_code, std::system_category(), "read failed")));
+        r->set_value(make_unexpected<std::system_error>(error_code, std::system_category(), "read failed"));
       }
     }
   };
@@ -289,17 +295,18 @@ namespace vds {
     {
     }
 
-    vds::async_task<void> write_async(const uint8_t * data, size_t len) override
+    vds::async_task<vds::expected<void>> write_async(const uint8_t * data, size_t len) override
     {
       if (0 == len) {
-        shutdown((*this->owner_)->handle(), SD_SEND);
-        co_return;
+        GET_EXPECTED_ASYNC(handle, (*this->owner_)->handle());
+        shutdown(handle, SD_SEND);
+        co_return vds::expected<void>();
       }
 
-      auto r = std::make_shared<vds::async_result<void>>();
+      auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
       this->result_ = r;
       this->pthis_ = this->shared_from_this();
-      this->schedule(data, len);
+      CHECK_EXPECTED_ASYNC(this->schedule(data, len));
 
       co_return co_await r->get_future();
     }
@@ -307,21 +314,25 @@ namespace vds {
   private:
     const service_provider * sp_;
     std::shared_ptr<tcp_network_socket> owner_;
-    std::shared_ptr<vds::async_result<void>> result_;
+    std::shared_ptr<vds::async_result<vds::expected<void>>> result_;
     std::shared_ptr<stream_output_async<uint8_t>> pthis_;
 
-    void schedule(const void * data, size_t len)
+    expected<void> schedule(const void * data, size_t len)
     {
       memset(&this->overlapped_, 0, sizeof(this->overlapped_));
       this->wsa_buf_.buf = (CHAR *)data;
       this->wsa_buf_.len = (ULONG)len;
 
-      if (NOERROR != WSASend((*this->owner_)->handle(), &this->wsa_buf_, 1, NULL, 0, &this->overlapped_, NULL)) {
+      GET_EXPECTED(handle, (*this->owner_)->handle());
+
+      if (NOERROR != WSASend(handle, &this->wsa_buf_, 1, NULL, 0, &this->overlapped_, NULL)) {
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
-          throw std::system_error(errorCode, std::system_category(), "WSASend failed");
+          return vds::make_unexpected<std::system_error>(errorCode, std::system_category(), "WSASend failed");
         }
       }
+
+      return expected<void>();
     }
 
 
@@ -332,17 +343,17 @@ namespace vds {
 
       if (this->wsa_buf_.len == dwBytesTransfered) {
         auto r = std::move(this->result_);
-        r->set_value();
+        r->set_value(expected<void>());
       }
       else {
-        this->schedule(this->wsa_buf_.buf + dwBytesTransfered, this->wsa_buf_.len - dwBytesTransfered);
+        (void)this->schedule(this->wsa_buf_.buf + dwBytesTransfered, this->wsa_buf_.len - dwBytesTransfered);
       }
     }
 
     void error(DWORD error_code) override
     {
       auto r = std::move(this->result_);
-      r->set_exception(std::make_exception_ptr(std::system_error(error_code, std::system_category(), "write failed")));
+      r->set_value(make_unexpected<std::system_error>(error_code, std::system_category(), "write failed"));
     }
   };
 
@@ -359,11 +370,11 @@ namespace vds {
     ~_write_socket_task() {
     }
 
-    vds::async_task<void> write_async(
+    vds::async_task<vds::expected<void>> write_async(
         const uint8_t *data,
         size_t size) override {
 
-      auto r = std::make_shared<vds::async_result<void>>();
+      auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
       if(0 == size){
         shutdown((*this->owner())->handle(), SHUT_WR);
         r->set_value();
@@ -384,8 +395,7 @@ namespace vds {
               this->result_ = r;
               (*this->owner())->change_mask(this->owner_, EPOLLOUT);
             } else {
-              r->set_exception(std::make_exception_ptr(
-                  std::system_error(error, std::generic_category(), "Send TCP")));
+              r->set_value(make_unexpected<std::system_error>(error, std::generic_category(), "Send TCP"));
             }
           } else {
             if ((size_t) len < size) {
@@ -421,11 +431,10 @@ namespace vds {
 
           (*this->owner())->change_mask(this->owner_, 0, EPOLLOUT);
           auto r = std::move(this->result_);
-          r->set_exception(std::make_exception_ptr(
-              std::system_error(
+          r->set_value(make_unexpected<std::system_error>(
                   error,
                   std::generic_category(),
-                  "Send")));
+                  "Send"));
         } else {
           if ((size_t) len < this->buffer_size_) {
             this->buffer_ += len;
@@ -447,14 +456,13 @@ namespace vds {
 
       if(this->result_){
         auto r = std::move(this->result_);
-        r->set_exception(std::make_exception_ptr(
-            std::system_error(ECONNRESET, std::generic_category(), "Send TCP")));
+        r->set_value(make_unexpected<std::system_error>(ECONNRESET, std::generic_category(), "Send TCP"));
       }
     }
 
   private:
     std::shared_ptr<socket_base> owner_;
-    std::shared_ptr<vds::async_result<void>> result_;
+    std::shared_ptr<vds::async_result<vds::expected<void>>> result_;
     const uint8_t * buffer_;
     size_t buffer_size_;
 
@@ -479,7 +487,7 @@ namespace vds {
     }
 
     void start(const service_provider * sp){
-        timeout_timer_.start(sp, std::chrono::seconds(30), [sp, pthis_ = this->shared_from_this()]() -> async_task<bool>{
+        timeout_timer_.start(sp, std::chrono::seconds(30), [sp, pthis_ = this->shared_from_this()]() -> async_task<expected<bool>>{
             auto pthis = static_cast<_read_socket_task *>(pthis_.get());
             if(pthis->read_count_ < 0){
                 co_return false;
@@ -492,11 +500,10 @@ namespace vds {
                     auto r = std::move(pthis->result_);
                     lock.unlock();
 
-                    r->set_exception(std::make_exception_ptr(
-                            std::system_error(
+                    r->set_value(make_unexpected<std::system_error>(
                                     ECONNRESET,
                                     std::generic_category(),
-                                    "Read TCP")));
+                                    "Read TCP"));
                 }
             }
 
@@ -506,10 +513,10 @@ namespace vds {
     }
 
 
-    vds::async_task<size_t> read_async(
+    vds::async_task<vds::expected<size_t>> read_async(
         uint8_t * buffer,
         size_t buffer_size) override {
-      auto r = std::make_shared<vds::async_result<size_t>>();
+      auto r = std::make_shared<vds::async_result<vds::expected<size_t>>>();
       if(!(*this->owner())){
         this->read_count_ = -1;
         r->set_value(0);
@@ -541,11 +548,10 @@ namespace vds {
         else {
           this->read_count_ = -1;
           this->sp_->get<logger>()->trace("TCP", "Read error %d", error);
-          r->set_exception(std::make_exception_ptr(
-              std::system_error(
+          r->set_value(make_unexpected<std::system_error>(
                   error,
                   std::generic_category(),
-                  "Read")));
+                  "Read"));
         }
       }
       else {
@@ -580,11 +586,10 @@ namespace vds {
           r->set_value(0);
         }
         else {
-          r->set_exception(std::make_exception_ptr(
-              std::system_error(
+          r->set_value(make_unexpected<std::system_error>(
                   error,
                   std::generic_category(),
-                  "Read")));
+                  "Read"));
         }
       }
       else {
@@ -617,7 +622,7 @@ namespace vds {
     std::shared_ptr<socket_base> owner_;
 
     std::mutex result_mutex_;
-    std::shared_ptr<vds::async_result<size_t>> result_;
+    std::shared_ptr<vds::async_result<vds::expected<size_t>>> result_;
 
     uint8_t * buffer_;
     size_t buffer_size_;

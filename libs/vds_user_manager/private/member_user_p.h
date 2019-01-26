@@ -18,7 +18,7 @@ namespace vds {
       const std::shared_ptr<certificate> & user_cert,
       const std::shared_ptr<asymmetric_private_key> &private_key);
 
-    vds::member_user create_user(
+    expected<member_user> create_user(
       const std::shared_ptr<asymmetric_private_key> &owner_user_private_key,
       const std::string &user_name,
       const std::shared_ptr<asymmetric_private_key> &private_key);
@@ -31,18 +31,18 @@ namespace vds {
       return this->private_key_;
     }
 
-    user_channel create_channel(      
+    expected<user_channel> create_channel(
       transactions::transaction_block_builder& log,
       const std::string & channel_type,
       const std::string& name);
 
-    static member_user create_root_user(
+    static expected<member_user> create_root_user(
       transactions::transaction_block_builder &playback,
       const std::string &root_user_name,
       const std::string &root_password,
       const std::shared_ptr<asymmetric_private_key> &root_private_key);
 
-    user_channel personal_channel() const;
+    expected<user_channel> personal_channel() const;
 
   private:
     std::shared_ptr<certificate> user_cert_;

@@ -26,18 +26,18 @@ namespace vds {
         static constexpr uint16_t GENERATE_DISTRIBUTED_PIECES = 16;
 
         static constexpr uint64_t BLOCK_SIZE = 16ULL * 1024ULL * 1024ULL * MIN_HORCRUX * MIN_DISTRIBUTED_PIECES;//32K 
-        
-        void register_services(service_registrator& registrator);
-        void start(
+
+        expected<void> register_services(service_registrator& registrator);
+        expected<void> start(
           const service_provider * sp,
           const std::shared_ptr<iudp_transport> & udp_transport,
-          const uint16_t port);
-        void stop();
-        vds::async_task<void> prepare_to_stop();
+          uint16_t port);
+        expected<void> stop();
+        vds::async_task<expected<void>> prepare_to_stop();
 
       private:
         client client_;
-        std::unique_ptr<async_task<void>> udp_transport_task_;
+        std::unique_ptr<async_task<expected<void>>> udp_transport_task_;
       };
     }
   }

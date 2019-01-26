@@ -8,34 +8,44 @@
 #include "test_config.h"
 
 TEST(core_tests, test_file) {
-  
+
   vds::filename fn1("file1");
   vds::filename fn2("file2");
 
-  vds::file f1(fn1, vds::file::file_mode::create_new);
+  if(vds::file::exists(fn1)) {
+    CHECK_EXPECTED_GTEST(vds::file::delete_file(fn1));
+  }
+
+  if (vds::file::exists(fn2)) {
+    CHECK_EXPECTED_GTEST(vds::file::delete_file(fn2));
+  }
+
+  vds::file f1;
+  CHECK_EXPECTED_GTEST(f1.open(fn1, vds::file::file_mode::create_new));
   f1.close();
 
-  try {
-    vds::file f2(fn1, vds::file::file_mode::create_new);
-    f2.close();
-  }
-  catch (const std::system_error & ex) {
-    if (EEXIST != ex.code().value()) {
+  vds::file f2;
+  auto result = f2.open(fn1, vds::file::file_mode::create_new);
+  if (result.has_error()) {
+    auto ex = dynamic_cast<std::system_error *>(result.error().get());
+    if (nullptr == ex || ex->code().value() != EEXIST) {
       GTEST_FATAL_FAILURE_("file_mode::create_new failed");
     }
   }
+  f2.close();
 
-  vds::file f3(fn1, vds::file::file_mode::open_read);
+  vds::file f3;
+  CHECK_EXPECTED_GTEST(f3.open(fn1, vds::file::file_mode::open_read));
   f3.close();
 
-  try {
-    vds::file f4(fn2, vds::file::file_mode::open_write);
+  vds::file f4;
+  result = f4.open(fn2, vds::file::file_mode::open_write);
+  if (!result.has_error()) {
     GTEST_FATAL_FAILURE_("file_mode::open_write failed");
   }
-  catch (const std::system_error & ex) {
-    if (ENOENT != ex.code().value()) {
-      GTEST_FATAL_FAILURE_("file_mode::open_write failed");
-    }
+  auto err = dynamic_cast<std::system_error *>(result.error().get());
+  if (nullptr == err || err->code().value() != ENOENT) {
+    GTEST_FATAL_FAILURE_("file_mode::create_new failed");
   }
 }
 

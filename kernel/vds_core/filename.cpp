@@ -70,18 +70,18 @@ std::string vds::filename::extension() const
 //  auto error = stat(this->value_.c_str(), &stat_buf);
 //#endif
 //  if (0 != error) {
-//    throw std::system_error(error, std::system_category(), "Failed get file lenght of file " + this->value_);
+//    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Failed get file lenght of file " + this->value_);
 //  }
 //  return (size_t)stat_buf.st_size;
 //}
 
-vds::filename vds::filename::current_process()
+vds::expected<vds::filename> vds::filename::current_process()
 {
 #ifdef _WIN32
   char buf[MAX_PATH + 1];
   if (!GetModuleFileName(NULL, buf, MAX_PATH)) {
     auto error = GetLastError();
-    throw std::system_error(error, std::system_category(), "Failed get current process ffilename");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Failed get current process filename");
   }
 
   for (auto p = strchr(buf, '\\'); nullptr != p; p = strchr(p + 1, '\\')) {
@@ -97,7 +97,7 @@ vds::filename vds::filename::current_process()
   }
   else {
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "Failed get current process ffilename");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Failed get current process ffilename");
   }
 
   return filename(buf);

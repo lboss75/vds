@@ -22,11 +22,11 @@ namespace vds {
   public:
     get_root_app();
 
-    void main(const service_provider * sp);
+    expected<void> main(const service_provider * sp);
 
     void register_services(service_registrator & registrator);
     void register_command_line(command_line & cmd_line);
-    void start_services(service_registrator & registrator, service_provider * sp);
+    expected<void> start_services(service_registrator & registrator, service_provider * sp);
 
   private:
     command_line_set key_generate_command_set_;

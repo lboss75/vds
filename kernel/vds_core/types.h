@@ -16,6 +16,7 @@ All rights reserved
 #include <functional>
 #include <memory>
 #include <stdexcept>
+#include "vds_debug.h"
 
 namespace vds {
   class service_provider;
@@ -45,18 +46,14 @@ namespace vds {
     safe_cast(source_type value)
     : value_((target_type)value)
     {
-      if(value != (source_type)this->value_){
-        throw std::overflow_error("Value too big");
-      }
+      vds_assert(value == (source_type)this->value_);
     }
 
     template <typename source_type>
     safe_cast(source_type value, target_type mask)
         : value_(mask & (target_type)value)
     {
-      if(value != (source_type)this->value_){
-        throw std::overflow_error("Value too big");
-      }
+      vds_assert(value == (source_type)this->value_);
     }
 
     operator target_type () const {

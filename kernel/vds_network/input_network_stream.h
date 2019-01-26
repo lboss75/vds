@@ -47,7 +47,7 @@
 //      {
 //#ifdef _DEBUG
 //        if (this->is_scheduled_) {
-//          throw std::runtime_error("");
+//          return vds::make_unexpected<std::runtime_error>("");
 //        }
 //#endif // _DEBUG
 //      }
@@ -62,7 +62,7 @@
 //
 //#ifdef _DEBUG
 //        if (this->is_scheduled_) {
-//          throw std::exception();
+//          return vds::make_unexpected<std::exception>();
 //        }
 //        this->is_scheduled_ = true;
 //#endif
@@ -72,7 +72,7 @@
 //          auto errorCode = WSAGetLastError();
 //          if (WSA_IO_PENDING != errorCode) {
 //            this->is_scheduled_ = false;
-//            throw std::system_error(errorCode, std::system_category(), "WSARecv failed");
+//            return vds::make_unexpected<std::system_error>(errorCode, std::system_category(), "WSARecv failed");
 //          }
 //        }
 //#else//!_WIN32
@@ -102,7 +102,7 @@
 //      {
 //#ifdef _DEBUG
 //        if (!this->is_scheduled_) {
-//          throw std::exception();
+//          return vds::make_unexpected<std::exception>();
 //        }
 //        this->is_scheduled_ = false;
 //#endif
@@ -116,8 +116,7 @@
 //          int len = read(fd, pthis->buffer_, BUFFER_SIZE);
 //          if (len < 0) {
 //            int error = errno;
-//            throw
-//              std::system_error(
+//            return vds::make_unexpected<//              std::system_error>(
 //                error,
 //                std::system_category());
 //          }

@@ -15,22 +15,25 @@ namespace vds {
   class _inflate_handler
   {
   public:
-    _inflate_handler(
+    expected<void> create(
       const std::shared_ptr<stream_output_async<uint8_t>> & target)
-    : target_(target)
     {
+      this->target_ = target;
+
       memset(&this->strm_, 0, sizeof(z_stream));
       if (Z_OK != inflateInit(&this->strm_)) {
-        throw std::runtime_error("inflateInit failed");
+        return make_unexpected<std::runtime_error>("inflateInit failed");
       }
+
+      return expected<void>();
     }
 
-    vds::async_task<void> write_async( const uint8_t * input_data, size_t input_size)
+    vds::async_task<expected<void>> write_async( const uint8_t * input_data, size_t input_size)
     {
       if(0 == input_size){
         inflateEnd(&this->strm_);
-        co_await this->target_->write_async(input_data, input_size);
-        co_return;
+        CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(input_data, input_size));
+        co_return expected<void>();
       }
       
       this->strm_.next_in = (Bytef *)input_data;
@@ -43,14 +46,16 @@ namespace vds {
         auto error = ::inflate(&this->strm_, Z_NO_FLUSH);
 
         if (Z_STREAM_ERROR == error || Z_NEED_DICT == error || Z_DATA_ERROR == error || Z_MEM_ERROR == error) {
-          throw std::runtime_error("inflate failed");
+          co_return make_unexpected<std::runtime_error>("inflate failed");
         }
 
         auto written = sizeof(buffer) - this->strm_.avail_out;
         if (0 != written) {
-          co_await this->target_->write_async(buffer, written);
+          CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(buffer, written));
         }
       } while(0 == this->strm_.avail_out);
+
+      co_return expected<void>();
     }
 
   private:

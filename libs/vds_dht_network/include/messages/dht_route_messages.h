@@ -162,16 +162,24 @@ namespace vds {
     }
   }
 
-  inline binary_serializer& operator <<(
+  inline expected<void> serialize(
     binary_serializer& s,
     const dht::messages::dht_find_node_response::target_node& node) {
-    return s << node.target_id_ << node.address_ << node.hops_;
+    CHECK_EXPECTED(vds::serialize(s, node.target_id_));
+    CHECK_EXPECTED(vds::serialize(s, node.address_));
+    CHECK_EXPECTED(vds::serialize(s, node.hops_));
+
+    return expected<void>();
   }
 
-  inline binary_deserializer& operator >>(
+  inline expected<void> deserialize(
     binary_deserializer& s,
     dht::messages::dht_find_node_response::target_node& node) {
-    return s >> node.target_id_ >> node.address_ >> node.hops_;
+    CHECK_EXPECTED(vds::deserialize(s, node.target_id_));
+    CHECK_EXPECTED(vds::deserialize(s, node.address_));
+    CHECK_EXPECTED(vds::deserialize(s, node.hops_));
+
+    return expected<void>();
   }
 }
 

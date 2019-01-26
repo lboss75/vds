@@ -24,27 +24,29 @@ vds::dht::network::dht_session::dht_session(
       session_key) {
 }
 
-vds::async_task<void> vds::dht::network::dht_session::ping_node(
+vds::async_task<vds::expected<void>> vds::dht::network::dht_session::ping_node(
   
   const const_data_buffer& node_id,
   const std::shared_ptr<iudp_transport>& transport) {
 
   //vds_assert(node_id != transport->this_node_id());
-
-  co_await this->send_message(
+  GET_EXPECTED(message, message_create<messages::dht_ping>());
+  return this->send_message(
     transport,
     (uint8_t)messages::dht_ping::message_id,
     node_id,
-    message_serialize(message_create<messages::dht_ping>()));
+    message_serialize(message));
 }
 
 vds::session_statistic::session_info vds::dht::network::dht_session::get_statistic() const {
   return session_statistic::session_info{
-    this->address().to_string()
+    this->address().to_string(),
+    false,
+    false
   };
 }
 
-vds::async_task<void> vds::dht::network::dht_session::process_message(
+vds::async_task<vds::expected<void>> vds::dht::network::dht_session::process_message(
   
   const std::shared_ptr<iudp_transport>& transport,
   uint8_t message_type,
@@ -74,7 +76,7 @@ vds::async_task<void> vds::dht::network::dht_session::process_message(
 
   if (target_node != this->this_node_id()) {
     if (hops == std::numeric_limits<uint16_t>::max()) {
-      co_return;
+      return expected<void>();
     }
 
     this->sp_->get<logger>()->trace(
@@ -84,7 +86,7 @@ vds::async_task<void> vds::dht::network::dht_session::process_message(
       base64::from_bytes(source_node).c_str(),
       base64::from_bytes(target_node).c_str());
 
-    co_await (*this->sp_->get<client>())->proxy_message(
+    return (*this->sp_->get<client>())->proxy_message(
       target_node,
       (message_type_t)message_type,
       message,
@@ -92,7 +94,7 @@ vds::async_task<void> vds::dht::network::dht_session::process_message(
       hops + 1);
   }
   else {
-    co_await this->sp_->get<imessage_map>()->process_message(
+    return this->sp_->get<imessage_map>()->process_message(
       imessage_map::message_info_t{
         this->shared_from_this(),
         static_cast<message_type_t>(message_type),

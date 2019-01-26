@@ -8,14 +8,15 @@ All rights reserved
 
 #include "types.h"
 #include "const_data_buffer.h"
+#include "expected.h"
 
 namespace vds {
   class utf8
   {
   public:
-    static size_t char_size(char first_utf8_symbol);
-    static wchar_t next_char(const char *& utf8string, size_t & len);
-    static void add(std::string & result, wchar_t ch);
+    static expected<size_t> char_size(char first_utf8_symbol);
+    static expected<wchar_t> next_char(const char *& utf8string, size_t & len);
+    static expected<void> add(std::string & result, wchar_t ch);
 
   };
 
@@ -23,7 +24,7 @@ namespace vds {
   {
   public:
     static std::wstring from_utf8(const std::string & original);
-    static std::string to_utf8(const std::wstring & original);
+    static expected<std::string> to_utf8(const std::wstring & original);
   };
   
   class base64
@@ -31,7 +32,7 @@ namespace vds {
   public:
     static std::string from_bytes(const void * data, size_t len);
     static std::string from_bytes(const const_data_buffer & data);
-    static const_data_buffer to_bytes(const std::string & data);
+    static expected<const_data_buffer> to_bytes(const std::string & data);
   };
 
   class url_encode {

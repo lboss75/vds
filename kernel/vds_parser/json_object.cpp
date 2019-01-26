@@ -64,7 +64,7 @@ std::shared_ptr<vds::json_value> vds::json_object::get_property(const std::strin
   return nullptr;
 }
 
-bool vds::json_object::get_property(const std::string & name, std::string & value, bool throw_error) const
+vds::expected<bool> vds::json_object::get_property(const std::string & name, std::string & value) const
 {
   auto value_obj = this->get_property(name);
   if (nullptr == value_obj) {
@@ -73,21 +73,18 @@ bool vds::json_object::get_property(const std::string & name, std::string & valu
 
   auto pvalue = dynamic_cast<const json_primitive *>(value_obj.get());
   if (nullptr == pvalue) {
-    if (throw_error) {
-      throw std::runtime_error("Invalid property " + name + " type: expected string");
-    }
-
-    return false;
+      return vds::make_unexpected<std::runtime_error>("Invalid property " + name + " type: expected string");
   }
 
   value = pvalue->value();
   return true;
 }
 
-bool vds::json_object::get_property(const std::string& name, int& value, bool throw_error) const
+vds::expected<bool> vds::json_object::get_property(const std::string& name, int& value) const
 {
   std::string v;
-  if(!this->get_property(name, v, throw_error)){
+  GET_EXPECTED(prop, this->get_property(name, v));
+  if(!prop){
     return false;
   }
   
@@ -95,32 +92,28 @@ bool vds::json_object::get_property(const std::string& name, int& value, bool th
   return true;
 }
 
-//bool vds::json_object::get_property(const std::string & name, size_t & value, bool throw_error) const
-//{
-//  std::string v;
-//  if (!this->get_property(name, v, throw_error)) {
-//    return false;
-//  }
-//
-//  value = (size_t)std::atol(v.c_str());
-//  return true;
-//}
-
-bool vds::json_object::get_property(const std::string& name, const_data_buffer& value, bool throw_error) const
+vds::expected<bool> vds::json_object::get_property(const std::string& name, const_data_buffer& value) const
 {
   std::string v;
-  if (!this->get_property(name, v, throw_error)) {
+  GET_EXPECTED(prop, this->get_property(name, v));
+  if (!prop) {
     return false;
   }
 
-  value = base64::to_bytes(v);
+  auto result = base64::to_bytes(v);
+  if(result.has_error()) {
+    return unexpected(std::move(result.error()));
+  }
+
+  value = result.value();
   return true;
 }
 
-bool vds::json_object::get_property(const std::string & name, uint8_t & value, bool throw_error) const
+vds::expected<bool> vds::json_object::get_property(const std::string & name, uint8_t & value) const
 {
   std::string v;
-  if (!this->get_property(name, v, throw_error)) {
+  GET_EXPECTED(prop, this->get_property(name, v));
+  if (!prop) {
     return false;
   }
 
@@ -128,10 +121,11 @@ bool vds::json_object::get_property(const std::string & name, uint8_t & value, b
   return true;
 }
 
-bool vds::json_object::get_property(const std::string & name, uint16_t & value, bool throw_error) const
+vds::expected<bool> vds::json_object::get_property(const std::string & name, uint16_t & value) const
 {
   std::string v;
-  if (!this->get_property(name, v, throw_error)) {
+  GET_EXPECTED(prop, this->get_property(name, v));
+  if (!prop) {
     return false;
   }
 
@@ -139,10 +133,11 @@ bool vds::json_object::get_property(const std::string & name, uint16_t & value, 
   return true;
 }
 
-bool vds::json_object::get_property(const std::string & name, uint32_t & value, bool throw_error) const
+vds::expected<bool> vds::json_object::get_property(const std::string & name, uint32_t & value) const
 {
   std::string v;
-  if (!this->get_property(name, v, throw_error)) {
+  GET_EXPECTED(prop, this->get_property(name, v));
+  if (!prop) {
     return false;
   }
 
@@ -150,10 +145,11 @@ bool vds::json_object::get_property(const std::string & name, uint32_t & value, 
   return true;
 }
 
-bool vds::json_object::get_property(const std::string & name, uint64_t & value, bool throw_error) const
+vds::expected<bool> vds::json_object::get_property(const std::string & name, uint64_t & value) const
 {
   std::string v;
-  if (!this->get_property(name, v, throw_error)) {
+  GET_EXPECTED(prop, this->get_property(name, v));
+  if (!prop) {
     return false;
   }
 
@@ -161,26 +157,22 @@ bool vds::json_object::get_property(const std::string & name, uint64_t & value, 
   return true;
 }
 
-bool vds::json_object::get_property(const std::string& name, std::list< const_data_buffer >& value, bool throw_error) const
+vds::expected<bool> vds::json_object::get_property(const std::string& name, std::list< const_data_buffer >& value) const
 {
   auto array = std::dynamic_pointer_cast<json_array>(this->get_property(name));
   if(!array){
-    if(throw_error){
-      throw std::runtime_error("Invalid property " + name);
-    }
-    
-    return false;
+      return vds::make_unexpected<std::runtime_error>("Invalid property " + name);
   }
   
   for(size_t i = 0; i < array->size(); ++i) {
     auto item = std::dynamic_pointer_cast<json_primitive>(array->get(i));
     if(item){
-      value.push_back(base64::to_bytes(item->value()));
+      GET_EXPECTED(v, base64::to_bytes(item->value()));
+      value.push_back(v);
     }
   }
   
   return true;
-
 }
 
 void vds::json_object::add_property(const std::shared_ptr<json_property> & prop)
@@ -245,34 +237,34 @@ vds::json_property::json_property(int line, int column)
 {
 }
 
-std::string vds::json_value::str() const
+vds::expected<std::string> vds::json_value::str() const
 {
   json_writer writer;
-  this->str(writer);
+  CHECK_EXPECTED(this->str(writer));
   return writer.str();
 }
 
-void vds::json_primitive::str(json_writer & writer) const
+vds::expected<void> vds::json_primitive::str(json_writer & writer) const
 {
-  writer.write_string_value(this->value_);
+  return writer.write_string_value(this->value_);
 }
 
 std::shared_ptr<vds::json_value> vds::json_primitive::clone(bool /*is_deep*/) const
 {
-  return std::shared_ptr<json_value>(new json_primitive(this->value_));
+  return std::make_shared<json_primitive>(this->value_);
 }
 
-void vds::json_property::str(json_writer & writer) const
+vds::expected<void> vds::json_property::str(json_writer & writer) const
 {
-  writer.start_property(this->name_);
+  CHECK_EXPECTED(writer.start_property(this->name_));
   if(nullptr == this->value_){
-    writer.write_null_value();
+    CHECK_EXPECTED(writer.write_null_value());
   }
   else {
-    this->value_->str(writer);
+    CHECK_EXPECTED(this->value_->str(writer));
   }
 
-  writer.end_property();
+  return writer.end_property();
 }
 
 std::shared_ptr<vds::json_value> vds::json_property::clone(bool is_deep) const
@@ -283,14 +275,14 @@ std::shared_ptr<vds::json_value> vds::json_property::clone(bool is_deep) const
       (is_deep && this->value_) ? this->value_->clone(true) : this->value_));
 }
 
-void vds::json_object::str(json_writer & writer) const
+vds::expected<void> vds::json_object::str(json_writer & writer) const
 {
-  writer.start_object();
+  CHECK_EXPECTED(writer.start_object());
   for(auto & p : this->properties_){
-    p->str(writer);
+    CHECK_EXPECTED(p->str(writer));
   }
 
-  writer.end_object();
+  return writer.end_object();
 }
 
 std::shared_ptr<vds::json_value> vds::json_object::clone(bool is_deep) const
@@ -309,15 +301,15 @@ std::shared_ptr<vds::json_value> vds::json_object::clone(bool is_deep) const
   return s;
 }
 
-void vds::json_array::str(json_writer & writer) const
+vds::expected<void> vds::json_array::str(json_writer & writer) const
 {
-  writer.start_array();
+  CHECK_EXPECTED(writer.start_array());
 
   for(auto & p : this->items_){
-    p->str(writer);
+    CHECK_EXPECTED(p->str(writer));
   }
 
-  writer.end_array();
+  return writer.end_array();
 }
 
 std::shared_ptr<vds::json_value> vds::json_array::clone(bool is_deep) const

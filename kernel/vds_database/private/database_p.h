@@ -19,24 +19,31 @@ namespace vds {
   class _sql_statement
   {
   public:
-    _sql_statement(sqlite3 * db, const char * sql)
-      : db_(db), stmt_(nullptr), state_(bof_state)
-    {
-      auto result = sqlite3_prepare_v2(db, sql, -1, &this->stmt_, nullptr);
-      switch (result) {
-      case SQLITE_OK:
-        return;
-
-      default:
-        auto error = sqlite3_errmsg(db);
-        throw std::runtime_error(error);
-      }
+    _sql_statement()
+      : db_(nullptr), stmt_(nullptr), state_(bof_state) {
     }
 
     ~_sql_statement()
     {
       if (nullptr != this->stmt_) {
         sqlite3_finalize(this->stmt_);
+      }
+    }
+
+    expected<void> create(sqlite3 * db, const char * sql)
+    {
+      this->db_ = db;
+      vds_assert(this->stmt_ == nullptr);
+      vds_assert(this->state_ == bof_state);
+
+      auto result = sqlite3_prepare_v2(db, sql, -1, &this->stmt_, nullptr);
+      switch (result) {
+      case SQLITE_OK:
+        return expected<void>();
+
+      default:
+        auto error = sqlite3_errmsg(db);
+        return vds::make_unexpected<std::runtime_error>(error);
       }
     }
 
@@ -76,7 +83,7 @@ namespace vds {
       sqlite3_bind_blob(this->stmt_, index, value.data(), (int)value.size(), SQLITE_TRANSIENT);
     }
 
-    bool execute()
+    expected<bool> execute()
     {
       auto result = sqlite3_step(this->stmt_);
       switch (result) {
@@ -90,7 +97,7 @@ namespace vds {
 
       default:
         auto error = sqlite3_errmsg(this->db_);
-        throw std::runtime_error(error);
+        return vds::make_unexpected<std::runtime_error>(error);
       }
     }
 
@@ -168,11 +175,8 @@ namespace vds {
     }
 
   private:
-    //service_provider sp_;
     sqlite3 * db_;
     sqlite3_stmt * stmt_;
-    //logger log_;
-    //std::string query_;
     
     enum state_enum
     {
@@ -205,131 +209,119 @@ namespace vds {
 
     ~_database()
     {
-      this->close();
+      (void)this->close();
     }
-    
-    void open(const filename & database_file)
-    {
+
+    expected<void> open(const filename & database_file) {
       auto error = sqlite3_open(database_file.local_name().c_str(), &this->db_);
 
       if (SQLITE_OK != error) {
-        throw std::runtime_error(sqlite3_errmsg(this->db_));
+        return vds::make_unexpected<std::runtime_error>(sqlite3_errmsg(this->db_));
       }
 
       error = sqlite3_busy_timeout(this->db_, 300000);
       if (SQLITE_OK != error) {
-        throw std::runtime_error(sqlite3_errmsg(this->db_));
+        return vds::make_unexpected<std::runtime_error>(sqlite3_errmsg(this->db_));
       }
+
+      return expected<void>();
     }
 
-    void close()
-    {
+    expected<void> close() {
       if (nullptr != this->db_) {
         auto error = sqlite3_close(this->db_);
 
         if (SQLITE_OK != error) {
           auto error_msg = sqlite3_errmsg(this->db_);
-          throw std::runtime_error(error_msg);
+          return vds::make_unexpected<std::runtime_error>(error_msg);
         }
 
         this->db_ = nullptr;
       }
+
+      return expected<void>();
     }
 
-    void execute(const char * sql)
+    expected<void> execute(const char * sql)
     {
       char * zErrMsg = nullptr;
       auto result = sqlite3_exec(this->db_, sql, nullptr, 0, &zErrMsg);
       switch (result) {
       case SQLITE_OK:
-        return;
+        return expected<void>();
 
       default:
         if(nullptr != zErrMsg){
           std::string error_message(zErrMsg);
           sqlite3_free(zErrMsg);
 
-          throw std::runtime_error(error_message);
+          return vds::make_unexpected<std::runtime_error>(error_message);
         }
         else {
-          throw std::runtime_error("Sqlite3 error " + std::to_string(result));
+          return vds::make_unexpected<std::runtime_error>("Sqlite3 error " + std::to_string(result));
         }
       }
     }
 
-    sql_statement parse(const char * sql) const
+    expected<sql_statement> parse(const char * sql) const
     {
-      return sql_statement(new _sql_statement(this->db_, sql));
+      auto result = std::make_unique<_sql_statement>();
+      CHECK_EXPECTED(result->create(this->db_, sql));
+      return sql_statement(result.release());
     }
 
-    vds::async_task<void> async_read_transaction(
-      
-      const std::function<void(database_read_transaction & tr)> & callback) {
+    async_task<expected<void>> async_read_transaction(
+      const std::function<expected<void>(database_read_transaction & tr)> & callback) {
 
-      auto r = std::make_shared<vds::async_result<void>>();
-      this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback]() {
+      auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
+      this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback]() -> expected<void> {
+
         database_read_transaction tr(pthis);
-        try {
-          callback(tr);
-        }
-        catch (const std::exception & ex) {
-          pthis->sp_->get<logger>()->trace("DB", "%s at read transaction", ex.what());
-          r->set_exception(std::current_exception());
-          return;
-        }
-        catch(...) {
-          pthis->sp_->get<logger>()->trace("DB", "Unexcpected error at read transaction");
-          r->set_exception(std::current_exception());
-          return;
-        }
+        auto callback_result = callback(tr);
 
-        r->set_value();
-      });
-
-      return r->get_future();
-    }
-
-    vds::async_task<void> async_transaction(
-      
-      const std::function<bool(database_transaction & tr)> & callback) {
-      auto r = std::make_shared<vds::async_result<void>>();
-
-      this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback]() {
-        pthis->execute("BEGIN TRANSACTION");
-
-        database_transaction tr(pthis);
-
-        bool result;
-        try {
-          result = callback(tr);
-        }
-        catch (const std::exception & ex) {
-          pthis->sp_->get<logger>()->trace("DB", "%s at transaction", ex.what());
-          pthis->execute("ROLLBACK TRANSACTION");
-          r->set_exception(std::current_exception());
-          return;
-        }
-        catch (...) {
-          pthis->sp_->get<logger>()->trace("DB", "Unexpected error at transaction");
-          pthis->execute("ROLLBACK TRANSACTION");
-          r->set_exception(std::current_exception());
-          return;
-        }
-
-        if (result) {
-          pthis->execute("COMMIT TRANSACTION");
+        if(callback_result.has_error()) {
+          pthis->sp_->get<logger>()->trace("DB", "%s at read transaction", callback_result.error()->what());
+          r->set_value(unexpected(std::move(callback_result.error())));
         }
         else {
-          pthis->execute("ROLLBACK TRANSACTION");
+          r->set_value(expected<void>());
         }
-
-        r->set_value();
+        return expected<void>();
       });
 
       return r->get_future();
     }
 
-    vds::async_task<void> prepare_to_stop(){
+    async_task<expected<void>> async_transaction(
+      const std::function<expected<bool>(database_transaction & tr)> & callback) {
+      auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
+
+      this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback]() -> expected<void> {
+        CHECK_EXPECTED(pthis->execute("BEGIN TRANSACTION"));
+
+        database_transaction tr(pthis);
+        auto callback_result = callback(tr);
+        if(callback_result.has_error()) {
+          CHECK_EXPECTED(pthis->execute("ROLLBACK TRANSACTION"));
+          pthis->sp_->get<logger>()->trace("DB", "%s at transaction", callback_result.error()->what());
+          r->set_value(unexpected(std::move(callback_result.error())));
+        }
+        else if(callback_result.value()) {
+          CHECK_EXPECTED(pthis->execute("COMMIT TRANSACTION"));
+          r->set_value(expected<void>());
+        }
+        else {
+          CHECK_EXPECTED(pthis->execute("ROLLBACK TRANSACTION"));
+          r->set_value(expected<void>());
+        }
+
+        return expected<void>();
+      });
+
+      return r->get_future();
+    }
+
+    async_task<expected<void>> prepare_to_stop(){
       return this->execute_queue_->prepare_to_stop();
     }
 
@@ -343,15 +335,15 @@ namespace vds {
       return sqlite3_changes(this->db_);
     }
 
-    int last_insert_rowid() const {
-      auto st = this->parse("select last_insert_rowid()");
+    expected<int> last_insert_rowid() const {
+      GET_EXPECTED(st, this->parse("select last_insert_rowid()"));
       if(!st.execute()) {
-        throw vds_exceptions::invalid_operation();
+        return vds::make_unexpected<vds_exceptions::invalid_operation>();
       }
 
       int result;
       if(!st.get_value(0, result)) {
-        throw vds_exceptions::invalid_operation();
+        return vds::make_unexpected<vds_exceptions::invalid_operation>();
       }
 
       return result;

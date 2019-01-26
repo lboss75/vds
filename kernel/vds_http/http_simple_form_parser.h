@@ -15,7 +15,7 @@ namespace vds {
       : sp_(sp) {        
       }
 
-      vds::async_task<void> parse(        
+      vds::async_task<vds::expected<void>> parse(        
         const http_message& message);
 
       const std::map<std::string, std::string> & values() const {
@@ -30,11 +30,11 @@ namespace vds {
       public:
         form_parser(const std::shared_ptr<simple_form_parser> & owner);
 
-        vds::async_task<void> read_part(
+        vds::async_task<vds::expected<void>> read_part(
           
           const http_message& part);
 
-        vds::async_task<void> read_form_urlencoded(
+        vds::async_task<vds::expected<void>> read_form_urlencoded(
            
           const http_message& message);
 
@@ -42,11 +42,11 @@ namespace vds {
         std::shared_ptr<simple_form_parser> owner_;
         uint8_t buffer_[1024];
 
-        vds::async_task<std::string> read_string_body(
+        vds::async_task<vds::expected<std::string>> read_string_body(
           
           const http_message& part);
 
-        vds::async_task<void> skip_part(
+        vds::async_task<vds::expected<void>> skip_part(
           
           const vds::http_message& part);
 

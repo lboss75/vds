@@ -49,8 +49,8 @@ namespace vds {
 
   private:
     std::string id_;
-    certificate cert_;
-    asymmetric_private_key cert_key_;
+    std::shared_ptr<certificate> cert_;
+    std::shared_ptr<asymmetric_private_key> cert_key_;
 
     std::string name_;
     uint64_t reserved_size_;

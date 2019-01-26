@@ -41,16 +41,16 @@ void out_multiline(const std::string & value, std::size_t width = 80) {
   out_multiline(cert_control::member_name);\
   std::cout << ";\n";
 
-void vds::get_root_app::main(const service_provider * sp)
+vds::expected<void> vds::get_root_app::main(const service_provider * sp)
 {
   if (&this->key_generate_command_set_ == this->current_command_set_) {
     cert_control::private_info_t private_info;
-    private_info.genereate_all();
+    CHECK_EXPECTED(private_info.genereate_all());
 
-    cert_control::genereate_all(
+    CHECK_EXPECTED(cert_control::genereate_all(
         this->user_login_.value(),
         this->user_password_.value(),
-        private_info);
+        private_info));
     
     write_member(root_certificate_);
     write_member(common_news_read_certificate_);
@@ -62,13 +62,14 @@ void vds::get_root_app::main(const service_provider * sp)
     write_member(common_storage_private_key_);
 
     binary_serializer s;
-    s
-      << private_info.root_private_key_->der(this->user_password_.value())
-      << private_info.common_news_write_private_key_->der(this->user_password_.value())
-      << private_info.common_news_admin_private_key_->der(this->user_password_.value())
-    ;
-    file::write_all(filename("keys"), s.move_data());
+    CHECK_EXPECTED(serialize(s, private_info.root_private_key_->der(this->user_password_.value())));
+    CHECK_EXPECTED(serialize(s, private_info.common_news_write_private_key_->der(this->user_password_.value())));
+    CHECK_EXPECTED(serialize(s, private_info.common_news_admin_private_key_->der(this->user_password_.value())));
+
+    CHECK_EXPECTED(file::write_all(filename("keys"), s.move_data()));
   }
+
+  return expected<void>();
 }
 
 void vds::get_root_app::register_services(vds::service_registrator& registrator)
@@ -88,7 +89,7 @@ void vds::get_root_app::register_command_line(command_line & cmd_line)
   this->key_generate_command_set_.required(this->user_password_);
 }
 
-void vds::get_root_app::start_services(service_registrator & registrator, service_provider * sp)
+vds::expected<void> vds::get_root_app::start_services(service_registrator & registrator, service_provider * sp)
 {
-  base_class::start_services(registrator, sp);
+  return base_class::start_services(registrator, sp);
 }

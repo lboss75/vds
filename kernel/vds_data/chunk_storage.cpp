@@ -18,7 +18,7 @@ vds::chunk_storage::~chunk_storage()
 }
 
 
-vds::const_data_buffer vds::chunk_storage::generate_replica(
+vds::expected<vds::const_data_buffer> vds::chunk_storage::generate_replica(
   uint16_t replica,
   const void * data,
   size_t size)
@@ -26,7 +26,7 @@ vds::const_data_buffer vds::chunk_storage::generate_replica(
   return this->impl_->generate_replica(replica, data, size);
 }
 
-vds::const_data_buffer vds::chunk_storage::restore_data(
+vds::expected<vds::const_data_buffer> vds::chunk_storage::restore_data(
   const std::unordered_map<uint16_t, const_data_buffer> & horcruxes)
 {
   return this->impl_->restore_data(horcruxes);
@@ -38,7 +38,7 @@ vds::_chunk_storage::_chunk_storage(
 {
 }
 
-vds::const_data_buffer vds::_chunk_storage::generate_replica(
+vds::expected<vds::const_data_buffer> vds::_chunk_storage::generate_replica(
   uint16_t replica,
   const void * data,
   size_t size)
@@ -55,16 +55,15 @@ vds::const_data_buffer vds::_chunk_storage::generate_replica(
   }
 
   binary_serializer s;
-  generator->write(s, data, size);
-
+  CHECK_EXPECTED(generator->write(s, data, size));
   return s.move_data();
 }
 
-vds::const_data_buffer vds::_chunk_storage::restore_data(
+vds::expected<vds::const_data_buffer> vds::_chunk_storage::restore_data(
   const std::unordered_map<uint16_t, const_data_buffer> & horcruxes)
 {
   if(this->min_horcrux_ != horcruxes.size()){
-    throw std::runtime_error("Error at restoring data");
+    return vds::make_unexpected<std::runtime_error>("Error at restoring data");
   }
 
   auto size = horcruxes.begin()->second.size();
@@ -74,7 +73,7 @@ vds::const_data_buffer vds::_chunk_storage::restore_data(
   
   for(auto & p : horcruxes){
     if (size != p.second.size()) {
-      throw std::runtime_error("Error at restoring data");
+      return vds::make_unexpected<std::runtime_error>("Error at restoring data");
     }
 
     replicas.push_back(p.first);

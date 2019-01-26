@@ -10,12 +10,6 @@ vds::file::file()
 }
 
 
-vds::file::file(const filename & filename, file_mode mode)
-: handle_(0)
-{
-  this->open(filename, mode);
-}
-
 vds::file::file(file&& f) noexcept 
 : filename_(f.filename_), handle_(f.handle_){
   f.handle_ = 0;
@@ -28,7 +22,7 @@ vds::file::~file()
 
 void vds::file::close()
 {
-  if(0 != this->handle_){
+  if(0 < this->handle_){
 #ifndef _WIN32
     ::close(this->handle_);
 #else
@@ -38,7 +32,7 @@ void vds::file::close()
   }
 }
   
-void vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
+vds::expected<void> vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
 {
   this->filename_ = filename;
   
@@ -71,27 +65,28 @@ void vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
 
 
   default:
-    throw std::invalid_argument("Invalid mode for open file");
+    return vds::make_unexpected<std::invalid_argument>("Invalid mode for open file");
   }
 
 #ifndef _WIN32
   this->handle_ = ::open(filename.local_name().c_str(), oflags, S_IREAD | S_IWRITE);
   if (0 > this->handle_) {
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to open file " + this->filename_.str());
   }
 #else
 
   this->handle_ = ::_open(this->filename_.local_name().c_str(), oflags | O_BINARY | O_SEQUENTIAL, _S_IREAD | _S_IWRITE);
   if (0 > this->handle_) {
-    auto error = GetLastError();
-    throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
+    auto error = errno;
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to open file " + this->filename_.str());
   }
 #endif
+  return expected<void>();
 }
 
 
-size_t vds::file::read(
+vds::expected<size_t> vds::file::read(
   void * buffer,
   size_t buffer_len)
 {
@@ -102,13 +97,13 @@ size_t vds::file::read(
 #else
     auto error = errno;
 #endif
-    throw std::system_error(error, std::system_category(), "Unable to read file " + this->filename_.str());
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to read file " + this->filename_.str());
   }
   
   return (size_t)readed;
 }
 
-void vds::file::write(
+vds::expected<void> vds::file::write(
   const void * buffer,
   size_t buffer_len)
 {
@@ -120,19 +115,21 @@ void vds::file::write(
 #else
       auto error = errno;
 #endif
-      throw std::system_error(error, std::system_category(), "Unable to write file " + this->filename_.full_name());
+      return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to write file " + this->filename_.full_name());
     }
 
     if ((size_t)written == buffer_len) {
-      return;
+      return expected<void>();
     }
 
     buffer_len -= written;
     buffer = (const uint8_t *)buffer + written;
   }
+
+  return expected<void>();
 }
 
-vds::file& vds::file::operator = (file&& f) {
+vds::file& vds::file::operator = (file&& f) noexcept {
   this->close();
   this->filename_ = std::move(f.filename_);
   this->handle_ = f.handle_;
@@ -141,50 +138,55 @@ vds::file& vds::file::operator = (file&& f) {
   return *this;
 }
 
-vds::file vds::file::create_temp(const service_provider * sp) {
-  foldername tmp_folder(persistence::current_user(sp), "tmp");
-  tmp_folder.create();
+vds::expected<vds::file> vds::file::create_temp(const service_provider * sp) {
+  GET_EXPECTED(pf, persistence::current_user(sp));
+  foldername tmp_folder(pf, "tmp");
+  CHECK_EXPECTED(tmp_folder.create());
 
   for (;;) {
-    try {
-      return file(filename(tmp_folder, std::to_string(std::rand()) + "." + std::to_string(std::rand()) + ".tmp"), file::file_mode::create_new);
+    file f;
+    auto r = f.open(filename(tmp_folder, std::to_string(std::rand()) + "." + std::to_string(std::rand()) + ".tmp"), file::file_mode::create_new);
+    if(r.has_value()) {
+      return std::move(f);
     }
-    catch(const std::system_error & ex) {
-      if(EEXIST != ex.code().value()) {
-        throw;
-      }      
+
+    const auto sys_error = dynamic_cast<const std::system_error *>(r.error().get());
+    if(nullptr == sys_error || sys_error->code().value() != EEXIST) {
+      return unexpected(std::move(r.error()));
     }
   }
 }
 
-size_t vds::file::length() const
+vds::expected<size_t> vds::file::length() const
 {
   struct stat buffer;
   if (0 != fstat(this->handle_, &buffer)) {
     auto error = errno;
-    throw std::system_error(error, std::generic_category(), "Unable to get file size of " + this->filename_.full_name());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Unable to get file size of " + this->filename_.full_name());
   }
   
   return buffer.st_size;
 }
 
-size_t vds::file::length(const filename & fn)
+vds::expected<size_t> vds::file::length(const filename & fn)
 {
   struct stat buffer;
   if (0 != stat(fn.local_name().c_str(), &buffer)) {
     auto error = errno;
-    throw std::system_error(error, std::generic_category(), "Unable to get file size of " + fn.name());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Unable to get file size of " + fn.name());
   }
 
   return buffer.st_size;
 }
 
-void vds::file::seek(size_t position)
+vds::expected<void> vds::file::seek(size_t position)
 {
   if (-1L == lseek(this->handle_, position, SEEK_SET)) {
     auto error = errno;
-    throw std::system_error(error, std::generic_category(), "Unable to seek file position of " + this->filename_.full_name());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Unable to seek file position of " + this->filename_.full_name());
   }
+
+  return expected<void>();
 }
 
 bool vds::file::exists(const filename & fn)
@@ -192,26 +194,27 @@ bool vds::file::exists(const filename & fn)
   return (0 == access(fn.local_name().c_str(), 0));
 }
 
-void vds::file::flush()
+vds::expected<void> vds::file::flush()
 {
 #ifdef _WIN32
   HANDLE h = (HANDLE)_get_osfhandle(this->handle_);
   if (INVALID_HANDLE_VALUE == h) {
     auto err = GetLastError();
-    throw std::system_error(err, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
+    return vds::make_unexpected<std::system_error>(err, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
   }
 
   if (!FlushFileBuffers(h)) {
     auto err = GetLastError();
-    throw std::system_error(err, std::system_category(), "Unable to flush file " + this->filename_.full_name());
+    return vds::make_unexpected<std::system_error>(err, std::system_category(), "Unable to flush file " + this->filename_.full_name());
   }
 
 #else
   if (0 != ::fsync(this->handle_)) {
     auto error = errno;
-    throw std::system_error(error, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
   }
 #endif
+  return vds::expected<void>();
 }
 
 vds::output_text_stream::output_text_stream(file & f)
@@ -221,10 +224,10 @@ vds::output_text_stream::output_text_stream(file & f)
 
 vds::output_text_stream::~output_text_stream()
 {
-  this->flush();
+  (void)this->flush();
 }
 
-void vds::output_text_stream::write(
+vds::expected<void> vds::output_text_stream::write(
   const std::string & value)
 {
   const char * data = value.c_str();
@@ -240,28 +243,32 @@ void vds::output_text_stream::write(
       if (rest > 0) {
         memcpy((uint8_t *)this->buffer_ + this->written_, data, rest);
         this->written_ += rest;
-        this->f_.write(this->buffer_, this->written_);
+        CHECK_EXPECTED(this->f_.write(this->buffer_, this->written_));
         this->written_ = 0;
         len -= rest;
         data += rest;
       }
     }
     else {
-      this->f_.write(data, len);
+      CHECK_EXPECTED(this->f_.write(data, len));
       len = 0;
     }
   }
 
   memcpy((uint8_t *)this->buffer_ + this->written_, data, len);
   this->written_ += len;
+
+  return expected<void>();
 }
 
-void vds::output_text_stream::flush()
+vds::expected<void> vds::output_text_stream::flush()
 {
   if (0 < this->written_) {
-    this->f_.write(this->buffer_, this->written_);
+    CHECK_EXPECTED(this->f_.write(this->buffer_, this->written_));
     this->written_ = 0;
   }
+
+  return expected<void>();
 }
 
 vds::input_text_stream::input_text_stream(file & f)
@@ -269,13 +276,15 @@ vds::input_text_stream::input_text_stream(file & f)
 {
 }
 
-bool vds::input_text_stream::read_line(std::string & result)
+vds::expected<bool> vds::input_text_stream::read_line(std::string & result)
 {
   result.clear();
 
   for (;;) {
     if (0 == this->readed_) {
-      this->readed_ = this->f_.read(this->buffer_, sizeof(this->buffer_));
+      GET_EXPECTED(readed, this->f_.read(this->buffer_, sizeof(this->buffer_)));
+
+      this->readed_ = readed;
       if (0 == this->readed_) {
         return !result.empty();
       }
@@ -301,30 +310,35 @@ bool vds::input_text_stream::read_line(std::string & result)
   }
 }
 
-void vds::file::move(const vds::filename& source, const vds::filename& target)
+vds::expected<void> vds::file::move(const vds::filename& source, const vds::filename& target)
 {
   if(rename(source.local_name().c_str(), target.local_name().c_str())){
     auto error = errno;
-    throw std::system_error(error, std::generic_category(), "Rename file " + source.full_name() + " to " + target.full_name());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Rename file " + source.full_name() + " to " + target.full_name());
   }
+
+  return expected<void>();
 }
 
-void vds::file::delete_file(const filename & fn, bool ignore_error /*= false*/)
+vds::expected<void> vds::file::delete_file(const filename & fn)
 {
-  if (0 != remove(fn.local_name().c_str()) && !ignore_error) {
+  if (0 != remove(fn.local_name().c_str())) {
     auto err = errno;
-    throw std::system_error(err, std::generic_category(), "Unable to delete file " + fn.full_name());
+    return vds::make_unexpected<std::system_error>(err, std::generic_category(), "Unable to delete file " + fn.full_name());
   }
+
+  return expected<void>();
 }
 
-std::string vds::file::read_all_text(const filename & fn)
+vds::expected<std::string> vds::file::read_all_text(const filename & fn)
 {
-  file f(fn, file::file_mode::open_read);
+  file f;
+  CHECK_EXPECTED(f.open(fn, file::file_mode::open_read));
 
   std::string result;
   char buffer[1024];
   for (;;) {
-    auto readed = f.read(buffer, sizeof(buffer));
+    GET_EXPECTED(readed, f.read(buffer, sizeof(buffer)));
     if (0 == readed) {
       break;
     }
@@ -335,20 +349,25 @@ std::string vds::file::read_all_text(const filename & fn)
   return result;
 }
 
-vds::const_data_buffer vds::file::read_all(const vds::filename& fn)
+vds::expected<vds::const_data_buffer> vds::file::read_all(const vds::filename& fn)
 {
-  file f(fn, file::file_mode::open_read);
+  file f;
+  CHECK_EXPECTED(f.open(fn, file::file_mode::open_read));
+
+  GET_EXPECTED(len, f.length());
+  std::vector<uint8_t> buffer(len);
   
-  std::vector<uint8_t> buffer(f.length());
-  
-  f.read(buffer.data(), buffer.size());
+  CHECK_EXPECTED(f.read(buffer.data(), buffer.size()));
   
   return const_data_buffer(buffer.data(), buffer.size());
 }
 
-void vds::file::write_all(const vds::filename &fn, const vds::const_data_buffer &data) {
-  file f(fn, file::file_mode::truncate);
-  f.write(data.data(), data.size());
+vds::expected<void> vds::file::write_all(const vds::filename &fn, const vds::const_data_buffer &data) {
+  file f;
+  CHECK_EXPECTED(f.open(fn, file::file_mode::truncate));
+  CHECK_EXPECTED(f.write(data.data(), data.size()));
   f.close();
+
+  return expected<void>();
 }
 

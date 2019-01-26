@@ -14,29 +14,29 @@ vds::database::~database()
 {
 }
 
-void vds::database::open(const service_provider * sp, const filename & fn)
+vds::expected<void> vds::database::open(const service_provider * sp, const filename & fn)
 {
   this->impl_ = std::make_shared<_database>(sp);
-  this->impl_->open(fn);
+  return this->impl_->open(fn);
 }
 
-void vds::database::close()
+vds::expected<void> vds::database::close()
 {
-  this->impl_->close();
+  return this->impl_->close();
 }
 
-vds::async_task<void> vds::database::async_transaction(
-  const std::function<bool(database_transaction & tr)> & callback)
+vds::async_task<vds::expected<void>> vds::database::async_transaction(
+  const std::function<expected<bool>(database_transaction & tr)> & callback)
 {
   return this->impl_->async_transaction(callback);
 }
 
-vds::async_task<void> vds::database::async_read_transaction(
-  const std::function<void(database_read_transaction& tr)>& callback) {
+vds::async_task<vds::expected<void>> vds::database::async_read_transaction(
+  const std::function<expected<void>(database_read_transaction& tr)>& callback) {
   return this->impl_->async_read_transaction(callback);
 }
 
-vds::async_task<void> vds::database::prepare_to_stop() {
+vds::async_task<vds::expected<void>> vds::database::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
 }
 
@@ -44,22 +44,27 @@ size_t vds::database::queue_length() const {
   return this->impl_->queue_length();
 }
 
-void vds::database_transaction::execute(const char * sql)
+vds::expected<void> vds::database_transaction::execute(const char * sql)
 {
-   this->impl_->execute(sql);
+   return this->impl_->execute(sql);
 }
 
-int vds::database_transaction::rows_modified() const {
+vds::expected<int> vds::database_transaction::rows_modified() const {
   return this->impl_->rows_modified();
 }
 
-int vds::database_transaction::last_insert_rowid() const {
+vds::expected<int> vds::database_transaction::last_insert_rowid() const {
   return this->impl_->last_insert_rowid();
 }
 
-vds::sql_statement vds::database_read_transaction::parse(const char * sql) const
+vds::expected<vds::sql_statement> vds::database_read_transaction::parse(const char * sql) const
 {
   return this->impl_->parse(sql);
+}
+
+vds::sql_statement::sql_statement()
+  : impl_(nullptr)
+{
 }
 
 vds::sql_statement::sql_statement(_sql_statement * impl)
@@ -102,8 +107,7 @@ void vds::sql_statement::set_parameter(int index, const std::chrono::system_cloc
   this->impl_->set_parameter(index, value);
 }
 
-
-bool vds::sql_statement::execute()
+vds::expected<bool> vds::sql_statement::execute()
 {
   return this->impl_->execute();
 }

@@ -27,7 +27,7 @@
 //    {
 //    }
 //    
-//    vds::async_task<http_message> process(
+//    vds::async_task<vds::expected<http_message>> process(
 //      
 //      const http_message & request)
 //    {

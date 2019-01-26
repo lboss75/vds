@@ -16,11 +16,10 @@ namespace vds {
   public:
     vds_cmd_app();
 
-    void main(const service_provider * sp);
+    expected<void> main(const service_provider * sp);
     
     void register_services(service_registrator & registrator);
     void register_command_line(command_line & cmd_line);
-    void start_services(service_registrator & registrator, service_provider * sp);
     bool need_demonize();
 
   private:
@@ -48,15 +47,15 @@ namespace vds {
     mt_service mt_service_;
     network_service network_service_;
 
-    std::string login(const service_provider * sp);
-    void logout(const service_provider * sp, const std::string & session);
+    expected<std::string> login(const service_provider * sp);
+    expected<void> logout(const service_provider * sp, const std::string & session);
 
-    void upload_file(const service_provider * sp, const std::string & session);
+    expected<void> upload_file(const service_provider * sp, const std::string & session);
 
-    void channel_list(const service_provider * sp, const std::string & session);
-    void channel_create(const service_provider * sp, const std::string & session);
+    expected<void> channel_list(const service_provider * sp, const std::string & session);
+    expected<void> channel_create(const service_provider * sp, const std::string & session);
 
-    async_task<void> channel_list_out(const std::string & server, const http_message response);
+    async_task<expected<void>> channel_list_out(const std::string & server, http_message response);
   };
 }
 

@@ -13,44 +13,43 @@ All rights reserved
 
 namespace vds {
 
-  class http_pipeline : public http_parser<http_pipeline>{
+  class http_pipeline : public http_parser {
   public:
     http_pipeline(
       const std::shared_ptr<http_async_serializer> & output_stream,
-      const std::function<vds::async_task<http_message>(const http_message message)> &message_callback)
+      const std::function<vds::async_task<vds::expected<http_message>>(http_message message)> &message_callback)
       : http_parser([message_callback, this](
-        const http_message message)->vds::async_task<void> {
-          if(message) {
+        const http_message message)->vds::async_task<vds::expected<void>> {
               auto pthis = this->shared_from_this();
-
               //std::string keep_alive_header;
               //bool keep_alive = message.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
-              auto response = co_await
-              message_callback(message);
-              co_await this->output_stream_->write_async(response);
-          }
-    }),
+              GET_EXPECTED_ASYNC(response, co_await message_callback(message));
+              if (response) {
+                CHECK_EXPECTED_ASYNC(co_await static_cast<http_pipeline *>(pthis.get())->output_stream_->write_async(response));
+              }
+          co_return expected<void>();
+      }),
       output_stream_(output_stream) {
     }
 
-    vds::async_task<void> continue_read_data();
+    vds::async_task<vds::expected<void>> continue_read_data() override;
 
-    vds::async_task<void> finish_message();
+    vds::async_task<vds::expected<void>> finish_message() override;
 
   private:
     std::shared_ptr<http_async_serializer> output_stream_;
 
-    vds::async_task<void> send( const vds::http_message & message);
-    vds::async_task<void> continue_send();
+    vds::async_task<vds::expected<void>> send( const vds::http_message & message);
+    vds::async_task<vds::expected<void>> continue_send();
   };
 
-  inline vds::async_task<void> http_pipeline::continue_read_data() {
+  inline vds::async_task<vds::expected<void>> http_pipeline::continue_read_data() {
     auto continue_message = http_response::status_response(100, "Continue");
-    co_await this->output_stream_->write_async(continue_message);
+    return this->output_stream_->write_async(continue_message);
   }
 
-  inline vds::async_task<void> http_pipeline::finish_message() {
-    co_return;
+  inline vds::async_task<vds::expected<void>> http_pipeline::finish_message() {
+    co_return expected<void>();
   }  
 }
 

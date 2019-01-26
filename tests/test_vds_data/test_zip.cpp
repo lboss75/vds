@@ -20,19 +20,23 @@ TEST(test_zip, inflate_tests) {
   registrator.add(mt_service);
   registrator.add(console_logger);
   {
-    auto sp = registrator.build();
-    registrator.start();
+    CHECK_EXPECTED_GTEST(registrator.build());
+    CHECK_EXPECTED_GTEST(registrator.start());
 
     random_buffer buffer;
     
     auto cd = std::make_shared<compare_data_async<uint8_t>>(buffer.data(), buffer.size());
-    auto il = std::make_shared<vds::inflate>(cd);
-    auto dl = std::make_shared<vds::deflate>(il);
+    auto il = std::make_shared<vds::inflate>();
+    CHECK_EXPECTED_GTEST(il->create(cd));
+
+    auto dl = std::make_shared<vds::deflate>();
+    CHECK_EXPECTED_GTEST(dl->create(il));
+
     auto rs = std::make_shared<random_stream<uint8_t>>(dl);
     
-    rs->write_async(buffer.data(), buffer.size()).get();
-    rs->write_async(nullptr, 0).get();
+    CHECK_EXPECTED_GTEST(rs->write_async(buffer.data(), buffer.size()).get());
+    CHECK_EXPECTED_GTEST(rs->write_async(nullptr, 0).get());
 
-    registrator.shutdown();
+    CHECK_EXPECTED_GTEST(registrator.shutdown());
   }
 }

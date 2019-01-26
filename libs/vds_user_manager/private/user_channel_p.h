@@ -14,7 +14,6 @@ namespace vds {
   class _user_channel
   {
   public:
-      _user_channel();
       _user_channel(
         const const_data_buffer &id,
         const std::string & channel_type,
@@ -28,9 +27,9 @@ namespace vds {
     const std::string & channel_type() const { return this->channel_type_; }
     const std::string &name() const { return this->name_; }
 
-    const std::shared_ptr<vds::certificate> & read_cert() const {
+    expected<std::shared_ptr<vds::certificate>> read_cert() const {
       if (this->current_read_certificate_.empty()) {
-        throw std::invalid_argument("vds::_user_channel::add_reader");
+        return vds::make_unexpected<std::invalid_argument>("vds::_user_channel::add_reader");
       }
       return this->read_certificates_.find(this->current_read_certificate_)->second;
     }
@@ -44,39 +43,39 @@ namespace vds {
       return p->second;
     }
 
-    const std::shared_ptr<certificate> & write_cert() const {
+    expected<std::shared_ptr<certificate>> write_cert() const {
       if (this->current_read_certificate_.empty() || this->current_write_certificate_.empty()) {
-        throw std::invalid_argument("vds::_user_channel::add_reader");
+        return vds::make_unexpected<std::invalid_argument>("vds::_user_channel::add_reader");
       }
       return this->write_certificates_.find(this->current_write_certificate_)->second;
     }
 
-    const std::shared_ptr<asymmetric_private_key> & read_private_key() const {
+    expected<std::shared_ptr<asymmetric_private_key>> read_private_key() const {
       if (this->current_read_certificate_.empty()) {
-        throw std::invalid_argument("vds::_user_channel::read_private_key");
+        return vds::make_unexpected<std::invalid_argument>("vds::_user_channel::read_private_key");
       }
       return this->read_private_keys_.find(this->current_read_certificate_)->second;
     }
 
-    const std::shared_ptr<asymmetric_private_key> & write_private_key() const {
+    expected<std::shared_ptr<asymmetric_private_key>> write_private_key() const {
       if (this->current_write_certificate_.empty()) {
-        throw std::invalid_argument("vds::_user_channel::write_private_key");
+        return vds::make_unexpected<std::invalid_argument>("vds::_user_channel::write_private_key");
       }
       return this->write_private_keys_.find(this->current_write_certificate_)->second;
     }
 
-	  void add_reader(
+    expected<void> add_reader(
 	    transactions::transaction_block_builder& playback,
 	    const member_user& member_user,
 	    const vds::member_user& owner_user,
 	    const asymmetric_private_key& owner_private_key) const;
 
-	  void add_writer(
+    expected<void> add_writer(
 	    transactions::transaction_block_builder& playback,
 	    const member_user& member_user,
 	    const vds::member_user& owner_user) const;
 
-    void add_writer(
+    expected<void> add_writer(
       transactions::transaction_block_builder& playback,
       const std::string & name,
       const member_user& member_user,
@@ -91,47 +90,58 @@ namespace vds {
       return p->second;
     }
 
-    static std::shared_ptr <user_channel> import_personal_channel(
+    static expected<std::shared_ptr <user_channel>> import_personal_channel(
       
       const std::shared_ptr<certificate> & user_cert,
       const std::shared_ptr<asymmetric_private_key> & user_private_key);
 
     template<typename item_type>
-    void add_log(
+    expected<void> add_log(
       transactions::transaction_block_builder & log,
       const member_user & writter,
-      item_type && item) {
+      expected<item_type> && item) {
+
+      CHECK_EXPECTED_ERROR(item);
 
       auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
       binary_serializer s;
-      s
-        << (uint8_t)item_type::message_id;
-      _serialize_visitor v(s);
-      item.visit(v);
+      CHECK_EXPECTED(serialize(s, (uint8_t)item_type::message_id));
 
-      log.add(
-        transactions::channel_message(
-          this->id_,
-          this->read_cert()->subject(),
-          writter.user_certificate()->subject(),
-          this->read_cert()->public_key().encrypt(key.serialize()),
-          symmetric_encrypt::encrypt(key, s.get_buffer(), s.size()),
-          *writter.private_key()));
+      _serialize_visitor v(s);
+      item.value().visit(v);
+      if(v.error()) {
+        return unexpected(std::move(v.error()));
+      }
+
+      GET_EXPECTED(read_cert, this->read_cert());
+      GET_EXPECTED(read_cert_pk, read_cert->public_key());
+      GET_EXPECTED(key_crypted, read_cert_pk.encrypt(key.serialize()));
+      GET_EXPECTED(s_crypted, symmetric_encrypt::encrypt(key, s.get_buffer(), s.size()));
+
+      return log.add(
+          transactions::channel_message::create(
+            this->id_,
+            read_cert->subject(),
+            writter.user_certificate()->subject(),
+            key_crypted,
+            s_crypted,
+            *writter.private_key()));
     }
 
     template<typename item_type>
-    void add_log(
+    expected<void> add_log(
       transactions::transaction_block_builder & log,
-      item_type && item) {
+      expected<item_type> && item) {
+
+      CHECK_EXPECTED_ERROR(item);
 
       binary_serializer s;
-      s
-        << (uint8_t)item_type::message_id;
+      CHECK_EXPECTED(serialize(s, (uint8_t)item_type::message_id));
       _serialize_visitor v(s);
-      item.visit(v);
+      item.value().visit(v);
 
-      this->add_to_log(log, s.get_buffer(), s.size());
+      return this->add_to_log(log, s.get_buffer(), s.size());
     }
 
   private:
@@ -150,7 +160,7 @@ namespace vds {
     std::string current_read_certificate_;
     std::string current_write_certificate_;
 
-    void add_to_log(
+    expected<void> add_to_log(
         transactions::transaction_block_builder & log,
         const uint8_t * data,
         size_t size);

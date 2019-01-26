@@ -12,6 +12,7 @@ All rights reserved
 #include "logger.h"
 #include <iostream>
 #include "private/socket_task_p.h"
+#include "../../libs/vds_file_manager/stdafx.h"
 
 vds::network_service::network_service()
 : impl_(new _network_service())
@@ -22,22 +23,23 @@ vds::network_service::~network_service()
 {
 }
 
-void vds::network_service::register_services(service_registrator & registator)
+vds::expected<void> vds::network_service::register_services(service_registrator & registator)
 {
     registator.add_service<network_service>(this);
+    return expected<void>();
 }
 
-void vds::network_service::start(const service_provider * sp)
+vds::expected<void> vds::network_service::start(const service_provider * sp)
 {
-  this->impl_->start(sp);
+  return this->impl_->start(sp);
 }
 
-void vds::network_service::stop()
+vds::expected<void> vds::network_service::stop()
 {
-  this->impl_->stop();
+  return this->impl_->stop();
 }
 
-vds::async_task<void> vds::network_service::prepare_to_stop()
+vds::async_task<vds::expected<void>> vds::network_service::prepare_to_stop()
 {
   return this->impl_->prepare_to_stop();
 }
@@ -85,7 +87,7 @@ vds::_network_service::~_network_service()
 {
 }
 
-void vds::_network_service::start(const service_provider * sp)
+vds::expected<void> vds::_network_service::start(const service_provider * sp)
 {
   this->sp_ = sp;
 
@@ -94,14 +96,14 @@ void vds::_network_service::start(const service_provider * sp)
     WSADATA wsaData;
     if (NO_ERROR != WSAStartup(MAKEWORD(2, 2), &wsaData)) {
         auto error = WSAGetLastError();
-        throw std::system_error(error, std::system_category(), "Initiates Winsock");
+        return vds::make_unexpected<std::system_error>(error, std::system_category(), "Initiates Winsock");
     }
 
     this->handle_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
 
     if (NULL == this->handle_) {
         auto error = WSAGetLastError();
-        throw std::system_error(error, std::system_category(), "Create I/O completion port");
+        return vds::make_unexpected<std::system_error>(error, std::system_category(), "Create I/O completion port");
     }
 
     //Create worker threads
@@ -112,7 +114,7 @@ void vds::_network_service::start(const service_provider * sp)
 #else
     this->epoll_set_ = epoll_create(100);
     if(0 > this->epoll_set_){
-      throw std::runtime_error("Out of memory for epoll_create");
+      return vds::make_unexpected<std::runtime_error>("Out of memory for epoll_create");
     }
   this->epoll_thread_ = std::thread(
     [this, sp] {
@@ -137,7 +139,7 @@ void vds::_network_service::start(const service_provider * sp)
             continue;
           }
           
-          throw std::system_error(error, std::system_category(), "epoll_wait");
+          return vds::make_unexpected<std::system_error>(error, std::system_category(), "epoll_wait");
         }
         else if(0 < result){
           for(int i = 0; i < result; ++i){
@@ -157,16 +159,18 @@ void vds::_network_service::start(const service_provider * sp)
       }
   });
 #endif
- this->worker_timer_.start(sp, std::chrono::minutes(1), [sp, pthis = this->shared_from_this()]() -> async_task<bool> {
+  CHECK_EXPECTED(
+    this->worker_timer_.start(
+      sp,
+      std::chrono::minutes(1),
+      [sp, pthis = this->shared_from_this()]() -> async_task<expected<bool>> {
    std::lock_guard<std::mutex> lock(pthis->connections_mutex_);
    auto p = pthis->connections_.begin();
    while(pthis->connections_.end() != p) {
-     if(p->is_ready()) {
-       try {
-         p->get();
-       }
-       catch (...) {
-         /* Ignore error */
+     if(p->await_ready()) {
+       auto result = p->get();
+       if(result.has_error()) {
+         sp->get<logger>()->warning(ThisModule, "Connection error %s", result.error()->what());
        }
 
        p = pthis->connections_.erase(p);       
@@ -177,103 +181,66 @@ void vds::_network_service::start(const service_provider * sp)
    }
 
    co_return !sp->get_shutdown_event().is_shuting_down();
- });
+ }));
+  return expected<void>();
 }
 
-void vds::_network_service::stop()
+vds::expected<void> vds::_network_service::stop()
 {
-    try {
-      this->sp_->get<logger>()->trace("network", "Stopping network service");
-      
+  this->sp_->get<logger>()->trace("network", "Stopping network service");
+
 #ifndef _WIN32
-      this->tasks_cond_.notify_one();
-      if(this->epoll_thread_.joinable()){
-        this->epoll_thread_.join();
-      }
+  this->tasks_cond_.notify_one();
+  if (this->epoll_thread_.joinable()) {
+    this->epoll_thread_.join();
+  }
 #else
-      for (auto p : this->work_threads_) {
-        PostQueuedCompletionStatus(this->handle_, 0, NETWORK_EXIT, NULL);
-      }
-      for (auto p : this->work_threads_) {
-            p->join();
-            delete p;
-      }
+  for (auto p : this->work_threads_) {
+    PostQueuedCompletionStatus(this->handle_, 0, NETWORK_EXIT, NULL);
+  }
+  for (auto p : this->work_threads_) {
+    p->join();
+    delete p;
+  }
 #endif
-        
+
 #ifdef _WIN32
 
-        if (NULL != this->handle_) {
-            CloseHandle(this->handle_);
-        }
+  if (NULL != this->handle_) {
+    CloseHandle(this->handle_);
+  }
 
-        WSACleanup();
+  WSACleanup();
 #endif
-    }
-    catch (const std::exception & ex) {
-      this->sp_->get<logger>()->error("network", "Failed stop network service %s", ex.what());
-    }
-    catch (...) {
-      this->sp_->get<logger>()->error("network", "Unhandled error at stopping network service");
-    }
+  return expected<void>();
 }
 
-vds::async_task<void> vds::_network_service::prepare_to_stop()
+vds::async_task<vds::expected<void>> vds::_network_service::prepare_to_stop()
 {
   std::lock_guard<std::mutex> lock(this->connections_mutex_);
   auto p = this->connections_.begin();
   while (this->connections_.end() != p) {
-    try {
-      p->get();
-    }catch(...) {      
-    }
+    (void)p->get();
 
     p = this->connections_.erase(p);
   }
-  co_return;
-  /*
-  std::set<SOCKET_HANDLE> processed;
-  
-  std::unique_lock<std::mutex> lock(this->tasks_mutex_);
-
-  for(;;){
-    bool bcontinue = false;
-    
-    for(auto & p : this->tasks_) {
-      if(processed.end() != processed.find(p.first)){
-        continue;
-      }
-      processed.emplace(p.first);
-      std::shared_ptr<_socket_task> handler = p.second;
-      lock.unlock();
-      
-      //handler->prepare_to_stop(sp);
-      bcontinue = true;
-      break;
-    }
-    
-    if(!bcontinue){
-      break;
-    }
-    else {
-      lock.lock();
-    }
-  }
-   */
+  co_return expected<void>();
 }
 
-void vds::_network_service::add_connection(async_task<void>&& new_connection) {
+void vds::_network_service::add_connection(async_task<expected<void>>&& new_connection) {
   std::lock_guard<std::mutex> lock(this->connections_mutex_);
   this->connections_.push_back(std::move(new_connection));
 }
 
 #ifdef _WIN32
 
-void vds::_network_service::associate(SOCKET_HANDLE s)
+vds::expected<void> vds::_network_service::associate(SOCKET_HANDLE s)
 {
   if (NULL == CreateIoCompletionPort((HANDLE)s, this->handle_, NULL, 0)) {
     auto error = GetLastError();
-    throw std::system_error(error, std::system_category(), "Associate with input/output completion port");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Associate with input/output completion port");
   }
+  return expected<void>();
 }
 
 void vds::_network_service::thread_loop()
@@ -327,7 +294,7 @@ void vds::_network_service::associate(
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_ADD, s, &event_data);
   if(0 > result) {
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "epoll_ctl(EPOLL_CTL_ADD)");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "epoll_ctl(EPOLL_CTL_ADD)");
   }
   
   std::unique_lock<std::mutex> lock(this->tasks_mutex_);
@@ -350,7 +317,7 @@ void vds::_network_service::set_events(
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_MOD, s, &event_data);
   if(0 > result) {
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "epoll_ctl(EPOLL_CTL_MOD)");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "epoll_ctl(EPOLL_CTL_MOD)");
   }
 }
 
@@ -364,7 +331,7 @@ void vds::_network_service::remove_association(
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_DEL, s, &event_data);
   if(0 > result) {
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "epoll_ctl(EPOLL_CTL_DEL)");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "epoll_ctl(EPOLL_CTL_DEL)");
   }
   
   std::unique_lock<std::mutex> lock(this->tasks_mutex_);

@@ -22,10 +22,12 @@ namespace vds {
       this->is_simple_ = true;
     }
 
-    void set_file(const filename & file)
+    expected<void> set_file(const filename & file)
     {
       this->file_ = file;
       this->is_simple_ = false;
+      GET_EXPECTED_VALUE(this->file_size_, file::length(this->file_));
+      return expected<void>();
     }
 
     bool is_simple() const
@@ -38,7 +40,7 @@ namespace vds {
     }
     
     size_t size() const {
-      return this->is_simple_ ? this->body_.size() : file::length(this->file_);
+      return this->is_simple_ ? this->body_.size() : this->file_size_;
     }
 
     const filename & file() const {
@@ -54,6 +56,7 @@ namespace vds {
   private:
     bool is_simple_;
     std::string body_;
+    size_t file_size_;
     filename file_;
   };
 }

@@ -26,26 +26,16 @@ namespace vds {
     {
     }
 
-    ~not_mutex()
+    ~not_mutex() noexcept(false)
     {
-#ifdef _DEBUG
-#pragma warning(disable: 4297)
-
-      if (this->is_locked_) {
-        throw std::runtime_error("Multithreading error");
-      }
-#pragma warning(default: 4297)
-#endif//_DEBUG
+      vds_assert(!this->is_locked_);
     }
 
     void lock()
     {
       std::unique_lock<std::mutex> lock(this->m_);
 
-      if(this->is_locked_) {
-        std::cout << "This object owned by thread " << this->owner_id_ << "\n";
-        throw std::runtime_error("Multithreading error");
-      }
+      vds_assert(!this->is_locked_);
 
       this->is_locked_ = true;
 #ifndef _WIN32
@@ -59,9 +49,7 @@ namespace vds {
     {
       std::unique_lock<std::mutex> lock(this->m_);
 
-      if (!this->is_locked_) {
-        throw std::runtime_error("Multithreading error");
-      }
+      vds_assert(this->is_locked_);
 
       this->is_locked_ = false;
     }

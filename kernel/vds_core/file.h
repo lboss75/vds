@@ -13,6 +13,7 @@ All rights reserved
 
 #include "filename.h"
 #include "const_data_buffer.h"
+#include "expected.h"
 
 
 namespace vds {
@@ -46,48 +47,49 @@ namespace vds {
 
 
     file();
-    file(const filename & filename, file_mode mode);
     file(const file & f) = delete;
     file(file && f) noexcept;
     ~file();
-
-    void open(const filename & filename, file_mode mode);
+    
+    expected<void> open(const filename & filename, file_mode mode);
     void close();
     
-    size_t read(
+    expected<size_t> read(
       void * buffer,
       size_t buffer_len);
 
-    void write(
+    expected<void> write(
       const void * buffer,
       size_t buffer_len);
 
-    void write(
-      const const_data_buffer & buf) { this->write(buf.data(), buf.size()); }
+    expected<void> write(
+      const const_data_buffer & buf) {
+      return this->write(buf.data(), buf.size());
+    }
 
     const filename & name() const {
       return this->filename_;
     }
 
     file & operator = (const file & f) = delete;
-    file & operator = (file && f);
+    file & operator = (file && f) noexcept;
 
-    static file create_temp(const service_provider * sp);
+    static expected<file> create_temp(const service_provider * sp);
 
-    size_t length() const;
+    expected<size_t> length() const;
 
-    void seek(size_t position);
+    expected<void> seek(size_t position);
 
-    static size_t length(const filename & fn);
+    static expected<size_t> length(const filename & fn);
     static bool exists(const filename & fn);
 
-    void flush();
+    expected<void> flush();
 
-    static void move(const filename & source, const filename & target);
-    static void delete_file(const filename & fn, bool ignore_error = false);
-    static std::string read_all_text(const filename & fn);
-    static const_data_buffer read_all(const filename & fn);
-    static void write_all(const filename & fn, const const_data_buffer & data);
+    static expected<void> move(const filename & source, const filename & target);
+    static expected<void> delete_file(const filename & fn);
+    static expected<std::string> read_all_text(const filename & fn);
+    static expected<const_data_buffer> read_all(const filename & fn);
+    static expected<void> write_all(const filename & fn, const const_data_buffer & data);
 
   private:
     filename filename_;
@@ -100,10 +102,10 @@ namespace vds {
     output_text_stream(file & f);
     ~output_text_stream();
 
-    void write(
+    expected<void> write(
       const std::string & value);
     
-    void flush();
+    expected<void> flush();
 
   private:
     file & f_;
@@ -116,7 +118,7 @@ namespace vds {
   public:
     input_text_stream(file & f);
 
-    bool read_line(std::string & result);
+    expected<bool> read_line(std::string & result);
 
   private:
     file & f_;

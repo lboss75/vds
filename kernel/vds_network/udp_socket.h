@@ -21,8 +21,6 @@ namespace vds {
   {
   public:
 
-    //The maximum safe UDP payload
-    static const size_t max_safe_data_size = 508;
 
     udp_datagram();
     udp_datagram(const udp_datagram & other);
@@ -31,13 +29,11 @@ namespace vds {
     udp_datagram(
       const network_address & address,
       const void * data,
-      size_t data_size,
-      bool check_max_safe_data_size = true);
+      size_t data_size);
 
     udp_datagram(
       const network_address & address,
-      const const_data_buffer & data,
-      bool check_max_safe_data_size = true);
+      const const_data_buffer & data);
     
     ~udp_datagram();
 
@@ -60,12 +56,12 @@ namespace vds {
 
   class udp_datagram_reader : public std::enable_shared_from_this<udp_datagram_reader> {
   public:
-    vds::async_task<udp_datagram> read_async();
+    vds::async_task<vds::expected<udp_datagram>> read_async();
   };
 
   class udp_datagram_writer : public std::enable_shared_from_this<udp_datagram_writer> {
   public:
-    vds::async_task<void> write_async( const udp_datagram & message);
+    vds::async_task<vds::expected<void>> write_async( const udp_datagram & message);
   };
 
 
@@ -95,7 +91,7 @@ namespace vds {
 
     _udp_socket * operator -> () const { return this->impl_; }
 
-    static std::shared_ptr<udp_socket> create(const service_provider * sp, sa_family_t af);
+    static expected<std::shared_ptr<udp_socket>> create(const service_provider * sp, sa_family_t af);
 
 #ifndef _WIN32
     void process(uint32_t events) override;
@@ -118,7 +114,7 @@ namespace vds {
     udp_server();
     ~udp_server();
 
-    std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>> start(
+    expected<std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>>> start(
       const service_provider * sp,
       const network_address & address);
 
@@ -143,7 +139,7 @@ namespace vds {
     udp_client();
     ~udp_client();
 
-    std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>> start(
+    expected<std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>>> start(
       const service_provider * sp,
       sa_family_t af);
 

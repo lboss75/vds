@@ -37,13 +37,13 @@ void vds::http_multipart_request::add_string(const std::string& name, const std:
   this->inputs_.push(std::make_shared<buffer_stream_input_async>(const_data_buffer(part.c_str(), part.length())));
 }
 
-void vds::http_multipart_request::add_file(
+vds::expected<void> vds::http_multipart_request::add_file(
   const std::string & name,
   const filename& body_file,
   const std::string& filename,
   const std::string& content_type) {
 
-  const auto size = file::length(body_file);
+  GET_EXPECTED(size, file::length(body_file));
   const auto header = "--" + this->boundary_ + "\r\n"
     + "Content-Disposition: form-data; name=\"" + url_encode::encode(name) + "\"; filename=\"" + url_encode::encode(filename) + "\"\r\n"
     + "Content-Type: " + content_type + "\r\n"
@@ -53,7 +53,12 @@ void vds::http_multipart_request::add_file(
   this->total_size_ += size;
 
   this->inputs_.push(std::make_shared<buffer_stream_input_async>(const_data_buffer(header.c_str(), header.length())));
-  this->inputs_.push(std::make_shared<file_stream_input_async>(body_file));
+  
+  auto f = std::make_shared<file_stream_input_async>();
+  CHECK_EXPECTED(f->open(body_file));
+  this->inputs_.push(f);
+
+  return expected<void>();
 }
 
 vds::http_message vds::http_multipart_request::get_message() {
@@ -73,9 +78,9 @@ vds::http_multipart_request::multipart_body::multipart_body(
 : inputs_(std::move(inputs)) {
 }
 
-vds::async_task<size_t> vds::http_multipart_request::multipart_body::read_async(uint8_t* buffer, size_t len) {
+vds::async_task<vds::expected<size_t>> vds::http_multipart_request::multipart_body::read_async(uint8_t* buffer, size_t len) {
   while(!this->inputs_.empty()) {
-    auto readed = co_await this->inputs_.front()->read_async(buffer, len);
+    GET_EXPECTED_ASYNC(readed, co_await this->inputs_.front()->read_async(buffer, len));
     if(0 != readed) {
       co_return readed;
     }

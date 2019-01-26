@@ -106,18 +106,17 @@ namespace vds {
         return const_data_buffer(result.data(), result.size());
       }
 
-      static const_data_buffer from_user_email(const std::string & user_email){
+      static expected<const_data_buffer> from_user_email(const std::string & user_email){
         return from_string("email:" + user_email);
       }
 
-      static const_data_buffer my_record_channel(const std::string & user_email) {
+      static expected<const_data_buffer> my_record_channel(const std::string & user_email) {
         return from_string("my.records.channel:" + user_email);
       }
 
-      static std::string user_credentials_to_key(const std::string & user_email, const std::string & user_password) {
-        return user_credentials_to_key(
-          user_email,
-          hash::signature(hash::sha256(), user_password.c_str(), user_password.length()));
+      static expected<std::string> user_credentials_to_key(const std::string & user_email, const std::string & user_password) {
+        GET_EXPECTED(sig, hash::signature(hash::sha256(), user_password.c_str(), user_password.length()));
+        return user_credentials_to_key(user_email, sig);
       }
 
       static std::string user_credentials_to_key(const std::string & user_email, const const_data_buffer & password_hash) {
@@ -128,7 +127,7 @@ namespace vds {
       }
 
     private:
-      static const_data_buffer from_string(const std::string & value){
+      static expected<const_data_buffer> from_string(const std::string & value){
         return hash::signature(hash::sha256(), value.c_str(), value.length());
       }
     };

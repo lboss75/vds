@@ -18,22 +18,22 @@ namespace vds {
   class index_page
   {
   public:
-    static vds::async_task<http_message> create_channel(
+    static vds::async_task<vds::expected<http_message>> create_channel(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> & user_mng,
       const http_request & request);
 
-    static vds::async_task<http_message> create_message(
+    static vds::async_task<vds::expected<http_message>> create_message(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> &user_mng,
       const http_request & request);
 
-    static vds::async_task<std::shared_ptr<vds::json_value>> parse_join_request(
+    static vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> parse_join_request(
         const vds::service_provider * sp,
         const std::shared_ptr<user_manager>& user_mng,
         const http_request & request);
 
-    static vds::async_task<vds::http_message> approve_join_request(
+    static vds::async_task<vds::expected<vds::http_message>> approve_join_request(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager>& user_mng,
       const http_request & request);

@@ -21,18 +21,18 @@ namespace vds {
   class http_form_part_parser {
   public:
     http_form_part_parser(
-        const std::function<vds::async_task<void>(const http_message &message)> &message_callback)
+        const std::function<vds::async_task<vds::expected<void>>(const http_message &message)> &message_callback)
     : message_callback_(message_callback) {
     }
 
-    vds::async_task<void> start(
+    vds::async_task<vds::expected<void>> start(
       const service_provider * sp,
       const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
       for (;;) {
-        auto len = co_await input_stream->read_async(this->buffer_, sizeof(this->buffer_));
+        GET_EXPECTED_ASYNC(len, co_await input_stream->read_async(this->buffer_, sizeof(this->buffer_)));
         if (0 == len) {
           logger::get(sp)->debug("HTTP", "HTTP end");
-          co_return;
+          co_return expected<void>();
         }
         else {
           auto data = this->buffer_;
@@ -63,7 +63,7 @@ namespace vds {
               this->current_message_ = http_message(this->headers_, this->current_message_body_);
               this->headers_.clear();
 
-              co_await this->message_callback_(this->current_message_);
+              CHECK_EXPECTED_ASYNC(co_await this->message_callback_(this->current_message_));
 
               static_cast<message_body_reader *>(this->current_message_body_.get())->get_rest_data(this->buffer_, len);
               data = this->buffer_;
@@ -79,7 +79,7 @@ namespace vds {
 
 
   private:
-    std::function<vds::async_task<void>(const http_message &message)> message_callback_;
+    std::function<vds::async_task<vds::expected<void>>(const http_message &message)> message_callback_;
 
     uint8_t buffer_[1024];
     std::string parse_buffer_;
@@ -104,12 +104,12 @@ namespace vds {
         
       }
 
-      vds::async_task<size_t> read_async( uint8_t * buffer, size_t len) override {
+      vds::async_task<vds::expected<size_t>> read_async( uint8_t * buffer, size_t len) override {
         vds_assert(!this->eof_);
 
         if (this->readed_ <= this->processed_) {
           this->processed_ = 0;
-          this->readed_ = co_await this->source_->read_async(this->buffer_, sizeof(this->buffer_));
+          GET_EXPECTED_VALUE_ASYNC(this->readed_, co_await this->source_->read_async(this->buffer_, sizeof(this->buffer_)));
           if (this->readed_ == 0) {
             this->eof_ = true;
             co_return 0;

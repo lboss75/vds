@@ -51,20 +51,20 @@ namespace vds {
     symmetric_key & operator = (symmetric_key && origin) = default;
     
     static symmetric_key generate(const symmetric_crypto_info & crypto_info);
-    static symmetric_key deserialize(const symmetric_crypto_info & crypto_info, binary_deserializer & s);
-    static symmetric_key deserialize(const symmetric_crypto_info & crypto_info, binary_deserializer && s);
+    static expected<symmetric_key> deserialize(const symmetric_crypto_info & crypto_info, binary_deserializer & s);
+    static expected<symmetric_key> deserialize(const symmetric_crypto_info & crypto_info, binary_deserializer && s);
 
-    void serialize(binary_serializer & s) const;
+    expected<void> serialize(binary_serializer & s) const;
 
-    const_data_buffer serialize() const{
+    expected<const_data_buffer> serialize() const{
       binary_serializer s;
-      this->serialize(s);
+      CHECK_EXPECTED(this->serialize(s));
       return s.move_data();
     }
 
     size_t block_size() const;
     
-    static symmetric_key from_password(const std::string & password);
+    static expected<symmetric_key> from_password(const std::string & password);
 
     static symmetric_key create(
         const symmetric_crypto_info & crypto_info,
@@ -76,34 +76,44 @@ namespace vds {
     friend class _symmetric_decrypt;
     friend class _symmetric_key;
 
-    symmetric_key(class _symmetric_key * impl);
-
+    symmetric_key(class _symmetric_key *impl);
     class _symmetric_key * impl_;
   };
   
   class symmetric_encrypt : public stream_output_async<uint8_t>
   {
   public:
-    symmetric_encrypt(
+    symmetric_encrypt();
+    symmetric_encrypt(_symmetric_encrypt * impl)
+      : impl_(impl) {
+    }
+    ~symmetric_encrypt();
+
+    static expected<std::shared_ptr<symmetric_encrypt>> create(
       const symmetric_key & key,
       const std::shared_ptr<stream_output_async<uint8_t>> & target);
 
-    ~symmetric_encrypt();
-
-    async_task<void> write_async(
+    async_task<expected<void>> write_async(
       const uint8_t *data,
       size_t len) override;
 
 
-    static const_data_buffer encrypt(
+    static expected<const_data_buffer> encrypt(
       const symmetric_key & key,
       const void * input_buffer,
       size_t input_buffer_size);
 
-    static const_data_buffer encrypt(
+    static expected<const_data_buffer> encrypt(
       const symmetric_key & key,
         const const_data_buffer & input_buffer){
       return encrypt(key, input_buffer.data(), input_buffer.size());
+    }
+
+    static expected<const_data_buffer> encrypt(
+      const symmetric_key & key,
+      expected<const_data_buffer> && input_buffer) {
+      CHECK_EXPECTED_ERROR(input_buffer);
+      return encrypt(key, input_buffer.value());
     }
 
   private:
@@ -113,18 +123,19 @@ namespace vds {
   class symmetric_decrypt : public stream_output_async<uint8_t>
   {
   public:
-    symmetric_decrypt(
+    symmetric_decrypt();
+    ~symmetric_decrypt();
+
+    expected<void> create(
       const symmetric_key & key,
       const std::shared_ptr<stream_output_async<uint8_t>> & target);
 
-    ~symmetric_decrypt();
-
-    static const_data_buffer decrypt(
+    static expected<const_data_buffer> decrypt(
       const symmetric_key & key,
       const void * input_buffer,
       size_t input_buffer_size);
 
-    static const_data_buffer decrypt(
+    static expected<const_data_buffer> decrypt(
       const symmetric_key & key,
         const const_data_buffer & input_buffer){
       return decrypt(key, input_buffer.data(), input_buffer.size());

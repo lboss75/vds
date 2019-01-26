@@ -16,13 +16,13 @@ namespace vds {
   {
   public:
     timer(const char * name);
-    
-    void start(
+
+    expected<void> start(
       const service_provider * sp,
       const std::chrono::steady_clock::duration & period,
-      const std::function<async_task<bool>(void)> & callback);
+      const std::function<async_task<expected<bool>>(void)> & callback);
     
-    void stop();
+    expected<void> stop();
     
   private:
     const service_provider * sp_;
@@ -31,7 +31,7 @@ namespace vds {
     friend class task_manager;
     std::chrono::steady_clock::duration period_;
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
-    std::function<async_task<bool>(void)> handler_;
+    std::function<async_task<expected<bool>>(void)> handler_;
 
 	  enum state_t {
 		  bof,
@@ -44,7 +44,7 @@ namespace vds {
     void execute();
     void schedule();
 
-    async_task<void> execute_async();
+    async_task<expected<void>> execute_async();
   };
 
   class task_manager : public iservice_factory
@@ -53,10 +53,10 @@ namespace vds {
     task_manager();
     ~task_manager();
 
-    void register_services(service_registrator &) override;
-    void start(const service_provider * sp) override;
-    void stop() override;
-    vds::async_task<void> prepare_to_stop() override;
+    expected<void> register_services(service_registrator &) override;
+    expected<void> start(const service_provider * sp) override;
+    expected<void> stop() override;
+    vds::async_task<vds::expected<void>> prepare_to_stop() override;
 
     void disable_timers() {
       this->is_disabled_ = true;

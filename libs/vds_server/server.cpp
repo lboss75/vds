@@ -30,37 +30,39 @@ vds::server::~server()
 {
 }
 
-void vds::server::register_services(service_registrator& registrator)
+vds::expected<void> vds::server::register_services(service_registrator& registrator)
 {
   registrator.add_service<server>(this);
   registrator.add_service<dht::network::imessage_map>(this->impl_.get());
   registrator.add_service<db_model>(this->impl_->db_model_.get());
 
-  this->impl_->dht_network_service_->register_services(registrator);
+  CHECK_EXPECTED(this->impl_->dht_network_service_->register_services(registrator));
   this->impl_->file_manager_->register_services(registrator);
+
+  return expected<void>();
 }
 
-void vds::server::start(const service_provider * sp)
+vds::expected<void> vds::server::start(const service_provider * sp)
 {
-  this->impl_->start(sp);
+  return this->impl_->start(sp);
 }
 
-void vds::server::stop()
+vds::expected<void> vds::server::stop()
 {
-  this->impl_->stop();
+  return this->impl_->stop();
 }
 
-vds::async_task<void> vds::server::start_network( uint16_t port) {
-  this->impl_->dht_network_service_->start(this->impl_->sp_, this->impl_->udp_transport_, port);
+vds::async_task<vds::expected<void>> vds::server::start_network( uint16_t port) {
+  CHECK_EXPECTED_ASYNC(this->impl_->dht_network_service_->start(this->impl_->sp_, this->impl_->udp_transport_, port));
   this->impl_->file_manager_->start(this->impl_->sp_);
-  co_return;
+  co_return expected<void>();
 }
 
-vds::async_task<void> vds::server::prepare_to_stop() {
+vds::async_task<vds::expected<void>> vds::server::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
 }
 
-vds::async_task<vds::server_statistic> vds::server::get_statistic() const {
+vds::async_task<vds::expected<vds::server_statistic>> vds::server::get_statistic() const {
   return this->impl_->get_statistic();
 }
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,44 +79,48 @@ vds::_server::~_server()
 {
 }
 
-void vds::_server::start(const service_provider* sp)
+vds::expected<void> vds::_server::start(const service_provider* sp)
 {
   this->sp_ = sp;
-  this->db_model_->start(sp);
+  CHECK_EXPECTED(this->db_model_->start(sp));
   this->transaction_log_sync_process_.reset(new transaction_log::sync_process(sp));
 
-  this->update_timer_.start(sp, std::chrono::seconds(60), [sp, pthis = this->shared_from_this()]() -> async_task<bool>{
-      co_await sp->get<db_model>()->async_transaction([pthis](database_transaction & t) {
+  return this->update_timer_.start(sp, std::chrono::seconds(60), [sp, pthis = this->shared_from_this()]() -> async_task<expected<bool>>{
+    CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_transaction([pthis](database_transaction & t) -> expected<void> {
         if (!pthis->sp_->get_shutdown_event().is_shuting_down()) {
-          pthis->transaction_log_sync_process_->do_sync(t).get();
+          CHECK_EXPECTED(pthis->transaction_log_sync_process_->do_sync(t).get());
         }
-      });
+        return expected<void>();
+      }));
     
 
     co_return !sp->get_shutdown_event().is_shuting_down();
   });
 }
 
-void vds::_server::stop()
+vds::expected<void> vds::_server::stop()
 {
   if (*this->file_manager_) {
     this->file_manager_->stop();
   }
 
-  this->dht_network_service_->stop();
-  this->db_model_->stop();
+  CHECK_EXPECTED(this->dht_network_service_->stop());
+  CHECK_EXPECTED(this->db_model_->stop());
   this->udp_transport_.reset();
   this->file_manager_.reset();
   this->db_model_.reset();
+
+  return expected<void>();
 }
 
-vds::async_task<void> vds::_server::prepare_to_stop() {
+vds::async_task<vds::expected<void>> vds::_server::prepare_to_stop() {
   this->udp_transport_->stop();
-  co_await this->dht_network_service_->prepare_to_stop();
-  co_await this->db_model_->prepare_to_stop();
+  CHECK_EXPECTED_ASYNC(co_await this->dht_network_service_->prepare_to_stop());
+  CHECK_EXPECTED_ASYNC(co_await this->db_model_->prepare_to_stop());
+  co_return expected<void>();
 }
 
-vds::async_task<vds::server_statistic> vds::_server::get_statistic() {
+vds::async_task<vds::expected<vds::server_statistic>> vds::_server::get_statistic() {
   auto result = std::make_shared<vds::server_statistic>();
   
   result->db_queue_length_ = this->sp_->get<db_model>()->queue_length();
@@ -122,12 +128,12 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic() {
   this->sp_->get<dht::network::client>()->get_route_statistics(result->route_statistic_);
   this->sp_->get<dht::network::client>()->get_session_statistics(result->session_statistic_);
 
-  co_await this->sp_->get<db_model>()->async_read_transaction([this, result](database_read_transaction & t){
+  CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_read_transaction([this, result](database_read_transaction & t) -> expected<void> {
 
     orm::transaction_log_record_dbo t2;
-    auto st = t.get_reader(t2.select(t2.id, t2.state, t2.order_no));
+    GET_EXPECTED(st, t.get_reader(t2.select(t2.id, t2.state, t2.order_no)));
 
-    while (st.execute()) {
+    WHILE_EXPECTED (st.execute()) {
       result->sync_statistic_.leafs_.push_back(
         sync_statistic::log_info_t {
           t2.id.get(st),
@@ -135,35 +141,39 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic() {
           t2.order_no.get(st)
         });
     }
+    WHILE_EXPECTED_END()
 
     orm::transaction_log_hierarchy_dbo t3;
-    st = t.get_reader(t3.select(t3.id));
+    GET_EXPECTED_VALUE(st, t.get_reader(t3.select(t3.id)));
 
-    while(st.execute()) {
+    WHILE_EXPECTED(st.execute()) {
       auto id = t3.id.get(st);
 
       if(result->sync_statistic_.unknown_.end() == result->sync_statistic_.unknown_.find(id)) {
         result->sync_statistic_.unknown_.emplace(id);
       }
     }
+    WHILE_EXPECTED_END()
 
     orm::chunk_dbo t4;
-    st = t.get_reader(t4.select(t4.object_id));
+    GET_EXPECTED_VALUE(st, t.get_reader(t4.select(t4.object_id)));
 
-    while (st.execute()) {
+    WHILE_EXPECTED(st.execute()) {
       auto id = t4.object_id.get(st);
 
       if (result->sync_statistic_.chunks_.end() == result->sync_statistic_.chunks_.find(id)) {
         result->sync_statistic_.chunks_.emplace(id);
       }
     }
+    WHILE_EXPECTED_END()
 
     orm::chunk_replica_data_dbo t5;
-    st = t.get_reader(t5.select(t5.object_id, t5.replica));
+    GET_EXPECTED_VALUE(st, t.get_reader(t5.select(t5.object_id, t5.replica)));
 
-    while (st.execute()) {
+    WHILE_EXPECTED(st.execute()) {
       result->sync_statistic_.chunk_replicas_[t5.object_id.get(st)].emplace(t5.replica.get(st));
     }
+    WHILE_EXPECTED_END()
 
     //Sync statistics
     const auto client = this->sp_->get<dht::network::client>();
@@ -171,7 +181,7 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic() {
     std::set<const_data_buffer> leaders;
     orm::sync_state_dbo t6;
     orm::sync_member_dbo t7;
-    st = t.get_reader(
+    GET_EXPECTED_VALUE(st, t.get_reader(
       t6.select(
         t6.object_id,
         t6.state,
@@ -179,8 +189,8 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic() {
         t7.current_term,
         t7.commit_index,
         t7.last_applied)
-      .inner_join(t7, t7.object_id == t6.object_id && t7.member_node == client->current_node_id()));
-    while(st.execute()) {
+      .inner_join(t7, t7.object_id == t6.object_id && t7.member_node == client->current_node_id())));
+    WHILE_EXPECTED(st.execute()) {
       std::string state;
       switch(t6.state.get(st)) {
       case orm::sync_state_dbo::state_t::canditate:
@@ -201,18 +211,19 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic() {
       + "," + std::to_string(t7.last_applied.get(st))
       ;
     }
+    WHILE_EXPECTED_END()
 
     for(const auto & leader : leaders) {
       orm::sync_message_dbo t9;
-      st = t.get_reader(t9.select(
+      GET_EXPECTED_VALUE(st, t.get_reader(t9.select(
         t9.index,
         t9.message_type,
         t9.member_node,
         t9.replica,
         t9.source_node,
         t9.source_index)
-        .where(t9.object_id == leader));
-      while (st.execute()) {
+        .where(t9.object_id == leader)));
+      WHILE_EXPECTED(st.execute()) {
         std::string ch;
         switch(t9.message_type.get(st)) {
         case orm::sync_message_dbo::message_type_t::add_member:
@@ -237,25 +248,29 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic() {
           t9.source_index.get(st)
         };
       }
+      WHILE_EXPECTED_END()
     }
 
-    st = t.get_reader(t7.select(t7.object_id, t7.member_node, t7.voted_for));
-    while(st.execute()) {
+    GET_EXPECTED_VALUE(st, t.get_reader(t7.select(t7.object_id, t7.member_node, t7.voted_for)));
+    WHILE_EXPECTED(st.execute()) {
       result->sync_statistic_.sync_states_[t7.object_id.get(st)].members_[t7.member_node.get(st)].voted_for_ = t7.voted_for.get(st);
     }
+    WHILE_EXPECTED_END()
 
     orm::sync_replica_map_dbo t8;
-    st = t.get_reader(t8.select(t8.object_id, t8.node, t8.replica));
-    while (st.execute()) {
+    GET_EXPECTED_VALUE(st, t.get_reader(t8.select(t8.object_id, t8.node, t8.replica)));
+    WHILE_EXPECTED(st.execute()) {
       result->sync_statistic_.sync_states_[t8.object_id.get(st)].members_[t8.node.get(st)].replicas_.emplace(t8.replica.get(st));
     }
+    WHILE_EXPECTED_END()
 
-  });
+      return expected<void>();
+  }));
 
   co_return *result;
 }
 
-vds::async_task<void> vds::_server::apply_message(
+vds::async_task<vds::expected<void>> vds::_server::apply_message(
   
   database_transaction & t,
   const dht::messages::transaction_log_state & message,
@@ -263,7 +278,7 @@ vds::async_task<void> vds::_server::apply_message(
   return this->transaction_log_sync_process_->apply_message(t, message, message_info);
 }
 
-vds::async_task<void> vds::_server::apply_message(
+vds::async_task<vds::expected<void>> vds::_server::apply_message(
   
   database_transaction & t,
   const dht::messages::transaction_log_request & message,
@@ -271,7 +286,7 @@ vds::async_task<void> vds::_server::apply_message(
   return this->transaction_log_sync_process_->apply_message(t, message, message_info);
 }
 
-vds::async_task<void> vds::_server::apply_message(
+vds::async_task<vds::expected<void>> vds::_server::apply_message(
   
   database_transaction & t,
   const dht::messages::transaction_log_record & message,
@@ -279,10 +294,13 @@ vds::async_task<void> vds::_server::apply_message(
   return this->transaction_log_sync_process_->apply_message(t, message, message_info);
 }
 
-vds::async_task<void> vds::_server::on_new_session( const const_data_buffer& partner_id) {
+vds::async_task<vds::expected<void>> vds::_server::on_new_session( const const_data_buffer& partner_id) {
   
-  co_await this->sp_->get<db_model>()->async_read_transaction([this, partner_id](database_read_transaction & t) {
-    this->transaction_log_sync_process_->on_new_session(t, partner_id).get();
-    (*this->sp_->get<dht::network::client>())->on_new_session(t, partner_id).get();
-  });
+  CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_read_transaction([this, partner_id](database_read_transaction & t) -> expected<void> {
+    CHECK_EXPECTED(this->transaction_log_sync_process_->on_new_session(t, partner_id).get());
+    CHECK_EXPECTED((*this->sp_->get<dht::network::client>())->on_new_session(t, partner_id).get());
+    return expected<void>();
+  }));
+
+  co_return expected<void>();
 }

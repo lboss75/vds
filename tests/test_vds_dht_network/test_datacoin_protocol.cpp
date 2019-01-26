@@ -11,34 +11,34 @@
 #include "messages/transaction_log_messages.h"
 #include "transaction_log.h"
 
-static vds::async_task<std::shared_ptr<vds::user_manager>> create_user(
+static vds::async_task<vds::expected<std::shared_ptr<vds::user_manager>>> create_user(
   const vds::service_provider * sp,
   std::shared_ptr<vds::user_manager> root_user_mng,
   const std::string & user_name,
   const std::string & user_email,
   const std::string & user_password) {
-  auto user_request = vds::user_manager::create_register_request(
+  GET_EXPECTED_ASYNC(user_request, vds::user_manager::create_register_request(
     sp,
     user_name,
     user_email,
-    user_password);
+    user_password));
 
-  auto is_ok = co_await root_user_mng->approve_join_request(user_request);
-  vds_assert(is_ok);
+  CHECK_EXPECTED_ASYNC(co_await root_user_mng->approve_join_request(user_request));
 
   auto user_mng = std::make_shared<vds::user_manager>(sp);
-  co_await sp->get<vds::db_model>()->async_transaction([user_mng, user_email, user_password](vds::database_transaction & t) {
-    user_mng->load(t, user_email, user_password);
-  });
+  CHECK_EXPECTED_ASYNC(co_await sp->get<vds::db_model>()->async_transaction([user_mng, user_email, user_password](vds::database_transaction & t) -> vds::expected<void> {
+    return user_mng->load(t, user_email, user_password);
+  }));
 
   co_return user_mng;
 }
 
 TEST(test_vds_dht_network, test_datacoin_protocol) {
 
-  auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "test_datacoin_protocol"));
-  folder.delete_folder(true);
-  folder.create();
+  GET_EXPECTED_GTEST(current_process, vds::filename::current_process());
+  auto folder = vds::foldername(vds::foldername(current_process.contains_folder(), "test_datacoin_protocol"));
+  CHECK_EXPECTED_GTEST(folder.delete_folder(true));
+  CHECK_EXPECTED_GTEST(folder.create());
 
   vds::service_registrator registrator;
 
@@ -62,47 +62,48 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
   registrator.current_user(folder);
   registrator.local_machine(folder);
 
-  auto sp = registrator.build();
-  registrator.start();
+  GET_EXPECTED_GTEST(sp, registrator.build());
+  CHECK_EXPECTED_GTEST(registrator.start());
 
   std::string root_user_name = "root";
   std::string root_password = "123123";
 
   vds::cert_control::private_info_t private_info;
-  private_info.genereate_all();
-  vds::cert_control::genereate_all(root_user_name, root_password, private_info);
+  CHECK_EXPECTED_GTEST(private_info.genereate_all());
+  CHECK_EXPECTED_GTEST(vds::cert_control::genereate_all(root_user_name, root_password, private_info));
 
-  std::make_shared<vds::user_manager>(sp)->reset(root_user_name, root_password, private_info);
+  CHECK_EXPECTED_GTEST(std::make_shared<vds::user_manager>(sp)->reset(root_user_name, root_password, private_info));
   /*      0 - creare root                     root_user MAX
    */
 
   auto root_user_mng = std::make_shared<vds::user_manager>(sp);
-  sp->get<vds::db_model>()->async_transaction([root_user_mng, root_user_name, root_password](vds::database_transaction & t) {
-    root_user_mng->load(t, root_user_name, root_password);
-  }).get();
+  CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_transaction([root_user_mng, root_user_name, root_password](vds::database_transaction & t) -> vds::expected<void> {
+    return root_user_mng->load(t, root_user_name, root_password);
+  }).get());
 
   //Create User 1
-  auto user1_mng = create_user(sp, root_user_mng, "User1", "user1@domain.ru", "1234567").get();
+  GET_EXPECTED_GTEST(user1_mng, create_user(sp, root_user_mng, "User1", "user1@domain.ru", "1234567").get());
   /*      0 - creare root                     root_user MAX
    *      1 - creare user1                    root_user MAX
    */
 
   vds::const_data_buffer root_source;
   vds::const_data_buffer first_source;
-  sp->get<vds::db_model>()->async_transaction([sp, root_user_mng, user1_mng, &root_source, &first_source](vds::database_transaction & t) {
-    auto balance = vds::user_wallet::get_balance(t);
+  CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_transaction([sp, root_user_mng, user1_mng, &root_source, &first_source](vds::database_transaction & t) -> vds::expected<void> {
+    GET_EXPECTED(balance, vds::user_wallet::get_balance(t));
     vds_assert(balance.account_state().size() == 1);
     vds_assert(balance.account_state().begin()->second.balance_.size() == 1);
     root_source = balance.account_state().begin()->second.balance_.begin()->first;
 
-    vds::transactions::transaction_block_builder transaction_log(sp, t);
-    vds::user_wallet::transfer(transaction_log, root_source, user1_mng->get_current_user(), 100);
-    first_source = transaction_log.save(
+    GET_EXPECTED(transaction_log, vds::transactions::transaction_block_builder::create(sp, t));
+    CHECK_EXPECTED(vds::user_wallet::transfer(transaction_log, root_source, user1_mng->get_current_user(), 100));
+    GET_EXPECTED_VALUE(first_source, transaction_log.save(
       sp,
       t,
       root_user_mng->get_current_user().user_certificate(),
-      root_user_mng->get_current_user().private_key());
-  }).get();
+      root_user_mng->get_current_user().private_key()));
+    return vds::expected<void>();
+  }).get());
   /*      0 - (root_source, consensus) creare root              root_user MAX +
    *      1 - (consensus) creare user1                                      root_user MAX +
    *      2 - (first_source, consensus, leaf) root_user->user1: 100        root_user MAX-100 +  user1 100 -
@@ -112,17 +113,17 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
   auto root_user_account = root_user_mng->get_current_user().user_certificate()->subject();
   auto user1_account = user1_mng->get_current_user().user_certificate()->subject();
 
-  sp->get<vds::db_model>()->async_read_transaction(
-    [sp, root_user_mng, root_user_account, user1_mng, root_source, user1_account, first_source](vds::database_read_transaction & t) {
-    auto balance = vds::user_wallet::get_balance(t);
+  CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_read_transaction(
+    [sp, root_user_mng, root_user_account, user1_mng, root_source, user1_account, first_source](vds::database_read_transaction & t) -> vds::expected<void>{
+    GET_EXPECTED(balance, vds::user_wallet::get_balance(t));
     vds_assert(balance.account_state().size() == 2);
     vds_assert(balance.account_state().at(root_user_account).balance_.size() == 1);
     vds_assert(balance.account_state().at(user1_account).balance_.size() == 1);
     vds_assert(balance.account_state().at(user1_account).balance_.at(first_source) == 100);
 
     vds::orm::transaction_log_record_dbo t1;
-    auto st = t.get_reader(t1.select(t1.id, t1.state, t1.consensus, t1.new_member));
-    while(st.execute()) {
+    GET_EXPECTED(st, t.get_reader(t1.select(t1.id, t1.state, t1.consensus, t1.new_member)));
+    WHILE_EXPECTED(st.execute()) {
       if(t1.id.get(st) == root_source) {
         vds_assert(t1.new_member.get(st));
         vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
@@ -134,27 +135,32 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
         vds_assert(t1.consensus.get(st));
       }
     }
+    WHILE_EXPECTED_END()
 
     vds::orm::transaction_log_vote_request_dbo t2;
-    st = t.get_reader(t2.select(t2.owner, t2.approved).where(t2.id == first_source));
-    while (st.execute()) {
+    GET_EXPECTED_VALUE(st, t.get_reader(t2.select(t2.owner, t2.approved).where(t2.id == first_source)));
+    WHILE_EXPECTED (st.execute()) {
       vds_assert(t2.owner.get(st) == root_user_account);
       vds_assert(t2.approved.get(st));
     }
-  }).get();
+    WHILE_EXPECTED_END()
+
+    return vds::expected<void>();
+  }).get());
   ///////////////////////
-  auto user2_mng = create_user(sp, root_user_mng, "User2", "user2@domain.ru", "1234567").get();
+  GET_EXPECTED_GTEST(user2_mng, create_user(sp, root_user_mng, "User2", "user2@domain.ru", "1234567").get());
   auto user2_account = user2_mng->get_current_user().user_certificate()->subject();
 
   vds::const_data_buffer log12;
-  sp->get<vds::db_model>()->async_read_transaction([sp, root_user_mng, user1_mng, first_source, user2_mng, &log12](vds::database_read_transaction & t) {
-    vds::transactions::transaction_block_builder transaction_log(sp, t);
-    vds::user_wallet::transfer(transaction_log, first_source, user2_mng->get_current_user(), 50);
-    log12 = transaction_log.sign(
+  CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_read_transaction([sp, root_user_mng, user1_mng, first_source, user2_mng, &log12](vds::database_read_transaction & t) -> vds::expected<void>{
+    GET_EXPECTED(transaction_log, vds::transactions::transaction_block_builder::create(sp, t));
+    CHECK_EXPECTED(vds::user_wallet::transfer(transaction_log, first_source, user2_mng->get_current_user(), 50));
+    GET_EXPECTED_VALUE(log12, transaction_log.sign(
       sp,
       user1_mng->get_current_user().user_certificate(),
-      user1_mng->get_current_user().private_key());
-  }).get();
+      user1_mng->get_current_user().private_key()));
+    return vds::expected<void>();
+  }).get());
   /*      0 - (root_source, consensus) creare root       root_user MAX +
    *      1 - creare user1                               root_user MAX +
    *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
@@ -164,18 +170,19 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
    */
 
 
-  auto user3_mng = create_user(sp, root_user_mng, "User3", "user3@domain.ru", "1234567").get();
+  GET_EXPECTED_GTEST(user3_mng, create_user(sp, root_user_mng, "User3", "user3@domain.ru", "1234567").get());
   auto user3_account = user3_mng->get_current_user().user_certificate()->subject();
 
   vds::const_data_buffer log13;
-  sp->get<vds::db_model>()->async_read_transaction([sp, root_user_mng, user1_mng, first_source, user3_mng, &log13](vds::database_read_transaction & t) {
-    vds::transactions::transaction_block_builder transaction_log(sp, t);
-    vds::user_wallet::transfer(transaction_log, first_source, user3_mng->get_current_user(), 50);
-    log13 = transaction_log.sign(
+  CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_read_transaction([sp, root_user_mng, user1_mng, first_source, user3_mng, &log13](vds::database_read_transaction & t) -> vds::expected<void>{
+    GET_EXPECTED(transaction_log, vds::transactions::transaction_block_builder::create(sp, t));
+    CHECK_EXPECTED(vds::user_wallet::transfer(transaction_log, first_source, user3_mng->get_current_user(), 50));
+    GET_EXPECTED_VALUE(log13, transaction_log.sign(
       sp,
       user1_mng->get_current_user().user_certificate(),
-      user1_mng->get_current_user().private_key());
-  }).get();
+      user1_mng->get_current_user().private_key()));
+    return vds::expected<void>();
+  }).get());
   /*      0 - (root_source, consensus) creare root       root_user MAX +
    *      1 - creare user1                               root_user MAX +
    *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
@@ -187,18 +194,19 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
    *      | * (log13) user1->user3:50                    root_user MAX-100 -  user1 50 +   user3 50 -
    */
 
-  auto user4_mng = create_user(sp, root_user_mng, "User4", "user4@domain.ru", "1234567").get();
+  GET_EXPECTED_GTEST(user4_mng, create_user(sp, root_user_mng, "User4", "user4@domain.ru", "1234567").get());
   auto user4_account = user4_mng->get_current_user().user_certificate()->subject();
 
   vds::const_data_buffer log14;
-  sp->get<vds::db_model>()->async_read_transaction([sp, root_user_mng, user1_mng, first_source, user4_mng, &log14](vds::database_read_transaction & t) {
-    vds::transactions::transaction_block_builder transaction_log(sp, t);
-    vds::user_wallet::transfer(transaction_log, first_source, user4_mng->get_current_user(), 50);
-    log14 = transaction_log.sign(
+  CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_read_transaction([sp, root_user_mng, user1_mng, first_source, user4_mng, &log14](vds::database_read_transaction & t) -> vds::expected<void> {
+    GET_EXPECTED(transaction_log, vds::transactions::transaction_block_builder::create(sp, t));
+    CHECK_EXPECTED(vds::user_wallet::transfer(transaction_log, first_source, user4_mng->get_current_user(), 50));
+    GET_EXPECTED(log14, transaction_log.sign(
       sp,
       user1_mng->get_current_user().user_certificate(),
-      user1_mng->get_current_user().private_key());
-  }).get();
+      user1_mng->get_current_user().private_key()));
+    return vds::expected<void>();
+  }).get());
   /*      0 - (root_source, consensus) creare root       root_user MAX +
    *      1 - creare user1                               root_user MAX +
    *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
@@ -215,11 +223,11 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
 
   //Validate
   vds::const_data_buffer log12_id;
-  sp->get<vds::db_model>()->async_transaction(
-    [sp, root_user_mng, root_user_account, user1_mng, root_source, user1_account, user2_account, first_source, log12, &log12_id](vds::database_transaction & t) {
-    log12_id = vds::transactions::transaction_log::save(sp, t, log12);
+  CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_transaction(
+    [sp, root_user_mng, root_user_account, user1_mng, root_source, user1_account, user2_account, first_source, log12, &log12_id](vds::database_transaction & t) -> vds::expected<void>{
+    GET_EXPECTED_VALUE(log12_id, vds::transactions::transaction_log::save(sp, t, log12));
 
-    auto balance = vds::user_wallet::get_balance(t);
+    GET_EXPECTED(balance, vds::user_wallet::get_balance(t));
     vds_assert(balance.account_state().size() == 3);
     vds_assert(balance.account_state().at(root_user_account).balance_.size() == 1);
     vds_assert(balance.account_state().at(user1_account).balance_.size() == 1);
@@ -228,8 +236,8 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     vds_assert(balance.account_state().at(user2_account).balance_.at(log12_id) == 50);
 
     vds::orm::transaction_log_record_dbo t1;
-    auto st = t.get_reader(t1.select(t1.id, t1.state, t1.consensus));
-    while (st.execute()) {
+    GET_EXPECTED(st, t.get_reader(t1.select(t1.id, t1.state, t1.consensus)));
+    WHILE_EXPECTED (st.execute()) {
       if (t1.id.get(st) == root_source) {
         vds_assert(t1.consensus.get(st));
         vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
@@ -243,7 +251,10 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
         vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::leaf);
       }
     }
-  }).get();
+    WHILE_EXPECTED_END()
+
+    return vds::expected<void>();
+  }).get());
   /*      0 - (root_source, consensus) creare root       root_user MAX +
    *      1 - creare user1                               root_user MAX +
    *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
@@ -259,7 +270,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
    */
 
   vds::const_data_buffer log13_id;
-  sp->get<vds::db_model>()->async_transaction(
+  CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_transaction(
     [
       sp,
       root_user_mng,
@@ -272,10 +283,10 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
       first_source,
       log13,
       log12_id,
-      &log13_id](vds::database_transaction & t) {
-    log13_id = vds::transactions::transaction_log::save(sp, t, log13);
+      &log13_id](vds::database_transaction & t) -> vds::expected<void> {
+    GET_EXPECTED_VALUE(log13_id, vds::transactions::transaction_log::save(sp, t, log13));
 
-    auto balance = vds::user_wallet::get_balance(t);
+    GET_EXPECTED(balance, vds::user_wallet::get_balance(t));
     vds_assert(balance.account_state().size() == 4);
     vds_assert(balance.account_state().at(root_user_account).balance_.size() == 1);
     vds_assert(balance.account_state().at(user1_account).balance_.size() == 1);
@@ -286,8 +297,8 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     vds_assert(balance.account_state().at(user3_account).balance_.at(log13_id) == 50);
 
     vds::orm::transaction_log_record_dbo t1;
-    auto st = t.get_reader(t1.select(t1.id, t1.state, t1.consensus));
-    while (st.execute()) {
+    GET_EXPECTED(st, t.get_reader(t1.select(t1.id, t1.state, t1.consensus)));
+    WHILE_EXPECTED (st.execute()) {
       if (t1.id.get(st) == root_source) {
         vds_assert(t1.consensus.get(st));
         vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::processed);
@@ -305,7 +316,10 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
         vds_assert(t1.state.get(st) == vds::orm::transaction_log_record_dbo::state_t::leaf);
       }
     }
-  }).get();
+    WHILE_EXPECTED_END()
+
+    return vds::expected<void>();
+  }).get());
   /*      0 - (root_source, consensus) creare root       root_user MAX +
    *      1 - creare user1                               root_user MAX +
    *      2 - (first_source) root_user->user1: 100       root_user MAX-100 +  user1 100 -
@@ -463,6 +477,5 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
    *      | | /
    *      | *    (log14_log12, leaf)
    */
-  registrator.shutdown();
-
+  CHECK_EXPECTED_GTEST(registrator.shutdown());
 }

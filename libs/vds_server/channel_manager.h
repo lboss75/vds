@@ -25,8 +25,6 @@ namespace vds {
     
     void remove_member(
       const std::string & id);
-    
-  private:
   };
 }
 

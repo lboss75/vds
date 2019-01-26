@@ -15,18 +15,18 @@ std::wstring vds::utf16::from_utf8(const std::string & original)
   return convert.from_bytes(original);
 }
 
-std::string vds::utf16::to_utf8(const std::wstring & original)
+vds::expected<std::string> vds::utf16::to_utf8(const std::wstring & original)
 {
   std::string result;
   result.reserve(original.length());
 
   for (auto ch : original) {
-    utf8::add(result, ch);
+    CHECK_EXPECTED(utf8::add(result, ch));
   }
   return result;
 }
 
-size_t vds::utf8::char_size(char first_utf8_symbol)
+vds::expected<size_t> vds::utf8::char_size(char first_utf8_symbol)
 {
   if (0 == (0b10000000 & (uint8_t)first_utf8_symbol)) {
     return 1;
@@ -41,12 +41,12 @@ size_t vds::utf8::char_size(char first_utf8_symbol)
     return 4;
   }
   else {
-    throw std::runtime_error("Invalid UTF8 string");
+    return vds::make_unexpected<std::runtime_error>("Invalid UTF8 string");
   }
 }
 
 
-wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
+vds::expected<wchar_t> vds::utf8::next_char(const char *& utf8string, size_t & len)
 {
   if (len == 0) {
     return 0;
@@ -59,7 +59,7 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
   }
   else if (0b11000000 == (0b11100000 & (uint8_t)*utf8string)) {
     if (len < 2 || (0b10000000 != (0b11000000 & (uint8_t)utf8string[1]))) {
-      throw std::runtime_error("Invalid UTF8 string");
+      return vds::make_unexpected<std::runtime_error>("Invalid UTF8 string");
     }
 
     result = (wchar_t)((((0b00011111 & (uint8_t)utf8string[0]) << 6) | (0b00111111 & (uint8_t)utf8string[1])));
@@ -70,7 +70,7 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
     if (len < 3
       || (0b10000000 != (0b11000000 & (uint8_t)utf8string[1]))
       || (0b10000000 != (0b11000000 & (uint8_t)utf8string[2]))) {
-      throw std::runtime_error("Invalid UTF8 string");
+      return vds::make_unexpected<std::runtime_error>("Invalid UTF8 string");
     }
 
     result = (wchar_t)(//0x800 +
@@ -86,7 +86,7 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
       || (0b10000000 != (0b11000000 & (uint8_t)utf8string[1]))
       || (0b10000000 != (0b11000000 & (uint8_t)utf8string[2]))
       || (0b10000000 != (0b11000000 & (uint8_t)utf8string[3]))) {
-      throw std::runtime_error("Invalid UTF8 string");
+      return vds::make_unexpected<std::runtime_error>("Invalid UTF8 string");
     }
 
     result = (wchar_t)(//0x10000 +
@@ -99,13 +99,13 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
     len -= 4;
   }
   else {
-    throw std::runtime_error("Invalid UTF8 string");
+    return vds::make_unexpected<std::runtime_error>("Invalid UTF8 string");
   }
 
   return result;
 }
 
-void vds::utf8::add(std::string& result, wchar_t ch)
+vds::expected<void> vds::utf8::add(std::string& result, wchar_t ch)
 {
   if (ch < 0x80) {
     result += (char)ch;
@@ -126,8 +126,10 @@ void vds::utf8::add(std::string& result, wchar_t ch)
     result += (char)(0b10000000 | (0b00111111 & (ch - 0x10000)));
   }
   else {
-    throw std::runtime_error("Invalid UTF16 string");
+    return vds::make_unexpected<std::runtime_error>("Invalid UTF16 string");
   }
+
+  return expected<void>();
 }
 
 
@@ -153,14 +155,14 @@ std::string vds::base64::from_bytes(const void * _data, size_t len)
   switch(len)
   {
   case 1:
-    temp  = (*data++) << 16;
+    temp  = *data << 16;
     encodedString.append(1,encodeLookup[(temp & 0x00FC0000) >> 18]);
     encodedString.append(1,encodeLookup[(temp & 0x0003F000) >> 12]);
     encodedString.append(2,padCharacter);
     break;
   case 2:
     temp  = (*data++) << 16;
-    temp += (*data++) << 8;
+    temp += *data << 8;
     encodedString.append(1,encodeLookup[(temp & 0x00FC0000) >> 18]);
     encodedString.append(1,encodeLookup[(temp & 0x0003F000) >> 12]);
     encodedString.append(1,encodeLookup[(temp & 0x00000FC0) >> 6 ]);
@@ -176,10 +178,10 @@ std::string vds::base64::from_bytes(const const_data_buffer & data)
   return from_bytes(data.data(), data.size());
 }
 
-vds::const_data_buffer vds::base64::to_bytes(const std::string& data)
+vds::expected<vds::const_data_buffer> vds::base64::to_bytes(const std::string& data)
 {
   if (data.length() % 4){
-    throw std::runtime_error("Non-Valid base64!");
+    return vds::make_unexpected<std::runtime_error>("Non-Valid base64!");
   }
   
   size_t padding = 0;
@@ -218,17 +220,17 @@ vds::const_data_buffer vds::base64::to_bytes(const std::string& data)
       switch(padding) {
       case 1: //One pad character
         result[offset++] = (temp >> 16) & 0x000000FF;
-        result[offset++] = (temp >> 8 ) & 0x000000FF;
+        result[offset] = (temp >> 8 ) & 0x000000FF;
         return const_data_buffer(result);
       case 2: //Two pad characters
-        result[offset++] = (temp >> 10) & 0x000000FF;
+        result[offset] = (temp >> 10) & 0x000000FF;
         return const_data_buffer(result);
       default:
-        throw std::runtime_error("Invalid Padding in Base 64!");
+        return vds::make_unexpected<std::runtime_error>("Invalid Padding in Base 64!");
       }
     }
     else {
-      throw std::runtime_error("Non-Valid Character in Base 64!");
+      return vds::make_unexpected<std::runtime_error>("Non-Valid Character in Base 64!");
     }
     
     if(4 == ++quantumPosition) {
@@ -367,7 +369,7 @@ std::string vds::url_encode::decode(const std::string& original) {
 //        state = 2;
 //      }
 //      else {
-//        throw std::runtime_error("Invalid string");
+//        return vds::make_unexpected<std::runtime_error>("Invalid string");
 //      }
 //      break;
 //    case 2:
@@ -384,7 +386,7 @@ std::string vds::url_encode::decode(const std::string& original) {
 //        state = 0;
 //      }
 //      else {
-//        throw std::runtime_error("Invalid string");
+//        return vds::make_unexpected<std::runtime_error>("Invalid string");
 //      }
 //      break;
 //    }

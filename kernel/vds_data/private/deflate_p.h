@@ -17,19 +17,21 @@ namespace vds {
 	class _deflate_handler
 	{
 	public:
-		_deflate_handler(
+    expected<void> create(
       const std::shared_ptr<stream_output_async<uint8_t>> & target,
-        int compression_level)
-			: target_(target)
-		{
-			memset(&this->strm_, 0, sizeof(z_stream));
-			if (Z_OK != deflateInit(&this->strm_, compression_level)) {
-				throw std::runtime_error("deflateInit failed");
-			}
+      int compression_level) {
+
+      this->target_ = target;
+      memset(&this->strm_, 0, sizeof(z_stream));
+      if (Z_OK != deflateInit(&this->strm_, compression_level)) {
+        return make_unexpected<std::runtime_error>("deflateInit failed");
+      }
+
+      return expected<void>();
 		}
 
-		vds::async_task<void> write_async(
-      
+
+		vds::async_task<expected<void>> write_async(      
       const uint8_t * input_data,
       size_t input_size)
 		{
@@ -44,16 +46,16 @@ namespace vds {
           auto error = ::deflate(&this->strm_, Z_FINISH);
 
           if (Z_STREAM_ERROR == error) {
-            throw std::runtime_error("deflate failed");
+            co_return make_unexpected<std::runtime_error>("deflate failed");
           }
 
           auto written = sizeof(buffer) - this->strm_.avail_out;
-          co_await this->target_->write_async(buffer, written);
+          CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(buffer, written));
         } while (0 == this->strm_.avail_out);
 
 				deflateEnd(&this->strm_);
-        co_await this->target_->write_async(input_data, input_size);
-				co_return;
+        CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(input_data, input_size));
+				co_return expected<void>();
 			}
 
 			this->strm_.next_in = (Bytef *)input_data;
@@ -66,14 +68,16 @@ namespace vds {
 				auto error = ::deflate(&this->strm_, Z_NO_FLUSH);
 
 				if (Z_STREAM_ERROR == error) {
-					throw std::runtime_error("deflate failed");
+          co_return make_unexpected<std::runtime_error>("deflate failed");
 				}
 
 				auto written = sizeof(buffer) - this->strm_.avail_out;
         if (0 != written) {
-          co_await this->target_->write_async(buffer, written);
+          CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(buffer, written));
         }
 			} while (0 == this->strm_.avail_out);
+
+      co_return expected<void>();
 		}
 
 	private:

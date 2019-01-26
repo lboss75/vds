@@ -64,7 +64,12 @@ namespace vds {
   class _database_value_convertor<const_data_buffer, std::string> {
   public:
     static const_data_buffer from_db_value(const std::string & value) {
-      return base64::to_bytes(value);
+      auto result = base64::to_bytes(value);
+      if(result.has_error()) {
+        throw std::runtime_error(result.error()->what());
+      }
+
+      return result.value();
     }
 
     static std::string to_db_value(const const_data_buffer & value) {
@@ -242,13 +247,14 @@ namespace vds {
       return "?" + std::to_string(this->set_parameters_.size());
     }
     
-    sql_statement set_parameters(sql_statement && st)
+    expected<sql_statement> set_parameters(expected<sql_statement> && st)
     {
-      int index = 0;
-      for(auto & p : this->set_parameters_){
-        p(st, ++index);
+      if (st.has_value()) {
+        int index = 0;
+        for (auto & p : this->set_parameters_) {
+          p(st.value(), ++index);
+        }
       }
-      
       return std::move(st);
     }
     
@@ -1789,7 +1795,7 @@ namespace vds {
   class sql_command_builder
   {
   public:
-    sql_statement build(const database_read_transaction & t, const source_type & source)
+    expected<sql_statement> build(const database_read_transaction & t, const source_type & source)
     {
       std::map<const database_table *, std::string> aliases;
       source.collect_aliases(aliases);

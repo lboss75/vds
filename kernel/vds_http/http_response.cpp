@@ -73,20 +73,25 @@ vds::http_message vds::http_response::status_response(
   return http_message(headers, std::make_shared<buffer_stream_input_async>(const_data_buffer()));
 }
 
-vds::http_message vds::http_response::file_response(
+vds::expected<vds::http_message> vds::http_response::file_response(
   const filename & body_file,
   const std::string & out_filename,
   const std::string & content_type,
   int result_code /*= HTTP_OK*/,
     const std::string & message /*= "OK"*/){
 
+  GET_EXPECTED(body_size, file::length(body_file));
+
   std::list<std::string> headers;
   headers.push_back("HTTP/1.0 " + std::to_string(result_code) + " " + message);
   headers.push_back("Content-Type:" + content_type);
-  headers.push_back("Content-Length:" + std::to_string(file::length(body_file)));
+  headers.push_back("Content-Length:" + std::to_string(body_size));
   headers.push_back("Content-Disposition:attachment; filename=\"" + out_filename + "\"");
-  
-  return http_message(headers, std::make_shared<file_stream_input_async>(body_file));
+
+  auto f = std::make_shared<file_stream_input_async>();
+  CHECK_EXPECTED(f->open(body_file));
+
+  return http_message(headers, f);
 }
 
 vds::http_message vds::http_response::file_response(

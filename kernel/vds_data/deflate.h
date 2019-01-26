@@ -16,21 +16,24 @@ namespace vds {
   class deflate : public stream_output_async<uint8_t>
   {
   public:
-    deflate(const std::shared_ptr<stream_output_async<uint8_t>> & target);
-    deflate(const std::shared_ptr<stream_output_async<uint8_t>> & target, int compression_level);
+    deflate();
+    deflate(_deflate_handler * impl)
+      : impl_(impl) {      
+    }
+
     ~deflate();
 
-    static const_data_buffer compress(
-      
+    static expected<std::shared_ptr<deflate>> create(const std::shared_ptr<stream_output_async<uint8_t>> & target);
+    static expected<std::shared_ptr<deflate>> create(const std::shared_ptr<stream_output_async<uint8_t>> & target, int compression_level);
+
+    static expected<const_data_buffer> compress(
       const uint8_t * data,
       size_t len);
     
-    static const_data_buffer compress(
-      
+    static expected<const_data_buffer> compress(      
       const const_data_buffer & data);
 
-    vds::async_task<void> write_async(
-        
+    vds::async_task<vds::expected<void>> write_async(        
         const uint8_t *data,
         size_t len) override;
 

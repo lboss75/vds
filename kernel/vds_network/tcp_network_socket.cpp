@@ -21,8 +21,7 @@ vds::tcp_network_socket::~tcp_network_socket(){
   delete this->impl_;
 #endif//_WIN32
 }
-
-std::shared_ptr<vds::tcp_network_socket> vds::tcp_network_socket::connect(
+vds::expected<std::shared_ptr<vds::tcp_network_socket>> vds::tcp_network_socket::connect(
   const service_provider * sp,
   const network_address & address)
 {
@@ -38,22 +37,22 @@ std::shared_ptr<vds::tcp_network_socket> vds::tcp_network_socket::connect(
 
       // Connexion setting for local connexion 
 #ifdef _WIN32
+      GET_EXPECTED(handle, s->handle());
       // Connect 
-      if (SOCKET_ERROR == ::connect(s->handle(), address, address.size())) {
+      if (SOCKET_ERROR == ::connect(handle, address, address.size())) {
         // As we are in non-blocking mode we'll always have the error 
         // WSAEWOULDBLOCK whichis actually not one 
         auto error = WSAGetLastError();
         if (WSAEWOULDBLOCK != error) {
-          throw std::system_error(error, std::system_category(), "connect");
+          return vds::make_unexpected<std::system_error>(error, std::system_category(), "connect");
         }
       }
-
-      (*sp->get<network_service>())->associate(s->handle());
+      CHECK_EXPECTED((*sp->get<network_service>())->associate(handle));
 #else
       // Connect 
       if (0 > ::connect(s->handle(), address, address.size())) {
         auto error = errno;
-        throw std::system_error(error, std::generic_category(), "connect");
+        return vds::make_unexpected<std::system_error>(error, std::generic_category(), "connect");
       }
       s->make_socket_non_blocking();
       s->set_timeouts();
@@ -111,7 +110,7 @@ bool vds::tcp_network_socket::operator!() const {
 void vds::_tcp_network_socket::process(uint32_t events) {
   if(EPOLLOUT == (EPOLLOUT & events)){
     if(0 == (this->event_masks_ & EPOLLOUT)) {
-      throw std::runtime_error("Invalid state");
+      return vds::make_unexpected<std::runtime_error>("Invalid state");
     }
 
     this->write_task_.lock()->process();
@@ -119,7 +118,7 @@ void vds::_tcp_network_socket::process(uint32_t events) {
 
   if(EPOLLIN == (EPOLLIN & events)){
     if(0 == (this->event_masks_ & EPOLLIN)) {
-      throw std::runtime_error("Invalid state");
+      return vds::make_unexpected<std::runtime_error>("Invalid state");
     }
 
     this->read_task_.lock()->process();

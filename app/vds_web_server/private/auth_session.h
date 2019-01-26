@@ -21,8 +21,8 @@ namespace vds {
         const std::string & login,
         const std::string & password);
 
-    vds::async_task<void> load(const service_provider * sp);
-    vds::async_task<void> update();
+    vds::async_task<vds::expected<void>> load(const service_provider * sp);
+    vds::async_task<vds::expected<void>> update();
 
     const std::shared_ptr<user_manager> & get_secured_context(
         ) const {

@@ -17,7 +17,7 @@ namespace vds {
   {
   public:
 
-    static vds::async_task<http_message> register_request_post(
+    static vds::async_task<vds::expected<http_message>> register_request_post(
       const vds::service_provider * sp,
       const std::shared_ptr<_web_server>& owner,
       const http_message& message);

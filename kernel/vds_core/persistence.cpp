@@ -12,7 +12,7 @@ All rights reserved
 #include <pwd.h>
 #endif
 
-vds::foldername vds::persistence::current_user(const service_provider * sp)
+vds::expected<vds::foldername> vds::persistence::current_user(const service_provider * sp)
 {
   auto props = sp->current_user();
   if (!props.empty()) {
@@ -27,7 +27,7 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
 
   auto buf = malloc(bufsize);
   if (buf == NULL) {
-    throw std::runtime_error("Out of memory");
+    return vds::make_unexpected<std::runtime_error>("Out of memory");
   }
 
   struct passwd pwd;
@@ -36,9 +36,9 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
   if (result == NULL) {
     free(buf);
     if (s == 0) {
-      throw std::runtime_error("Not found user folder");
+      return vds::make_unexpected<std::runtime_error>("Not found user folder");
     } else {
-      throw std::system_error(s, std::system_category(), "getpwnam_r");
+      return vds::make_unexpected<std::system_error>(s, std::system_category(), "getpwnam_r");
     }
   }
 
@@ -57,7 +57,7 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
     SHGFP_TYPE_CURRENT,
     result);
   if(NO_ERROR != error) {
-    throw std::system_error(error, std::system_category(), "SHGetFolderPath");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "SHGetFolderPath");
   }
 
   for(auto p = strchr(result, '\\'); nullptr != p; p = strchr(p + 1, '\\')) {
@@ -68,7 +68,7 @@ vds::foldername vds::persistence::current_user(const service_provider * sp)
 #endif
 }
 
-vds::foldername vds::persistence::local_machine(const service_provider * sp)
+vds::expected<vds::foldername> vds::persistence::local_machine(const service_provider * sp)
 {
   auto props = sp->local_machine();
   if (!props.empty()) {
@@ -86,7 +86,7 @@ vds::foldername vds::persistence::local_machine(const service_provider * sp)
     SHGFP_TYPE_CURRENT,
     result);
   if(NO_ERROR != error) {
-    throw std::system_error(error, std::system_category(), "SHGetFolderPath");
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "SHGetFolderPath");
   }
 
   for (auto p = strchr(result, '\\'); nullptr != p; p = strchr(p + 1, '\\')) {

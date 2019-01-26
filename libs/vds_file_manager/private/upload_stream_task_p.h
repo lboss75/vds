@@ -23,7 +23,7 @@ namespace vds {
   public:
     _upload_stream_task();
 
-    vds::async_task<std::list<transactions::user_message_transaction::file_block_t>> start(
+    vds::async_task<vds::expected<std::list<transactions::user_message_transaction::file_block_t>>> start(
         const service_provider * sp,
         const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
 

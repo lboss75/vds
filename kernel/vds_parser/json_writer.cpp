@@ -17,7 +17,7 @@ std::string vds::json_writer::str() const
 }
 
 
-void vds::json_writer::write_string_value(const std::string & value)
+vds::expected<void> vds::json_writer::write_string_value(const std::string & value)
 {
   switch (this->state_)
   {
@@ -34,13 +34,13 @@ void vds::json_writer::write_string_value(const std::string & value)
     break;
 
   default:
-    throw std::runtime_error("Invalid json_writer state");
+    return vds::make_unexpected<std::runtime_error>("Invalid json_writer state");
   }
 
-  this->write_string(value);
+  return this->write_string(value);
 }
 
-void vds::json_writer::write_null_value()
+vds::expected<void> vds::json_writer::write_null_value()
 {
   switch (this->state_)
   {
@@ -53,13 +53,14 @@ void vds::json_writer::write_null_value()
     break;
 
   default:
-    throw std::runtime_error("Invalid json_writer state");
+    return vds::make_unexpected<std::runtime_error>("Invalid json_writer state");
   }
 
   this->stream_ << "null";
+  return expected<void>();
 }
 
-void vds::json_writer::start_property(const std::string & name)
+vds::expected<void> vds::json_writer::start_property(const std::string & name)
 {
   switch (this->state_)
   {
@@ -70,17 +71,18 @@ void vds::json_writer::start_property(const std::string & name)
     this->stream_ << ',';
     break;
   default:
-    throw std::runtime_error("Invalid json_writer state");
+    return vds::make_unexpected<std::runtime_error>("Invalid json_writer state");
   }
 
   this->state_path_.push(this->state_);
   this->state_ = PROPERTY;
 
-  this->write_string(name);
+  CHECK_EXPECTED(this->write_string(name));
   this->stream_ << ':';
+  return expected<void>();
 }
 
-void vds::json_writer::end_property()
+vds::expected<void> vds::json_writer::end_property()
 {
   switch (this->state_)
   {
@@ -88,21 +90,22 @@ void vds::json_writer::end_property()
     break;
 
   default:
-    throw std::runtime_error("Invalid json_writer state");
+    return vds::make_unexpected<std::runtime_error>("Invalid json_writer state");
   }
 
   this->state_ = this->state_path_.top();
   this->state_path_.pop();
+  return expected<void>();
 }
 
-void vds::json_writer::write_property(const std::string & name, const std::string & value)
+vds::expected<void> vds::json_writer::write_property(const std::string & name, const std::string & value)
 {
-  this->start_property(name);
-  this->write_string_value(value);
-  this->end_property();
+  CHECK_EXPECTED(this->start_property(name));
+  CHECK_EXPECTED(this->write_string_value(value));
+  return this->end_property();
 }
 
-void vds::json_writer::start_object()
+vds::expected<void> vds::json_writer::start_object()
 {
   switch (this->state_)
   {
@@ -123,15 +126,16 @@ void vds::json_writer::start_object()
     break;
 
   default:
-    throw std::runtime_error("Invalid json_writer state");
+    return vds::make_unexpected<std::runtime_error>("Invalid json_writer state");
   }
 
   this->state_ = START_OBJECT;
 
   this->stream_ << '{';
+  return expected<void>();
 }
 
-void vds::json_writer::end_object()
+vds::expected<void> vds::json_writer::end_object()
 {
   switch (this->state_)
   {
@@ -140,16 +144,17 @@ void vds::json_writer::end_object()
     break;
 
   default:
-    throw std::runtime_error("Invalid json_writer state");
+    return vds::make_unexpected<std::runtime_error>("Invalid json_writer state");
   }
 
   this->state_ = this->state_path_.top();
   this->state_path_.pop();
 
   this->stream_ << '}';
+  return expected<void>();
 }
 
-void vds::json_writer::start_array()
+vds::expected<void> vds::json_writer::start_array()
 {
   switch (this->state_)
   {
@@ -165,15 +170,16 @@ void vds::json_writer::start_array()
     break;
 
   default:
-    throw std::runtime_error("Invalid json_writer state");
+    return vds::make_unexpected<std::runtime_error>("Invalid json_writer state");
   }
 
   this->state_ = START_ARRAY;
 
   this->stream_ << '[';
+  return expected<void>();
 }
 
-void vds::json_writer::end_array()
+vds::expected<void> vds::json_writer::end_array()
 {
   switch (this->state_)
   {
@@ -182,23 +188,24 @@ void vds::json_writer::end_array()
     break;
 
   default:
-    throw std::runtime_error("Invalid json_writer state");
+    return vds::make_unexpected<std::runtime_error>("Invalid json_writer state");
   }
 
   this->state_ = this->state_path_.top();
   this->state_path_.pop();
 
   this->stream_ << ']';
+  return expected<void>();
 }
 
-void vds::json_writer::write_string(const std::string & value)
+vds::expected<void> vds::json_writer::write_string(const std::string & value)
 {
   this->stream_ << '\"';
   const char * utf8string = value.c_str();
   size_t len = value.length();
 
   while(0 < len) {
-    auto ch = utf8::next_char(utf8string, len);
+    GET_EXPECTED(ch, utf8::next_char(utf8string, len));
     switch (ch) {
     case '\\':
       this->stream_ << "\\\\";
@@ -232,4 +239,5 @@ void vds::json_writer::write_string(const std::string & value)
   }
 
   this->stream_ << '\"';
+  return expected<void>();
 }

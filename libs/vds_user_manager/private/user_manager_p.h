@@ -14,7 +14,7 @@ All rights reserved
 namespace vds {
   class _user_manager : public std::enable_shared_from_this<_user_manager> {
   public:
-    _user_manager(
+    expected<void> create(
       const service_provider * sp,
       const std::string & user_login,
       const std::string & user_password);
@@ -35,7 +35,7 @@ namespace vds {
       return this->login_state_;
     }
 
-    void update(        
+    expected<void> update(        
         class database_read_transaction &t);
 
 
@@ -68,19 +68,18 @@ namespace vds {
       return this->user_private_key_;
     }
 
-    async_task<bool> approve_join_request(
-      
+    async_task<expected<bool>> approve_join_request(
       const const_data_buffer& data);
 
     const std::string& user_name() const;
 
-    static bool parse_join_request(
+    static expected<bool> parse_join_request(
         
         const const_data_buffer & data,
         std::string & userName,
         std::string & userEmail);
 
-    async_task<user_channel> create_channel(
+    async_task<expected<user_channel>> create_channel(
       const std::string & channel_type,
       const std::string& name) ;
 

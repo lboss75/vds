@@ -17,6 +17,8 @@ All rights reserved
 namespace vds {
   class user_wallet {
   public:
+    user_wallet() = default;
+
     user_wallet(
       const std::string & name,
       certificate && cert,
@@ -26,19 +28,19 @@ namespace vds {
       private_key_(std::move(private_key)) {
     }
 
-    static transactions::transaction_record_state get_balance(
+    static expected<transactions::transaction_record_state> get_balance(
       database_read_transaction& t);
 
-    static transactions::transaction_record_state safe_get_balance(
+    static expected<transactions::transaction_record_state> safe_get_balance(
       const service_provider * sp,
       database_transaction& t);
 
-    static user_wallet create_wallet(
+    static expected<user_wallet> create_wallet(
       transactions::transaction_block_builder & log,
       const member_user & target_user,
       const std::string & name);
 
-    static void transfer(
+    static expected<void> transfer(
       transactions::transaction_block_builder& log,
       const const_data_buffer & source_transaction,
       const member_user & target_user,

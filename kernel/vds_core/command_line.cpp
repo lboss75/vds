@@ -6,6 +6,8 @@ All rights reserved
 #include <iostream>
 #include <set>
 #include "command_line.h"
+#include "expected.h"
+
 ///////////////////////////////////////
 //              vds_command_item
 ///////////////////////////////////////
@@ -37,7 +39,7 @@ const std::string& vds::command_line_value::value() const
   return this->value_;
 }
 
-int vds::command_line_value::try_parse(
+vds::expected<int> vds::command_line_value::try_parse(
   int argc,
   const char** argv)
 {
@@ -52,13 +54,13 @@ int vds::command_line_value::try_parse(
   }
   
   if(argv[1][0] == '-'){
-    throw command_line_item_error(
+    return vds::make_unexpected<command_line_item_error>(
       "Value is required",
       this->name());
   }
   
   if(!this->value_.empty()){
-    throw command_line_item_error(
+    return vds::make_unexpected<command_line_item_error>(
       "Value already has been specified",
       this->name());
   }
@@ -127,7 +129,7 @@ const std::list<std::string>& vds::command_line_values::values() const
   return this->values_;
 }
 
-int vds::command_line_values::try_parse(
+vds::expected<int> vds::command_line_values::try_parse(
   int argc,
   const char** argv)
 {
@@ -142,7 +144,7 @@ int vds::command_line_values::try_parse(
   }
   
   if(argv[1][0] == '-'){
-    throw command_line_item_error(
+    return vds::make_unexpected<command_line_item_error>(
       "Value is required",
       this->name());
   }
@@ -205,7 +207,7 @@ bool vds::command_line_switch::value() const
   return this->value_;
 }
 
-int vds::command_line_switch::try_parse(
+vds::expected<int> vds::command_line_switch::try_parse(
   int argc,
   const char** argv)
 {
@@ -220,7 +222,7 @@ int vds::command_line_switch::try_parse(
   }
   
   if(this->value_){
-    throw command_line_item_error(
+    return vds::make_unexpected<command_line_item_error>(
       "Switch already has been specified",
       this->name());
   }
@@ -290,7 +292,7 @@ void vds::command_line_set::required(
   this->required_.push_back(&item);
 }
 
-int vds::command_line_set::try_parse(
+vds::expected<int> vds::command_line_set::try_parse(
   int argc,
   const char** argv,
   std::string & last_error)
@@ -326,8 +328,8 @@ int vds::command_line_set::try_parse(
   while(argc > 0) {
     bool bgood = false;
     for(auto p : this->required_){
-      auto res = p->try_parse(argc, argv);
-      if(res > 0) {
+      GET_EXPECTED(res, p->try_parse(argc, argv));
+      if(res> 0) {
         argc -= res;
         argv += res;
         required.insert(p);
@@ -341,8 +343,8 @@ int vds::command_line_set::try_parse(
     }
     
     for(auto p : this->optional_){
-      auto res = p->try_parse(argc, argv);
-      if(res > 0) {
+      GET_EXPECTED(res, p->try_parse(argc, argv));
+      if(res> 0) {
         argc -= res;
         argv += res;
         bgood = true;
@@ -352,7 +354,7 @@ int vds::command_line_set::try_parse(
     
     if(!bgood){
       if(argc <= 0){
-        throw std::runtime_error("Logic error 28");
+        return vds::make_unexpected<std::runtime_error>("Logic error 28");
       }
       
       last_error = std::string(argv[0]) + " is unexpected";
@@ -371,7 +373,7 @@ int vds::command_line_set::try_parse(
     }
   }
   
-  throw std::runtime_error("error");
+  return vds::make_unexpected<std::runtime_error>("error");
 }
 
 void vds::command_line_set::print_usage(std::map<std::string, const command_line_item *> & items) const
@@ -412,7 +414,7 @@ version_(version)
 
 }
 
-const vds::command_line_set* vds::command_line::parse(
+vds::expected<const vds::command_line_set *> vds::command_line::parse(
   int argc,
   const char** argv
 ) const
@@ -426,7 +428,7 @@ const vds::command_line_set* vds::command_line::parse(
   
   for(auto p : this->command_sets_){
     std::string last_error;
-    auto left = p->try_parse(argc, argv, last_error);
+    GET_EXPECTED(left, p->try_parse(argc, argv, last_error));
     if(last_error.empty() && 0 == left) {
       return p;
     }
@@ -441,7 +443,7 @@ const vds::command_line_set* vds::command_line::parse(
     return nullptr;
   }
   
-  throw std::runtime_error(best_error);
+  return vds::make_unexpected<std::runtime_error>(best_error);
 }
 
 void vds::command_line::add_command_set(vds::command_line_set& item)

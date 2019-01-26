@@ -16,11 +16,10 @@ public:
     : target_(target) {
   }
 
-  vds::async_task<void> write_async( const item_type *data, size_t len) override {
+  vds::async_task<vds::expected<void>> write_async( const item_type *data, size_t len) override {
     for (;;) {
       if (0 == len) {
-        co_await this->target_->write_async(data, len);
-        co_return;
+        co_return co_await this->target_->write_async(data, len);
       }
       else {
         size_t n = (size_t)std::rand() % len;
@@ -32,11 +31,10 @@ public:
         }
 
         if (n == len) {
-          co_await this->target_->write_async(data, n);
-          co_return;
+          co_return co_await this->target_->write_async(data, n);
         }
         else {
-          co_await this->target_->write_async(data, n);
+          CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(data, n));
 
           data += n;
           len -= n;

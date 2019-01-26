@@ -17,36 +17,36 @@ All rights reserved
 namespace vds {
   class api_controller {
   public:
-    static async_task<std::shared_ptr<json_value>> get_channels(        
+    static async_task<expected<std::shared_ptr<json_value>>> get_channels(        
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> & user_mng,
       const http_request & message);
 
-    static async_task<std::shared_ptr<json_value>> get_login_state(
+    static async_task<expected<std::shared_ptr<json_value>>> get_login_state(
       const vds::service_provider * sp,
       const std::string & login,
       const std::string & password,
       const std::shared_ptr<_web_server>& owner,
       const http_request& request);
 
-    static async_task<std::shared_ptr<json_value>> login(
+    static async_task<expected<std::shared_ptr<json_value>>> login(
       const vds::service_provider * sp,
       const std::string & login,
       const std::string & password,
       const std::shared_ptr<_web_server>& owner,
       const http_request& request);
 
-    static vds::async_task<http_message> create_channel(
+    static vds::async_task<vds::expected<http_message>> create_channel(
       const std::shared_ptr<user_manager> & user_mng,
       const std::string & channel_type,
       const std::string & name);
 
-    static vds::async_task<std::shared_ptr<json_value>> channel_feed(
+    static vds::async_task<vds::expected<std::shared_ptr<json_value>>> channel_feed(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> & user_mng,
       const const_data_buffer & channel_id);
 
-    static vds::async_task<file_manager::file_operations::download_result_t>
+    static vds::async_task<vds::expected<file_manager::file_operations::download_result_t>>
     download_file(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> & user_mng,
@@ -54,14 +54,14 @@ namespace vds {
       const const_data_buffer& file_hash,
       const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
-    static vds::async_task<std::shared_ptr<json_value>>
+    static vds::async_task<vds::expected<std::shared_ptr<json_value>>>
       prepare_download_file(
         const vds::service_provider * sp,
         const std::shared_ptr<user_manager> & user_mng,
         const const_data_buffer& channel_id,
         const const_data_buffer& file_hash);
 
-    static vds::async_task<void> lock_device(
+    static vds::async_task<vds::expected<void>> lock_device(
       const vds::service_provider * sp,
       const std::shared_ptr<vds::user_manager> &user_mng,
       const std::shared_ptr<vds::_web_server> &owner,
@@ -69,13 +69,13 @@ namespace vds {
       const std::string &local_path,
       uint64_t reserved_size);
 
-    static vds::async_task<std::shared_ptr<vds::json_value>>
+    static vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>>
     offer_device(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> &user_mng,
       const std::shared_ptr<_web_server> &owner);
 
-    static vds::async_task<std::shared_ptr<vds::json_value>>
+    static vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>>
     get_statistics(
       const vds::service_provider * sp,
       const http_request& message);
@@ -86,10 +86,10 @@ namespace vds {
       const std::shared_ptr<_web_server>& owner,
       const http_message& message);
 
-    static async_task<std::shared_ptr<json_value>> get_session(
+    static async_task<expected<std::shared_ptr<json_value>>> get_session(
       const std::shared_ptr<auth_session> & session);
 
-    static vds::async_task<std::shared_ptr<vds::json_value>> create_message(
+    static vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> create_message(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> &user_mng,
       const http_request & request);

@@ -255,8 +255,7 @@ char vds::cert_control::common_storage_private_key_[3137] =
 //{
 //  return vds::guid::parse(cert.get_extension(cert.extension_by_NID(parent_id_extension_type())).value);
 //}
-
-vds::certificate vds::_cert_control::create_root(
+vds::expected<vds::certificate> vds::_cert_control::create_root(
     const std::string &name,
     const vds::asymmetric_private_key &private_key) {
 
@@ -271,11 +270,12 @@ vds::certificate vds::_cert_control::create_root(
   //local_user_options.extensions.push_back(
   //    certificate_extension(user_id_extension_type(), user_id.str()));
 
-  asymmetric_public_key cert_pkey(private_key);
+  asymmetric_public_key cert_pkey;
+  CHECK_EXPECTED(cert_pkey.create(private_key));
   return certificate::create_new(cert_pkey, private_key, local_user_options);
 }
 
-vds::certificate vds::_cert_control::create_user_cert(
+vds::expected<vds::certificate> vds::_cert_control::create_user_cert(
   const std::string & name,
   const vds::asymmetric_private_key & private_key,
   const certificate & user_cert,
@@ -299,11 +299,12 @@ vds::certificate vds::_cert_control::create_user_cert(
   //local_user_options.extensions.push_back(
 	 // certificate_extension(parent_user_id_extension_type(), cert_control::get_user_id(user_cert).str()));
 
-  asymmetric_public_key cert_pkey(private_key);
+  asymmetric_public_key cert_pkey;
+  CHECK_EXPECTED(cert_pkey.create(private_key));
   return certificate::create_new(cert_pkey, private_key, local_user_options);
 }
 
-vds::certificate vds::_cert_control::create_cert(
+vds::expected<vds::certificate> vds::_cert_control::create_cert(
 	const std::string & name,
 	const vds::asymmetric_private_key & private_key,
 	const certificate & user_cert,
@@ -324,7 +325,8 @@ vds::certificate vds::_cert_control::create_cert(
 	//local_user_options.extensions.push_back(
 	//	certificate_extension(parent_user_id_extension_type(), cert_control::get_user_id(user_cert).str()));
 
-	asymmetric_public_key cert_pkey(private_key);
+  asymmetric_public_key cert_pkey;
+  CHECK_EXPECTED(cert_pkey.create(private_key));
 	return certificate::create_new(cert_pkey, private_key, local_user_options);
 }
 
@@ -357,65 +359,85 @@ vds::certificate vds::_cert_control::create_cert(
 //}
 //
 
-void vds::cert_control::private_info_t::genereate_all() {
-  this->root_private_key_ = std::make_shared<asymmetric_private_key>(asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-  this->common_news_write_private_key_ = std::make_shared<asymmetric_private_key>(asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-  this->common_news_admin_private_key_ = std::make_shared<asymmetric_private_key>(asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+vds::expected<void> vds::cert_control::private_info_t::genereate_all() {
+  GET_EXPECTED(key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+  this->root_private_key_ = std::make_shared<asymmetric_private_key>(std::move(key));
+
+  GET_EXPECTED_VALUE(key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+  this->common_news_write_private_key_ = std::make_shared<asymmetric_private_key>(std::move(key));
+
+  GET_EXPECTED_VALUE(key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+  this->common_news_admin_private_key_ = std::make_shared<asymmetric_private_key>(std::move(key));
+
+  return expected<void>();
 }
 
 static void save_certificate(char (&cert_storage)[1821], const vds::certificate & cert) {
-  const auto cert_storage_str = vds::base64::from_bytes(cert.der());
+  auto der = cert.der();
+  if(der.has_error()) {
+    throw std::runtime_error(der.error()->what());
+  }
+
+  auto cert_storage_str = vds::base64::from_bytes(der.value());
   vds_assert(sizeof(cert_storage) > cert_storage_str.length());
   strcpy(cert_storage, cert_storage_str.c_str());
 }
 
 static void save_private_key(char (&private_key_storage)[3137], const vds::asymmetric_private_key & private_key) {
-  const auto private_key_str = vds::base64::from_bytes(private_key.der(std::string()));
+  auto der = private_key.der(std::string());
+  if (der.has_error()) {
+    throw std::runtime_error(der.error()->what());
+  }
+
+  const auto private_key_str = vds::base64::from_bytes(der.value());
   vds_assert(sizeof(private_key_storage) > private_key_str.length());
   strcpy(private_key_storage, private_key_str.c_str());
 }
 
-void vds::cert_control::genereate_all(
+vds::expected<void> vds::cert_control::genereate_all(
   const std::string& root_login,
   const std::string& root_password,
   const private_info_t & private_info) {
 
-  const auto root_user_cert = _cert_control::create_root(
+  GET_EXPECTED(root_user_cert, _cert_control::create_root(
     root_login,
-    *private_info.root_private_key_);
+    *private_info.root_private_key_));
+
   save_certificate(root_certificate_, root_user_cert);
 
   //
-  const auto common_news_read_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+  GET_EXPECTED(common_news_read_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   save_private_key(common_news_read_private_key_, common_news_read_private_key);
-  const auto common_news_read_certificate = _cert_control::create_cert(
+  GET_EXPECTED(common_news_read_certificate, _cert_control::create_cert(
     "Common News Read",
     common_news_read_private_key,
     root_user_cert,
-    *private_info.root_private_key_);
+    *private_info.root_private_key_));
   save_certificate(common_news_read_certificate_, common_news_read_certificate);
 
-  const auto common_news_write_certificate = _cert_control::create_cert(
+  GET_EXPECTED(common_news_write_certificate, _cert_control::create_cert(
     "Common News Write",
     *private_info.common_news_write_private_key_,
     root_user_cert,
-    *private_info.root_private_key_);
+    *private_info.root_private_key_));
   save_certificate(common_news_write_certificate_, common_news_write_certificate);
 
-  const auto common_news_admin_certificate = _cert_control::create_cert(
+  GET_EXPECTED(common_news_admin_certificate, _cert_control::create_cert(
     "Common News Admin",
     *private_info.common_news_admin_private_key_,
     root_user_cert,
-    *private_info.root_private_key_);
+    *private_info.root_private_key_));
   save_certificate(common_news_admin_certificate_, common_news_admin_certificate);
 
   //
-  const auto common_storage_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+  GET_EXPECTED(common_storage_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   save_private_key(common_storage_private_key_, common_storage_private_key);
-  const auto common_storage_certificate = _cert_control::create_cert(
+  GET_EXPECTED(common_storage_certificate, _cert_control::create_cert(
     "Common Storage",
     common_storage_private_key,
     root_user_cert,
-    *private_info.root_private_key_);
+    *private_info.root_private_key_));
   save_certificate(common_storage_certificate_, common_storage_certificate);
+
+  return expected<void>();
 }

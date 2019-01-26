@@ -8,6 +8,8 @@ All rights reserved
 #include "channel_add_reader_transaction.h"
 #include "channel_add_writer_transaction.h"
 #include "private/member_user_p.h"
+#include "create_user_transaction.h"
+#include "user_manager_transactions.h"
 
 vds::user_channel::user_channel()
 : impl_(nullptr) {
@@ -46,30 +48,30 @@ const std::string& vds::user_channel::name() const {
   return this->impl_->name();
 }
 
-const std::shared_ptr<vds::certificate> &vds::user_channel::read_cert() const {
+vds::expected<std::shared_ptr<vds::certificate>> vds::user_channel::read_cert() const {
   return this->impl_->read_cert();
 }
 
-const std::shared_ptr<vds::certificate> &vds::user_channel::write_cert() const {
+vds::expected<std::shared_ptr<vds::certificate>> vds::user_channel::write_cert() const {
   return this->impl_->write_cert();
 }
 
-void vds::user_channel::add_reader(
+vds::expected<void> vds::user_channel::add_reader(
 	transactions::transaction_block_builder& playback,
 	const member_user& member_user,
 	const vds::member_user& owner_user,
 	const asymmetric_private_key& owner_private_key,
-	const asymmetric_private_key& channel_read_private_key) const
+	const asymmetric_private_key& /*channel_read_private_key*/) const
 {
-	this->impl_->add_reader(playback, member_user, owner_user, owner_private_key);
+	return this->impl_->add_reader(playback, member_user, owner_user, owner_private_key);
 }
 
-void vds::user_channel::add_writer(
+vds::expected<void> vds::user_channel::add_writer(
   transactions::transaction_block_builder& playback,
   const member_user& member_user,
   const vds::member_user& owner_user) const
 {
-	this->impl_->add_writer(playback, member_user, owner_user);
+	return this->impl_->add_writer(playback, member_user, owner_user);
 }
 
 std::shared_ptr<vds::asymmetric_private_key> vds::user_channel::read_cert_private_key(const std::string& cert_subject) {
@@ -83,10 +85,10 @@ vds::user_channel& vds::user_channel::operator=(user_channel&& other) {
   return *this;
 }
 
-void vds::user_channel::add_to_log(
+vds::expected<void> vds::user_channel::add_to_log(
     transactions::transaction_block_builder& log,
     const uint8_t* data, size_t size) {
-  this->impl_->add_to_log(log, data, size);
+  return this->impl_->add_to_log(log, data, size);
 }
 
 /////////////////////////////////////////////////
@@ -100,49 +102,51 @@ vds::_user_channel::_user_channel(
   const std::shared_ptr<asymmetric_private_key> & write_private_key)
 : id_(id), channel_type_(channel_type),  name_(name)
 {
-  auto read_id = read_cert->subject();
+  const auto read_id = read_cert->subject();
   this->read_certificates_[read_id] = read_cert;
   this->read_private_keys_[read_id] = read_private_key;
   this->current_read_certificate_ = read_id;
 
-  auto write_id = write_cert->subject();
+  const auto write_id = write_cert->subject();
   this->write_certificates_[write_id] = write_cert;
   this->write_private_keys_[write_id] = write_private_key;
   this->current_write_certificate_ = write_id;
 }
 
-void vds::_user_channel::add_reader(
+vds::expected<void> vds::_user_channel::add_reader(
   transactions::transaction_block_builder& playback,
   const member_user& member_user,
   const vds::member_user& owner_user,
-  const asymmetric_private_key& owner_private_key) const
+  const asymmetric_private_key& /*owner_private_key*/) const
 {
   if(this->current_read_certificate_.empty() || this->current_write_certificate_.empty()) {
-    throw std::invalid_argument("vds::_user_channel::add_reader");
+    return vds::make_unexpected<std::invalid_argument>("vds::_user_channel::add_reader");
   }
 
-	member_user->personal_channel()->add_log(
+  GET_EXPECTED(pc, member_user->personal_channel());
+	return pc->add_log(
     playback,
     owner_user,
     message_create<transactions::channel_add_reader_transaction>(
       this->id_,
       this->channel_type_,
-			this->name_,
-			this->read_certificates_.find(this->current_read_certificate_)->second,
+      this->name_,
+      this->read_certificates_.find(this->current_read_certificate_)->second,
       this->read_private_keys_.find(this->current_read_certificate_)->second,
-		  this->write_certificates_.find(this->current_write_certificate_)->second));
+      this->write_certificates_.find(this->current_write_certificate_)->second));
 }
 
-void vds::_user_channel::add_writer(
+vds::expected<void> vds::_user_channel::add_writer(
   transactions::transaction_block_builder& playback,
   const member_user& member_user,
   const vds::member_user& owner_user) const
 {
   if (this->current_read_certificate_.empty() || this->current_write_certificate_.empty()) {
-    throw std::invalid_argument("vds::_user_channel::add_reader");
+    return vds::make_unexpected<std::invalid_argument>("vds::_user_channel::add_reader");
   }
-  
-  member_user->personal_channel()->add_log(
+
+  GET_EXPECTED(pc, member_user->personal_channel());
+  return pc->add_log(
     playback,
     owner_user,
     message_create<transactions::channel_add_writer_transaction>(
@@ -156,17 +160,18 @@ void vds::_user_channel::add_writer(
 }
 
 
-void vds::_user_channel::add_writer(
+vds::expected<void> vds::_user_channel::add_writer(
   transactions::transaction_block_builder& playback,
   const std::string & name,
   const vds::member_user& member_user,
   const vds::member_user& owner_user) const
 {
   if (this->current_read_certificate_.empty() || this->current_write_certificate_.empty()) {
-    throw std::invalid_argument("vds::_user_channel::add_reader");
+    return vds::make_unexpected<std::invalid_argument>("vds::_user_channel::add_reader");
   }
-
-  member_user->personal_channel()->add_log(
+  
+  GET_EXPECTED(pc, member_user->personal_channel());
+  return pc->add_log(
     playback,
     owner_user,
     message_create<transactions::channel_add_writer_transaction>(
@@ -179,13 +184,14 @@ void vds::_user_channel::add_writer(
       this->write_private_keys_.find(this->current_write_certificate_)->second));
 }
 
-std::shared_ptr<vds::user_channel> vds::_user_channel::import_personal_channel(
-  
+vds::expected<std::shared_ptr<vds::user_channel>> vds::_user_channel::import_personal_channel(
   const std::shared_ptr<certificate>& user_cert,
   const std::shared_ptr<asymmetric_private_key>& user_private_key) {
 
+  GET_EXPECTED(fp, user_cert->fingerprint());
+
   return std::make_shared<user_channel>(
-    user_cert->fingerprint(),
+    fp,
     user_channel::channel_type_t::personal_channel,
     "!Private",
     user_cert,
@@ -194,18 +200,25 @@ std::shared_ptr<vds::user_channel> vds::_user_channel::import_personal_channel(
     user_private_key);
 }
 
-void vds::_user_channel::add_to_log(
+vds::expected<void> vds::_user_channel::add_to_log(
     transactions::transaction_block_builder &log,
     const uint8_t * data, size_t size) {
 
   auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
-  log.add(
-      transactions::channel_message(
-          this->id_,
-          this->read_cert()->subject(),
-          this->write_cert()->subject(),
-          this->read_cert()->public_key().encrypt(key.serialize()),
-          symmetric_encrypt::encrypt(key, data, size),
-          *this->write_private_key()));
+  GET_EXPECTED(write_cert, this->write_cert());
+  GET_EXPECTED(read_cert, this->read_cert());
+  GET_EXPECTED(read_cert_public_key, read_cert->public_key());
+  GET_EXPECTED(key_data, key.serialize());
+  GET_EXPECTED(read_cert_public_key_data, read_cert_public_key.encrypt(key_data));
+  GET_EXPECTED(write_private_key, this->write_private_key());
+  GET_EXPECTED(key_crypted, symmetric_encrypt::encrypt(key, data, size));
+
+  return log.add(transactions::channel_message::create(
+    this->id_,
+    read_cert->subject(),
+    write_cert->subject(),
+    read_cert_public_key_data,
+    key_crypted,
+    *write_private_key));
 }

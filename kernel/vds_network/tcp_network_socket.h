@@ -24,7 +24,7 @@ namespace vds {
     //tcp_network_socket();
     ~tcp_network_socket();
 
-    static std::shared_ptr<tcp_network_socket> connect(
+    static expected<std::shared_ptr<tcp_network_socket>> connect(
       const service_provider * sp,
       const network_address & address);
 

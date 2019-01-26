@@ -5,6 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "chunk_tests.h"
+#include "test_config.h"
 
 TEST(chunk_tests, test_chunks) {
     int size = std::rand();
@@ -141,10 +142,11 @@ TEST(chunk_tests, test_chunks_storage) {
       }
       
       vds::binary_serializer s;
-      horcruxes[replica] = storage.generate_replica(replica, data, size);
+      GET_EXPECTED_GTEST(hr, storage.generate_replica(replica, data, size));
+      horcruxes[replica] = hr;
     }
 
-    auto result = storage.restore_data(horcruxes);
+    GET_EXPECTED_GTEST(result, storage.restore_data(horcruxes));
 
     ASSERT_EQ(size, result.size()/* - padding*/);
     for (int i = 0; i < size; ++i) {

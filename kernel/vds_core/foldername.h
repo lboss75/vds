@@ -8,6 +8,7 @@ All rights reserved
 
 #include <functional>
 #include <algorithm>
+#include "expected.h"
 
 namespace vds {
   class filename;
@@ -56,18 +57,18 @@ namespace vds {
         return this->value_;
       }
       
-      void folders(
-        const std::function<bool(const foldername & name)> & callback
+      expected<void> folders(
+        const std::function<expected<bool> (const foldername & name)> & callback
       ) const;
 
-      void files(
-        const std::function<bool(const filename & name)> & callback
+      expected<void> files(
+        const std::function<expected<bool> (const filename & name)> & callback
       ) const;
 
-      void create() const;
-      void delete_folder(bool recurcive) const;
+      expected<void> create() const;
+      expected<void> delete_folder(bool recurcive) const;
 
-      std::string relative_path(const filename & fn, bool allow_pass_border = false) const;
+      expected<std::string> relative_path(const filename & fn, bool allow_pass_border = false) const;
 
       const std::string & full_name() const { return this->value_; }
 
@@ -90,10 +91,8 @@ namespace vds {
 
       foldername contains_folder() const;
 
-      uint64_t free_size() const;
-      uint64_t total_size() const;
-
-      static std::list<foldername> mounted_roots();
+      expected<uint64_t> free_size() const;
+      expected<uint64_t> total_size() const;
 
   private:
     friend class filename;

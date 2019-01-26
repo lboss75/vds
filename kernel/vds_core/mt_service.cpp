@@ -25,25 +25,30 @@ vds::mt_service::~mt_service()
 {
 }
 
-void vds::mt_service::register_services(vds::service_registrator& registrator)
+vds::expected<void> vds::mt_service::register_services(vds::service_registrator& registrator)
 {
   registrator.add_service<imt_service>(this);
+  return expected<void>();
 }
 
-void vds::mt_service::start(const service_provider * sp)
+vds::expected<void> vds::mt_service::start(const service_provider * sp)
 {
   this->impl_.reset(new _mt_service(sp));
   this->impl_->start();
+
+  return expected<void>();
 }
 
-void vds::mt_service::stop()
+vds::expected<void> vds::mt_service::stop()
 {
 	if (this->impl_) {
 		this->impl_->stop();
 	}
+
+  return expected<void>();
 }
 
-vds::async_task<void> vds::mt_service::prepare_to_stop() {
+vds::async_task<vds::expected<void>> vds::mt_service::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
 }
 
@@ -85,9 +90,9 @@ void vds::_mt_service::stop()
   }
 }
 
-vds::async_task<void> vds::_mt_service::prepare_to_stop() {
+vds::async_task<vds::expected<void>> vds::_mt_service::prepare_to_stop() {
   this->is_shuting_down_ = true;
-  co_return;
+  co_return expected<void>();
 }
 
 void vds::_mt_service::do_async( const std::function<void(void)> & handler)

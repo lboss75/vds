@@ -13,9 +13,9 @@ namespace vds {
   class crypto_service : public iservice_factory
   {
   public:
-    void register_services(service_registrator &) override;
-    void start(const service_provider *) override;
-    void stop() override;
+    expected<void> register_services(service_registrator &) override;
+    expected<void> start(const service_provider *) override;
+    expected<void> stop() override;
 
     static void rand_bytes(void * buffer, size_t buffer_size);
 

@@ -14,43 +14,75 @@ namespace vds {
     static const struct hash_info & md5();
     static const hash_info & sha256();
 
-    hash(const hash_info & info);
+    hash();
+    hash(const hash & original) = delete;
+    hash(hash && original) noexcept;
     ~hash();
 
-    void update(
+    static expected<hash> create(const hash_info & info);
+
+    expected<void> update(
       const void * data,
       size_t len);
 
-    void final();
+    expected<void> final();
 
     const class const_data_buffer & signature() const;
-    
-    static const_data_buffer signature(
+
+    static expected<const_data_buffer> signature(
+      const hash_info & info,
+      expected<const_data_buffer> && data);
+
+    static expected<const_data_buffer> signature(
       const hash_info & info,
       const const_data_buffer & data);
 
-    static const_data_buffer signature(
+    static expected<const_data_buffer> signature(
       const hash_info & info,
       const void * data,
       size_t data_size);
+
+    hash & operator = (const hash &) = delete;
+    hash & operator = (hash && original) noexcept;
     
   private:
     class _hash * impl_;
+
+    hash(_hash * impl)
+      : impl_(impl) {      
+    }
   };
 
   class hash_stream_output_async : public stream_output_async<uint8_t> {
   public:
+    hash_stream_output_async();
+    hash_stream_output_async(const hash_stream_output_async &) = delete;
+    hash_stream_output_async(hash_stream_output_async &&) = default;
     hash_stream_output_async(
-      const hash_info & info,
-      const std::shared_ptr<stream_output_async<uint8_t>> & target);
+      hash && hash,
+      std::shared_ptr<stream_output_async<uint8_t>> && target);
 
-    async_task<void> write_async(
+    static expected<std::shared_ptr<hash_stream_output_async>> create(
+      const hash_info & info,
+      std::shared_ptr<stream_output_async<uint8_t>> && target);
+
+    async_task<expected<void>> write_async(
       const uint8_t *data,
       size_t len) override;
 
     const_data_buffer signature() const {
       return this->hash_.signature();
     }
+
+    std::shared_ptr<stream_output_async<uint8_t>> & target() {
+      return this->target_;
+    }
+
+    const std::shared_ptr<stream_output_async<uint8_t>> & target() const {
+      return this->target_;
+    }
+
+    hash_stream_output_async& operator = (hash_stream_output_async &&) = default;
 
   private:
     hash hash_;
@@ -67,23 +99,23 @@ namespace vds {
         const hash_info & info = hash::sha256());
     ~hmac();
 
-    void update(
+    expected<void> update(
       const void * data,
       size_t len);
 
-    const_data_buffer final();
+    expected<const_data_buffer> final();
 
-    static const const_data_buffer signature(
+    static expected<const_data_buffer> signature(
         const const_data_buffer & key,
         const hash_info & info,
         const void * data,
         size_t len) {
       hmac h(key, info);
-      h.update(data, len);
+      CHECK_EXPECTED(h.update(data, len));
       return h.final();
     }
 
-    static bool verify(
+    static expected<bool> verify(
       const const_data_buffer & key,
       const hash_info & info,
       const void * data,
@@ -92,8 +124,8 @@ namespace vds {
       size_t signature_len) {
 
       hmac h(key, info);
-      h.update(data, len);
-      auto result = h.final();
+      CHECK_EXPECTED(h.update(data, len));
+      GET_EXPECTED(result, h.final());
       return (result.size() == signature_len)
       && (memcmp(result.data(), signature, signature_len) == 0);
     }

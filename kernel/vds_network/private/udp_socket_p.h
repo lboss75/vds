@@ -163,7 +163,7 @@ namespace vds {
     {
     }
 
-    vds::async_task<udp_datagram> read_async()
+    vds::async_task<vds::expected<udp_datagram>> read_async()
     {
       vds_assert(!this->result_);
 
@@ -172,7 +172,7 @@ namespace vds {
       this->wsa_buf_.buf = (CHAR *)this->buffer_;
       this->addr_.clear();
 
-      auto r = std::make_shared<vds::async_result<udp_datagram>>();
+      auto r = std::make_shared<vds::async_result<vds::expected<udp_datagram>>>();
       this->result_ = r;
 
       this->sp_->get<logger>()->trace("UDP", "WSARecvFrom %d", (*this->s_)->handle());
@@ -192,12 +192,11 @@ namespace vds {
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
           this->result_.reset();
-          r->set_exception(
-            std::make_exception_ptr(
-              std::system_error(
+          r->set_value(
+            make_unexpected<std::system_error>(
                 errorCode,
                 std::system_category(),
-                "WSARecvFrom failed")));
+                "WSARecvFrom failed"));
         }
         else {
           this->sp_->get<logger>()->trace("UDP", "Read scheduled");
@@ -219,7 +218,7 @@ namespace vds {
   private:
     const service_provider * sp_;
     std::shared_ptr<udp_socket> s_;
-    std::shared_ptr<vds::async_result<udp_datagram>> result_;
+    std::shared_ptr<vds::async_result<vds::expected<udp_datagram>>> result_;
 
     network_address addr_;
     uint8_t buffer_[64 * 1024];
@@ -239,9 +238,7 @@ namespace vds {
       this->sp_->get<logger>()->trace("UDP", "Error %d at get recive UDP package", error_code);
 
       auto r = std::move(this->result_);
-      r->set_exception(
-        std::make_exception_ptr(
-          std::system_error(error_code, std::system_category(), "WSARecvFrom failed")));
+      r->set_value(make_unexpected<std::system_error>(error_code, std::system_category(), "WSARecvFrom failed"));
     }
   };
 
@@ -254,7 +251,7 @@ namespace vds {
       : sp_(sp), s_(s) {
     }
 
-    vds::async_task<void> write_async(const udp_datagram & data)
+    vds::async_task<vds::expected<void>> write_async(const udp_datagram & data)
     {
       std::unique_lock<not_mutex> lock(this->not_mutex_);
       vds_assert(!this->result_);
@@ -268,7 +265,7 @@ namespace vds {
         this->buffer_->address().to_string().c_str(),
         this->buffer_.data_size());
 
-      auto r = std::make_shared<vds::async_result<void>>();
+      auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
       this->result_ = r;
       lock.unlock();
 
@@ -298,7 +295,7 @@ namespace vds {
             errorCode,
             this->buffer_->address().to_string().c_str());
 
-          r->set_exception(std::make_exception_ptr(std::system_error(errorCode, std::system_category(), "WSASend failed")));
+          r->set_value(make_unexpected<std::system_error>(errorCode, std::system_category(), "WSASend failed"));
           this->result_.reset();
         }
       }
@@ -313,7 +310,7 @@ namespace vds {
   private:
     const service_provider * sp_;
     std::shared_ptr<udp_socket> s_;
-    std::shared_ptr<vds::async_result<void>> result_;
+    std::shared_ptr<vds::async_result<vds::expected<void>>> result_;
 
     socklen_t addr_len_;
     udp_datagram buffer_;
@@ -333,10 +330,10 @@ namespace vds {
       lock.unlock();
 
       if (this->wsa_buf_.len != (size_t)dwBytesTransfered) {
-        result->set_exception(std::make_exception_ptr(std::runtime_error("Invalid sent UDP data")));
+        result->set_value(make_unexpected<std::runtime_error>("Invalid sent UDP data"));
       }
       else {
-        result->set_value();
+        result->set_value(expected<void>());
       }
     }
 
@@ -353,7 +350,7 @@ namespace vds {
       auto result = std::move(this->result_);
       lock.unlock();
 
-      result->set_exception(std::make_exception_ptr(std::system_error(error_code, std::system_category(), "WSASendTo failed")));
+      result->set_value(make_unexpected<std::system_error>(error_code, std::system_category(), "WSASendTo failed"));
     }
   };
 
@@ -373,8 +370,8 @@ namespace vds {
     {
     }
 
-    vds::async_task<udp_datagram> read_async() {
-      auto r = std::make_shared<vds::async_result<udp_datagram>>();
+    vds::async_task<vds::expected<udp_datagram>> read_async() {
+      auto r = std::make_shared<vds::async_result<vds::expected<udp_datagram>>>();
 
       this->addr_.reset();
       int len = recvfrom((*this->owner())->handle(),
@@ -392,8 +389,7 @@ namespace vds {
         }
         else {
           this->sp_->get<logger>()->trace("UDP", "Error %d at get recive UDP package", error);
-          r->set_exception(std::make_exception_ptr(
-              std::system_error(error, std::system_category(), "recvfrom")));
+          r->set_value(make_unexpected<std::system_error>(error, std::system_category(), "recvfrom"));
         }
       }
       else {
@@ -423,9 +419,8 @@ namespace vds {
 
         (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
         this->sp_->get<logger>()->trace("UDP", "Error %d at get recive UDP package", error);
-        r->set_exception(
-            std::make_exception_ptr(
-                std::system_error(error, std::system_category(), "recvfrom")));
+        r->set_value(
+          make_unexpected<std::system_error>(error, std::system_category(), "recvfrom"));
       }
       else {
         this->sp_->get<logger>()->trace(
@@ -443,7 +438,7 @@ namespace vds {
   private:
     const service_provider * sp_;
     std::shared_ptr<socket_base> owner_;
-    std::shared_ptr<vds::async_result<udp_datagram>> read_result_;
+    std::shared_ptr<vds::async_result<vds::expected<udp_datagram>>> read_result_;
 
     network_address addr_;
     uint8_t read_buffer_[64 * 1024];
@@ -463,8 +458,8 @@ namespace vds {
 
     }
 
-    vds::async_task<void> write_async( const udp_datagram & message) {
-      auto r = std::make_shared<vds::async_result<void>>();
+    vds::async_task<vds::expected<void>> write_async( const udp_datagram & message) {
+      auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
       int len = sendto(
           (*this->owner())->handle(),
           message.data(),
@@ -491,19 +486,18 @@ namespace vds {
             address .c_str());
 
           if (EMSGSIZE == error) {
-            r->set_exception(std::make_exception_ptr(udp_datagram_size_exception()));
+            r->set_value(make_unexpected<udp_datagram_size_exception>());
           } else {
-            r->set_exception(std::make_exception_ptr(std::system_error(
+            r->set_value(make_unexpected<std::system_error>(
                 error,
                 std::generic_category(),
-                "Send to " + address)));
+                "Send to " + address));
           }
         }
       }
       else {
         if ((size_t)len != message.data_size()) {
-          r->set_exception(std::make_exception_ptr(
-              std::runtime_error("Invalid send UDP")));
+          r->set_value(make_unexpected<std::runtime_error>("Invalid send UDP"));
         }
         else {
           this->sp_->get<logger>()->trace(
@@ -547,13 +541,13 @@ namespace vds {
         auto address = this->write_message_.address().to_string();
 
         if (EMSGSIZE == error) {
-          result->set_exception(std::make_exception_ptr(udp_datagram_size_exception()));
+          result->set_value(make_unexpected<udp_datagram_size_exception>());
         }
         else {
-          result->set_exception(std::make_exception_ptr(std::system_error(
+          result->set_value(make_unexpected<std::system_error>(
               error,
               std::generic_category(),
-              "Send to " + address)));
+              "Send to " + address));
         }
       }
       else {
@@ -565,7 +559,7 @@ namespace vds {
           this->write_message_.data_size(),
           this->write_message_.address().to_string().c_str());
         if ((size_t)len != size) {
-          result->set_exception(std::make_exception_ptr(std::runtime_error("Invalid send UDP")));
+          result->set_value(make_unexpected<std::runtime_error>("Invalid send UDP"));
         }
         else {
           result->set_value();
@@ -576,7 +570,7 @@ namespace vds {
   private:
     const service_provider * sp_;
     std::shared_ptr<socket_base> owner_;
-    std::shared_ptr<vds::async_result<void>> write_result_;
+    std::shared_ptr<vds::async_result<vds::expected<void>>> write_result_;
     udp_datagram write_message_;
 
     udp_socket * owner() const {
@@ -593,9 +587,9 @@ namespace vds {
     {
     }
 
-    std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>> start(const service_provider * sp)
+    expected<std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>>> start(const service_provider * sp)
     {
-      this->socket_ = udp_socket::create(sp, this->address_.family());
+      GET_EXPECTED_VALUE(this->socket_, udp_socket::create(sp, this->address_.family()));
 
       if (0 > bind((*this->socket_)->handle(), this->address_, this->address_.size())) {
 #ifdef _WIN32
@@ -603,7 +597,7 @@ namespace vds {
 #else
         auto error = errno;
 #endif
-        throw std::system_error(error, std::system_category(), "bind socket");
+        return vds::make_unexpected<std::system_error>(error, std::system_category(), "bind socket");
       }
 
       return this->socket_->start(sp);
@@ -642,27 +636,10 @@ namespace vds {
 
     }
 
-    std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>>
+    expected<std::tuple<std::shared_ptr<udp_datagram_reader>, std::shared_ptr<udp_datagram_writer>>>
       start(const service_provider * sp, sa_family_t af)
     {
-      this->socket_ = udp_socket::create(sp, af);
-
-      /*
-      sockaddr_in addr;
-      memset((char *)&addr, 0, sizeof(addr));
-      addr.sin_family = AF_INET;
-      addr.sin_port = htons(0);
-      addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-      if (0 > bind(this->socket_->handle(), (sockaddr *)&addr, sizeof(addr))) {
-  #ifdef _WIN32
-          auto error = WSAGetLastError();
-  #else
-          auto error = errno;
-  #endif
-          throw std::system_error(error, std::system_category(), "bind socket");
-        }
-        */
+      GET_EXPECTED_VALUE(this->socket_, udp_socket::create(sp, af));
       return this->socket_->start(sp);
     }
 

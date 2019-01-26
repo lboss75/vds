@@ -14,14 +14,14 @@ namespace vds {
   public:
     server();
     ~server();
-    
-    void register_services(service_registrator &) override;
-    void start(const service_provider *) override;
-    void stop() override;
-    vds::async_task<void> prepare_to_stop() override;
+
+    expected<void> register_services(service_registrator &) override;
+    expected<void> start(const service_provider *) override;
+    expected<void> stop() override;
+    vds::async_task<vds::expected<void>> prepare_to_stop() override;
 
 
-    vds::async_task<void> start_network( uint16_t port);
+    vds::async_task<vds::expected<void>> start_network( uint16_t port);
 
     operator bool () const {
       return nullptr != this->impl_;
@@ -31,7 +31,7 @@ namespace vds {
       return this->impl_.get();
     }
 
-    vds::async_task<server_statistic> get_statistic() const;
+    vds::async_task<vds::expected<server_statistic>> get_statistic() const;
 
   private:
     std::shared_ptr<_server> impl_;

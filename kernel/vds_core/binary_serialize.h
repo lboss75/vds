@@ -11,6 +11,7 @@ All rights reserved
 #include "types.h"
 #include "const_data_buffer.h"
 #include "resizable_data_buffer.h"
+#include "expected.h"
 
 namespace vds {
 
@@ -18,27 +19,27 @@ namespace vds {
   {
   public:
     //bool
-    binary_serializer & operator << (bool value);
+    expected<void> put(bool value);
 
     //1 byte
-    binary_serializer & operator << (uint8_t value);
+    expected<void> put(uint8_t value);
 
     //2 byte
-    binary_serializer & operator << (uint16_t value);
+    expected<void> put(uint16_t value);
 
     //4 bytes
-    binary_serializer & operator << (uint32_t value);
+    expected<void> put(uint32_t value);
 
     //8 bytes
-    binary_serializer & operator << (uint64_t value);
+    expected<void> put(uint64_t value);
 
-    binary_serializer & write_number(uint64_t value);
+    expected<void> write_number(uint64_t value);
 
-    binary_serializer & operator << (const std::string & value);
+    expected<void> put(const std::string & value);
     
-    binary_serializer & push_data(const void * data, size_t size, bool serialize_size = true);
+    expected<void> push_data(const void * data, size_t size, bool serialize_size = true);
     
-    binary_serializer & operator << (const const_data_buffer & data);
+    expected<void> put(const const_data_buffer & data);
 
     const uint8_t * get_buffer() const {
       return this->data_.data();
@@ -49,57 +50,103 @@ namespace vds {
     }
 
     size_t size() const { return this->data_.size(); }
-    
-    template <typename T>
-    binary_serializer & operator << (const std::list<T> & value)
-    {
-      this->write_number(value.size());
-      for(auto & p : value){
-        *this << p;
-      }
-      
-      return *this;
-    }
-
-    template <typename T>
-    binary_serializer & operator << (const std::vector<T> & value)
-    {
-      this->write_number(value.size());
-      for(auto & p : value){
-        *this << p;
-      }
-
-      return *this;
-    }
-
-    template <typename T>
-    binary_serializer & operator << (const std::set<T> & value)
-    {
-      this->write_number(value.size());
-      for(auto & p : value){
-        *this << p;
-      }
-
-      return *this;
-    }
-
-    template <typename TKey, typename TValue>
-    binary_serializer & operator << (const std::map<TKey, TValue> & value)
-    {
-      this->write_number(value.size());
-      for(const auto & p : value){
-        *this << p.first << p.second;
-      }
-
-      return *this;
-    }
 
   private:
     resizable_data_buffer data_;
-
-    binary_serializer & operator << (const uint8_t * value);//to avoid convert uint8_t * to std::string
   };
-  
+
+  inline expected<void> serialize(binary_serializer & s, bool value) {
+    return s.put(value);
+  }
+
+  //1 byte
+  inline expected<void> serialize(binary_serializer & s, uint8_t value) {
+    return s.put(value);
+  }
+
+  //2 byte
+  inline expected<void> serialize(binary_serializer & s, uint16_t value) {
+    return s.put(value);
+  }
+
+  //4 bytes
+  inline expected<void> serialize(binary_serializer & s, uint32_t value) {
+    return s.put(value);
+  }
+
+  //8 bytes
+  inline expected<void> serialize(binary_serializer & s, uint64_t value) {
+    return s.put(value);
+  }
+
+
+  //to avoid convert uint8_t * to std::string
+  inline expected<void> serialize(binary_serializer & , const uint8_t * ) {
+    throw std::runtime_error("Invalid error");
+  }
+
+  inline expected<void> serialize(binary_serializer & s, const std::string & value) {
+    return s.put(value);
+  }
+
+  inline expected<void> serialize(binary_serializer & s, const const_data_buffer & data) {
+    return s.put(data);
+  }
+
+  template <typename T>
+  inline expected<void> serialize(binary_serializer & s, const std::list<T> & value)
+  {
+    CHECK_EXPECTED(s.write_number(value.size()));
+    for (auto & p : value) {
+      CHECK_EXPECTED(serialize(s, p));
+    }
+
+    return expected<void>();
+  }
+
+  template <typename T>
+  inline expected<void> serialize(binary_serializer & s, const std::vector<T> & value)
+  {
+    CHECK_EXPECTED(s.write_number(value.size()));
+    for (auto & p : value) {
+      CHECK_EXPECTED(serialize(s, p));
+    }
+
+    return expected<void>();
+  }
+
+  template <typename T>
+  inline expected<void> serialize(binary_serializer & s, const std::set<T> & value)
+  {
+    CHECK_EXPECTED(s.write_number(value.size()));
+    for (auto & p : value) {
+      CHECK_EXPECTED(serialize(s, p));
+    }
+
+    return expected<void>();
+  }
+
+  template <typename TKey, typename TValue>
+  inline expected<void> serialize(binary_serializer & s, const std::map<TKey, TValue> & value)
+  {
+    CHECK_EXPECTED(s.write_number(value.size()));
+    for (const auto & p : value) {
+      CHECK_EXPECTED(serialize(s, p.first));
+      CHECK_EXPECTED(serialize(s, p.second));
+    }
+
+    return expected<void>();
+  }
+
+  template <typename T>
+  inline expected<void> serialize(binary_serializer & s, expected<T> && value) {
+    if(value.has_error()) {
+      return unexpected(std::move(value.error()));
+    }
+
+    return vds::serialize(s, value.value());    
+  }
+
   class binary_deserializer
   {
   public:
@@ -108,89 +155,124 @@ namespace vds {
     binary_deserializer(const void * data, size_t len);
     
     //1 byte
-    binary_deserializer & operator >> (bool & value);
+    expected<void> get(bool & value);
 
     //1 byte
-    binary_deserializer & operator >> (uint8_t & value);
+    expected<void> get(uint8_t & value);
 
     //2 byte
-    binary_deserializer & operator >> (uint16_t & value);
+    expected<void> get(uint16_t & value);
 
     //4 byte
-    binary_deserializer & operator >> (uint32_t & value);
+    expected<void> get(uint32_t & value);
 
     //8 byte
-    binary_deserializer & operator >> (uint64_t & value);
+    expected<void> get(uint64_t & value);
 
-    binary_deserializer & operator >> (std::string & value);
+    expected<void> get(std::string & value);
    
-    binary_deserializer & operator >> (const_data_buffer & data);
+    expected<void> get(const_data_buffer & data);
     
-    uint64_t read_number();
+    expected<uint64_t> read_number();
 
     const uint8_t * data() const { return this->data_; }
     size_t size() const { return this->len_; }
     
-    void pop_data(void * data, size_t & size, bool serialize_size);
-    size_t pop_data(void * data, size_t size);
+    expected<void> pop_data(void * data, size_t & size, bool serialize_size);
+    expected<size_t> pop_data(void * data, size_t size);
 
-    template <typename T>
-    binary_deserializer & operator >> (std::list<T> & value)
-    {
-      auto count = this->read_number();
-      for(decltype(count) i = 0; i < count; ++i){
-        T item;
-        *this >> item;
-        value.push_back(item);
-      }
-      
-      return *this;
-    }
-
-    template <typename T>
-    binary_deserializer & operator >> (std::vector<T> & value)
-    {
-      auto count = this->read_number();
-      for(decltype(count) i = 0; i < count; ++i){
-        T item;
-        *this >> item;
-        value.push_back(item);
-      }
-
-      return *this;
-    }
-
-    template <typename T>
-    binary_deserializer & operator >> (std::set<T> & value)
-    {
-      auto count = this->read_number();
-      for(decltype(count) i = 0; i < count; ++i){
-        T item;
-        *this >> item;
-        value.emplace(item);
-      }
-
-      return *this;
-    }
-
-    template <typename TKey, typename TValue>
-    binary_deserializer & operator >> (std::map<TKey, TValue> & item)
-    {
-      auto count = this->read_number();
-      for(decltype(count) i = 0; i < count; ++i){
-        TKey key;
-        TValue value;
-        *this >> key >> value;
-        item.emplace(std::move(key), std::move(value));
-      }
-
-      return *this;
-    }
 
   private:
     const uint8_t * data_;
     size_t len_;
   };
+
+  //1 byte
+  inline expected<void> deserialize(binary_deserializer & s, bool & value) {
+    return s.get(value);
+  }
+
+  //1 byte
+  inline expected<void> deserialize(binary_deserializer & s, uint8_t & value) {
+    return s.get(value);
+  }
+  //2 byte
+  inline expected<void> deserialize(binary_deserializer & s, uint16_t & value) {
+    return s.get(value);
+  }
+
+  //4 byte
+  inline expected<void> deserialize(binary_deserializer & s, uint32_t & value) {
+    return s.get(value);
+  }
+
+  //8 byte
+  inline expected<void> deserialize(binary_deserializer & s, uint64_t & value) {
+    return s.get(value);
+  }
+
+  inline expected<void> deserialize(binary_deserializer & s, std::string & value) {
+    return s.get(value);
+  }
+
+  inline expected<void> deserialize(binary_deserializer & s, const_data_buffer & data) {
+    return s.get(data);
+  }
+
+  template <typename T>
+  inline expected<void> deserialize(binary_deserializer & s, std::list<T> & value)
+  {
+    GET_EXPECTED(count, s.read_number());
+    for (decltype(count) i = 0; i < count; ++i) {
+      T item;
+      CHECK_EXPECTED(vds::deserialize(s, item));
+      value.push_back(item);
+    }
+
+    return expected<void>();
+  }
+
+  template <typename T>
+  inline expected<void> deserialize(binary_deserializer & s, std::vector<T> & value)
+  {
+    GET_EXPECTED(count, s.read_number());
+    for (decltype(count) i = 0; i < count; ++i) {
+      T item;
+      CHECK_EXPECTED(vds::deserialize(s, item));
+      value.push_back(item);
+    }
+
+    return expected<void>();
+  }
+
+  template <typename T>
+  inline expected<void> deserialize(binary_deserializer & s, std::set<T> & value)
+  {
+    GET_EXPECTED(count, s.read_number());
+    for (decltype(count) i = 0; i < count; ++i) {
+      T item;
+      CHECK_EXPECTED(vds::deserialize(s, item));
+      value.emplace(item);
+    }
+
+    return expected<void>();
+  }
+
+  template <typename TKey, typename TValue>
+  inline expected<void> deserialize(binary_deserializer & s, std::map<TKey, TValue> & item)
+  {
+    GET_EXPECTED(count, s.read_number());
+    for (decltype(count) i = 0; i < count; ++i) {
+      TKey key;
+      TValue value;
+      CHECK_EXPECTED(vds::deserialize(s, key));
+      CHECK_EXPECTED(vds::deserialize(s, value));
+
+      item.emplace(std::move(key), std::move(value));
+    }
+
+    return expected<void>();
+  }
   /////////////////////////////////////////////////////////////////////////
   // Helpers
   /////////////////////////////////////////////////////////////////////////
@@ -203,7 +285,8 @@ namespace vds {
     _message_init_visitor(){
     }
 
-    void operator ()() {
+    auto & operator ()() {
+      return *this;
     }
   };
 
@@ -215,8 +298,9 @@ namespace vds {
     }
 
     template <typename field_type>
-    void operator ()(field_type & field) {
+    auto & operator ()(field_type & field) {
       field = this->v_;
+      return *this;
     }
 
   private:
@@ -265,19 +349,31 @@ namespace vds {
     _serialize_visitor & operator ()(void) {
       return *this;
     }
-
+    std::unique_ptr<std::exception>  & error() {
+      return this->error_;
+    }
   private:
     vds::binary_serializer & b_;
+    std::unique_ptr<std::exception> error_;
 
     template <typename field_type>
     void serialize(field_type & field) {
-      this->b_ << field;
-
+      if (!this->error_) {
+        auto result = vds::serialize(this->b_, field);
+        if(result.has_error()) {
+          this->error_ = std::move(result.error());
+        }
+      }
     }
 
     template <typename first_field_type, typename... rest_fields_types>
     void serialize(first_field_type & first_field, rest_fields_types &... rest_fields) {
-      this->b_ << first_field;
+      if (!this->error_) {
+        auto result = vds::serialize(this->b_, first_field);
+        if (result.has_error()) {
+          this->error_ = std::move(result.error());
+        }
+      }
       serialize<rest_fields_types...>(rest_fields...);
     }
   };
@@ -298,23 +394,38 @@ namespace vds {
       return *this;
     }
 
+    std::unique_ptr<std::exception>  & error() {
+      return this->error_;
+    }
+
   private:
-    vds::binary_deserializer & b_;
+    binary_deserializer & b_;
+    std::unique_ptr<std::exception> error_;
 
     template <typename field_type>
     void deserialize(field_type & field) {
-      this->b_ >> field;
+      if (!this->error_) {
+        auto result = vds::deserialize(this->b_, field);
+        if (result.has_error()) {
+          this->error_ = std::move(result.error());
+        }
+      }
     }
 
     template <typename first_field_type, typename... rest_fields_types>
     void deserialize(first_field_type & first_field, rest_fields_types & ... rest_fields) {
-      this->b_ >> first_field;
+      if (!this->error_) {
+        auto result = vds::deserialize(this->b_, first_field);
+        if (result.has_error()) {
+          this->error_ = std::move(result.error());
+        }
+      }
       deserialize<rest_fields_types...>(rest_fields...);
     }
   };
 
   template<typename message_type, typename... init_field_types>
-  inline message_type message_create(init_field_types &&... init_field_values)
+  inline expected<message_type> message_create(init_field_types &&... init_field_values)
   {
     message_type message;
     _message_init_visitor<init_field_types...> v(
@@ -325,21 +436,27 @@ namespace vds {
   }
 
   template<typename message_type>
-  inline const_data_buffer message_serialize(const message_type & message)
+  inline expected<const_data_buffer> message_serialize(const message_type & message)
   {
     vds::binary_serializer b;
     _serialize_visitor bs(b);
     const_cast<typename std::remove_const<message_type>::type *>(&message)->visit(bs);
+    if(bs.error()) {
+      return vds::unexpected(std::move(bs.error()));
+    }
 
     return b.move_data();
   }
 
   template<typename message_type>
-  inline message_type message_deserialize(vds::binary_deserializer & d)
+  inline expected<message_type> message_deserialize(vds::binary_deserializer & d)
   {
     message_type message;
     _deserialize_visitor v(d);
     message.visit(v);
+    if (v.error()) {
+      return vds::unexpected(std::move(v.error()));
+    }
     return message;
   }
 

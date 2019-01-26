@@ -26,7 +26,7 @@ namespace vds {
     {
     }
 
-    vds::async_task<void> write_async(
+    vds::async_task<vds::expected<void>> write_async(
       const http_message message)
     {
       auto pthis = this->shared_from_this();
@@ -40,17 +40,19 @@ namespace vds {
       stream << "\r\n";
 
       auto data = std::make_shared<std::string>(stream.str());
-      co_await this->target_->write_async(reinterpret_cast<const uint8_t *>(data->c_str()), data->length());
+      CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(reinterpret_cast<const uint8_t *>(data->c_str()), data->length()));
 
       for (;;) {
-        auto readed = co_await message.body()->read_async(this->output_buffer_, sizeof(this->output_buffer_));
+        GET_EXPECTED_ASYNC(readed, co_await message.body()->read_async(this->output_buffer_, sizeof(this->output_buffer_)));
         if (0 == readed) {
-          co_await this->target_->write_async(nullptr, 0);
+          CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(nullptr, 0));
           break;
         }
 
         co_await this->target_->write_async(this->output_buffer_, readed);
       }
+
+      co_return expected<void>();
     }
 
   private:

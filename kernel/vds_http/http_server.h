@@ -16,12 +16,12 @@ namespace vds {
   class http_server
   {
   public:
-    typedef std::function<vds::async_task<std::shared_ptr<vds::http_message>>(const std::shared_ptr<vds::http_message> & request)> handler_type;
+    typedef std::function<vds::async_task<vds::expected<std::shared_ptr<vds::http_message>>>(const std::shared_ptr<vds::http_message> & request)> handler_type;
 
     http_server();
     ~http_server();
 
-    vds::async_task<void> start(
+    vds::async_task<vds::expected<void>> start(
       
       const std::shared_ptr<continuous_buffer<uint8_t>> & incoming_stream,
       const std::shared_ptr<continuous_buffer<uint8_t>> & outgoing,

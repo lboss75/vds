@@ -6,7 +6,6 @@ All rights reserved
 #include "stdafx.h"
 #include "symmetriccrypto.h"
 #include "private/symmetriccrypto_p.h"
-#include "resizable_data_buffer.h"
 
 ////////////////////////////////////////////////////////////////////////////
 vds::symmetric_crypto_info::symmetric_crypto_info(_symmetric_crypto_info * impl)
@@ -61,57 +60,66 @@ size_t vds::symmetric_key::block_size() const
   return this->impl_->crypto_info_.block_size();
 }
 
-vds::symmetric_key vds::symmetric_key::deserialize(
+vds::expected<vds::symmetric_key> vds::symmetric_key::deserialize(
     const vds::symmetric_crypto_info& crypto_info,
     vds::binary_deserializer& s)
 {
-  auto key = new unsigned char[crypto_info.key_size()];
-  auto iv = new unsigned char[crypto_info.iv_size()];
-  s.pop_data(key, (int)crypto_info.key_size());
-  s.pop_data(iv, (int)crypto_info.iv_size());
+  std::unique_ptr<unsigned char> key(new unsigned char[crypto_info.key_size()]);
+  CHECK_EXPECTED(s.pop_data(key.get(), (int)crypto_info.key_size()));
 
-  return symmetric_key(new _symmetric_key(crypto_info, key, iv));
+  std::unique_ptr<unsigned char>  iv(new unsigned char[crypto_info.iv_size()]);
+  CHECK_EXPECTED(s.pop_data(iv.get(), (int)crypto_info.iv_size()));
+
+  return symmetric_key(new _symmetric_key(crypto_info, key.release(), iv.release()));
 }
 
-vds::symmetric_key vds::symmetric_key::deserialize(
+vds::expected<vds::symmetric_key> vds::symmetric_key::deserialize(
     const vds::symmetric_crypto_info& crypto_info,
     vds::binary_deserializer && s)
 {
-  auto key = new unsigned char[crypto_info.key_size()];
-  auto iv = new unsigned char[crypto_info.iv_size()];
-  if(crypto_info.key_size() != s.pop_data(key, (int)crypto_info.key_size())){
-    throw std::runtime_error("Invalid data");
-  }
-  if(crypto_info.iv_size() != s.pop_data(iv, (int)crypto_info.iv_size())){
-    throw std::runtime_error("Invalid data");
+  std::unique_ptr<unsigned char> key(new unsigned char[crypto_info.key_size()]);
+  GET_EXPECTED(key_size, s.pop_data(key.get(), (int)crypto_info.key_size()));
+  if (crypto_info.key_size() != key_size) {
+    return vds::make_unexpected<std::runtime_error>("Invalid data");
   }
 
-  return symmetric_key(new _symmetric_key(crypto_info, key, iv));
+  std::unique_ptr<unsigned char> iv(new unsigned char[crypto_info.iv_size()]);
+  GET_EXPECTED(iv_size, s.pop_data(iv.get(), (int)crypto_info.iv_size()));
+  if(crypto_info.iv_size() != iv_size){
+    return vds::make_unexpected<std::runtime_error>("Invalid data");
+  }
+
+  return symmetric_key(new _symmetric_key(crypto_info, key.release(), iv.release()));
 }
 
-void vds::symmetric_key::serialize(vds::binary_serializer& s) const
+vds::expected<void> vds::symmetric_key::serialize(vds::binary_serializer& s) const
 {
-  s.push_data(this->impl_->key_, (int)this->impl_->crypto_info_.key_size());
-  s.push_data(this->impl_->iv_, (int)this->impl_->crypto_info_.iv_size());
+  CHECK_EXPECTED(s.push_data(this->impl_->key_, (int)this->impl_->crypto_info_.key_size()));
+  return s.push_data(this->impl_->iv_, (int)this->impl_->crypto_info_.iv_size());
 }
 
-vds::symmetric_key vds::symmetric_key::from_password(const std::string & password)
+vds::expected<vds::symmetric_key> vds::symmetric_key::from_password(const std::string & password)
 {
-  unsigned char * key = new unsigned char[EVP_MAX_KEY_LENGTH];
-  if(!EVP_BytesToKey(EVP_rc4(), EVP_md5(), NULL, (const unsigned char *)password.c_str(), password.length(), 1, key, NULL)){
+  std::unique_ptr<unsigned char> key(new unsigned char[EVP_MAX_KEY_LENGTH]);
+  if(!EVP_BytesToKey(EVP_rc4(), EVP_md5(), NULL, (const unsigned char *)password.c_str(), password.length(), 1, key.get(), NULL)){
     auto error = ERR_get_error();
-	delete[] key;
-    throw crypto_exception("EVP_BytesToKey failed", error);
+    return vds::make_unexpected<crypto_exception>("EVP_BytesToKey failed", error);
   }
   
-  return symmetric_key(new _symmetric_key(symmetric_crypto::rc4(), key, nullptr));
+  return symmetric_key(new _symmetric_key(symmetric_crypto::rc4(), key.release(), nullptr));
 }
 
-vds::symmetric_key::symmetric_key() {
+vds::symmetric_key::symmetric_key()
+: impl_(nullptr) {
 }
 
-vds::symmetric_key::symmetric_key(class _symmetric_key *impl)
-    : impl_(impl){
+vds::symmetric_key::symmetric_key(_symmetric_key *impl)
+: impl_(impl){
+}
+
+vds::symmetric_key::symmetric_key(symmetric_key&& origin)
+: impl_(origin.impl_){
+  origin.impl_ = nullptr;
 }
 
 vds::symmetric_key::~symmetric_key() {
@@ -121,13 +129,13 @@ vds::symmetric_key vds::symmetric_key::create(
     const symmetric_crypto_info &crypto_info,
     const uint8_t *key,
     const uint8_t *iv) {
-  auto key_ = new unsigned char[crypto_info.key_size()];
-  auto iv_ = new unsigned char[crypto_info.iv_size()];
+  std::unique_ptr<unsigned char> key_(new unsigned char[crypto_info.key_size()]);
+  std::unique_ptr<unsigned char> iv_(new unsigned char[crypto_info.iv_size()]);
 
-  memcpy(key_, key, crypto_info.key_size());
-  memcpy(iv_, iv, crypto_info.iv_size());
+  memcpy(key_.get(), key, crypto_info.key_size());
+  memcpy(iv_.get(), iv, crypto_info.iv_size());
 
-  return symmetric_key(new _symmetric_key(crypto_info, key_, iv_));
+  return symmetric_key(new _symmetric_key(crypto_info, key_.release(), iv_.release()));
 }
 
 //////////////////////////////////////////////////////////////
@@ -144,10 +152,8 @@ vds::_symmetric_key::~_symmetric_key()
 	delete[] this->iv_;
 }
 ///////////////////////////////////////////////////
-vds::symmetric_encrypt::symmetric_encrypt(
-  const vds::symmetric_key& key,
-  const std::shared_ptr<stream_output_async<uint8_t>> & target)
-: impl_(new _symmetric_encrypt(key, target))
+vds::symmetric_encrypt::symmetric_encrypt()
+: impl_(nullptr)
 {
 }
 
@@ -155,19 +161,31 @@ vds::symmetric_encrypt::~symmetric_encrypt() {
   delete this->impl_;
 }
 
-vds::async_task<void> vds::symmetric_encrypt::write_async(const uint8_t* data, size_t len) {
+vds::expected<std::shared_ptr<vds::symmetric_encrypt>> vds::symmetric_encrypt::create(
+  const vds::symmetric_key& key,
+  const std::shared_ptr<stream_output_async<uint8_t>> & target) {
+
+  auto impl = new _symmetric_encrypt();
+  CHECK_EXPECTED(impl->create(key, target));
+
+  return std::make_shared<symmetric_encrypt>(impl);
+}
+
+
+vds::async_task<vds::expected<void>> vds::symmetric_encrypt::write_async(const uint8_t* data, size_t len) {
   return this->impl_->write_async(data, len);
 }
 
-vds::const_data_buffer vds::symmetric_encrypt::encrypt(
+vds::expected<vds::const_data_buffer> vds::symmetric_encrypt::encrypt(
   const vds::symmetric_key& key,
   const void * input_buffer,
   size_t input_buffer_size) {
   auto result = std::make_shared<collect_data<uint8_t>>();
 
-  _symmetric_encrypt s(key, result);
-  s.write_async((const uint8_t *)input_buffer, input_buffer_size).get();
-  s.write_async(nullptr, 0).get();
+  _symmetric_encrypt s;
+  CHECK_EXPECTED(s.create(key, result));
+  CHECK_EXPECTED(s.write_async((const uint8_t *)input_buffer, input_buffer_size).get());
+  CHECK_EXPECTED(s.write_async(nullptr, 0).get());
 
   return result->move_data();
 }
@@ -189,27 +207,32 @@ size_t vds::_symmetric_crypto_info::iv_size() const
   return EVP_CIPHER_iv_length(this->cipher_);
 }
 
-vds::symmetric_decrypt::symmetric_decrypt(
-  const symmetric_key & key,
-  const std::shared_ptr<stream_output_async<uint8_t>> & target)
-  : impl_(new _symmetric_decrypt(key, target))
-{
+vds::symmetric_decrypt::symmetric_decrypt()
+  : impl_(nullptr) {
 }
 
 vds::symmetric_decrypt::~symmetric_decrypt() {
   delete this->impl_; 
 }
 
-vds::const_data_buffer vds::symmetric_decrypt::decrypt(
+vds::expected<void> vds::symmetric_decrypt::create(
+  const symmetric_key & key,
+  const std::shared_ptr<stream_output_async<uint8_t>> & target) {
+  this->impl_ = new _symmetric_decrypt();
+  return this->impl_->create(key, target);
+}
+
+vds::expected<vds::const_data_buffer> vds::symmetric_decrypt::decrypt(
   const symmetric_key & key,
   const void * input_buffer,
   size_t input_buffer_size)
 {
   auto result = std::make_shared<collect_data<uint8_t>>();
    
-  _symmetric_decrypt s(key, result);
-  s.write_async((const uint8_t *)input_buffer, input_buffer_size).get();
-  s.write_async(nullptr, 0).get();
+  _symmetric_decrypt s;
+  CHECK_EXPECTED(s.create(key, result));
+  CHECK_EXPECTED(s.write_async((const uint8_t *)input_buffer, input_buffer_size).get());
+  CHECK_EXPECTED(s.write_async(nullptr, 0).get());
 
   return result->move_data();
 }

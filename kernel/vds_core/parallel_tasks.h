@@ -20,7 +20,7 @@
 //      this->tasks_.push_back(std::forward<task_type>(task));
 //    }
 //
-//    vds::async_task<void> run()
+//    vds::async_task<vds::expected<void>> run()
 //    {
 //      return [this](const vds::async_result<> & result) {
 //          auto runner = new _async_series(result, this->tasks_.size());
@@ -29,7 +29,7 @@
 //    }
 //
 //  private:
-//    std::list<vds::async_task<void>> tasks_;
+//    std::list<vds::async_task<vds::expected<void>>> tasks_;
 //  };
 //}
 //

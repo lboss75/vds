@@ -11,7 +11,7 @@ All rights reserved
 #include "member_user.h"
 #include "user_storage.h"
 
-vds::async_task<std::shared_ptr<vds::json_value>> vds::storage_api::device_storages(
+vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::storage_api::device_storages(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager> & user_mng,
   const http_request & /*request*/)
@@ -19,13 +19,13 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::storage_api::device_stora
   return user_storage::device_storages(sp, user_mng);
 }
 
-std::shared_ptr<vds::json_value> vds::storage_api::device_storage_label(
+vds::expected<std::shared_ptr<vds::json_value>> vds::storage_api::device_storage_label(
   const std::shared_ptr<user_manager>& user_mng)
 {
   return user_storage::device_storage_label(user_mng);
 }
 
-vds::async_task<void> vds::storage_api::add_device_storage(
+vds::async_task<vds::expected<void>> vds::storage_api::add_device_storage(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager> & user_mng,
   const std::string & name,

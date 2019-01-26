@@ -37,19 +37,19 @@ namespace vds {
       : account_state_(std::move(original.account_state_)){
       }
 
-      static transaction_record_state load(
+      static expected<transaction_record_state> load(
         database_read_transaction & t,
         const const_data_buffer & log_id);
 
-      static transaction_record_state load(
+      static expected<transaction_record_state> load(
         database_read_transaction & t,
         const std::set<vds::const_data_buffer> & ancestors);
 
-      static transaction_record_state load(
+      static expected<transaction_record_state> load(
         database_read_transaction & t,
         const transaction_block & block);
       
-      void save(
+      expected<void> save(
         database_transaction & t,
         const std::string & owner,
         const const_data_buffer & log_id) const;
@@ -63,10 +63,10 @@ namespace vds {
         }
       };
 
-      void apply(
+      expected<void> apply(
         const transaction_block & block);
 
-      void rollback(
+      expected<void> rollback(
         const transaction_block & block);
 
 
@@ -84,24 +84,15 @@ namespace vds {
 
       std::map<std::string/*account*/, account_state_t> account_state_;
 
-
-      static const_data_buffer looking_leaf(
-        database_read_transaction& t,
-        const const_data_buffer& log_id);
-
-      static transaction_record_state calculate_state(
-        database_read_transaction& t,
-        const const_data_buffer& log_id);
-
       class transaction_state_calculator {
       public:
         transaction_state_calculator();
 
-        void add_ancestor(
+        expected<void> add_ancestor(
           vds::database_read_transaction &t,
           const const_data_buffer & ancestor_id);
 
-        transaction_record_state load(
+        expected<transaction_record_state> load(
           vds::database_read_transaction& t);
 
       private:
@@ -130,7 +121,7 @@ namespace vds {
           uint64_t order_no,
           const vds::const_data_buffer &log_id) const;
 
-        transaction_record_state load_init_state(
+        expected<transaction_record_state> load_init_state(
           vds::database_read_transaction& t);
 
       };

@@ -42,7 +42,7 @@ namespace vds {
         int64_t free_size;
       };
 
-      static std::list<device_info> get_free_space(
+      static expected<std::list<device_info>> get_free_space(
         database_read_transaction & t,
         const const_data_buffer & node_id);
     };

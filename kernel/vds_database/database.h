@@ -26,6 +26,7 @@ namespace vds {
   class sql_statement
   {
   public:
+    sql_statement();
     sql_statement(_sql_statement * impl);
     sql_statement(sql_statement && original);
     ~sql_statement();
@@ -36,7 +37,7 @@ namespace vds {
     void set_parameter(int index, const const_data_buffer & value);
     void set_parameter(int index, const std::chrono::system_clock::time_point & value);
 
-    bool execute();
+    expected<bool> execute();
 
     bool get_value(int index, int & value);
     bool get_value(int index, int64_t & value);
@@ -55,10 +56,10 @@ namespace vds {
 
   class database_read_transaction {
   public:
-    sql_statement parse(const char * sql) const;
+    expected<sql_statement> parse(const char * sql) const;
 
     template <typename command_type>
-    sql_statement get_reader(const command_type & command) const
+    expected<sql_statement> get_reader(const command_type & command) const
     {
       return sql_command_builder<command_type>().build(*this, command);
     }
@@ -77,17 +78,18 @@ namespace vds {
   class database_transaction : public database_read_transaction
   {
   public:
-    void execute(const char * sql);
+    expected<void> execute(const char * sql);
 
     template <typename command_type>
-    void execute(const command_type & command)
+    expected<void> execute(const command_type & command)
     {
-      auto st = sql_command_builder<command_type>().build(*this, command);
-      st.execute();      
+      GET_EXPECTED(st, sql_command_builder<command_type>().build(*this, command));
+      CHECK_EXPECTED(st.execute());
+      return expected<void>();
     }
 
-    int rows_modified() const;
-    int last_insert_rowid() const;
+    expected<int> rows_modified() const;
+    expected<int> last_insert_rowid() const;
 
   private:
     friend class _database;
@@ -104,16 +106,16 @@ namespace vds {
     database();
     ~database();
 
-    void open(const service_provider * sp, const filename & fn);
-    void close();
+    expected<void> open(const service_provider * sp, const filename & fn);
+    expected<void> close();
 
-    vds::async_task<void> async_transaction(      
-      const std::function<bool(database_transaction & tr)> & callback);
+    vds::async_task<vds::expected<void>> async_transaction(      
+      const std::function<expected<bool>(database_transaction & tr)> & callback);
 
-    vds::async_task<void> async_read_transaction(      
-      const std::function<void(database_read_transaction & tr)> & callback);
+    vds::async_task<vds::expected<void>> async_read_transaction(      
+      const std::function<expected<void>(database_read_transaction & tr)> & callback);
 
-    vds::async_task<void> prepare_to_stop();
+    vds::async_task<vds::expected<void>> prepare_to_stop();
 
     size_t queue_length() const;
 

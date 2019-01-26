@@ -28,28 +28,28 @@ namespace vds {
         : sp_(sp) {        
       }
 
-      async_task<void> do_sync(        
+      async_task<expected<void>> do_sync(        
         database_transaction & t);
 
-      async_task<void> apply_message(
+      async_task<expected<void>> apply_message(
         
         database_transaction & t,
         const dht::messages::transaction_log_state & message,
         const dht::network::imessage_map::message_info_t & message_info);
 
-      async_task<void> apply_message(
+      async_task<expected<void>> apply_message(
         
         database_transaction& t,
         const dht::messages::transaction_log_request& message,
         const dht::network::imessage_map::message_info_t & message_info);
 
-      async_task<void> apply_message(
+      async_task<expected<void>> apply_message(
         
         database_transaction& t,
         const dht::messages::transaction_log_record & message,
         const dht::network::imessage_map::message_info_t & message_info);
 
-      async_task<void> on_new_session(
+      async_task<expected<void>> on_new_session(
         
         database_read_transaction & t,
         const const_data_buffer& partner_id);
@@ -57,10 +57,10 @@ namespace vds {
     private:
       const service_provider * sp_;
 
-      async_task<void> query_unknown_records( database_transaction& t);
+      async_task<expected<void>> query_unknown_records( database_transaction& t);
 
 
-      async_task<void> sync_local_channels(
+      async_task<expected<void>> sync_local_channels(
         
         database_read_transaction & t,
         const const_data_buffer& partner_id);

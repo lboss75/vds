@@ -24,12 +24,21 @@ namespace vds {
 
     class transaction_block_builder {
     public:
-
+      transaction_block_builder() = default;
       transaction_block_builder(
+        const service_provider * sp,
+        const std::chrono::system_clock::time_point & time_point,
+        const std::set<const_data_buffer> & ancestors,
+        uint64_t order_no
+      )
+        : sp_(sp), time_point_(time_point), ancestors_(std::move(ancestors)), order_no_(order_no) {
+      }
+
+      static expected<transaction_block_builder> create(
         const service_provider * sp,
         class vds::database_read_transaction &t);
 
-      transaction_block_builder(
+      static expected<transaction_block_builder> create(
         const service_provider * sp,
         class vds::database_read_transaction &t,
         const std::set<const_data_buffer> & ancestors);
@@ -38,17 +47,17 @@ namespace vds {
         return transaction_block_builder(sp);
       }
       
-      void add(const root_user_transaction & item);
-      void add(const create_user_transaction & item);
-      void add(const payment_transaction & item);
-      void add(const channel_message & item);
+      expected<void> add(expected<root_user_transaction> && item);
+      expected<void> add(expected<create_user_transaction> && item);
+      expected<void> add(expected<payment_transaction> && item);
+      expected<void> add(expected<channel_message> && item);
 
-      const_data_buffer sign(
+      expected<const_data_buffer> sign(
         const service_provider * sp,
         const std::shared_ptr<certificate> &write_cert,
         const std::shared_ptr<asymmetric_private_key> &write_private_key);
 
-      const_data_buffer save(
+      expected<const_data_buffer> save(
         const service_provider * sp,
         class vds::database_transaction &t,
         const std::shared_ptr<certificate> &write_cert,
@@ -59,13 +68,11 @@ namespace vds {
 
         const service_provider * sp_;
         std::chrono::system_clock::time_point time_point_;
-
         std::set<const_data_buffer> ancestors_;
         uint64_t order_no_;
         binary_serializer data_;
 
         transaction_block_builder(const service_provider * sp);
-
     };
   }
 }

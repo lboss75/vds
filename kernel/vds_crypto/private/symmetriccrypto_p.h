@@ -49,8 +49,6 @@ namespace vds {
         uint8_t * iv);
     ~_symmetric_key();
     
-    void generate();
-    
     const uint8_t * key() const {
       return this->key_;
     }
@@ -74,28 +72,12 @@ namespace vds {
   class _symmetric_encrypt
   {
   public:
-    _symmetric_encrypt(
-      const symmetric_key & key,
-      const std::shared_ptr<stream_output_async<uint8_t>> & target)
-    : target_(target),
-      ctx_(EVP_CIPHER_CTX_new()),
-      block_size_(key.block_size()),
-      input_buffer_(new uint8_t[key.block_size()]),
+    _symmetric_encrypt()
+    : ctx_(nullptr),
+      block_size_(0),
+      input_buffer_(nullptr),
       input_buffer_offset_(0),
-      output_buffer_(new uint8_t[2 * key.block_size()])
-    {
-      if (nullptr == this->ctx_) {
-        throw std::runtime_error("Create crypto context failed");
-      }
-
-      if (1 != EVP_EncryptInit_ex(
-        this->ctx_,
-        key.impl_->crypto_info_.impl_->cipher(),
-        nullptr,
-        key.impl_->key(),
-        key.impl_->iv())) {
-        throw std::runtime_error("Create crypto context failed");
-      }
+      output_buffer_(nullptr) {
     }
 
     ~_symmetric_encrypt()
@@ -107,8 +89,34 @@ namespace vds {
         EVP_CIPHER_CTX_free(this->ctx_);
       }
     }
-    
-    vds::async_task<void> write_async(
+
+    expected<void> create(
+      const symmetric_key & key,
+      const std::shared_ptr<stream_output_async<uint8_t>> & target) {
+      this->target_ = target;
+      this->ctx_ = EVP_CIPHER_CTX_new();
+      this->block_size_ = key.block_size();
+      this->input_buffer_ = new uint8_t[key.block_size()];
+      this->input_buffer_offset_ = 0;
+      this->output_buffer_ = new uint8_t[2 * key.block_size()];
+
+      if (nullptr == this->ctx_) {
+        return vds::make_unexpected<std::runtime_error>("Create crypto context failed");
+      }
+
+      if (1 != EVP_EncryptInit_ex(
+        this->ctx_,
+        key.impl_->crypto_info_.impl_->cipher(),
+        nullptr,
+        key.impl_->key(),
+        key.impl_->iv())) {
+        return vds::make_unexpected<std::runtime_error>("Create crypto context failed");
+      }
+
+      return expected<void>();
+    }
+
+    vds::async_task<vds::expected<void>> write_async(
         const uint8_t * input_buffer,
         size_t input_buffer_size) {
       if (0 < input_buffer_size) {
@@ -132,11 +140,11 @@ namespace vds {
                                       reinterpret_cast<const unsigned char *>(this->input_buffer_),
                                       (int) this->block_size_)) {
               auto error = ERR_get_error();
-              throw crypto_exception("EVP_CipherUpdate failed", error);
+              co_return vds::make_unexpected<crypto_exception>("EVP_CipherUpdate failed", error);
             }
 
             if(0 < len) {
-              co_await this->target_->write_async(this->output_buffer_, len);
+              CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(this->output_buffer_, len));
             }
 
             this->input_buffer_offset_ = 0;
@@ -153,11 +161,11 @@ namespace vds {
                                     reinterpret_cast<unsigned char *>(this->output_buffer_), &len,
                                     reinterpret_cast<const unsigned char *>(this->input_buffer_), (int)this->input_buffer_offset_)) {
             auto error = ERR_get_error();
-            throw crypto_exception("EVP_CipherUpdate failed", error);
+            co_return vds::make_unexpected<crypto_exception>("EVP_CipherUpdate failed", error);
           }
 
           if(0 < len) {
-            co_await this->target_->write_async(this->output_buffer_, len);
+            CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(this->output_buffer_, len));
           }
         }
 
@@ -166,15 +174,17 @@ namespace vds {
             this->ctx_,
             reinterpret_cast<unsigned char *>(this->output_buffer_), &len)) {
           auto error = ERR_get_error();
-          throw crypto_exception("EVP_CipherFinal_ex failed", error);
+          co_return vds::make_unexpected<crypto_exception>("EVP_CipherFinal_ex failed", error);
         }
 
         if(0 < len) {
-          co_await this->target_->write_async(this->output_buffer_, len);
+          CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(this->output_buffer_, len));
         }
 
-        co_await this->target_->write_async(nullptr, 0);
+        CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(nullptr, 0));
       }
+
+      co_return vds::expected<void>();
     }
 
   private:
@@ -183,35 +193,19 @@ namespace vds {
     size_t block_size_;
 
     uint8_t  * input_buffer_;
-    uint8_t    input_buffer_offset_;
+    size_t    input_buffer_offset_;
     uint8_t  * output_buffer_;
   };
 
   class _symmetric_decrypt
   {
   public:
-    _symmetric_decrypt(
-        const symmetric_key & key,
-        const std::shared_ptr<stream_output_async<uint8_t>> & target)
-      : target_(target),
-        ctx_(EVP_CIPHER_CTX_new()),
-        block_size_(key.block_size()),
-        input_buffer_(new uint8_t[key.block_size()]),
+    _symmetric_decrypt()
+      : ctx_(nullptr),
+        block_size_(0),
+        input_buffer_(nullptr),
         input_buffer_offset_(0),
-        output_buffer_(new uint8_t[2 * key.block_size()])
-    {
-      if (nullptr == this->ctx_) {
-        throw std::runtime_error("Create crypto context failed");
-      }
-
-      if (1 != EVP_DecryptInit_ex(
-        this->ctx_,
-        key.impl_->crypto_info_.impl_->cipher(),
-        nullptr,
-        key.impl_->key(),
-        key.impl_->iv())) {
-        throw std::runtime_error("Create decrypt context failed");
-      }
+        output_buffer_(nullptr) {
     }
 
     ~_symmetric_decrypt()
@@ -224,8 +218,33 @@ namespace vds {
       }
     }
 
-    vds::async_task<void> write_async(
-      
+    expected<void> create(
+      const symmetric_key & key,
+      const std::shared_ptr<stream_output_async<uint8_t>> & target) {
+      this->target_ = target;
+      this->ctx_ = EVP_CIPHER_CTX_new();
+      this->block_size_ = key.block_size();
+      this->input_buffer_ = new uint8_t[key.block_size()];
+      this->input_buffer_offset_ = 0;
+      this->output_buffer_ = new uint8_t[2 * key.block_size()];
+
+      if (nullptr == this->ctx_) {
+        return vds::make_unexpected<std::runtime_error>("Create crypto context failed");
+      }
+
+      if (1 != EVP_DecryptInit_ex(
+        this->ctx_,
+        key.impl_->crypto_info_.impl_->cipher(),
+        nullptr,
+        key.impl_->key(),
+        key.impl_->iv())) {
+        return vds::make_unexpected<std::runtime_error>("Create decrypt context failed");
+      }
+
+      return expected<void>();
+    }
+
+    vds::async_task<vds::expected<void>> write_async(
         const uint8_t * input_buffer,
         size_t input_buffer_size)
     {
@@ -250,11 +269,11 @@ namespace vds {
                                       reinterpret_cast<const unsigned char *>(this->input_buffer_),
                                       (int) this->block_size_)) {
               auto error = ERR_get_error();
-              throw crypto_exception("EVP_CipherUpdate failed", error);
+              co_return vds::make_unexpected<crypto_exception>("EVP_CipherUpdate failed", error);
             }
 
             if(0 < len) {
-              co_await this->target_->write_async(this->output_buffer_, len);
+              CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(this->output_buffer_, len));
             }
 
             this->input_buffer_offset_ = 0;
@@ -271,11 +290,11 @@ namespace vds {
                                     reinterpret_cast<unsigned char *>(this->output_buffer_), &len,
                                     reinterpret_cast<const unsigned char *>(this->input_buffer_), (int)this->input_buffer_offset_)) {
             auto error = ERR_get_error();
-            throw crypto_exception("EVP_CipherUpdate failed", error);
+            co_return vds::make_unexpected<crypto_exception>("EVP_CipherUpdate failed", error);
           }
 
           if(0 < len) {
-            co_await this->target_->write_async(this->output_buffer_, len);
+            CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(this->output_buffer_, len));
           }
         }
 
@@ -284,15 +303,17 @@ namespace vds {
             this->ctx_,
             reinterpret_cast<unsigned char *>(this->output_buffer_), &len)) {
           auto error = ERR_get_error();
-          throw crypto_exception("EVP_CipherFinal_ex failed", error);
+          co_return vds::make_unexpected<crypto_exception>("EVP_CipherFinal_ex failed", error);
         }
 
         if(0 < len) {
-          co_await this->target_->write_async(this->output_buffer_, len);
+          CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(this->output_buffer_, len));
         }
 
-        co_await this->target_->write_async(nullptr, 0);
+        CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(nullptr, 0));
       }
+
+      co_return expected<void>();
     }
 
   private:
@@ -300,7 +321,7 @@ namespace vds {
     EVP_CIPHER_CTX * ctx_;
     size_t block_size_;
     uint8_t  * input_buffer_;
-    uint8_t    input_buffer_offset_;
+    size_t    input_buffer_offset_;
     uint8_t  * output_buffer_;
   };
 

@@ -24,7 +24,7 @@ namespace vds {
     {
     }
     
-    vds::async_task<void> change_state(state_enum_type expected_state, state_enum_type new_state)
+    vds::async_task<expected<void>> change_state(state_enum_type expected_state, state_enum_type new_state)
     {
         std::unique_lock<std::mutex> lock(this->state_mutex_);
         if(expected_state == this->state_){
@@ -40,29 +40,29 @@ namespace vds {
               this->state_expectants_.erase(p);
               lock.unlock();
 
-              callback.set_value();
+              callback.set_value(expected<void>());
             }
             else {
               break;
             }
           }
-          co_return;
+          co_return expected<void>();
         }
         else {
           vds_assert(this->state_expectants_.end() == this->state_expectants_.find(expected_state));
-          vds::async_result<void> result;
+          vds::async_result<vds::expected<void>> result;
           auto f = result.get_future();
           this->state_expectants_[expected_state] = std::make_tuple(new_state, std::move(result));
           co_return co_await std::move(f);
         }
     }
 
-    vds::async_task<void> wait(state_enum_type expected_state)
+    vds::async_task<vds::expected<void>> wait(state_enum_type expected_state)
     {
       std::unique_lock<std::mutex> lock(this->state_mutex_);
       if(expected_state != this->state_){
         vds_assert(this->state_expectants_.end() == this->state_expectants_.find(expected_state));
-        vds::async_result<void> result;
+        vds::async_result<vds::expected<void>> result;
         auto ret = result.get_future();
         this->state_expectants_[expected_state] = std::make_tuple(expected_state, std::move(result));
         co_return co_await std::move(ret);
@@ -74,7 +74,7 @@ namespace vds {
     state_enum_type state_;
 
     mutable std::mutex state_mutex_;
-    std::map<state_enum_type, std::tuple<state_enum_type, vds::async_result<void>>> state_expectants_;
+    std::map<state_enum_type, std::tuple<state_enum_type, vds::async_result<vds::expected<void>>>> state_expectants_;
   };
   
 };

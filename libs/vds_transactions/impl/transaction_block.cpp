@@ -8,34 +8,31 @@ All rights reserved
 #include "transaction_log_record_dbo.h"
 #include "encoding.h"
 
-bool vds::transactions::transaction_block::validate(const certificate& write_cert) {
+vds::expected<bool> vds::transactions::transaction_block::validate(const certificate& write_cert) {
   binary_serializer block_data;
-  block_data
-    << this->version_
-    << (uint64_t)std::chrono::system_clock::to_time_t(this->time_point_)
-    << this->order_no_
-    << this->write_cert_id_
-    << this->ancestors_
-    << this->block_messages_;
+  CHECK_EXPECTED(serialize(block_data, this->version_));
+  CHECK_EXPECTED(serialize(block_data, (uint64_t)std::chrono::system_clock::to_time_t(this->time_point_)));
+  CHECK_EXPECTED(serialize(block_data, this->order_no_));
+  CHECK_EXPECTED(serialize(block_data, this->write_cert_id_));
+  CHECK_EXPECTED(serialize(block_data, this->ancestors_));
+  CHECK_EXPECTED(serialize(block_data, this->block_messages_));
+
+  GET_EXPECTED(write_cert_public_key, write_cert.public_key());
 
   return asymmetric_sign_verify::verify(
     hash::sha256(),
-    write_cert.public_key(),
+    write_cert_public_key,
     this->signature_, 
     block_data.get_buffer(),
     block_data.size());
 }
 
-bool vds::transactions::transaction_block::exists(database_transaction& t) {
+vds::expected<bool> vds::transactions::transaction_block::exists(database_transaction& t) {
   orm::transaction_log_record_dbo t1;
-  auto st = t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t1
     .select(t1.state)
-    .where(t1.id == this->id()));
+    .where(t1.id == this->id())));
 
-  if (st.execute()) {
-    return true;
-  }
-
-  return false;
+  return st.execute();
 }

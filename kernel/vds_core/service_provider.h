@@ -13,6 +13,7 @@ All rights reserved
 #include "async_task.h"
 #include "shutdown_event.h"
 #include "foldername.h"
+#include "expected.h"
 
 namespace vds {
   class shutdown_event;
@@ -22,11 +23,11 @@ namespace vds {
   class iservice_factory
   {
   public:
-    virtual void register_services(service_registrator &) = 0;
-    virtual void start(const service_provider *) = 0;
-    virtual void stop() = 0;
-    virtual vds::async_task<void> prepare_to_stop() {
-      co_return;
+    virtual expected<void> register_services(service_registrator &) = 0;
+    virtual expected<void> start(const service_provider *) = 0;
+    virtual expected<void> stop() = 0;
+    virtual vds::async_task<vds::expected<void>> prepare_to_stop() {
+      co_return expected<void>();
     }
   };
 
@@ -37,13 +38,10 @@ namespace vds {
     service_provider(service_provider && original) = delete;
 
     template <typename service_type>
-    service_type * get(bool throw_error = true) const
+    service_type * get() const
     {
       auto result = (service_type *)this->get(types::get_type_id<service_type>());
-      if (throw_error && nullptr == result) {
-        throw std::runtime_error(std::string("Service ") + typeid(service_type).name() + " not found");
-      }
-
+      vds_assert(nullptr != result);
       return result;
     }
 
@@ -73,32 +71,38 @@ namespace vds {
       this->factories_.push_back(&factory);
     }
 
-    void shutdown() {
-      this->shutdown_event_.set();
+    expected<void> shutdown() {
+      CHECK_EXPECTED(this->shutdown_event_.set());
       std::this_thread::sleep_for(std::chrono::seconds(5));
 
       for (auto& p : this->factories_) {
-        p->prepare_to_stop().get();
+        CHECK_EXPECTED(p->prepare_to_stop().get());
       }
 
       while (!this->factories_.empty()) {
-        this->factories_.back()->stop();
+        CHECK_EXPECTED(this->factories_.back()->stop());
         this->factories_.pop_back();
       }
+
+      return expected<void>();
     }
 
-    service_provider * build() {
+    expected<service_provider *> build() {
+      CHECK_EXPECTED(this->shutdown_event_.create());
+
       for (auto factory : this->factories_) {
-        factory->register_services(*this);
+        CHECK_EXPECTED(factory->register_services(*this));
       }
 
-      return this;
+      return static_cast<service_provider *>(this);
     }
 
-    void start() {
+    expected<void> start() {
       for (auto factory : this->factories_) {
-        factory->start(this);
+        CHECK_EXPECTED(factory->start(this));
       }
+
+      return expected<void>();
     }
 
     void current_user(const foldername & value) {
@@ -119,9 +123,7 @@ namespace vds {
     foldername local_machine_;
 
     void add_service(size_t type_id, void* service) {
-      if (this->services_.find(type_id) != this->services_.end()) {
-        throw std::runtime_error("Invalid argument");
-      }
+      vds_assert(this->services_.find(type_id) == this->services_.end());
 
       this->services_[type_id] = service;
     }

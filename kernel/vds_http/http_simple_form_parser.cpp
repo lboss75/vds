@@ -7,7 +7,7 @@ All rights reserved
 #include "http_simple_form_parser.h"
 #include "http_multipart_reader.h"
 
-vds::async_task<void> vds::http::simple_form_parser::parse( const http_message& message) {
+vds::async_task<vds::expected<void>> vds::http::simple_form_parser::parse( const http_message& message) {
   std::string content_type;
   if (message.get_header("Content-Type", content_type)) {
     static const char multipart_form_data[] = "multipart/form-data;";
@@ -19,39 +19,40 @@ vds::async_task<void> vds::http::simple_form_parser::parse( const http_message& 
         boundary.erase(0, sizeof(boundary_prefix) - 1);
 
         auto task = std::make_shared<form_parser>(this->shared_from_this());
-        auto reader = std::make_shared<http_multipart_reader>(this->sp_, "--" + boundary, [task](const http_message& part)->vds::async_task<void> {
-          co_return co_await task->read_part(part);
+        auto reader = std::make_shared<http_multipart_reader>(this->sp_, "--" + boundary, [task](const http_message& part)->vds::async_task<vds::expected<void>> {
+          CHECK_EXPECTED_ASYNC(co_await task->read_part(part));
+          co_return expected<void>();
         });
-
-        co_return co_await reader->process(message.body());
+        CHECK_EXPECTED_ASYNC(co_await reader->process(message.body()));
+        co_return expected<void>();
       }
       else {
-        throw std::runtime_error("Invalid content type " + content_type);
+        co_return vds::make_unexpected<std::runtime_error>("Invalid content type " + content_type);
       }
     }
     else {
       static const char form_urlencoded[] = "application/x-www-form-urlencoded;";
       if (form_urlencoded == content_type.substr(0, sizeof(form_urlencoded) - 1)) {
         auto task = std::make_shared<form_parser>(this->shared_from_this());
-        co_return co_await task->read_form_urlencoded(message);
+        CHECK_EXPECTED_ASYNC(co_await task->read_form_urlencoded(message));
+        co_return expected<void>();
       }
       else {
-        throw std::runtime_error("Invalid content type " + content_type);
+        co_return vds::make_unexpected<std::runtime_error>("Invalid content type " + content_type);
       }
     }
   }
   else {
-    throw std::runtime_error("Invalid content type");
+    co_return vds::make_unexpected<std::runtime_error>("Invalid content type");
   }
 }
 
-vds::async_task<std::string> vds::http::simple_form_parser::form_parser::read_string_body(
-  
+vds::async_task<vds::expected<std::string>> vds::http::simple_form_parser::form_parser::read_string_body(  
   const http_message& part) {
 
   std::string buffer;
   for (;;) {
-    size_t readed = co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_));
+    GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
     if (0 == readed) {
       co_return buffer;
     }
@@ -63,7 +64,7 @@ vds::http::simple_form_parser::form_parser::form_parser(const std::shared_ptr<si
 : owner_(owner) {
 }
 
-vds::async_task<void> vds::http::simple_form_parser::form_parser::read_part(
+vds::async_task<vds::expected<void>> vds::http::simple_form_parser::form_parser::read_part(
   const http_message& part) {
   for (;;) {
     std::string content_disposition;
@@ -102,7 +103,7 @@ vds::async_task<void> vds::http::simple_form_parser::form_parser::read_part(
         auto pname = values.find("name");
         if (values.end() != pname) {
           auto name = pname->second;
-          auto buffer = co_await this->read_string_body(part);
+          GET_EXPECTED_ASYNC(buffer, co_await this->read_string_body(part));
           this->owner_->values_[name] = buffer;
         }
 
@@ -110,16 +111,16 @@ vds::async_task<void> vds::http::simple_form_parser::form_parser::read_part(
       }
     }
 
-    size_t readed = co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_));
+    GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
     if (0 == readed) {
-      co_return;
+      co_return expected<void>();
     }
   }
 }
 
-vds::async_task<void> vds::http::simple_form_parser::form_parser::read_form_urlencoded(
+vds::async_task<vds::expected<void>> vds::http::simple_form_parser::form_parser::read_form_urlencoded(
   const http_message& message) {
-  auto buffer = co_await this->read_string_body(message);
+  GET_EXPECTED_ASYNC(buffer, co_await this->read_string_body(message));
   auto items = split_string(buffer, '&', true);
   std::map<std::string, std::string> values;
   for (const auto & item : items) {
@@ -136,16 +137,18 @@ vds::async_task<void> vds::http::simple_form_parser::form_parser::read_form_urle
       this->owner_->values_[item.substr(0, p)] = url_encode::decode(value);
     }
   }
+
+  co_return expected<void>();
 }
 
-vds::async_task<void> vds::http::simple_form_parser::form_parser::skip_part(
+vds::async_task<vds::expected<void>> vds::http::simple_form_parser::form_parser::skip_part(
   
   const vds::http_message& part) {
 
   for (;;) {
-    size_t readed = co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_));
+    GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
     if (0 == readed) {
-      co_return;
+      co_return expected<void>();
     }
   }
 }

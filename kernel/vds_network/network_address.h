@@ -24,13 +24,6 @@ namespace vds {
     network_address & operator = (const network_address & other) = default;
     network_address & operator = (network_address && other) = default;
 
-    network_address(
-        sa_family_t af,
-        int sock_type,
-        int ai_flags,
-        int ai_protocol,
-        const std::string & server,
-        uint16_t port);
 
     network_address(
         sa_family_t af,
@@ -47,6 +40,13 @@ namespace vds {
     //    uint16_t port){
     //  return network_address(AF_INET6, server, port);
     //}
+    expected<void> reset(
+      sa_family_t af,
+      int sock_type,
+      int ai_flags,
+      int ai_protocol,
+      const std::string & server,
+      uint16_t port);
 
     static network_address any_ip4(
         uint16_t port){
@@ -58,19 +58,19 @@ namespace vds {
       return network_address(AF_INET6, port);
     }
 
-    static network_address tcp_ip4(
+    static expected<network_address> tcp_ip4(
       const std::string & server,
       uint16_t port);
 
-    static network_address tcp_ip6(
+    static expected<network_address> tcp_ip6(
       const std::string & server,
       uint16_t port);
 
-    static network_address udp_ip4(
+    static expected<network_address> udp_ip4(
       const std::string & server,
       uint16_t port);
 
-    static network_address udp_ip6(
+    static expected<network_address> udp_ip6(
       const std::string & server,
       uint16_t port);
 
@@ -85,12 +85,12 @@ namespace vds {
 
     sa_family_t family() const;
 
-    std::string server() const;
+    expected<std::string> server() const;
     uint16_t port() const;
 
     std::string to_string() const;
-    static network_address parse(const std::string & address);
-    static network_address parse(sa_family_t family, const std::string & address);
+    static expected<network_address> parse(const std::string & address);
+    static expected<network_address> parse(sa_family_t family, const std::string & address);
 
     socklen_t * size_ptr() {
       return &this->addr_size_;

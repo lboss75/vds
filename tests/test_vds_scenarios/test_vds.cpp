@@ -6,6 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "test_vds.h"
 #include "vds_mock.h"
+#include "test_config.h"
 
 TEST(test_vds, test_initial)
 {
@@ -38,8 +39,8 @@ TEST(test_vds, test_initial)
     auto sp = mock.get_sp(3);
     auto input_stream = std::make_shared<vds::continuous_buffer<uint8_t>>(sp);
     vds::mt_service::async(sp, [sp, input_stream, &buffer, len] {
-      input_stream->write_async(buffer.get(), len).get();
-      input_stream->write_async(nullptr, 0).get();
+      CHECK_EXPECTED_THROW(input_stream->write_async(buffer.get(), len).get());
+      CHECK_EXPECTED_THROW(input_stream->write_async(nullptr, 0).get());
     });
 
     std::cout << "Upload local file...\n";
@@ -54,7 +55,7 @@ TEST(test_vds, test_initial)
 
     auto result_data = std::make_shared<compare_data_async<uint8_t>>(buffer.get(), len);
 
-    auto result = mock.download_data(3, channel.id(), "test data", file_hash, result_data).get();
+    GET_EXPECTED_GTEST(result, mock.download_data(3, channel.id(), "test data", file_hash, result_data).get());
 
     ASSERT_EQ(len, result.size);
 
@@ -64,7 +65,7 @@ TEST(test_vds, test_initial)
     std::cout << "Download file...\n";
 
     result_data = std::make_shared<compare_data_async<uint8_t>>(buffer.get(), len);
-    result = mock.download_data(4, channel.id(), "test data", file_hash, result_data).get();
+    GET_EXPECTED_VALUE_GTEST(result, mock.download_data(4, channel.id(), "test data", file_hash, result_data).get());
 
     std::cout << "Done...\n";
     mock.stop();

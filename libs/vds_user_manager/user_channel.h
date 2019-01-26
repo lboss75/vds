@@ -57,17 +57,17 @@ namespace vds {
     const const_data_buffer &id() const;
     const std::string & channel_type() const;
     const std::string & name() const;
-    const std::shared_ptr<certificate> & read_cert() const;
-    const std::shared_ptr<certificate> & write_cert() const;
+    expected<std::shared_ptr<certificate>> read_cert() const;
+    expected<std::shared_ptr<certificate>> write_cert() const;
 
-    void add_reader(
+    expected<void> add_reader(
       transactions::transaction_block_builder& playback,
       const member_user& member_user,
       const vds::member_user& owner_user,
       const asymmetric_private_key& owner_private_key,
       const asymmetric_private_key& channel_read_private_key) const;
 
-    void add_writer(
+    expected<void> add_writer(
       transactions::transaction_block_builder& playback,
       const member_user& member_user,
       const vds::member_user& owner_user) const;
@@ -79,17 +79,22 @@ namespace vds {
     std::shared_ptr<asymmetric_private_key> read_cert_private_key(const std::string& cert_subject);
 
     template<typename item_type>
-    void add_log(
+    expected<void> add_log(
       transactions::transaction_block_builder & log,
-      item_type && item) {
+      expected<item_type> && item) {
+
+      CHECK_EXPECTED_ERROR(item);
 
       binary_serializer s;
-      s
-        << (uint8_t)item_type::message_id;
-      _serialize_visitor v(s);
-      item.visit(v);
+      CHECK_EXPECTED(serialize(s, (uint8_t)item_type::message_id));
 
-      this->add_to_log(log, s.get_buffer(), s.size());
+      _serialize_visitor v(s);
+      item.value().visit(v);
+      if(v.error()) {
+        return unexpected(std::move(v.error()));
+      }
+
+      return this->add_to_log(log, s.get_buffer(), s.size());
     }
 
     user_channel & operator = (user_channel && other);
@@ -97,7 +102,7 @@ namespace vds {
   private:
     class _user_channel * impl_;
 
-    void add_to_log(
+    expected<void> add_to_log(
       transactions::transaction_block_builder & log,
       const uint8_t * data,
       size_t size);

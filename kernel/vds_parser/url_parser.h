@@ -12,13 +12,13 @@ namespace vds {
   {
   public:
 
-    static bool parse_addresses(
+    static expected<bool> parse_addresses(
       const std::string & addresses,
-      const std::function<bool(const std::string & protocol, const std::string & address)> & handler);
+      const std::function<expected<bool>(const std::string & protocol, const std::string & address)> & handler);
 
-    static bool parse_address(
+    static expected<bool> parse_address(
       const std::string & address,
-      const std::function<bool(const std::string & protocol, const std::string & address)> & handler);
+      const std::function<expected<bool>(const std::string & protocol, const std::string & address)> & handler);
 
 
     struct network_address

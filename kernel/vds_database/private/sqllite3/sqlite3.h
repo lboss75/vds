@@ -5080,9 +5080,9 @@ typedef void (*sqlite3_destructor_type)(void*);
 ** by its 2nd argument.
 **
 ** ^The sqlite3_result_error() and sqlite3_result_error16() functions
-** cause the implemented SQL function to throw an exception.
+** cause the implemented SQL function to return vds::make_unexpected<an exception.
 ** ^SQLite uses the string pointed to by the
-** 2nd parameter of sqlite3_result_error() or sqlite3_result_error16()
+** 2nd parameter of sqlite3_result_error>() or sqlite3_result_error16()
 ** as the text of an error message.  ^SQLite interprets the error
 ** message string from sqlite3_result_error() as UTF-8. ^SQLite
 ** interprets the string from sqlite3_result_error16() as UTF-16 in native
@@ -5101,13 +5101,13 @@ typedef void (*sqlite3_destructor_type)(void*);
 ** the error code is SQLITE_ERROR.  ^A subsequent call to sqlite3_result_error()
 ** or sqlite3_result_error16() resets the error code to SQLITE_ERROR.
 **
-** ^The sqlite3_result_error_toobig() interface causes SQLite to throw an
+** ^The sqlite3_result_error_toobig() interface causes SQLite to return vds::make_unexpected<an
 ** error indicating that a string or BLOB is too long to represent.
 **
-** ^The sqlite3_result_error_nomem() interface causes SQLite to throw an
+** ^The sqlite3_result_error_nomem>() interface causes SQLite to return vds::make_unexpected<an
 ** error indicating that a memory allocation failed.
 **
-** ^The sqlite3_result_int() interface sets the return value
+** ^The sqlite3_result_int>() interface sets the return value
 ** of the application-defined function to be the 32-bit signed integer
 ** value given in the 2nd argument.
 ** ^The sqlite3_result_int64() interface sets the return value

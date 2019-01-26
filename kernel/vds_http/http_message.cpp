@@ -25,24 +25,26 @@ bool vds::http_message::get_header(
   return false;
 }
 
-vds::async_task<void> vds::http_message::ignore_empty_body() const {
-  auto result = co_await this->body_->read_all();
+vds::async_task<vds::expected<void>> vds::http_message::ignore_empty_body() const {
+  GET_EXPECTED_ASYNC(result, co_await this->body_->read_all());
   vds_assert(0 == result.size());
+  co_return vds::expected<void>();
 }
 
-vds::async_task<void> vds::http_message::ignore_body() const {
+vds::async_task<vds::expected<void>> vds::http_message::ignore_body() const {
   auto buffer = std::make_shared<buffer_t>();
-  co_await ignore_body(this->body_, buffer);
+  CHECK_EXPECTED_ASYNC(co_await ignore_body(this->body_, buffer));
+  co_return vds::expected<void>();
 }
 
-vds::async_task<void> vds::http_message::ignore_body(  
+vds::async_task<vds::expected<void>> vds::http_message::ignore_body(  
   const std::shared_ptr<stream_input_async<uint8_t>> & body,
   const std::shared_ptr<buffer_t>& buffer) {
 
   for(;;){
-    auto readed = co_await body->read_async(buffer->data_, sizeof(buffer->data_));
+    GET_EXPECTED_ASYNC(readed, co_await body->read_async(buffer->data_, sizeof(buffer->data_)));
     if (0 == readed) {
-      co_return;
+      co_return expected<void>();
     }
   }
 }

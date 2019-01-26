@@ -46,32 +46,32 @@ namespace vds {
     _server(server * owner);
     ~_server();
     
-    void start(const service_provider * sp);
-    void stop();
-    vds::async_task<void> prepare_to_stop();
+    expected<void> start(const service_provider * sp);
+    expected<void> stop();
+    vds::async_task<vds::expected<void>> prepare_to_stop();
 
-    vds::async_task<server_statistic> get_statistic();
+    vds::async_task<vds::expected<server_statistic>> get_statistic();
 
-    vds::async_task<void> process_message(
+    vds::async_task<vds::expected<void>> process_message(
         const message_info_t & message_info) override;
 
-    vds::async_task<void> on_new_session(
+    vds::async_task<vds::expected<void>> on_new_session(
       
       const const_data_buffer& partner_id) override;
 
-      async_task<void> apply_message(
+      async_task<expected<void>> apply_message(
       
       database_transaction & t,
       const dht::messages::transaction_log_state & message,
       const message_info_t & message_info);
 
-      async_task<void> apply_message(
+      async_task<expected<void>> apply_message(
       
       database_transaction& t,
       const dht::messages::transaction_log_request& message,
       const message_info_t & message_info);
 
-      async_task<void> apply_message(
+      async_task<expected<void>> apply_message(
       
       database_transaction& t,
       const dht::messages::transaction_log_record & message,

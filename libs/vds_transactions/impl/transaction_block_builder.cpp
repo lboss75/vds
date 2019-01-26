@@ -16,41 +16,42 @@ All rights reserved
 #include "create_user_transaction.h"
 #include "transaction_log.h"
 
-vds::const_data_buffer vds::transactions::transaction_block_builder::save(
+vds::expected<vds::const_data_buffer> vds::transactions::transaction_block_builder::save(
   const service_provider * sp,
   class vds::database_transaction &t,
   const std::shared_ptr<certificate> &write_cert,
   const std::shared_ptr<asymmetric_private_key> &write_private_key) {
 
-  auto data = sign(
+  GET_EXPECTED(data, sign(
     sp,
     write_cert,
-    write_private_key);
+    write_private_key));
 
-  transaction_log::save(sp, t, data);
+  CHECK_EXPECTED(transaction_log::save(sp, t, data));
 
   return hash::signature(hash::sha256(), data);
 }
 
-vds::const_data_buffer vds::transactions::transaction_block_builder::sign(
-  const service_provider * sp,
+vds::expected<vds::const_data_buffer> vds::transactions::transaction_block_builder::sign(
+  const service_provider * /*sp*/,
   const std::shared_ptr<certificate> &write_cert,
   const std::shared_ptr<asymmetric_private_key> &write_private_key) {
   vds_assert(0 != this->data_.size());
   binary_serializer block_data;
-  block_data
-    << transaction_block::CURRENT_VERSION
-    << static_cast<uint64_t>(std::chrono::system_clock::to_time_t(this->time_point_))
-    << this->order_no_
-    << write_cert->subject()
-    << this->ancestors_
-    << this->data_.move_data();
+  CHECK_EXPECTED(serialize(block_data, transaction_block::CURRENT_VERSION));
+  CHECK_EXPECTED(serialize(block_data, static_cast<uint64_t>(std::chrono::system_clock::to_time_t(this->time_point_))));
+  CHECK_EXPECTED(serialize(block_data, this->order_no_));
+  CHECK_EXPECTED(serialize(block_data, write_cert->subject()));
+  CHECK_EXPECTED(serialize(block_data, this->ancestors_));
+  CHECK_EXPECTED(serialize(block_data, this->data_.move_data()));
 
-  block_data << asymmetric_sign::signature(
+  GET_EXPECTED(sig_data, asymmetric_sign::signature(
     hash::sha256(),
     *write_private_key,
     block_data.get_buffer(),
-    block_data.size());
+    block_data.size()));
+
+  CHECK_EXPECTED(serialize(block_data, sig_data));
 
   return block_data.move_data();
 }
@@ -59,71 +60,121 @@ vds::transactions::transaction_block_builder::transaction_block_builder(const se
   : sp_(sp), time_point_(std::chrono::system_clock::now()), order_no_(1){
 }
 
-vds::transactions::transaction_block_builder::transaction_block_builder(
+vds::expected<vds::transactions::transaction_block_builder> vds::transactions::transaction_block_builder::create(
   const service_provider * sp,
-  vds::database_read_transaction& t)
-: sp_(sp), time_point_(std::chrono::system_clock::now()), order_no_(0) {
+  vds::database_read_transaction& t) {
 
-    orm::transaction_log_record_dbo t1;
-    auto st = t.get_reader(
-      t1.select(t1.id, t1.order_no)
-      .where(t1.state == orm::transaction_log_record_dbo::state_t::leaf));
-    while (st.execute()) {
-      this->ancestors_.emplace(t1.id.get(st));
-      auto order = t1.order_no.get(st);
-      if (this->order_no_ < order) {
-        this->order_no_ = order;
-      }
+  orm::transaction_log_record_dbo t1;
+  GET_EXPECTED(st, t.get_reader(
+    t1.select(t1.id, t1.order_no)
+    .where(t1.state == orm::transaction_log_record_dbo::state_t::leaf)));
+  std::set<const_data_buffer> ancestors;
+  uint64_t order_no = 0;
+  WHILE_EXPECTED(st.execute())
+    ancestors.emplace(t1.id.get(st));
+    auto order = safe_cast<uint64_t>(t1.order_no.get(st));
+    if (order_no < order) {
+      order_no = order;
     }
+  WHILE_EXPECTED_END()
 
-    this->order_no_++;
+  ++order_no;
+  return expected<transaction_block_builder>(
+    sp,
+    std::chrono::system_clock::now(),
+    ancestors,
+    order_no);
 }
 
-vds::transactions::transaction_block_builder::transaction_block_builder(
+vds::expected<vds::transactions::transaction_block_builder> vds::transactions::transaction_block_builder::create(
   const service_provider * sp,
   vds::database_read_transaction& t,
-  const std::set<const_data_buffer> & ancestors)
-  : sp_(sp), time_point_(std::chrono::system_clock::now()), ancestors_(ancestors), order_no_(0) {
+  const std::set<const_data_buffer> & ancestors){
 
-  for (auto ancestor : ancestors) {
+  uint64_t order_no = 0;
+
+  for (const auto & ancestor : ancestors) {
     orm::transaction_log_record_dbo t1;
-    auto st = t.get_reader(
+    GET_EXPECTED(st, t.get_reader(
       t1.select(t1.order_no)
-      .where(t1.id == ancestor));
-    while (st.execute()) {
-      auto order = t1.order_no.get(st);
-      if (this->order_no_ < order) {
-        this->order_no_ = order;
+      .where(t1.id == ancestor)));
+    WHILE_EXPECTED(st.execute())
+      auto order = safe_cast<uint64_t>(t1.order_no.get(st));
+      if (order_no < order) {
+        order_no = order;
       }
-    }
+    WHILE_EXPECTED_END()
   }
 
-  this->order_no_++;
+  ++order_no;
+  return expected<transaction_block_builder>(sp,
+    std::chrono::system_clock::now(),
+    ancestors,
+    order_no);
 }
 
 
-void vds::transactions::transaction_block_builder::add(const root_user_transaction& item) {
-  this->data_ << (uint8_t)root_user_transaction::message_id;
+vds::expected<void> vds::transactions::transaction_block_builder::add(expected<root_user_transaction> && item) {
+  if (item.has_error()) {
+    return unexpected(std::move(item.error()));
+  }
+
+  CHECK_EXPECTED(serialize(this->data_, (uint8_t)root_user_transaction::message_id));
   _serialize_visitor v(this->data_);
-  const_cast<root_user_transaction &>(item).visit(v);
+  const_cast<root_user_transaction &>(item.value()).visit(v);
+
+  if (v.error()) {
+    return unexpected(std::move(v.error()));
+  }
+
+  return expected<void>();
 }
 
-void vds::transactions::transaction_block_builder::add(const create_user_transaction& item) {
-  this->data_ << (uint8_t)create_user_transaction::message_id;
+vds::expected<void> vds::transactions::transaction_block_builder::add(expected<create_user_transaction> && item) {
+  if(item.has_error()) {
+    return unexpected(std::move(item.error()));
+  }
+
+  CHECK_EXPECTED(serialize(this->data_, (uint8_t)create_user_transaction::message_id));
   _serialize_visitor v(this->data_);
-  const_cast<create_user_transaction &>(item).visit(v);
+  const_cast<create_user_transaction &>(item.value()).visit(v);
+  if(v.error()) {
+    return unexpected(std::move(v.error()));
+  }
+
+  return expected<void>();
 }
 
-void vds::transactions::transaction_block_builder::add(const payment_transaction& item) {
-  this->data_ << (uint8_t)payment_transaction::message_id;
+vds::expected<void> vds::transactions::transaction_block_builder::add(expected<payment_transaction> && item) {
+  if (item.has_error()) {
+    return unexpected(std::move(item.error()));
+  }
+
+  CHECK_EXPECTED(serialize(this->data_, (uint8_t)payment_transaction::message_id));
   _serialize_visitor v(this->data_);
-  const_cast<payment_transaction &>(item).visit(v);
+  const_cast<payment_transaction &>(item.value()).visit(v);
+
+  if (v.error()) {
+    return unexpected(std::move(v.error()));
+  }
+
+  return expected<void>();
 }
 
-void vds::transactions::transaction_block_builder::add(
-    const vds::transactions::channel_message &item) {
+vds::expected<void> vds::transactions::transaction_block_builder::add(
+  expected<vds::transactions::channel_message> && item) {
+  if (item.has_error()) {
+    return unexpected(std::move(item.error()));
+  }
 
-  item.serialize(this->data_);
+  CHECK_EXPECTED(serialize(this->data_, (uint8_t)channel_message::message_id));
+  _serialize_visitor v(this->data_);
+  const_cast<channel_message &>(item.value()).visit(v);
 
+  if (v.error()) {
+    return unexpected(std::move(v.error()));
+  }
+
+  return expected<void>();
 }
 

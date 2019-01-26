@@ -35,7 +35,7 @@ enum class message_log_action {
 
 class transport_hab : public std::enable_shared_from_this<transport_hab> {
 public:
-  vds::async_task<void> write_async(
+  vds::async_task<vds::expected<void>> write_async(
     const vds::udp_datagram& datagram,
     const vds::const_data_buffer & source_node_id,
     const vds::network_address & source_address);
@@ -63,7 +63,7 @@ public:
     mock_server * owner,
     const std::shared_ptr<transport_hab> & hab);
 
-  vds::async_task<void> start(
+  vds::async_task<vds::expected<void>> start(
     const vds::service_provider * sp,
     const std::shared_ptr<vds::certificate> & node_cert,
     const std::shared_ptr<vds::asymmetric_private_key> & node_key,
@@ -71,11 +71,11 @@ public:
 
   void stop() override;
 
-  vds::async_task<void> write_async(const vds::udp_datagram& datagram) override;
-  vds::async_task<void> try_handshake( const std::string& address) override;
+  vds::async_task<vds::expected<void>> write_async(const vds::udp_datagram& datagram) override;
+  vds::async_task<vds::expected<void>> try_handshake( const std::string& address) override;
 
-  vds::async_task<void> on_timer() override {
-    co_return;
+  vds::async_task<vds::expected<void>> on_timer() override {
+    co_return vds::expected<void>();
   }
 
   const vds::const_data_buffer & node_id() const {
@@ -99,17 +99,17 @@ public:
     const vds::network_address & address,
     const std::shared_ptr<transport_hab> & hab);
 
-  void register_services(vds::service_registrator &) override;
-  void start(const vds::service_provider *) override;
-  void stop() override;
-  vds::async_task<void> prepare_to_stop() override;
+  vds::expected<void> register_services(vds::service_registrator &) override;
+  vds::expected<void> start(const vds::service_provider *) override;
+  vds::expected<void> stop() override;
+  vds::async_task<vds::expected<void>> prepare_to_stop() override;
 
-  vds::async_task<void> process_datagram(    
+  vds::async_task<vds::expected<void>> process_datagram(    
     const vds::udp_datagram& datagram,
     const vds::const_data_buffer& source_node_id,
     const vds::network_address & source_address);
 
-  vds::async_task<void> add_session(    
+  vds::async_task<vds::expected<void>> add_session(    
     const std::shared_ptr<vds::dht::network::dht_session> & session);
 
   const vds::network_address & address() const;
@@ -118,8 +118,8 @@ public:
     const vds::const_data_buffer& object_data);
 
 
-  vds::async_task<void> process_message(const message_info_t& message_info) override;
-  vds::async_task<void> on_new_session(const vds::const_data_buffer& partner_id) override;
+  vds::async_task<vds::expected<void>> process_message(const message_info_t& message_info) override;
+  vds::async_task<vds::expected<void>> on_new_session(const vds::const_data_buffer& partner_id) override;
 private:
   const vds::service_provider * sp_;
   vds::db_model db_model_;
@@ -135,8 +135,8 @@ public:
 
   test_server(const vds::network_address & address, const std::shared_ptr<transport_hab> & hab);
 
-  void start(const std::shared_ptr<transport_hab> & hab, int index);
-  void stop();
+  vds::expected<void> start(const std::shared_ptr<transport_hab> & hab, int index);
+  vds::expected<void> stop();
 
   bool is_ready_to_stop() const;
 

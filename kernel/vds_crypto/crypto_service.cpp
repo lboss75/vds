@@ -42,17 +42,20 @@ public:
   }
 };
 
-void vds::crypto_service::register_services(service_registrator &)
+vds::expected<void> vds::crypto_service::register_services(service_registrator &)
 {
+  return expected<void>();
 }
 
-void vds::crypto_service::start(const service_provider *)
+vds::expected<void> vds::crypto_service::start(const service_provider *)
 {
   static openssl_initializer openssl_instance;
+  return expected<void>();
 }
 
-void vds::crypto_service::stop()
+vds::expected<void> vds::crypto_service::stop()
 {
+  return expected<void>();
 }
 
 void vds::crypto_service::rand_bytes(void * buffer, size_t buffer_size)

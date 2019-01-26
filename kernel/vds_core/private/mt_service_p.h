@@ -21,10 +21,10 @@ namespace vds {
   {
   public:
     _mt_service(const service_provider * sp);
-    
+
     void start();
     void stop();
-    vds::async_task<void> prepare_to_stop();
+    async_task<expected<void>> prepare_to_stop();
 
     void do_async( const std::function<void(void)> & handler);
     void do_async( std::function<void(void)> && handler);

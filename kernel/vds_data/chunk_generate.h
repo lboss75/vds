@@ -40,9 +40,9 @@ namespace vds {
         n_(args.n_), k_(args.k_)
       {
         cell_type value = 1;
-        for (int i = 0; i < k; ++i) {
+        for (int i = 0; i < k_; ++i) {
           this->multipliers_.push_back(value);
-          value = this->math_.mul(value, n);
+          value = this->math_.mul(value, n_);
         }
       }
 

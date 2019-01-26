@@ -7,13 +7,8 @@ All rights reserved
 #include "private/deflate_p.h"
 #include "const_data_buffer.h"
 
-vds::deflate::deflate(const std::shared_ptr<stream_output_async<uint8_t>> & target)
-  : impl_(new _deflate_handler(target, Z_DEFAULT_COMPRESSION))
-{
-}
-
-vds::deflate::deflate(const std::shared_ptr<stream_output_async<uint8_t>> & target, int compression_level)
-  : impl_(new _deflate_handler(target, compression_level))
+vds::deflate::deflate()
+  : impl_(nullptr)
 {
 }
 
@@ -21,27 +16,38 @@ vds::deflate::~deflate() {
   delete this->impl_;
 }
 
-vds::const_data_buffer vds::deflate::compress(
-  
+vds::expected<std::shared_ptr<vds::deflate>> vds::deflate::create(const std::shared_ptr<stream_output_async<uint8_t>> & target) {
+  auto impl = std::make_unique<_deflate_handler>();
+  CHECK_EXPECTED(impl->create(target, Z_DEFAULT_COMPRESSION));
+  return std::make_shared<deflate>(impl.release());
+}
+
+vds::expected<std::shared_ptr<vds::deflate>> vds::deflate::create(const std::shared_ptr<stream_output_async<uint8_t>> & target, int compression_level) {
+  auto impl = std::make_unique<_deflate_handler>();
+  CHECK_EXPECTED(impl->create(target, compression_level));
+  return std::make_shared<deflate>(impl.release());
+}
+
+vds::expected<vds::const_data_buffer> vds::deflate::compress(  
   const uint8_t * data,
   size_t len)
 {
   auto result = std::make_shared<collect_data<uint8_t>>();
-  _deflate_handler df(result, Z_DEFAULT_COMPRESSION);
+  _deflate_handler df;
+  CHECK_EXPECTED(df.create(result, Z_DEFAULT_COMPRESSION));
   
-  df.write_async(data, len).get();
-  df.write_async(nullptr, 0).get();
+  CHECK_EXPECTED(df.write_async(data, len).get());
+  CHECK_EXPECTED(df.write_async(nullptr, 0).get());
   
   return result->move_data();  
 }
 
-vds::const_data_buffer vds::deflate::compress(
-  
+vds::expected<vds::const_data_buffer> vds::deflate::compress(  
   const const_data_buffer & data)
 {
   return compress(data.data(), data.size());
 }
 
-vds::async_task<void> vds::deflate::write_async( const uint8_t *data, size_t len) {
+vds::async_task<vds::expected<void>> vds::deflate::write_async( const uint8_t *data, size_t len) {
   return this->impl_->write_async(data, len);
 }

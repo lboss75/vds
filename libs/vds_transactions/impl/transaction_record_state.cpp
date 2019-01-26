@@ -13,41 +13,41 @@ All rights reserved
 #include "transaction_log_hierarchy_dbo.h"
 #include "transaction_log_balance_dbo.h"
 
-vds::transactions::transaction_record_state vds::transactions::transaction_record_state::load(
+vds::expected<vds::transactions::transaction_record_state> vds::transactions::transaction_record_state::load(
   database_read_transaction& t, const const_data_buffer& log_id) {
 
   transaction_state_calculator calculator;
-  calculator.add_ancestor(t, log_id);
+  CHECK_EXPECTED(calculator.add_ancestor(t, log_id));
   return calculator.load(t);
 }
 
-vds::transactions::transaction_record_state vds::transactions::transaction_record_state::load(
+vds::expected<vds::transactions::transaction_record_state> vds::transactions::transaction_record_state::load(
   database_read_transaction & t,
   const std::set<vds::const_data_buffer>& ancestors)
 {
   transaction_state_calculator calculator;
   for (auto & p : ancestors) {
-    calculator.add_ancestor(t, p);
+    CHECK_EXPECTED(calculator.add_ancestor(t, p));
   }
 
   return calculator.load(t);
 }
 
-vds::transactions::transaction_record_state vds::transactions::transaction_record_state::load(
+vds::expected<vds::transactions::transaction_record_state> vds::transactions::transaction_record_state::load(
   database_read_transaction& t, const transaction_block & block) {
   if(block.ancestors().empty()) {
     transaction_record_state result;
-    result.apply(block);
+    CHECK_EXPECTED(result.apply(block));
     return result;
   }
   else {
-    auto result = load(t, block.ancestors());
-    result.apply(block);
+    GET_EXPECTED(result, load(t, block.ancestors()));
+    CHECK_EXPECTED(result.apply(block));
     return result;
   }
 }
 
-void vds::transactions::transaction_record_state::save(
+vds::expected<void> vds::transactions::transaction_record_state::save(
   database_transaction& t,
   const std::string & owner,
   const const_data_buffer& log_id) const {
@@ -55,19 +55,19 @@ void vds::transactions::transaction_record_state::save(
   for (const auto & account : this->account_state_) {
     for (const auto & account_state : account.second.balance_) {
       orm::transaction_log_balance_dbo t1;
-      t.execute(t1.insert(
+      CHECK_EXPECTED(t.execute(t1.insert(
         t1.id = log_id,
         t1.owner = account.first,
         t1.source = account_state.first,
-        t1.balance = account_state.second));
+        t1.balance = account_state.second)));
     }
 
     if (account.second.approve_required) {
       orm::transaction_log_vote_request_dbo t2;
-      t.execute(t2.insert(
+      CHECK_EXPECTED(t.execute(t2.insert(
         t2.id = log_id,
         t2.owner = account.first,
-        t2.approved = (owner == account.first)));
+        t2.approved = (owner == account.first))));
       if(owner == account.first) {
         is_new_user = false;
       }
@@ -75,73 +75,82 @@ void vds::transactions::transaction_record_state::save(
   }
   if(is_new_user) {
     orm::transaction_log_record_dbo t3;
-    t.execute(t3.update(t3.new_member = true).where(t3.id == log_id));
+    CHECK_EXPECTED(t.execute(t3.update(t3.new_member = true).where(t3.id == log_id)));
   }
+
+  return expected<void>();
 }
 
-void vds::transactions::transaction_record_state::apply(
+vds::expected<void> vds::transactions::transaction_record_state::apply(
   const transaction_block & block) {
 
-  block.walk_messages(
-    [this, &block](const payment_transaction & t)->bool {
+#undef  max
+
+  CHECK_EXPECTED(block.walk_messages(
+    [this, &block](const payment_transaction & t)->expected<bool> {
     auto p = this->account_state_.find(block.write_cert_id());
     if (this->account_state_.end() == p) {
-      throw transaction_source_not_found_error(t.source_transaction, block.id());
+      return vds::make_unexpected<transaction_source_not_found_error>(t.source_transaction, block.id());
     }
 
     auto p1 = p->second.balance_.find(t.source_transaction);
     if (p->second.balance_.end() == p1) {
-      throw transaction_source_not_found_error(t.source_transaction, block.id());
+      return vds::make_unexpected<transaction_source_not_found_error>(t.source_transaction, block.id());
     }
 
     if (p1->second < t.value) {
-      throw transaction_lack_of_funds(t.source_transaction, block.id());
+      return vds::make_unexpected<transaction_lack_of_funds>(t.source_transaction, block.id());
     }
 
     p1->second -= t.value;
     this->account_state_[t.target_user].balance_[block.id()] += t.value;
     return true;
   },
-    [this, &block](const root_user_transaction & t)->bool {
-#undef  max
+    [this, &block](const root_user_transaction & t)->expected<bool> {
     this->account_state_[block.write_cert_id()].balance_[block.id()] = std::numeric_limits<int64_t>::max();
     return true;
-  });
+  }));
+
+  return expected<void>();
 }
 
-void vds::transactions::transaction_record_state::rollback(
+vds::expected<void> vds::transactions::transaction_record_state::rollback(
   const transaction_block & block) {
 
-  block.walk_messages(
-    [this, &block](const payment_transaction & t)->bool {
+  CHECK_EXPECTED(block.walk_messages(
+    [this, &block](const payment_transaction & t)->expected<bool> {
     this->account_state_[block.write_cert_id()].balance_[t.source_transaction] += t.value;
     this->account_state_[t.target_user].balance_[block.id()] -= t.value;
     return true;
   },
-    [this, &block](const root_user_transaction & t)->bool {
-    throw std::runtime_error("Invalid operation");
-  });
+    [this, &block](const root_user_transaction & t)->expected<bool> {
+    return vds::make_unexpected<std::runtime_error>("Invalid operation");
+  }));
+
+  return expected<void>();
 }
 
 vds::transactions::transaction_record_state::transaction_state_calculator::transaction_state_calculator()
 : not_included_(0) {
 }
 
-void vds::transactions::transaction_record_state::transaction_state_calculator::add_ancestor(
+vds::expected<void> vds::transactions::transaction_record_state::transaction_state_calculator::add_ancestor(
   vds::database_read_transaction& t, const const_data_buffer& ancestor_id) {
   orm::transaction_log_record_dbo t2;
-  auto st = t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t2.select(
       t2.order_no)
-    .where(t2.id == ancestor_id));
+    .where(t2.id == ancestor_id)));
   if (!st.execute()) {
-    throw std::runtime_error("Invalid data");
+    return vds::make_unexpected<std::runtime_error>("Invalid data");
   }
 
   this->set_state(t2.order_no.get(st), ancestor_id, log_state_t::include);
+
+  return expected<void>();
 }
 
-vds::transactions::transaction_record_state vds::transactions::transaction_record_state::transaction_state_calculator::load_init_state(
+vds::expected<vds::transactions::transaction_record_state> vds::transactions::transaction_record_state::transaction_state_calculator::load_init_state(
   vds::database_read_transaction& t) {
 
   vds_assert(!this->items_.empty());
@@ -162,47 +171,51 @@ vds::transactions::transaction_record_state vds::transactions::transaction_recor
     processed.emplace(p);
 
     orm::transaction_log_record_dbo t2;
-    auto st = t.get_reader(
+    GET_EXPECTED(st, t.get_reader(
       t2.select(t2.state, t2.order_no,t2.new_member,t2.data)
-      .where(t2.id == p));
-
-    if (!st.execute()) {
-      throw std::runtime_error("Invalid data");
+      .where(t2.id == p)));
+    GET_EXPECTED(st_execute, st.execute());
+    if (!st_execute) {
+      return vds::make_unexpected<std::runtime_error>("Invalid data");
     }
 
     if (orm::transaction_log_record_dbo::have_state(t2.state.get(st))) {
       if(t2.new_member.get(st)) {
-        result.account_state_[transaction_block(t2.data.get(st)).write_cert_id()].approve_required = true;
+        GET_EXPECTED(block, transaction_block::create(t2.data.get(st)));
+        result.account_state_[block.write_cert_id()].approve_required = true;
       }
       this->set_state(t2.order_no.get(st), p, log_state_t::exclude);
       orm::transaction_log_vote_request_dbo t3;
-      st = t.get_reader(t3.select(t3.owner, t3.approved).where(t3.id == p));
-      while(st.execute()) {
+      GET_EXPECTED_VALUE(st, t.get_reader(t3.select(t3.owner, t3.approved).where(t3.id == p)));
+      WHILE_EXPECTED(st.execute()) {
         result.account_state_[t3.owner.get(st)].approve_required = true;
       }
+      WHILE_EXPECTED_END()
 
       orm::transaction_log_balance_dbo t4;
-      st = t.get_reader(t4.select(t4.owner, t4.source, t4.balance).where(t4.id == p));
-      while (st.execute()) {
+      GET_EXPECTED_VALUE(st, t.get_reader(t4.select(t4.owner, t4.source, t4.balance).where(t4.id == p)));
+      WHILE_EXPECTED(st.execute()) {
         result.account_state_[t4.owner.get(st)].balance_[t4.source.get(st)] = t4.balance.get(st);
       }
+      WHILE_EXPECTED_END()
 
       state_loaded = true;
       break;
     }
 
     orm::transaction_log_hierarchy_dbo t1;
-    st = t.get_reader(
+    GET_EXPECTED_VALUE(st, t.get_reader(
       t1.select(t1.follower_id)
-      .where(t1.id == p));
+      .where(t1.id == p)));
 
-    while (st.execute()) {
+    WHILE_EXPECTED(st.execute()) {
       auto follower = t1.follower_id.get(st);
       if (not_processed.end() == not_processed.find(follower)
         && processed.end() == processed.find(follower)) {
         not_processed.emplace(follower);
       }
     }
+    WHILE_EXPECTED_END()
   }
 
   vds_assert(state_loaded);
@@ -210,24 +223,25 @@ vds::transactions::transaction_record_state vds::transactions::transaction_recor
   return result;
 }
 
-vds::transactions::transaction_record_state vds::transactions::transaction_record_state::transaction_state_calculator::load(
+vds::expected<vds::transactions::transaction_record_state> vds::transactions::transaction_record_state::transaction_state_calculator::load(
   vds::database_read_transaction& t) {
 
-  auto result = this->load_init_state(t);
+  GET_EXPECTED(result, this->load_init_state(t));
 
   auto porder_no = this->items_.rbegin();
   while (this->items_.rend() != porder_no && 0 != this->not_included_) {
     for (auto & p : porder_no->second) {
       orm::transaction_log_record_dbo t1;
-      auto st = t.get_reader(
+      GET_EXPECTED(st, t.get_reader(
         t1.select(t1.data, t1.new_member)
-        .where(t1.id == p.first));
+        .where(t1.id == p.first)));
 
-      if (!st.execute()) {
-        throw std::runtime_error("Invalid data");
+      GET_EXPECTED(st_execute, st.execute());
+      if (!st_execute) {
+        return vds::make_unexpected<std::runtime_error>("Invalid data");
       }
 
-      transaction_block block(t1.data.get(st));
+      GET_EXPECTED(block, transaction_block::create(t1.data.get(st)));
       const auto is_new_member = t1.new_member.get(st);
       switch (p.second.state_) {
       case log_state_t::included: {
@@ -236,7 +250,7 @@ vds::transactions::transaction_record_state vds::transactions::transaction_recor
 
       case log_state_t::exclude: {
         this->not_included_--;
-        result.rollback(block);
+        CHECK_EXPECTED(result.rollback(block));
         if(is_new_member) {
           result.account_state_[block.write_cert_id()].approve_required = false;
         }
@@ -245,23 +259,23 @@ vds::transactions::transaction_record_state vds::transactions::transaction_recor
 
       case log_state_t::include: {
         this->not_included_--;
-        result.apply(block);
+        CHECK_EXPECTED(result.apply(block));
         if (is_new_member) {
           result.account_state_[block.write_cert_id()].approve_required = true;
         }
         break;
       }
       default:
-        throw std::runtime_error("Invalid data");
+        return vds::make_unexpected<std::runtime_error>("Invalid data");
       }
 
       for (auto & ancestor_id : block.ancestors()) {
-        st = t.get_reader(
+        GET_EXPECTED_VALUE(st, t.get_reader(
           t1.select(t1.order_no)
-          .where(t1.id == ancestor_id));
+          .where(t1.id == ancestor_id)));
 
         if (!st.execute()) {
-          throw std::runtime_error("Invalid data");
+          return vds::make_unexpected<std::runtime_error>("Invalid data");
         }
 
         vds_assert(t1.order_no.get(st) < porder_no->first);

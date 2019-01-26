@@ -16,56 +16,64 @@ namespace vds {
 
     class transaction_messages_walker {
     public:
-      virtual bool visit(const payment_transaction &/*message*/) {
+      virtual expected<bool> visit(const payment_transaction &/*message*/) {
         return true;
       }
 
-      virtual bool visit(const root_user_transaction &/*message*/) {
+      virtual expected<bool> visit(const root_user_transaction &/*message*/) {
         return true;
       }
 
-      virtual bool visit(const channel_message & /*message*/) {
+      virtual expected<bool> visit(const channel_message & /*message*/) {
         return true;
       }
 
-      virtual bool visit(const create_user_transaction & /*message*/) {
+      virtual expected<bool> visit(const create_user_transaction & /*message*/) {
         return true;
       }
 
-      bool process(const const_data_buffer & message_data) {
+      expected<bool> process(const const_data_buffer & message_data) {
         binary_deserializer s(message_data);
 
         while (0 < s.size()) {
           uint8_t message_id;
-          s >> message_id;
+          CHECK_EXPECTED(deserialize(s, message_id));
 
           switch ((transaction_id) message_id) {
             case transactions::payment_transaction::message_id: {
-              if (!this->visit(message_deserialize<payment_transaction>(s))) {
+              GET_EXPECTED(message, message_deserialize<payment_transaction>(s));
+              GET_EXPECTED(result, this->visit(message));
+              if (!result) {
                 return false;
               }
               break;
             }
             case transactions::root_user_transaction::message_id: {
-              if (!this->visit(message_deserialize<root_user_transaction>(s))) {
+              GET_EXPECTED(message, message_deserialize<root_user_transaction>(s));
+              GET_EXPECTED(result, this->visit(message));
+              if (!result) {
                 return false;
               }
               break;
             }
             case transactions::create_user_transaction::message_id: {
-              if (!this->visit(message_deserialize<create_user_transaction>(s))) {
+              GET_EXPECTED(message, message_deserialize<create_user_transaction>(s));
+              GET_EXPECTED(result, this->visit(message));
+              if (!result) {
                 return false;
               }
               break;
             }
             case transactions::channel_message::message_id: {
-              if (!this->visit(channel_message(s))) {
+              GET_EXPECTED(message, message_deserialize<channel_message>(s));
+              GET_EXPECTED(result, this->visit(message));
+              if (!result) {
                 return false;
               }
               break;
             }
             default: {
-              throw std::runtime_error("Invalid message " + std::to_string(message_id));
+              return vds::make_unexpected<std::runtime_error>("Invalid message " + std::to_string(message_id));
             }
           }
         }
@@ -99,7 +107,7 @@ namespace vds {
         first_handler_(std::forward<first_handler_type>(first_handler)) {
       }
 
-      bool visit(const typename functor_info<first_handler_type>::argument_type & message) override {
+      expected<bool> visit(const typename functor_info<first_handler_type>::argument_type & message) override {
         return this->first_handler_(message);
       }
 

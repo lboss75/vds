@@ -11,95 +11,100 @@
 
 #define route_client(message_type)\
   case dht::network::message_type_t::message_type: {\
-      co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) {\
+    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) -> expected<void> {\
         binary_deserializer s(message_info.message_data());\
-        auto message = message_deserialize<dht::messages::message_type>(s);\
-        (*pthis->sp_->get<dht::network::client>())->apply_message(\
+        GET_EXPECTED(message, message_deserialize<dht::messages::message_type>(s));\
+        CHECK_EXPECTED((*pthis->sp_->get<dht::network::client>())->apply_message(\
          t,\
          message,\
-         message_info).get();\
-      });\
+         message_info).get());\
+       return expected<void>();\
+      }));\
       break;\
     }
 
-vds::async_task<void> vds::_server::process_message(
+vds::async_task<vds::expected<void>> vds::_server::process_message(
   
   const message_info_t & message_info) {
 
   if(this->sp_->get_shutdown_event().is_shuting_down()) {
-    co_return;
+    co_return expected<void>();
   }
 
   switch(message_info.message_type()){
   case dht::network::message_type_t::transaction_log_state: {
-    co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) {
+    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) -> expected<void> {
       binary_deserializer s(message_info.message_data());
-      auto message = message_deserialize<dht::messages::transaction_log_state>(s);
-      (*pthis->sp_->get<server>())->apply_message(
+      GET_EXPECTED(message, message_deserialize<dht::messages::transaction_log_state>(s));
+      CHECK_EXPECTED((*pthis->sp_->get<server>())->apply_message(
           t,
           message,
-          message_info).get();
-    });
+          message_info).get());
+
+      return expected<void>();
+    }));
     break;
   }
   case dht::network::message_type_t::transaction_log_request: {
-    co_await this->sp_->get<db_model>()->async_transaction(
-        [message_info, pthis = this->shared_from_this()](database_transaction & t) {
+    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction(
+        [message_info, pthis = this->shared_from_this()](database_transaction & t) -> expected<void> {
       binary_deserializer s(message_info.message_data());
-      auto message = message_deserialize<dht::messages::transaction_log_request>(s);
-      (*pthis->sp_->get<server>())->apply_message(
+      GET_EXPECTED(message, message_deserialize<dht::messages::transaction_log_request>(s));
+      CHECK_EXPECTED((*pthis->sp_->get<server>())->apply_message(
           t,
           message,
-          message_info).get();
-    });
+          message_info).get());
+
+      return expected<void>();
+    }));
     break;
   }
   case dht::network::message_type_t::transaction_log_record: {
-    co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) {
+    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) -> expected<void> {
       binary_deserializer s(message_info.message_data());
-      auto message = message_deserialize<dht::messages::transaction_log_record>(s);
-      (*pthis->sp_->get<server>())->apply_message(
+      GET_EXPECTED(message, message_deserialize<dht::messages::transaction_log_record>(s));
+      CHECK_EXPECTED((*pthis->sp_->get<server>())->apply_message(
           t,
           message,
-          message_info).get();
-      return true;
-    });
+          message_info).get());
+      return expected<void>();
+    }));
     break;
   }
 
     case dht::network::message_type_t::dht_find_node: {
       binary_deserializer s(message_info.message_data());
-      auto message = message_deserialize<dht::messages::dht_find_node>(s);
-      co_await (*this->sp_->get<dht::network::client>())->apply_message(
+      GET_EXPECTED_ASYNC(message, message_deserialize<dht::messages::dht_find_node>(s));
+      CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
-          message_info);
+          message_info));
       break;
     }
 
     case dht::network::message_type_t::dht_find_node_response: {
       binary_deserializer s(message_info.message_data());
-      auto message = message_deserialize<dht::messages::dht_find_node_response>(s);
-      co_await (*this->sp_->get<dht::network::client>())->apply_message(
+      GET_EXPECTED_ASYNC(message, message_deserialize<dht::messages::dht_find_node_response>(s));
+      CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
-          message_info);
+          message_info));
       break;
     }
 
     case dht::network::message_type_t::dht_ping: {
       binary_deserializer s(message_info.message_data());
-      auto message = message_deserialize<dht::messages::dht_ping>(s);
-      co_await (*this->sp_->get<dht::network::client>())->apply_message(
+      GET_EXPECTED_ASYNC(message, message_deserialize<dht::messages::dht_ping>(s));
+      CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
-          message_info);
+          message_info));
       break;
     }
 
     case dht::network::message_type_t::dht_pong: {
       binary_deserializer s(message_info.message_data());
-      auto message = message_deserialize<dht::messages::dht_pong>(s);
-      co_await (*this->sp_->get<dht::network::client>())->apply_message(
+      GET_EXPECTED_ASYNC(message, message_deserialize<dht::messages::dht_pong>(s));
+      CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
-          message_info);
+          message_info));
       break;
     }
  /*   case network::message_type_t::replica_request: {
@@ -107,7 +112,7 @@ vds::async_task<void> vds::_server::process_message(
 
       binary_deserializer s(message_data);
       messages::sync_replica_request message(s);
-      auto result = std::make_shared<vds::async_task<void>>(vds::async_task<void>::empty());
+      auto result = std::make_shared<vds::async_task<vds::expected<void>>>(vds::async_task<vds::expected<void>>::empty());
       *result = (*sp->get<client>())->apply_message(
         sp.create_scope("messages::sync_replica_request"),
         this->shared_from_this(),
@@ -176,7 +181,7 @@ vds::async_task<void> vds::_server::process_message(
     route_client(sync_replica_query_operations_request)
 
     default:{
-      throw std::runtime_error("Invalid command");
+      co_return vds::make_unexpected<std::runtime_error>("Invalid command");
     }
   }
 }

@@ -5,6 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "test_json_parser.h"
+#include "../test_libs/test_config.h"
 
 
 static const char test_data[] =
@@ -36,11 +37,11 @@ static const char test_data[] =
 
 //static const char test_data[] = "{\"glossary\":\"\"}";
 
-static size_t test_json_parser_validate(const std::shared_ptr<vds::json_value> & value)
+static vds::expected<bool> test_json_parser_validate(const std::shared_ptr<vds::json_value> & value)
 {
   auto root_object = std::dynamic_pointer_cast<vds::json_object>(value);
   if(nullptr == root_object) {
-    throw std::runtime_error("Test test");
+    return vds::make_unexpected<std::runtime_error>("Test test");
   }
 
   int prop_count = 0;
@@ -78,7 +79,7 @@ static size_t test_json_parser_validate(const std::shared_ptr<vds::json_value> &
   );
 
   if(1 != prop_count){
-    throw std::runtime_error("test failed");
+    return vds::make_unexpected<std::runtime_error>("test failed");
   }
 
   return true;
@@ -86,10 +87,11 @@ static size_t test_json_parser_validate(const std::shared_ptr<vds::json_value> &
 
 TEST(test_json_parser, test_parser) {
   auto parser = std::make_shared<vds::json_parser>("test",
-    [](const std::shared_ptr<vds::json_value> & value){
-      test_json_parser_validate(value);
+    [](const std::shared_ptr<vds::json_value> & value) -> vds::expected<void>{
+      CHECK_EXPECTED(test_json_parser_validate(value));
+      return vds::expected<void>();
     }
   );
-  parser->write_async((const uint8_t *)test_data, sizeof(test_data) - 1).get();
-  parser->write_async(nullptr, 0).get();
+  CHECK_EXPECTED_GTEST(parser->write_async((const uint8_t *)test_data, sizeof(test_data) - 1).get());
+  CHECK_EXPECTED_GTEST(parser->write_async(nullptr, 0).get());
 }

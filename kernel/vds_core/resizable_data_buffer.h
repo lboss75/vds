@@ -61,9 +61,7 @@ namespace vds {
       if (this->allocated_size_ < size) {
         this->allocated_size_ = 1024 * ((size + 1023) / 1024);
         this->data_ = static_cast<uint8_t *>(std::realloc(this->data_, this->allocated_size_));
-        if (nullptr == this->data_) {
-          throw std::runtime_error("Out of memmory");
-        }
+        vds_assert(nullptr != this->data_);
       }
     }
 

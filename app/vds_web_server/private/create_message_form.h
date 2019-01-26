@@ -21,30 +21,31 @@ namespace vds {
       this->message_->add_property("$type", "SimpleMessage");
     }
 
-    void on_field(const simple_field_info & field) {
+    vds::async_task<vds::expected<void>> on_field(const simple_field_info & field) {
       if (field.name == "channel_id") {
-        this->channel_id_ = vds::base64::to_bytes(field.value);
+        GET_EXPECTED_VALUE_ASYNC(this->channel_id_, vds::base64::to_bytes(field.value));
       }
       else
         if (field.name == "message") {
           this->message_->add_property("message", field.value);
         }
         else {
-          throw std::runtime_error("Invalid field " + field.name);
+          co_return vds::make_unexpected<std::runtime_error>("Invalid field " + field.name);
         }
+      co_return expected<void>();
     }
 
-    vds::async_task<void> on_file(const file_info & file) {
-      auto file_info = co_await this->sp_->get<vds::file_manager::file_operations>()->upload_file(
+    vds::async_task<vds::expected<void>> on_file(const file_info & file) {
+      GET_EXPECTED_ASYNC(file_info, co_await this->sp_->get<vds::file_manager::file_operations>()->upload_file(
         this->user_mng_,
         file.file_name,
         file.mimetype,
-        file.stream);
+        file.stream));
 
       this->files_.push_back(file_info);
     }
 
-    vds::async_task<void> complete() {
+    vds::async_task<vds::expected<void>> complete() {
       return this->sp_->get<vds::file_manager::file_operations>()->create_message(
         this->user_mng_,
         this->channel_id_,

@@ -32,17 +32,20 @@ vds::console_logger::console_logger(log_level level, const std::unordered_set<st
 {
 }
 
-void vds::console_logger::register_services(service_registrator & registrator)
+vds::expected<void> vds::console_logger::register_services(service_registrator & registrator)
 {
   registrator.add_service<logger>(this);
+  return expected<void>();
 }
 
-void vds::console_logger::start(const service_provider *)
+vds::expected<void> vds::console_logger::start(const service_provider *)
 {
+  return expected<void>();
 }
 
-void vds::console_logger::stop()
+vds::expected<void> vds::console_logger::stop()
 {
+  return expected<void>();
 }
 
 void vds::console_logger::write( const log_record & record)
@@ -62,7 +65,7 @@ void vds::console_logger::write( const log_record & record)
     break;
 
   case log_level::ll_warning:
-    std::cout << "WARNIG: " << record.message << '\n';
+    std::cout << "WARNING: " << record.message << '\n';
     break;
 
   case log_level::ll_error:
@@ -83,22 +86,29 @@ vds::file_logger::file_logger(log_level level, const std::unordered_set<std::str
 {
 }
 
-void vds::file_logger::register_services(service_registrator & registrator)
+vds::expected<void> vds::file_logger::register_services(service_registrator & registrator)
 {
   registrator.add_service<logger>(this);
+  return expected<void>();
 }
 
-void vds::file_logger::start(const service_provider * sp)
+vds::expected<void> vds::file_logger::start(const service_provider * sp)
 {
   this->sp_ = sp;
 
-  auto folder = persistence::current_user(sp);
-  folder.create();
-  this->f_.reset(new file(filename(folder, "vds.log"), file::file_mode::append));
+  GET_EXPECTED(folder, persistence::current_user(sp));
+  CHECK_EXPECTED(folder.create());
+
+  file f;
+  CHECK_EXPECTED(f.open(filename(folder, "vds.log"), file::file_mode::append));
+
+  this->f_.reset(new file(std::move(f)));
   this->logger_thread_ = std::thread([this]() { this->logger_thread(); });
+
+  return expected<void>();
 }
 
-void vds::file_logger::stop()
+vds::expected<void> vds::file_logger::stop()
 {
   this->log_mutex_.lock();
   this->is_stopping_ = true;
@@ -109,6 +119,8 @@ void vds::file_logger::stop()
 
   this->f_->close();
   this->f_.reset();
+
+  return expected<void>();
 }
 
 void vds::file_logger::write(  const log_record & record)
@@ -128,7 +140,7 @@ void vds::file_logger::write(  const log_record & record)
     break;
 
   case log_level::ll_warning:
-    level_str = "WARNIG";
+    level_str = "WARNING";
     break;
 
   case log_level::ll_error:
@@ -162,8 +174,8 @@ void vds::file_logger::flush() {
     this->log_.clear();
     lock.unlock();
 
-    this->f_->write(log.c_str(), log.length());
-    this->f_->flush();
+    (void)this->f_->write(log.c_str(), log.length());
+    (void)this->f_->flush();
   }
 }
 
@@ -184,7 +196,7 @@ void vds::file_logger::logger_thread() {
     this->log_.clear();
     lock.unlock();
 
-    this->f_->write(log.c_str(), log.length());
-    this->f_->flush();
+    (void)this->f_->write(log.c_str(), log.length());
+    (void)this->f_->flush();
   }
 }

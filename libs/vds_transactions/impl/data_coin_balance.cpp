@@ -32,7 +32,7 @@ All rights reserved
 //  }
 //
 //  if(base_packages.empty()) {
-//    throw std::runtime_error("Invalid state");
+//    return vds::make_unexpected<std::runtime_error>("Invalid state");
 //  }
 //
 //  return vds::transactions::data_coin_balance(

@@ -38,10 +38,10 @@ namespace vds {
     mt_service();
     ~mt_service();
     
-    void register_services(service_registrator &) override;
-    void start(const service_provider *) override;
-    void stop() override;
-    vds::async_task<void> prepare_to_stop() override;
+    expected<void> register_services(service_registrator &) override;
+    expected<void> start(const service_provider *) override;
+    expected<void> stop() override;
+    vds::async_task<vds::expected<void>> prepare_to_stop() override;
 
   private:
     friend class imt_service;

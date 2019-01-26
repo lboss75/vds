@@ -18,10 +18,10 @@ namespace vds {
       ~network_service();
 
       // Inherited via iservice
-      void register_services(service_registrator &) override;
-      void start(const service_provider *) override;
-      void stop() override;
-      vds::async_task<void> prepare_to_stop() override;
+      expected<void> register_services(service_registrator &) override;
+      expected<void> start(const service_provider *) override;
+      expected<void> stop() override;
+      vds::async_task<vds::expected<void>> prepare_to_stop() override;
       
       static std::string to_string(const struct sockaddr & from, size_t from_len);
       static std::string to_string(const struct sockaddr_in & from);

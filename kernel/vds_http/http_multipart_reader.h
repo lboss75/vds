@@ -19,23 +19,25 @@ namespace vds {
     http_multipart_reader(
       const service_provider * sp,
       const std::string & boundary,
-      const std::function<vds::async_task<void>(const http_message &message)> & message_callback)
+      const std::function<vds::async_task<vds::expected<void>>(const http_message &message)> & message_callback)
       : sp_(sp), boundary_(boundary), message_callback_(message_callback), readed_(0), is_first_(true), eof_(false) {
     }
 
-    vds::async_task<void> process(
+    vds::async_task<vds::expected<void>> process(
       const std::shared_ptr<stream_input_async<uint8_t>> & input_stream)
     {
       while(!this->eof_) {
         auto parser = std::make_shared<http_form_part_parser>(this->message_callback_);
         co_await parser->start(this->sp_, std::make_shared<part_reader>(this->shared_from_this(), input_stream));
       }
+
+      co_return expected<void>();
     }
 
   private:
     const service_provider * sp_;
     const std::string boundary_;
-    std::function<vds::async_task<void>(const http_message &message)> message_callback_;
+    std::function<vds::async_task<vds::expected<void>>(const http_message &message)> message_callback_;
 
     uint8_t buffer_[1024];
     size_t readed_;
@@ -51,7 +53,7 @@ namespace vds {
       : owner_(owner), input_stream_(input_stream) {        
       }
 
-      vds::async_task<size_t> read_async( uint8_t * buffer, size_t len) override {
+      vds::async_task<vds::expected<size_t>> read_async( uint8_t * buffer, size_t len) override {
         auto pthis = this->shared_from_this();
 
         for (;;) {
@@ -140,9 +142,9 @@ namespace vds {
           }
 
           if (!this->owner_->eof_) {
-            size_t readed = co_await this->input_stream_->read_async(
+            GET_EXPECTED_ASYNC(readed, co_await this->input_stream_->read_async(
               this->owner_->buffer_ + this->owner_->readed_,
-              sizeof(this->owner_->buffer_) - this->owner_->readed_);
+              sizeof(this->owner_->buffer_) - this->owner_->readed_));
 
             if (0 != readed) {
               this->owner_->readed_ += readed;

@@ -28,10 +28,10 @@ namespace vds {
     int column() const {
       return this->column_;
     }
+
+    expected<std::string> str() const;
     
-    std::string str() const;
-    
-    virtual void str(json_writer & writer) const = 0;
+    virtual expected<void> str(json_writer & writer) const = 0;
     virtual std::shared_ptr<json_value> clone(bool is_deep_clone) const = 0;
     
   private:
@@ -51,7 +51,7 @@ namespace vds {
       return this->value_;
     }
     
-    void str(json_writer & writer) const override;
+    expected<void> str(json_writer & writer) const override;
     std::shared_ptr<json_value> clone(bool is_deep_clone) const override;
 
   private:
@@ -80,7 +80,7 @@ namespace vds {
       this->value_ = val;
     }
     
-    void str(json_writer & writer) const override;
+    expected<void> str(json_writer & writer) const override;
     std::shared_ptr<json_value> clone(bool is_deep_clone) const override;
 
   private:
@@ -111,21 +111,28 @@ namespace vds {
     template<typename item_type>
     void add_property(const std::string & name, const std::list<item_type> & value);
 
+    template<typename item_type>
+    expected<void> add_property(const std::string & name, expected<item_type> && value) {
+      CHECK_EXPECTED_ERROR(value);
+      this->add_property(name, value.value());
+      return expected<void>();
+    }
+
     std::shared_ptr<json_value> get_property(const std::string & name) const;
-    bool get_property(const std::string & name, std::string & value, bool throw_error = true) const;
-    bool get_property(const std::string & name, int & value, bool throw_error = true) const;
+    expected<bool> get_property(const std::string & name, std::string & value) const;
+    expected<bool> get_property(const std::string & name, int & value) const;
     //bool get_property(const std::string & name, size_t & value, bool throw_error = true) const;
-    bool get_property(const std::string & name, const_data_buffer & value, bool throw_error = true) const;
-    bool get_property(const std::string & name, uint8_t & value, bool throw_error = true) const;
-    bool get_property(const std::string & name, uint16_t & value, bool throw_error = true) const;
-    bool get_property(const std::string & name, uint32_t & value, bool throw_error = true) const;
-    bool get_property(const std::string & name, uint64_t & value, bool throw_error = true) const;
-    bool get_property(const std::string & name, std::list<const_data_buffer> & value, bool throw_error = true) const;
+    expected<bool> get_property(const std::string & name, const_data_buffer & value) const;
+    expected<bool> get_property(const std::string & name, uint8_t & value) const;
+    expected<bool> get_property(const std::string & name, uint16_t & value) const;
+    expected<bool> get_property(const std::string & name, uint32_t & value) const;
+    expected<bool> get_property(const std::string & name, uint64_t & value) const;
+    expected<bool> get_property(const std::string & name, std::list<const_data_buffer> & value) const;
 
     template<typename item_type>
-    bool get_property(const std::string & name, std::list<item_type> & value, bool throw_error = true) const;
+    expected<bool> get_property(const std::string & name, std::list<item_type> & value) const;
 
-    void str(json_writer & writer) const override;
+    expected<void> str(json_writer & writer) const override;
     std::shared_ptr<json_value> clone(bool is_deep_clone) const override;
 
   private:
@@ -154,7 +161,7 @@ namespace vds {
       this->items_.push_back(item);
     }
 
-    void str(json_writer & writer) const override;
+    expected<void> str(json_writer & writer) const override;
     std::shared_ptr<json_value> clone(bool is_deep_clone) const override;
 
   private:
@@ -183,29 +190,25 @@ namespace vds {
   }
 
   template<typename item_type>
-  inline bool json_object::get_property(const std::string & name, std::list<item_type> & value, bool throw_error) const
+  inline expected<bool> json_object::get_property(const std::string & name, std::list<item_type> & value) const
   {
     auto array = std::dynamic_pointer_cast<json_array>(this->get_property(name));
-    if(!array){
-      if(throw_error){
-        throw std::runtime_error("Invalid property " + name);
-      }
-      
-      return false;
+    if (!array) {
+      return vds::make_unexpected<std::runtime_error>("Invalid property " + name);
     }
-    
-    for(size_t i = 0; i < array->size(); ++i) {
+
+    for (size_t i = 0; i < array->size(); ++i) {
       value.push_back(item_type(array->get(i)));
     }
-    
+
     return true;
   }
 
-  inline vds::binary_serializer & operator << (
+  inline expected<void> serialize(
     vds::binary_serializer & s,
     const std::shared_ptr<json_value> & value) {
-    s << value->str();
-    return s;
+    GET_EXPECTED(v, value->str());
+    return serialize(s, v);    
   }
 }
 

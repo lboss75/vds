@@ -50,7 +50,7 @@
 //  }
 //
 //  if(this->not_processed_.empty()){
-//    throw std::runtime_error("Invalid program");
+//    return vds::make_unexpected<std::runtime_error>("Invalid program");
 //  }
 //  auto log_id = *this->not_processed_.begin()->second.begin();
 //  auto result = this->load_state(t, log_id);
@@ -102,7 +102,7 @@
 //      t1.select(t1.data)
 //          .where(t1.id == node_id));
 //  if(!st.execute()){
-//    throw std::runtime_error("Invalid data");
+//    return vds::make_unexpected<std::runtime_error>("Invalid data");
 //  }
 //
 //  const auto block_data = t1.data.get(st);
@@ -148,7 +148,7 @@
 //    }
 //  }
 //
-//  throw std::runtime_error("Leaf not found");
+//  return vds::make_unexpected<std::runtime_error>("Leaf not found");
 //}
 //
 //vds::transactions::transaction_record_state vds::transactions::transaction_state_calculator::calculate_state(

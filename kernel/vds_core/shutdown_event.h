@@ -15,9 +15,11 @@ namespace vds {
     shutdown_event();
     ~shutdown_event();
 
+    expected<void> create();
+
     bool is_shuting_down() const { return this->is_shuting_down_; }
 
-    void set();
+    vds::expected<void> set();
 
   private:
     bool is_shuting_down_;

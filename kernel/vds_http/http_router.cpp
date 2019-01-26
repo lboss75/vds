@@ -11,15 +11,15 @@ All rights reserved
 #include "http_mimetype.h"
 
 
-vds::async_task<vds::http_message> vds::http_route_handler::static_handler::process(
+vds::async_task<vds::expected<vds::http_message>> vds::http_route_handler::static_handler::process(
   const service_provider * sp,
   const http_router* router,
   const http_request& request) const {
-  co_await request.get_message().ignore_empty_body();
+  CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
   co_return http_response::simple_text_response(this->body_);
 }
 
-vds::async_task<vds::http_message> vds::http_route_handler::file_handler::process(
+vds::async_task<vds::expected<vds::http_message>> vds::http_route_handler::file_handler::process(
   const service_provider * sp,
   const http_router* router,
   const http_request & request) const {
@@ -29,11 +29,12 @@ vds::async_task<vds::http_message> vds::http_route_handler::file_handler::proces
     content_type = "application/octet-stream";
   }
 
-  co_await request.get_message().ignore_empty_body();
-  co_return http_response::simple_text_response(file::read_all_text(this->fn_), content_type);
+  CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
+  GET_EXPECTED_ASYNC(body, file::read_all_text(this->fn_));
+  co_return http_response::simple_text_response(body, content_type);
 }
 
-vds::async_task<vds::http_message> vds::http_route_handler::auth_handler::process(
+vds::async_task<vds::expected<vds::http_message>> vds::http_route_handler::auth_handler::process(
   const service_provider * sp,
   const http_router* router,
   const http_request& request) const {
@@ -51,7 +52,7 @@ vds::async_task<vds::http_message> vds::http_route_handler::auth_handler::proces
     request);
 }
 
-vds::async_task<vds::http_message> vds::http_router::route(
+vds::async_task<vds::expected<vds::http_message>> vds::http_router::route(
   const service_provider * sp,
   const http_request & request) const
 {
@@ -61,7 +62,7 @@ vds::async_task<vds::http_message> vds::http_router::route(
     }
   }
 
-  co_await request.get_message().ignore_empty_body();
+  CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
   co_return http_response::simple_text_response(
     std::string(),
     std::string(),
@@ -85,19 +86,20 @@ void vds::http_router::add_file(
 }
 
 vds::http_route_handler::auth_api_handler::auth_api_handler(
-  const std::function<async_task<std::shared_ptr<json_value>>(const service_provider*, const std::shared_ptr<user_manager> &, const http_request&)>& callback)
-  : auth_handler([callback](const service_provider* sp, const std::shared_ptr<user_manager> & user_mng, const http_request& request) ->async_task<http_message> {
-  auto result = co_await callback(sp, user_mng, request);
+  const std::function<async_task<expected<std::shared_ptr<json_value>>>(const service_provider*, const std::shared_ptr<user_manager> &, const http_request&)>& callback)
+  : auth_handler([callback](const service_provider* sp, const std::shared_ptr<user_manager> & user_mng, const http_request& request) ->async_task<expected<http_message>> {
+  GET_EXPECTED_ASYNC(result, co_await callback(sp, user_mng, request));
+  GET_EXPECTED_ASYNC(result_str, result->str());
   co_return http_response::simple_text_response(
-    result->str(),
+    result_str,
     "application/json; charset=utf-8");
 })
 {
 }
 
-vds::async_task<vds::http_message> vds::http_route_handler::web_handler::process(
+vds::async_task<vds::expected<vds::http_message>> vds::http_route_handler::web_handler::process(
   const service_provider * sp,
-  const http_router * router,
+  const http_router * /*router*/,
   const http_request & request) const
 {
   return this->callback_(
@@ -106,11 +108,12 @@ vds::async_task<vds::http_message> vds::http_route_handler::web_handler::process
 }
 
 vds::http_route_handler::api_handler::api_handler(
-  const std::function<async_task<std::shared_ptr<json_value>>(const service_provider*, const http_request&)>& callback)
-  : web_handler([callback](const service_provider* sp, const http_request& request) ->async_task<http_message> {
-  auto result = co_await callback(sp, request);
+  const std::function<async_task<expected<std::shared_ptr<json_value>>>(const service_provider*, const http_request&)>& callback)
+  : web_handler([callback](const service_provider* sp, const http_request& request) ->async_task<expected<http_message>> {
+  GET_EXPECTED_ASYNC(result, co_await callback(sp, request));
+  GET_EXPECTED_ASYNC(result_str, result->str());
   co_return http_response::simple_text_response(
-    result->str(),
+    result_str,
     "application/json; charset=utf-8");
 })
 {

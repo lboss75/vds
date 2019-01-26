@@ -22,7 +22,7 @@ TEST(test_vds_crypto, test_assymmetric)
   registrator.add(console_logger);
   registrator.add(crypto_service);
   {
-    auto sp = registrator.build();
+    CHECK_EXPECTED_GTEST(registrator.build());
 
     size_t len;
     do
@@ -34,18 +34,20 @@ TEST(test_vds_crypto, test_assymmetric)
     std::vector<uint8_t> buffer(len);
     vds::crypto_service::rand_bytes(buffer.data(), (int)len);
 
-    auto private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
+      GET_EXPECTED_GTEST(private_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048()));
 
-    vds::asymmetric_public_key public_key(private_key);
+    vds::asymmetric_public_key public_key;
+      CHECK_EXPECTED_GTEST(public_key.create(private_key));
 
-    auto result = private_key.decrypt(public_key.encrypt(buffer.data(), buffer.size()));
+      GET_EXPECTED_GTEST(crypted, public_key.encrypt(buffer.data(), buffer.size()));
+      GET_EXPECTED_GTEST(result, private_key.decrypt(crypted));
 
     ASSERT_EQ(result.size(), buffer.size());
     for (size_t i = 0; i < buffer.size(); ++i) {
       ASSERT_EQ(result[i], buffer[i]);
     }
 
-    registrator.shutdown();
+      CHECK_EXPECTED_GTEST(registrator.shutdown());
   }
 }
 
@@ -68,7 +70,7 @@ TEST(test_vds_crypto, test_symmetric)
   registrator.add(console_logger);
   registrator.add(crypto_service);
   {
-    auto sp = registrator.build();
+    CHECK_EXPECTED_GTEST(registrator.build());
 
     size_t len;
     do
@@ -89,16 +91,17 @@ TEST(test_vds_crypto, test_symmetric)
       key_data.data(),
       pack_block_iv);
 
-    auto result1 = vds::symmetric_encrypt::encrypt(key, data);
+    GET_EXPECTED_GTEST(result1, vds::symmetric_encrypt::encrypt(key, data));
 
     auto cmp_stream = std::make_shared<compare_data_async<uint8_t>>(result1.data(), result1.size());
-    auto crypto_stream = std::make_shared<vds::symmetric_encrypt>(key, cmp_stream);
+    auto crypto_stream = std::make_shared<vds::symmetric_encrypt>();
+    CHECK_EXPECTED_GTEST(crypto_stream->create(key, cmp_stream));
     auto rand_stream = std::make_shared<random_stream<uint8_t>>(crypto_stream);
 
-    rand_stream->write_async(buffer.data(), (int)len).get();
-    rand_stream->write_async(nullptr, 0).get();
-    
-    registrator.shutdown();
+    CHECK_EXPECTED_GTEST(rand_stream->write_async(buffer.data(), (int)len).get());
+    CHECK_EXPECTED_GTEST(rand_stream->write_async(nullptr, 0).get());
+
+    CHECK_EXPECTED_GTEST(registrator.shutdown());
   }
 }
 
@@ -116,10 +119,8 @@ TEST(test_vds_crypto, test_sign)
   registrator.add(mt_service);
   registrator.add(console_logger);
   registrator.add(crypto_service);
-  auto sp = registrator.build();
-  try
-  {
-    registrator.start();
+  CHECK_EXPECTED_GTEST(registrator.build());
+    CHECK_EXPECTED_GTEST(registrator.start());
     
     size_t len;
     do
@@ -131,26 +132,32 @@ TEST(test_vds_crypto, test_sign)
     std::unique_ptr<unsigned char> buffer(new unsigned char[len]);
     vds::crypto_service::rand_bytes(buffer.get(), (int)len);
 
-    auto key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
+    GET_EXPECTED_GTEST(key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048()));
 
-    auto s = std::make_shared<vds::asymmetric_sign>(vds::hash::sha256(), key);
-    s->write_async(buffer.get(), len).get();
-    s->write_async(nullptr, 0).get();
+    auto s = std::make_shared<vds::asymmetric_sign>();
+    CHECK_EXPECTED_GTEST(s->create(vds::hash::sha256(), key));
+    CHECK_EXPECTED_GTEST(s->write_async(buffer.get(), len).get());
+    CHECK_EXPECTED_GTEST(s->write_async(nullptr, 0).get());
     
-    auto sign = s->signature();
-    vds::asymmetric_public_key pkey(key);
+    GET_EXPECTED_GTEST(sign, s->signature());
+    vds::asymmetric_public_key pkey;
+    CHECK_EXPECTED_GTEST(pkey.create(key));
 
     
-    auto v = std::make_shared<vds::asymmetric_sign_verify>(vds::hash::sha256(), pkey, sign);
-    v->write_async(buffer.get(), len).get();
-    v->write_async(nullptr, 0).get();
-    GTEST_ASSERT_EQ(v->result(), true);
+    auto v = std::make_shared<vds::asymmetric_sign_verify>();
+    CHECK_EXPECTED_GTEST(v->create(vds::hash::sha256(), pkey, sign));
+    CHECK_EXPECTED_GTEST(v->write_async(buffer.get(), len).get());
+    CHECK_EXPECTED_GTEST(v->write_async(nullptr, 0).get());
+    GET_EXPECTED_GTEST(vr, v->result());
+    GTEST_ASSERT_EQ(vr, true);
     
-    auto sv = std::make_shared<vds::asymmetric_sign_verify>(vds::hash::sha256(), pkey, sign);
+    auto sv = std::make_shared<vds::asymmetric_sign_verify>();
+    CHECK_EXPECTED_GTEST(sv->create(vds::hash::sha256(), pkey, sign));
     auto rs = std::make_shared<random_stream<uint8_t>>(sv);
-    rs->write_async(buffer.get(), len).get();
-    rs->write_async(nullptr, 0).get();
-    GTEST_ASSERT_EQ(sv->result(), true);
+    CHECK_EXPECTED_GTEST(rs->write_async(buffer.get(), len).get());
+    CHECK_EXPECTED_GTEST(rs->write_async(nullptr, 0).get());
+    GET_EXPECTED_GTEST(svr, sv->result());
+    GTEST_ASSERT_EQ(svr, true);
 
     size_t index;
     do
@@ -161,23 +168,16 @@ TEST(test_vds_crypto, test_sign)
 
     const_cast<unsigned char *>(buffer.get())[index]++;
 
-    auto sv1 = std::make_shared<vds::asymmetric_sign_verify>(vds::hash::sha256(), pkey, sign);
+    auto sv1 = std::make_shared<vds::asymmetric_sign_verify>();
+    CHECK_EXPECTED_GTEST(sv1->create(vds::hash::sha256(), pkey, sign));
+    
     auto rs1 = std::make_shared<random_stream<uint8_t>>(sv1);
-    rs1->write_async(buffer.get(), len).get();
-    rs1->write_async(nullptr, 0).get();
-    GTEST_ASSERT_EQ(sv1->result(), false);
+    CHECK_EXPECTED_GTEST(rs1->write_async(buffer.get(), len).get());
+    CHECK_EXPECTED_GTEST(rs1->write_async(nullptr, 0).get());
+    GET_EXPECTED_GTEST(svr1, sv1->result());
+    GTEST_ASSERT_EQ(svr1, false);
 
-  } catch(const std::exception & ex){
-    try { registrator.shutdown(); } catch (...){}
-
-    GTEST_FAIL() << ex.what();
-
-  } catch(...){
-    try { registrator.shutdown(); } catch (...){}
-    GTEST_FAIL() << "Unknown error";
-  }
-
-  registrator.shutdown();
+    CHECK_EXPECTED_GTEST(registrator.shutdown());
 }
 
 int main(int argc, char **argv) {

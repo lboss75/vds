@@ -13,13 +13,13 @@ All rights reserved
 #include "register_request.h"
 #include "dht_object_id.h"
 
-vds::async_task<vds::http_message> vds::login_page::register_request_post(
+vds::async_task<vds::expected<vds::http_message>> vds::login_page::register_request_post(
   const vds::service_provider * sp,
   const std::shared_ptr<_web_server>& owner,
   const http_message& message) {
   auto parser = std::make_shared<http::simple_form_parser>(sp);
 
-  co_await parser->parse(message);
+  CHECK_EXPECTED_ASYNC(co_await parser->parse(message));
   
     auto userName = parser->values().find("userName");
     auto userEmail = parser->values().find("userEmail");
@@ -32,11 +32,11 @@ vds::async_task<vds::http_message> vds::login_page::register_request_post(
       co_return http_response::redirect("/error/?code=InvalidRegister");
     }
 
-  auto request_body = user_manager::create_register_request(
+  GET_EXPECTED_ASYNC(request_body, user_manager::create_register_request(
       sp,
       userName->second,
       userEmail->second,
-      userPassword->second);
+      userPassword->second));
 
       co_return http_response::file_response(
         request_body,

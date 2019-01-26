@@ -37,10 +37,10 @@ namespace vds {
       }
     }
 
-    vds::async_task<void> start(
+    vds::async_task<vds::expected<void>> start(
       const service_provider * sp,
       const network_address & address,
-      const std::function<vds::async_task<void>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection)
+      const std::function<vds::async_task<vds::expected<void>>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection)
     {
        
 #ifdef _WIN32
@@ -48,20 +48,23 @@ namespace vds {
 
         if (INVALID_SOCKET == this->s_) {
           const auto error = WSAGetLastError();
-          throw std::system_error(error, std::system_category(), "create socket");
+          co_return vds::make_unexpected<std::system_error>(error, std::system_category(), "create socket");
         }
 
         if (SOCKET_ERROR == ::bind(this->s_, address, address.size())) {
           const auto error = WSAGetLastError();
-          throw std::system_error(error, std::system_category(), "bind");
+          co_return vds::make_unexpected<std::system_error>(error, std::system_category(), "bind");
         }
 
         if (SOCKET_ERROR == ::listen(this->s_, SOMAXCONN)) {
           const auto error = WSAGetLastError();
-          throw std::system_error(error, std::system_category(), "listen socket");
+          co_return vds::make_unexpected<std::system_error>(error, std::system_category(), "listen socket");
         }
 
-        this->accept_event_.select(this->s_, FD_ACCEPT);
+      auto accept_result = this->accept_event_.select(this->s_, FD_ACCEPT);
+      if(accept_result.has_error()) {
+        co_return vds::unexpected(std::move(accept_result.error()));
+      }
 
         this->wait_accept_task_ = std::thread(
           [this, sp, new_connection]() {
@@ -88,9 +91,10 @@ namespace vds {
               auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
               if (INVALID_SOCKET != socket) {
                 sp->get<logger>()->trace("TCP", "Connection from %s", network_service::to_string(client_address).c_str());
-                (*sp->get<network_service>())->associate(socket);
-                auto s = _tcp_network_socket::from_handle(socket);
-                (*sp->get<network_service>())->add_connection(new_connection(s));
+                if (!(*sp->get<network_service>())->associate(socket).has_error()) {
+                  auto s = _tcp_network_socket::from_handle(socket);
+                  (*sp->get<network_service>())->add_connection(new_connection(s));
+                }
               }
             }
           }
@@ -99,7 +103,7 @@ namespace vds {
             this->s_ = socket(AF_INET, SOCK_STREAM, 0);
             if (this->s_ < 0) {
               auto error = errno;
-              throw std::system_error(error, std::system_category());
+              return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
             
             /*************************************************************/
@@ -108,7 +112,7 @@ namespace vds {
             int on = 1;
             if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
               auto error = errno;
-              throw std::system_error(error, std::system_category());
+              return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
 
             /*************************************************************/
@@ -118,19 +122,19 @@ namespace vds {
             /*************************************************************/
             if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
               auto error = errno;
-              throw std::system_error(error, std::system_category());
+              return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
             
             //bind to address
             sp->get<logger>()->trace("UDP", "Starting UDP server on %s", address.to_string().c_str());
             if (0 > ::bind(this->s_, address, address.size())) {
               auto error = errno;
-              throw std::system_error(error, std::system_category());
+              return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
 
             if (0 > ::listen(this->s_, SOMAXCONN)) {
               auto error = errno;
-              throw std::system_error(error, std::system_category());
+              return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
 
             /* Set the socket to non-blocking, this is essential in event
@@ -139,13 +143,13 @@ namespace vds {
             auto flags = fcntl(this->s_, F_GETFL);
             if (0 > flags) {
               auto error = errno;
-              throw std::system_error(error, std::system_category());
+              return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
 
             flags |= O_NONBLOCK;
             if (0 > fcntl(this->s_, F_SETFL, flags)) {
               auto error = errno;
-              throw std::system_error(error, std::system_category());
+              return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
 
             this->new_connection_ = new_connection;
@@ -154,7 +158,7 @@ namespace vds {
               [this, sp](){
                 auto epollfd = epoll_create(1);
                 if (0 > epollfd) {
-                  throw std::runtime_error("epoll_create failed");
+                  return vds::make_unexpected<std::runtime_error>("epoll_create failed");
                   return;
                 }
 
@@ -163,7 +167,7 @@ namespace vds {
                 ev.events = EPOLLIN;
                 ev.data.fd = this->s_;
                 if (0 > epoll_ctl(epollfd, EPOLL_CTL_ADD, this->s_, &ev)) {
-                  throw std::runtime_error("epoll_create failed");
+                  return vds::make_unexpected<std::runtime_error>("epoll_create failed");
                   return;
                 }
                 
@@ -184,7 +188,7 @@ namespace vds {
                 }
               });
 #endif
-            co_return;
+            co_return expected<void>();
     }
     
     void stop()
@@ -197,7 +201,7 @@ namespace vds {
     bool is_shuting_down_;
 
 #ifndef _WIN32
-    std::function<vds::async_task<void>(const std::shared_ptr<tcp_network_socket> & s)> new_connection_;
+    std::function<vds::async_task<vds::expected<void>>(const std::shared_ptr<tcp_network_socket> & s)> new_connection_;
 #else
     class windows_wsa_event
     {
@@ -218,12 +222,14 @@ namespace vds {
         }
       }
 
-      void select(SOCKET s, long lNetworkEvents)
+      expected<void> select(SOCKET s, long lNetworkEvents)
       {
         if (SOCKET_ERROR == WSAEventSelect(s, this->handle(), FD_ACCEPT)) {
           auto error = WSAGetLastError();
-          throw std::system_error(error, std::system_category(), "WSAEventSelect");
+          return vds::make_unexpected<std::system_error>(error, std::system_category(), "WSAEventSelect");
         }
+
+        return expected<void>();
       }
 
       WSAEVENT handle() const {

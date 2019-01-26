@@ -12,9 +12,9 @@ All rights reserved
 #include <future>
 #include <experimental/coroutine>
 
-vds::async_task<int> async_add(int a, int b)
+vds::async_task<vds::expected<int>> async_add(int a, int b)
 {
-  auto result = std::make_shared<vds::async_result<int>>();
+  auto result = std::make_shared<vds::async_result<vds::expected<int>>>();
   std::thread([=]() {
     int c = a + b;
     result->set_value(c);
@@ -23,7 +23,7 @@ vds::async_task<int> async_add(int a, int b)
   return result->get_future();
 }
 
-vds::async_task<int> async_fib(int n)
+vds::async_task<vds::expected<int>> async_fib(int n)
 {
   if (n <= 2)
     co_return 1;
@@ -34,7 +34,7 @@ vds::async_task<int> async_fib(int n)
   // iterate computing fib(n)
   for (int i = 0; i < n - 2; ++i)
   {
-    int c = co_await async_add(a, b);
+    GET_EXPECTED_ASYNC(c, co_await async_add(a, b));
     a = b;
     b = c;
   }
@@ -42,12 +42,12 @@ vds::async_task<int> async_fib(int n)
   co_return b;
 }
 
-int calc_fib(int n) {
+vds::expected<int> calc_fib(int n) {
   return async_fib(n).get();
 }
 
 TEST(mt_tests, test_async) {
-  int result = calc_fib(5);
+  GET_EXPECTED_GTEST(result, calc_fib(5));
 
   GTEST_ASSERT_EQ(result, 5);
 }
