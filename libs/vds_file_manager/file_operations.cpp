@@ -82,7 +82,8 @@ vds::async_task<vds::expected<vds::transactions::user_message_transaction::file_
   const std::string & mime_type,
   const std::shared_ptr<stream_input_async<uint8_t>>& input_stream) {
 
-  GET_EXPECTED_ASYNC(file_info, co_await this->pack_file(input_stream));
+  pack_file_result file_info;
+  GET_EXPECTED_VALUE_ASYNC(file_info, co_await this->pack_file(input_stream));
 
   co_return transactions::user_message_transaction::file_info_t{
         name,
@@ -243,7 +244,8 @@ vds::file_manager_private::_file_operations::pack_file(
   
   const std::shared_ptr<stream_input_async<uint8_t>>& input_stream) const {
   auto task = std::make_shared<_upload_stream_task>();
-  GET_EXPECTED_ASYNC(file_blocks, co_await task->start(this->sp_, input_stream));
+  std::list<vds::transactions::user_message_transaction::file_block_t> file_blocks;
+  GET_EXPECTED_VALUE_ASYNC(file_blocks, co_await task->start(this->sp_, input_stream));
   
   co_return pack_file_result { task->result_hash(), task->total_size(), file_blocks };
 }
@@ -257,14 +259,15 @@ vds::async_task<vds::expected<void>> vds::file_manager_private::_file_operations
 
   while (!file_blocks.empty()) {
     auto network_client = this->sp_->get<dht::network::client>();
-    GET_EXPECTED_ASYNC(data, co_await network_client->restore(dht::network::client::chunk_info{
+    vds::const_data_buffer data;
+    GET_EXPECTED_VALUE_ASYNC(data, co_await network_client->restore(dht::network::client::chunk_info{
         file_blocks.begin()->block_id,
         file_blocks.begin()->block_key,
         file_blocks.begin()->replica_hashes }));
 
     vds_assert(data.size() == file_blocks.begin()->block_size);
     auto buffer = std::make_shared<const_data_buffer>(data);
-    co_await target_stream->write_async(buffer->data(), buffer->size());
+    CHECK_EXPECTED_ASYNC(co_await target_stream->write_async(buffer->data(), buffer->size()));
 
     file_blocks.pop_front();
   }
@@ -283,7 +286,8 @@ vds::file_manager_private::_file_operations::prepare_download_stream(
   while (!file_blocks.empty()) {
     auto network_client = this->sp_->get<dht::network::client>();
 
-    GET_EXPECTED_ASYNC(info, co_await network_client->prepare_restore(t, dht::network::client::chunk_info{
+    vds::dht::network::client::block_info_t info;
+    GET_EXPECTED_VALUE_ASYNC(info, co_await network_client->prepare_restore(t, dht::network::client::chunk_info{
         file_blocks.begin()->block_id,
         file_blocks.begin()->block_key,
         file_blocks.begin()->replica_hashes }));

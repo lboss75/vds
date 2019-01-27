@@ -26,7 +26,8 @@ bool vds::http_message::get_header(
 }
 
 vds::async_task<vds::expected<void>> vds::http_message::ignore_empty_body() const {
-  GET_EXPECTED_ASYNC(result, co_await this->body_->read_all());
+  const_data_buffer result;
+  GET_EXPECTED_VALUE_ASYNC(result, co_await this->body_->read_all());
   vds_assert(0 == result.size());
   co_return vds::expected<void>();
 }
@@ -42,7 +43,8 @@ vds::async_task<vds::expected<void>> vds::http_message::ignore_body(
   const std::shared_ptr<buffer_t>& buffer) {
 
   for(;;){
-    GET_EXPECTED_ASYNC(readed, co_await body->read_async(buffer->data_, sizeof(buffer->data_)));
+    size_t readed;
+    GET_EXPECTED_VALUE_ASYNC(readed, co_await body->read_async(buffer->data_, sizeof(buffer->data_)));
     if (0 == readed) {
       co_return expected<void>();
     }

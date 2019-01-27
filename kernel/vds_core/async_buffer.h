@@ -76,8 +76,10 @@ namespace vds {
       else {
         this->in_mutex_.unlock();
 
-        co_await this->write_all(data, data_size);
+        CHECK_EXPECTED_ASYNC(co_await this->write_all(data, data_size));
       }
+
+      co_return expected<void>();
     }
 
     vds::async_task<vds::expected<size_t /*readed*/>> read_async( item_type * buffer, size_t buffer_size)
@@ -90,7 +92,8 @@ namespace vds {
 
       this->out_mutex_.lock();
 
-      GET_EXPECTED_ASYNC(readed, co_await this->continue_read(buffer, buffer_size));
+      size_t readed;
+      GET_EXPECTED_VALUE_ASYNC(readed, co_await this->continue_read(buffer, buffer_size));
 
       this->out_mutex_.unlock();
 
@@ -183,7 +186,8 @@ namespace vds {
       size_t data_size)
     {
       for (;;) {
-        GET_EXPECTED_ASYNC(len, co_await this->continue_write(data, data_size));
+        size_t len;
+        GET_EXPECTED_VALUE_ASYNC(len, co_await this->continue_write(data, data_size));
 
         if (len == data_size) {
           co_return expected<void>();
@@ -249,7 +253,8 @@ namespace vds {
       const std::shared_ptr<std::tuple<resizable_data_buffer, item_type[1024]>> & buffer)
     {
       for (;;) {
-        GET_EXPECTED_ASYNC(readed, co_await this->read_async(std::get<1>(*buffer), 1024));
+        size_t readed;
+        GET_EXPECTED_VALUE_ASYNC(readed, co_await this->read_async(std::get<1>(*buffer), 1024));
 
         if (0 == readed) {
           co_return std::get<0>(*buffer).move_data();

@@ -263,14 +263,14 @@ inline vds::expected<void> vds::chunk_generator<cell_type>::write(binary_seriali
         chunk<cell_type>::math_.mul(this->multipliers_[j], data_item));
     }
 
-    CHECK_EXPECTED(serialize(s, value));
+    CHECK_EXPECTED(s << value);
   }
 
   auto final_size = s.size();
   assert(expected_size == final_size - start);
 
   if (write_padding) {
-    CHECK_EXPECTED(serialize(s, safe_cast<uint16_t>(size % (sizeof(cell_type) * this->k_))));//Padding
+    CHECK_EXPECTED(s << safe_cast<uint16_t>(size % (sizeof(cell_type) * this->k_)));//Padding
   }
   else {
     vds_assert(0 == size % (sizeof(cell_type) * this->k_));
@@ -282,7 +282,7 @@ inline vds::expected<void> vds::chunk_generator<cell_type>::write(binary_seriali
 template<typename cell_type>
 inline vds::expected<void> vds::chunk_generator<cell_type>::write_padding(binary_serializer & s, uint64_t size)
 {
-  return serialize(s, safe_cast<uint16_t>(size % (sizeof(cell_type) * this->k_)));//Padding
+  return (s << safe_cast<uint16_t>(size % (sizeof(cell_type) * this->k_)));//Padding
 }
 
 
@@ -438,7 +438,7 @@ inline vds::expected<vds::const_data_buffer> vds::chunk_restore<cell_type>::rest
               *m++,
               cell));
       }
-      CHECK_EXPECTED(serialize(s, value));
+      CHECK_EXPECTED(s << value);
       if(s.size() >= expected_size) {
         return const_data_buffer(s.get_buffer(), expected_size);
       }

@@ -13,15 +13,13 @@ All rights reserved
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
 #include "data_coin_balance.h"
+#include "user_manager_transactions.h"
+#include "create_user_transaction.h"
 
 namespace vds {
   class _user_channel;
 
   namespace transactions {
-    class create_user_transaction;
-    class payment_transaction;
-    class root_user_transaction;
-
     class transaction_block_builder {
     public:
       transaction_block_builder() = default;

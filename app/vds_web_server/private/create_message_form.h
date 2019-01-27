@@ -36,13 +36,15 @@ namespace vds {
     }
 
     vds::async_task<vds::expected<void>> on_file(const file_info & file) {
-      GET_EXPECTED_ASYNC(file_info, co_await this->sp_->get<vds::file_manager::file_operations>()->upload_file(
+        vds::transactions::user_message_transaction::file_info_t file_info;
+      GET_EXPECTED_VALUE_ASYNC(file_info, co_await this->sp_->get<vds::file_manager::file_operations>()->upload_file(
         this->user_mng_,
         file.file_name,
         file.mimetype,
         file.stream));
 
       this->files_.push_back(file_info);
+      co_return expected<void>();
     }
 
     vds::async_task<vds::expected<void>> complete() {

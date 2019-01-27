@@ -49,12 +49,13 @@ vds::expected<std::shared_ptr<vds::tcp_network_socket>> vds::tcp_network_socket:
       }
       CHECK_EXPECTED((*sp->get<network_service>())->associate(handle));
 #else
-      // Connect 
-      if (0 > ::connect(s->handle(), address, address.size())) {
+      // Connect
+      GET_EXPECTED(handle, s->handle());
+      if (0 > ::connect(handle, address, address.size())) {
         auto error = errno;
         return vds::make_unexpected<std::system_error>(error, std::generic_category(), "connect");
       }
-      s->make_socket_non_blocking();
+      CHECK_EXPECTED(s->make_socket_non_blocking());
       s->set_timeouts();
 #endif
       
@@ -62,9 +63,9 @@ vds::expected<std::shared_ptr<vds::tcp_network_socket>> vds::tcp_network_socket:
 }
 
 
-void vds::tcp_network_socket::close()
+vds::expected<void> vds::tcp_network_socket::close()
 {
-  this->impl_->close();
+  return this->impl_->close();
 }
 
 #ifdef _WIN32
@@ -78,9 +79,10 @@ std::tuple<
 
 #else//_WIN32
 
+vds::expected<
 std::tuple<
     std::shared_ptr<vds::stream_input_async<uint8_t>>,
-    std::shared_ptr<vds::stream_output_async<uint8_t>>> vds::tcp_network_socket::start(
+    std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::tcp_network_socket::start(
     const vds::service_provider *sp) {
 
   auto pthis = this->shared_from_this();
@@ -90,7 +92,7 @@ std::tuple<
   (*this)->read_task_ = reader;
   (*this)->write_task_ = writer;
 
-  reader->start(sp);
+  CHECK_EXPECTED(reader->start(sp));
 
   return std::make_tuple(reader, writer);
 }
@@ -99,21 +101,21 @@ std::tuple<
 //event_masks_(EPOLLET) {
 //}
 
-void vds::tcp_network_socket::process(uint32_t events) {
-  this->impl_->process(events);
+vds::expected<void> vds::tcp_network_socket::process(uint32_t events) {
+  return this->impl_->process(events);
 }
 
 bool vds::tcp_network_socket::operator!() const {
     return !(*this->impl_);
 }
 
-void vds::_tcp_network_socket::process(uint32_t events) {
+vds::expected<void> vds::_tcp_network_socket::process(uint32_t events) {
   if(EPOLLOUT == (EPOLLOUT & events)){
     if(0 == (this->event_masks_ & EPOLLOUT)) {
       return vds::make_unexpected<std::runtime_error>("Invalid state");
     }
 
-    this->write_task_.lock()->process();
+    CHECK_EXPECTED(this->write_task_.lock()->process());
   }
 
   if(EPOLLIN == (EPOLLIN & events)){
@@ -121,20 +123,22 @@ void vds::_tcp_network_socket::process(uint32_t events) {
       return vds::make_unexpected<std::runtime_error>("Invalid state");
     }
 
-    this->read_task_.lock()->process();
+    CHECK_EXPECTED(this->read_task_.lock()->process());
   }
 
   if(0 != ((EPOLLRDHUP | EPOLLHUP | EPOLLERR) & events)){
     auto pthis = this->read_task_.lock();
     if(pthis){
-      pthis->close_read();
+      CHECK_EXPECTED(pthis->close_read());
     }
   }
+
+  return expected<void>();
 }
 
 #endif
 
-void vds::_tcp_network_socket::close()
+vds::expected<void> vds::_tcp_network_socket::close()
 {
 #ifdef _WIN32
   if (INVALID_SOCKET != this->s_) {
@@ -146,16 +150,16 @@ void vds::_tcp_network_socket::close()
   if (0 <= this->s_) {
     if (0 != this->event_masks_){
       this->event_masks_ = 0;
-      (*this->sp_->get<network_service>())->remove_association(this->s_);
+      CHECK_EXPECTED((*this->sp_->get<network_service>())->remove_association(this->s_));
     }
     auto r = this->read_task_.lock();
     if(r){
-      r->close_read();
+      CHECK_EXPECTED(r->close_read());
     }
 
     auto w = this->write_task_.lock();
     if(w) {
-      w->close_write();
+      CHECK_EXPECTED(w->close_write());
     }
 
     shutdown(this->s_, 2);
@@ -163,4 +167,5 @@ void vds::_tcp_network_socket::close()
     this->s_ = -1;
   }
 #endif
+  return expected<void>();
 }

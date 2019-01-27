@@ -342,36 +342,36 @@ namespace vds {
     }
   }
 
-  inline expected<void> serialize(
+  inline expected<void> operator <<(
     binary_serializer& s,
     const orm::sync_message_dbo::message_type_t & f) {
-    return vds::serialize(s, (uint8_t)f);
+    return (s << (uint8_t)f);
   }
 
-  inline expected<void> deserialize(
+  inline expected<void> operator >>(
     binary_deserializer& s,
     orm::sync_message_dbo::message_type_t & f) {
     uint8_t v;
-    CHECK_EXPECTED(vds::deserialize(s, v));
+    CHECK_EXPECTED(s >> v);
     f = static_cast<orm::sync_message_dbo::message_type_t>(v);
     return expected<void>();
   }
 
-  inline expected<void> serialize(
+  inline expected<void> operator <<(
     binary_serializer& s,
     const dht::messages::sync_snapshot_response::member_state & f) {
-    CHECK_EXPECTED(vds::serialize(s, f.voted_for));
-    CHECK_EXPECTED(vds::serialize(s, f.cert));
-    CHECK_EXPECTED(vds::serialize(s, f.sign));
+    CHECK_EXPECTED(s << f.voted_for);
+    CHECK_EXPECTED(s << f.cert);
+    CHECK_EXPECTED(s << f.sign);
     return expected<void>();
   }
 
-  inline expected<void> deserialize(
+  inline expected<void> operator >>(
     binary_deserializer& s,
     dht::messages::sync_snapshot_response::member_state & f) {
-    CHECK_EXPECTED(vds::deserialize(s, f.voted_for));
-    CHECK_EXPECTED(vds::deserialize(s, f.cert));
-    CHECK_EXPECTED(vds::deserialize(s, f.sign));
+    CHECK_EXPECTED(s >> f.voted_for);
+    CHECK_EXPECTED(s >> f.cert);
+    CHECK_EXPECTED(s >> f.sign);
     return expected<void>();
   }
 }

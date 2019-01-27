@@ -29,7 +29,8 @@ namespace vds {
       const service_provider * sp,
       const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) {
       for (;;) {
-        GET_EXPECTED_ASYNC(len, co_await input_stream->read_async(this->buffer_, sizeof(this->buffer_)));
+        size_t len;
+        GET_EXPECTED_VALUE_ASYNC(len, co_await input_stream->read_async(this->buffer_, sizeof(this->buffer_)));
         if (0 == len) {
           logger::get(sp)->debug("HTTP", "HTTP end");
           co_return expected<void>();

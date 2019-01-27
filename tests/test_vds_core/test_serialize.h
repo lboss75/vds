@@ -33,13 +33,13 @@ public:
   
   virtual vds::expected<void> serialize(vds::binary_serializer& s)
   {
-    return vds::serialize(s, this->data_);
+    return (s << this->data_);
   }
 
   virtual vds::expected<void> deserialize(vds::binary_deserializer& s)
   {
     data_type data;
-    CHECK_EXPECTED(vds::deserialize(s, data));
+    CHECK_EXPECTED(s >> data);
 
     if (data != this->data_) {
       return vds::make_unexpected<std::runtime_error>("Invalid deserialize");
@@ -106,13 +106,13 @@ public:
   
   virtual vds::expected<void> serialize(vds::binary_serializer& s)
   {
-    return vds::serialize(s, this->data_);
+    return (s << this->data_);
   }
   
   virtual vds::expected<void> deserialize(vds::binary_deserializer& s)
   {
     std::string data;
-    CHECK_EXPECTED(vds::deserialize(s, data));
+    CHECK_EXPECTED(s >> data);
     
     if (data != this->data_) {
       return vds::make_unexpected<std::runtime_error>("Invalid deserialize");
@@ -148,13 +148,13 @@ public:
   
   virtual vds::expected<void> serialize(vds::binary_serializer& s)
   {
-    return vds::serialize(s, this->data_);
+    return (s << this->data_);
   }
 
   virtual vds::expected<void> deserialize(vds::binary_deserializer& s)
   {
     vds::const_data_buffer data;
-    CHECK_EXPECTED(vds::deserialize(s, data));
+    CHECK_EXPECTED((s >> data));
 
     if (data != this->data_) {
       return vds::make_unexpected<std::runtime_error>("Invalid deserialize");

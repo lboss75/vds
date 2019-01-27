@@ -61,7 +61,7 @@ namespace vds {
 
         while(0 < s.size()) {
           uint8_t message_id;
-          CHECK_EXPECTED(deserialize(s, message_id));
+          CHECK_EXPECTED(s >> message_id);
 
           sp->get<logger>()->debug("UserMng", "Process message %d", message_id);
 

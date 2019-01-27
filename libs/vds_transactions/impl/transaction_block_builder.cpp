@@ -38,12 +38,12 @@ vds::expected<vds::const_data_buffer> vds::transactions::transaction_block_build
   const std::shared_ptr<asymmetric_private_key> &write_private_key) {
   vds_assert(0 != this->data_.size());
   binary_serializer block_data;
-  CHECK_EXPECTED(serialize(block_data, transaction_block::CURRENT_VERSION));
-  CHECK_EXPECTED(serialize(block_data, static_cast<uint64_t>(std::chrono::system_clock::to_time_t(this->time_point_))));
-  CHECK_EXPECTED(serialize(block_data, this->order_no_));
-  CHECK_EXPECTED(serialize(block_data, write_cert->subject()));
-  CHECK_EXPECTED(serialize(block_data, this->ancestors_));
-  CHECK_EXPECTED(serialize(block_data, this->data_.move_data()));
+  CHECK_EXPECTED(block_data << transaction_block::CURRENT_VERSION);
+  CHECK_EXPECTED(block_data << static_cast<uint64_t>(std::chrono::system_clock::to_time_t(this->time_point_)));
+  CHECK_EXPECTED(block_data << this->order_no_);
+  CHECK_EXPECTED(block_data << write_cert->subject());
+  CHECK_EXPECTED(block_data << this->ancestors_);
+  CHECK_EXPECTED(block_data << this->data_.move_data());
 
   GET_EXPECTED(sig_data, asymmetric_sign::signature(
     hash::sha256(),
@@ -51,7 +51,7 @@ vds::expected<vds::const_data_buffer> vds::transactions::transaction_block_build
     block_data.get_buffer(),
     block_data.size()));
 
-  CHECK_EXPECTED(serialize(block_data, sig_data));
+  CHECK_EXPECTED(block_data << sig_data);
 
   return block_data.move_data();
 }
@@ -119,7 +119,7 @@ vds::expected<void> vds::transactions::transaction_block_builder::add(expected<r
     return unexpected(std::move(item.error()));
   }
 
-  CHECK_EXPECTED(serialize(this->data_, (uint8_t)root_user_transaction::message_id));
+  CHECK_EXPECTED(this->data_ << (uint8_t)root_user_transaction::message_id);
   _serialize_visitor v(this->data_);
   const_cast<root_user_transaction &>(item.value()).visit(v);
 
@@ -135,7 +135,7 @@ vds::expected<void> vds::transactions::transaction_block_builder::add(expected<c
     return unexpected(std::move(item.error()));
   }
 
-  CHECK_EXPECTED(serialize(this->data_, (uint8_t)create_user_transaction::message_id));
+  CHECK_EXPECTED(this->data_ << (uint8_t)create_user_transaction::message_id);
   _serialize_visitor v(this->data_);
   const_cast<create_user_transaction &>(item.value()).visit(v);
   if(v.error()) {
@@ -150,7 +150,7 @@ vds::expected<void> vds::transactions::transaction_block_builder::add(expected<p
     return unexpected(std::move(item.error()));
   }
 
-  CHECK_EXPECTED(serialize(this->data_, (uint8_t)payment_transaction::message_id));
+  CHECK_EXPECTED(this->data_ << (uint8_t)payment_transaction::message_id);
   _serialize_visitor v(this->data_);
   const_cast<payment_transaction &>(item.value()).visit(v);
 
@@ -167,7 +167,7 @@ vds::expected<void> vds::transactions::transaction_block_builder::add(
     return unexpected(std::move(item.error()));
   }
 
-  CHECK_EXPECTED(serialize(this->data_, (uint8_t)channel_message::message_id));
+  CHECK_EXPECTED(this->data_ << (uint8_t)channel_message::message_id);
   _serialize_visitor v(this->data_);
   const_cast<channel_message &>(item.value()).visit(v);
 

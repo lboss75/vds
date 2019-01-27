@@ -37,8 +37,8 @@ namespace vds {
       std::list<file_info_t> files;
 
       template <typename  visitor_type>
-      void visit(visitor_type & v) {
-        v(
+      auto & visit(visitor_type & v) {
+        return v(
           message,
           files
         );
@@ -46,47 +46,48 @@ namespace vds {
 
     };
 	}
-inline expected<void> serialize (
-	vds::binary_serializer & s,
-	const vds::transactions::user_message_transaction::file_block_t & data) {
-  CHECK_EXPECTED(serialize(s, data.block_id));
-  CHECK_EXPECTED(serialize(s, data.block_key));
-  CHECK_EXPECTED(serialize(s, data.replica_hashes));
-  CHECK_EXPECTED(serialize(s, data.block_size));
-  return expected<void>();
-}
+    inline vds::expected<void> operator << (
+            vds::binary_serializer & s,
+            const vds::transactions::user_message_transaction::file_block_t & data) {
+        CHECK_EXPECTED(s << data.block_id);
+        CHECK_EXPECTED(s << data.block_key);
+        CHECK_EXPECTED(s << data.replica_hashes);
+        CHECK_EXPECTED(s << data.block_size);
+        return expected<void>();
+    }
 
-inline expected<void> deserialize(
-	vds::binary_deserializer & s,
-	vds::transactions::user_message_transaction::file_block_t & data) {
-  CHECK_EXPECTED(deserialize(s, data.block_id));
-  CHECK_EXPECTED(deserialize(s, data.block_key));
-  CHECK_EXPECTED(deserialize(s, data.replica_hashes));
-  CHECK_EXPECTED(deserialize(s, data.block_size));
-  return expected<void>();
-}
+    inline vds::expected<void> operator >> (
+            vds::binary_deserializer & s,
+            vds::transactions::user_message_transaction::file_block_t & data) {
+        CHECK_EXPECTED(s >> data.block_id);
+        CHECK_EXPECTED(s >> data.block_key);
+        CHECK_EXPECTED(s >> data.replica_hashes);
+        CHECK_EXPECTED(s >> data.block_size);
+        return expected<void>();
+    }
 
-inline expected<void> serialize(
-  vds::binary_serializer & s,
-  const vds::transactions::user_message_transaction::file_info_t & data) {
-  CHECK_EXPECTED(serialize(s, data.name));
-  CHECK_EXPECTED(serialize(s, data.mime_type));
-  CHECK_EXPECTED(serialize(s, data.size));
-  CHECK_EXPECTED(serialize(s, data.file_id));
-  CHECK_EXPECTED(serialize(s, data.file_blocks));
-  return expected<void>();
-}
+    inline vds::expected<void> operator <<(
+            vds::binary_serializer & s,
+            const vds::transactions::user_message_transaction::file_info_t & data) {
+        CHECK_EXPECTED(s << data.name);
+        CHECK_EXPECTED(s << data.mime_type);
+        CHECK_EXPECTED(s << data.size);
+        CHECK_EXPECTED(s << data.file_id);
+        CHECK_EXPECTED(s << data.file_blocks);
+        return expected<void>();
+    }
 
-inline expected<void> deserialize(
-  vds::binary_deserializer & s,
-  vds::transactions::user_message_transaction::file_info_t & data) {
-  CHECK_EXPECTED(deserialize(s, data.name));
-  CHECK_EXPECTED(deserialize(s, data.mime_type));
-  CHECK_EXPECTED(deserialize(s, data.size));
-  CHECK_EXPECTED(deserialize(s, data.file_id));
-  CHECK_EXPECTED(deserialize(s, data.file_blocks));
-  return expected<void>();
-}
+    inline vds::expected<void> operator >>(
+            vds::binary_deserializer & s,
+            vds::transactions::user_message_transaction::file_info_t & data) {
+        CHECK_EXPECTED(s >> data.name);
+        CHECK_EXPECTED(s >> data.mime_type);
+        CHECK_EXPECTED(s >> data.size);
+        CHECK_EXPECTED(s >> data.file_id);
+        CHECK_EXPECTED(s >> data.file_blocks);
+        return expected<void>();
+    }
+
 }
 
 #endif //__VDS_FILE_MANAGER_FILE_ADD_TRANSACTION_H_

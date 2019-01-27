@@ -45,6 +45,8 @@ vds::async_task<vds::expected<void>> vds::http::simple_form_parser::parse( const
   else {
     co_return vds::make_unexpected<std::runtime_error>("Invalid content type");
   }
+
+  co_return expected<void>();
 }
 
 vds::async_task<vds::expected<std::string>> vds::http::simple_form_parser::form_parser::read_string_body(  
@@ -52,7 +54,8 @@ vds::async_task<vds::expected<std::string>> vds::http::simple_form_parser::form_
 
   std::string buffer;
   for (;;) {
-    GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
+    size_t readed;
+    GET_EXPECTED_VALUE_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
     if (0 == readed) {
       co_return buffer;
     }
@@ -103,15 +106,15 @@ vds::async_task<vds::expected<void>> vds::http::simple_form_parser::form_parser:
         auto pname = values.find("name");
         if (values.end() != pname) {
           auto name = pname->second;
-          GET_EXPECTED_ASYNC(buffer, co_await this->read_string_body(part));
-          this->owner_->values_[name] = buffer;
+          GET_EXPECTED_VALUE_ASYNC(this->owner_->values_[name], co_await this->read_string_body(part));
         }
 
         co_return co_await this->skip_part(part);
       }
     }
 
-    GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
+    size_t readed;
+    GET_EXPECTED_VALUE_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
     if (0 == readed) {
       co_return expected<void>();
     }
@@ -120,7 +123,8 @@ vds::async_task<vds::expected<void>> vds::http::simple_form_parser::form_parser:
 
 vds::async_task<vds::expected<void>> vds::http::simple_form_parser::form_parser::read_form_urlencoded(
   const http_message& message) {
-  GET_EXPECTED_ASYNC(buffer, co_await this->read_string_body(message));
+  std::string buffer;
+  GET_EXPECTED_VALUE_ASYNC(buffer, co_await this->read_string_body(message));
   auto items = split_string(buffer, '&', true);
   std::map<std::string, std::string> values;
   for (const auto & item : items) {
@@ -146,7 +150,8 @@ vds::async_task<vds::expected<void>> vds::http::simple_form_parser::form_parser:
   const vds::http_message& part) {
 
   for (;;) {
-    GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
+    size_t readed;
+    GET_EXPECTED_VALUE_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
     if (0 == readed) {
       co_return expected<void>();
     }

@@ -15,7 +15,7 @@ vds::dht::network::dht_session::dht_session(
   const network_address& address,
   const const_data_buffer& this_node_id,
   const const_data_buffer& partner_node_id,
-  const const_data_buffer& session_key)
+  const const_data_buffer& session_key) noexcept
   : base_class(
       sp,
       address,

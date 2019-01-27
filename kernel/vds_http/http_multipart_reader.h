@@ -28,7 +28,10 @@ namespace vds {
     {
       while(!this->eof_) {
         auto parser = std::make_shared<http_form_part_parser>(this->message_callback_);
-        co_await parser->start(this->sp_, std::make_shared<part_reader>(this->shared_from_this(), input_stream));
+        CHECK_EXPECTED_ASYNC(
+                co_await parser->start(
+                        this->sp_,
+                        std::make_shared<part_reader>(this->shared_from_this(), input_stream)));
       }
 
       co_return expected<void>();
@@ -142,7 +145,8 @@ namespace vds {
           }
 
           if (!this->owner_->eof_) {
-            GET_EXPECTED_ASYNC(readed, co_await this->input_stream_->read_async(
+            size_t readed;
+            GET_EXPECTED_VALUE_ASYNC(readed, co_await this->input_stream_->read_async(
               this->owner_->buffer_ + this->owner_->readed_,
               sizeof(this->owner_->buffer_) - this->owner_->readed_));
 

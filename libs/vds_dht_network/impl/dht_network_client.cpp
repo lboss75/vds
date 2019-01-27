@@ -598,7 +598,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::restore(
   const std::shared_ptr<const_data_buffer>& result,
   const std::chrono::steady_clock::time_point& start) {
   for (;;) {
-    GET_EXPECTED_ASYNC(progress, co_await this->restore_async(
+    uint8_t progress;
+    GET_EXPECTED_VALUE_ASYNC(progress, co_await this->restore_async(
       object_ids,
       result));
 
@@ -621,8 +622,9 @@ vds::async_task<vds::expected<vds::dht::network::client::block_info_t>> vds::dht
   auto result = vds::dht::network::client::block_info_t();
 
     for (const auto& object_id : object_ids) {
-      GET_EXPECTED_ASYNC(data, co_await this->sync_process_.prepare_restore_replica(t, object_id));
-      result.replicas[object_id] = std::move(data);
+      std::list<uint16_t> replicas;
+      GET_EXPECTED_VALUE_ASYNC(replicas, co_await this->sync_process_.prepare_restore_replica(t, object_id));
+      result.replicas[object_id] = std::move(replicas);
     }
 
   co_return result;
@@ -842,7 +844,8 @@ vds::async_task<vds::expected<vds::dht::network::client::chunk_info>> vds::dht::
   GET_EXPECTED_ASYNC(zipped, deflate::compress(data));
 
   GET_EXPECTED_ASYNC(crypted_data, symmetric_encrypt::encrypt(key2, zipped));
-  GET_EXPECTED_ASYNC(info, co_await this->impl_->save(t, crypted_data));
+  std::vector<vds::const_data_buffer> info;
+  GET_EXPECTED_VALUE_ASYNC(info, co_await this->impl_->save(t, crypted_data));
   co_return chunk_info
   {
     key_data,
@@ -910,8 +913,9 @@ vds::async_task<vds::expected<vds::dht::network::client::chunk_info>> vds::dht::
       break;
     }
   }
-  
-  GET_EXPECTED_ASYNC(info, co_await save_stream->save());
+
+  std::vector<vds::const_data_buffer> info;
+  GET_EXPECTED_VALUE_ASYNC(info, co_await save_stream->save());
 
   co_return chunk_info
   {

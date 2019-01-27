@@ -849,12 +849,12 @@ namespace vds {
     return expected<void>();
   }
 
-  inline expected<void> deserialize (
+  inline expected<void> operator >> (
     vds::binary_deserializer & s,
     std::shared_ptr<json_value> & value) {
 
     std::string value_str;
-    CHECK_EXPECTED(deserialize(s, value_str));
+    CHECK_EXPECTED(s  >> value_str);
 
     GET_EXPECTED_VALUE(value, json_parser::parse(
       "deserialize",

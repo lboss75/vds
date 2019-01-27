@@ -157,7 +157,8 @@ vds::api_controller::create_channel(
   const std::string & channel_type,
   const std::string & name) {
 
-  GET_EXPECTED_ASYNC(channel, co_await user_mng->create_channel(channel_type, name));
+  vds::user_channel channel;
+  GET_EXPECTED_VALUE_ASYNC(channel, co_await user_mng->create_channel(channel_type, name));
   GET_EXPECTED_ASYNC(body, channel_serialize(channel)->json_value::str());
 
   co_return http_response::simple_text_response(
@@ -215,7 +216,8 @@ vds::api_controller::prepare_download_file(
   const std::shared_ptr<vds::user_manager> & user_mng,
   const const_data_buffer& channel_id,
   const const_data_buffer& file_hash) {
-  GET_EXPECTED_ASYNC(result, co_await sp->get<file_manager::file_operations>()->prepare_download_file(user_mng, channel_id, file_hash));
+  vds::file_manager::file_operations::prepare_download_result_t result;
+  GET_EXPECTED_VALUE_ASYNC(result, co_await sp->get<file_manager::file_operations>()->prepare_download_file(user_mng, channel_id, file_hash));
   co_return result.to_json();
 }
 
@@ -261,8 +263,9 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::api_contro
   const vds::service_provider * sp,
   const http_request& /*message*/) {
 
-  GET_EXPECTED_ASYNC(statistic, co_await sp->get<server>()->get_statistic());
-  co_return statistic.serialize();
+  auto statistic = co_await sp->get<server>()->get_statistic();
+  CHECK_EXPECTED_ERROR_ASYNC(statistic);
+  co_return statistic.value().serialize();
 }
 
 std::shared_ptr<vds::json_value> vds::api_controller::get_invite( user_manager& user_mng,

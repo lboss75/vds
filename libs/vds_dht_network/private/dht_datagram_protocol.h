@@ -34,7 +34,7 @@ namespace vds {
           const network_address& address,
           const const_data_buffer& this_node_id,
           const const_data_buffer& partner_node_id,
-          const const_data_buffer& session_key)
+          const const_data_buffer& session_key) noexcept
           : sp_(sp),
           check_mtu_(0),
           address_(address),
@@ -190,13 +190,13 @@ namespace vds {
 
             this->input_mutex_.unlock();
 
-            co_await static_cast<implementation_class *>(this)->process_message(
+            CHECK_EXPECTED_ASYNC(co_await static_cast<implementation_class *>(this)->process_message(
               s,
               message_type,
               target_node,
               source_node,
               hops,
-              message);
+              message));
             co_return expected<void>();
           }
 
@@ -239,7 +239,7 @@ namespace vds {
                 | (datagram.data()[1 + 32 + 3]);
               this->input_messages_[index] = datagram;
 
-              co_await this->continue_process_messages(s);
+              CHECK_EXPECTED_ASYNC(co_await this->continue_process_messages(s));
               co_return expected<void>();
             }
             else {
@@ -249,6 +249,7 @@ namespace vds {
           }
           }
           this->input_mutex_.unlock();
+          co_return expected<void>();
         }
 
         const network_address& address() const {
@@ -362,11 +363,11 @@ namespace vds {
             }
             else {
               binary_serializer bs;
-              CHECK_EXPECTED_ASYNC(serialize(bs, message_type));
-              CHECK_EXPECTED_ASYNC(serialize(bs, target_node));
-                CHECK_EXPECTED_ASYNC(serialize(bs, source_node));
-                  CHECK_EXPECTED_ASYNC(serialize(bs, hops));
-                    CHECK_EXPECTED_ASYNC(serialize(bs,  message));
+              CHECK_EXPECTED_ASYNC(bs << message_type);
+              CHECK_EXPECTED_ASYNC(bs << target_node);
+                CHECK_EXPECTED_ASYNC(bs << source_node);
+                  CHECK_EXPECTED_ASYNC(bs << hops);
+                    CHECK_EXPECTED_ASYNC(bs <<  message);
 
               GET_EXPECTED_ASYNC(message_id, hash::signature(hash::sha256(), bs.move_data()));
               vds_assert(message_id.size() == 32);
@@ -476,10 +477,12 @@ namespace vds {
 
             break;
           }
+
+          co_return expected<void>();
         }
 
         vds::async_task<vds::expected<void>> continue_process_messages(
-          
+
           const std::shared_ptr<transport_type>& s) {
           auto p = this->input_messages_.find(0);
           if (p == this->input_messages_.end()) {
@@ -584,13 +587,13 @@ namespace vds {
                 this->input_messages_.clear();
                 this->input_mutex_.unlock();
 
-                co_await static_cast<implementation_class *>(this)->process_message(
+                CHECK_EXPECTED_ASYNC(co_await static_cast<implementation_class *>(this)->process_message(
                   s,
                   message_type,
                   target_node,
                   source_node,
                   hops,
-                  message.move_data());
+                  message.move_data()));
 
                 co_return expected<void>();
               }
@@ -604,6 +607,7 @@ namespace vds {
           }
           }
           this->input_mutex_.unlock();
+          co_return expected<void>();
         }
       };
     }

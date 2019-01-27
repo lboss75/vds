@@ -116,7 +116,8 @@ router_({
 
     CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
-    GET_EXPECTED_ASYNC(result, co_await api_controller::channel_feed(
+    std::shared_ptr<json_value> result;
+    GET_EXPECTED_VALUE_ASYNC(result, co_await api_controller::channel_feed(
               sp,
               user_mng,
               channel_id));
@@ -157,7 +158,8 @@ router_({
 
                   CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
-                  GET_EXPECTED_ASYNC(result, co_await api_controller::download_file(
+                  file_manager::file_operations::download_result_t result;
+                  GET_EXPECTED_VALUE_ASYNC(result, co_await api_controller::download_file(
                     sp,
                     user_mng,
                     channel_id,
@@ -217,7 +219,8 @@ vds::async_task<vds::expected<vds::http_message>> vds::_web_server::process_mess
 
   //std::string keep_alive_header;
   //bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
-  GET_EXPECTED_ASYNC(response, co_await this->router_.route(this->sp_, request));
+  vds::http_message response;
+  GET_EXPECTED_VALUE_ASYNC(response, co_await this->router_.route(this->sp_, request));
   this->sp_->get<logger>()->debug(ThisModule, "Response [%s]", response.headers().front().c_str());
   co_return response;
 }
@@ -228,7 +231,9 @@ vds::async_task<vds::expected<void>> vds::_web_server::start(
   CHECK_EXPECTED_ASYNC(this->load_web("/", foldername(root_folder)));
   this->web_task_ = this->server_.start(this->sp_, network_address::any_ip4(port),
     [sp = this->sp_, pthis = this->shared_from_this()](std::shared_ptr<tcp_network_socket> s) -> vds::async_task<vds::expected<void>>{
-    auto[reader, writer] = s->start(sp);
+    GET_EXPECTED_ASYNC(streams, s->start(sp));
+    auto reader = std::get<0>(streams);
+    auto writer = std::get<1>(streams);
     auto session = std::make_shared<session_data>(writer);
     session->handler_ = std::make_shared<http_pipeline>(
         session->stream_,
@@ -241,6 +246,7 @@ vds::async_task<vds::expected<void>> vds::_web_server::start(
       else {
         co_return std::move(result.value());
       }
+      co_return expected<http_message>();
     });
     CHECK_EXPECTED_ASYNC(co_await session->handler_->process(reader));
     co_return expected<void>();

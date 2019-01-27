@@ -43,9 +43,9 @@ vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
       GET_EXPECTED(data, file::read_all(filename("keys")));
       const_data_buffer root_private_key, common_news_write_private_key, common_news_admin_private_key;
       binary_deserializer s(data);
-      CHECK_EXPECTED(vds::deserialize(s, root_private_key));
-      CHECK_EXPECTED(vds::deserialize(s, common_news_write_private_key));
-      CHECK_EXPECTED(vds::deserialize(s, common_news_admin_private_key));
+      CHECK_EXPECTED(s >> root_private_key);
+      CHECK_EXPECTED(s >> common_news_write_private_key);
+      CHECK_EXPECTED(s >> common_news_admin_private_key);
 
       GET_EXPECTED(root_private_key_cert, asymmetric_private_key::parse_der(root_private_key, this->user_password_.value()));
 

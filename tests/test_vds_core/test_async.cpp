@@ -34,7 +34,8 @@ vds::async_task<vds::expected<int>> async_fib(int n)
   // iterate computing fib(n)
   for (int i = 0; i < n - 2; ++i)
   {
-    GET_EXPECTED_ASYNC(c, co_await async_add(a, b));
+    int c;
+    GET_EXPECTED_VALUE_ASYNC(c, co_await async_add(a, b));
     a = b;
     b = c;
   }

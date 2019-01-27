@@ -80,7 +80,8 @@ vds::http_multipart_request::multipart_body::multipart_body(
 
 vds::async_task<vds::expected<size_t>> vds::http_multipart_request::multipart_body::read_async(uint8_t* buffer, size_t len) {
   while(!this->inputs_.empty()) {
-    GET_EXPECTED_ASYNC(readed, co_await this->inputs_.front()->read_async(buffer, len));
+    size_t readed;
+    GET_EXPECTED_VALUE_ASYNC(readed, co_await this->inputs_.front()->read_async(buffer, len));
     if(0 != readed) {
       co_return readed;
     }

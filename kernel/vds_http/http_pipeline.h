@@ -23,7 +23,8 @@ namespace vds {
               auto pthis = this->shared_from_this();
               //std::string keep_alive_header;
               //bool keep_alive = message.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
-              GET_EXPECTED_ASYNC(response, co_await message_callback(message));
+        http_message response;
+              GET_EXPECTED_VALUE_ASYNC(response, co_await message_callback(message));
               if (response) {
                 CHECK_EXPECTED_ASYNC(co_await static_cast<http_pipeline *>(pthis.get())->output_stream_->write_async(response));
               }

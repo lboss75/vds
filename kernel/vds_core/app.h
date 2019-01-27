@@ -58,8 +58,8 @@ namespace vds{
 
 #ifndef _WIN32
     static barrier stop_barrier;
-    static void kill_prev(const foldername & root_folder, const std::string & process_name);
-    static void demonize(const foldername & root_folder, const std::string & process_name);
+    static expected<void> kill_prev(const foldername & root_folder, const std::string & process_name);
+    static expected<void> demonize(const foldername & root_folder, const std::string & process_name);
 #endif
 
   };
@@ -340,10 +340,10 @@ namespace vds{
       }
 #else//_WIN32
 
-      int demonize() {
-          app::kill_prev(
+        expected<int> demonize() {
+          CHECK_EXPECTED(app::kill_prev(
                   foldername(this->root_folder_.value()),
-                  this->current_process_.name_without_extension());
+                  this->current_process_.name_without_extension()));
 
           auto cur_pid = fork();
           switch (cur_pid) {
@@ -357,9 +357,9 @@ namespace vds{
                   return 0;
           }
 
-          app::demonize(
+          CHECK_EXPECTED(app::demonize(
                   foldername(this->root_folder_.value()),
-                  this->current_process_.name_without_extension());
+                  this->current_process_.name_without_extension()));
 
           sigset_t sigset;
           sigaddset(&sigset, SIGQUIT);
@@ -374,7 +374,7 @@ namespace vds{
               switch (cur_pid) {
                   case 0: {/* we are the child process */
                       auto pthis = static_cast<app_impl *>(this);
-                      pthis->start();
+                      CHECK_EXPECTED(pthis->start());
                       return 0;
                   }
 

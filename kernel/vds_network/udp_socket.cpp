@@ -201,11 +201,11 @@ vds::expected<std::shared_ptr<vds::udp_socket>> vds::udp_socket::create(
 }
 
 #ifndef _WIN32
-void vds::udp_socket::process(uint32_t events) {
-  this->impl_->process(events);
+vds::expected<void> vds::udp_socket::process(uint32_t events) {
+  return this->impl_->process(events);
 }
 
-void vds::_udp_socket::process(uint32_t events) {
+vds::expected<void> vds::_udp_socket::process(uint32_t events) {
   if (EPOLLOUT == (EPOLLOUT & events)) {
     if (0 == (this->event_masks_ & EPOLLOUT)) {
       return vds::make_unexpected<std::runtime_error>("Invalid state");
@@ -213,7 +213,7 @@ void vds::_udp_socket::process(uint32_t events) {
 
     auto w = this->write_task_.lock();
     if(w) {
-      w->process();
+      CHECK_EXPECTED(w->process());
     }
   }
 
@@ -224,9 +224,10 @@ void vds::_udp_socket::process(uint32_t events) {
 
     auto r = this->read_task_.lock();
     if(r){
-      r->process();
+      CHECK_EXPECTED(r->process());
     }
   }
+  return expected<void>();
 }
 
 #endif//_WIN32

@@ -41,14 +41,14 @@ namespace vds {
         expected<void> associate(SOCKET_HANDLE s);
 
 #else
-        void associate(
+        expected<void> associate(
           SOCKET_HANDLE s,
           const std::shared_ptr<socket_base> & handler,
           uint32_t event_mask);
-        void set_events(
+        expected<void> set_events(
           SOCKET_HANDLE s,
           uint32_t event_mask);
-        void remove_association(
+        expected<void> remove_association(
           SOCKET_HANDLE s);
 #endif
         

@@ -22,8 +22,8 @@ namespace vds {
       std::shared_ptr<certificate> write_cert;
 
       template <typename  visitor_type>
-      void visit(visitor_type & v) {
-        v(
+      auto & visit(visitor_type & v) {
+        return v(
           id,
           channel_type,
           name,

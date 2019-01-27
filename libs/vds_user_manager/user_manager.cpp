@@ -202,13 +202,13 @@ vds::expected<vds::const_data_buffer> vds::user_manager::create_register_request
   CHECK_EXPECTED(user_public_key.create(user_private_key));
 
   binary_serializer s;
-  CHECK_EXPECTED(serialize(s, userName));
-  CHECK_EXPECTED(serialize(s, user_email));
-  CHECK_EXPECTED(serialize(s, user_public_key.der()));
-  CHECK_EXPECTED(serialize(s, dht::dht_object_id::user_credentials_to_key(user_email, user_password)));
-  CHECK_EXPECTED(serialize(s, user_private_key.der(user_password)));
+  CHECK_EXPECTED(s << userName);
+  CHECK_EXPECTED(s << user_email);
+  CHECK_EXPECTED(s << user_public_key.der());
+  CHECK_EXPECTED(s << dht::dht_object_id::user_credentials_to_key(user_email, user_password));
+  CHECK_EXPECTED(s << user_private_key.der(user_password));
 
-  CHECK_EXPECTED(serialize(s, asymmetric_sign::signature(hash::sha256(), user_private_key, s.get_buffer(), s.size())));
+  CHECK_EXPECTED(s << asymmetric_sign::signature(hash::sha256(), user_private_key, s.get_buffer(), s.size()));
 
   return s.move_data();
 }
@@ -440,16 +440,16 @@ vds::async_task<vds::expected<bool>> vds::_user_manager::approve_join_request(co
   std::string userEmail;
 
   binary_deserializer s(data);
-  CHECK_EXPECTED_ASYNC(deserialize(s, userName));
-  CHECK_EXPECTED_ASYNC(deserialize(s, userEmail));
-  CHECK_EXPECTED_ASYNC(deserialize(s, user_public_key_der));
-  CHECK_EXPECTED_ASYNC(deserialize(s, user_object_id));
-  CHECK_EXPECTED_ASYNC(deserialize(s, user_private_key_der));
+  CHECK_EXPECTED_ASYNC(s >> userName);
+  CHECK_EXPECTED_ASYNC(s >> userEmail);
+  CHECK_EXPECTED_ASYNC(s >> user_public_key_der);
+  CHECK_EXPECTED_ASYNC(s >> user_object_id);
+  CHECK_EXPECTED_ASYNC(s >> user_private_key_der);
 
   const auto pos = s.size();
 
   const_data_buffer signature;
-  CHECK_EXPECTED_ASYNC(deserialize(s, signature));
+  CHECK_EXPECTED_ASYNC(s >> signature);
 
   GET_EXPECTED_ASYNC(user_public_key, asymmetric_public_key::parse_der(user_public_key_der));
 
@@ -533,16 +533,16 @@ vds::expected<bool> vds::_user_manager::parse_join_request(
   const_data_buffer user_private_key_der;
 
   binary_deserializer s(data);
-  CHECK_EXPECTED(deserialize(s, userName));
-  CHECK_EXPECTED(deserialize(s, userEmail));
-  CHECK_EXPECTED(deserialize(s, user_public_key_der));
-  CHECK_EXPECTED(deserialize(s, user_object_id));
-  CHECK_EXPECTED(deserialize(s, user_private_key_der));
+  CHECK_EXPECTED(s >> userName);
+  CHECK_EXPECTED(s >> userEmail);
+  CHECK_EXPECTED(s >> user_public_key_der);
+  CHECK_EXPECTED(s >> user_object_id);
+  CHECK_EXPECTED(s >> user_private_key_der);
 
   auto pos = s.size();
 
   const_data_buffer signature;
-  CHECK_EXPECTED(deserialize(s, signature));
+  CHECK_EXPECTED(s >> signature);
 
   GET_EXPECTED(user_public_key, asymmetric_public_key::parse_der(user_public_key_der));
 

@@ -204,11 +204,11 @@ namespace vds {
     return true;
   }
 
-  inline expected<void> serialize(
+  inline expected<void> operator <<(
     vds::binary_serializer & s,
     const std::shared_ptr<json_value> & value) {
     GET_EXPECTED(v, value->str());
-    return serialize(s, v);    
+    return (s << v);
   }
 }
 

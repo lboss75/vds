@@ -26,7 +26,7 @@ namespace vds {
           const network_address& address,
           const const_data_buffer& this_node_id,
           const const_data_buffer& partner_node_id,
-          const const_data_buffer& session_key);
+          const const_data_buffer& session_key) noexcept;
 
         vds::async_task<vds::expected<void>> ping_node(
           const const_data_buffer& node_id,

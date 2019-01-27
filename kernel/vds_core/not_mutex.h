@@ -26,7 +26,7 @@ namespace vds {
     {
     }
 
-    ~not_mutex() noexcept(false)
+    ~not_mutex() noexcept
     {
       vds_assert(!this->is_locked_);
     }

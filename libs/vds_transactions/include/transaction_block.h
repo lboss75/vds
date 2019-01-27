@@ -53,29 +53,29 @@ namespace vds {
 
         binary_deserializer s(data);
         uint32_t version;
-        CHECK_EXPECTED(deserialize(s, version));
+        CHECK_EXPECTED(s >> version);
 
         if (version != CURRENT_VERSION) {
           return vds::make_unexpected<std::runtime_error>("Invalid block version");
         }
 
         uint64_t time_point;
-        CHECK_EXPECTED(deserialize(s, time_point));
+        CHECK_EXPECTED(s >> time_point);
 
         uint64_t order_no;
-        CHECK_EXPECTED(deserialize(s, order_no));
+        CHECK_EXPECTED(s >> order_no);
 
         std::string write_cert_id;
-        CHECK_EXPECTED(deserialize(s, write_cert_id));
+        CHECK_EXPECTED(s >> write_cert_id);
 
         std::set<const_data_buffer> ancestors;
-        CHECK_EXPECTED(deserialize(s, ancestors));
+        CHECK_EXPECTED(s >> ancestors);
 
         const_data_buffer block_messages;
-        CHECK_EXPECTED(deserialize(s, block_messages));
+        CHECK_EXPECTED(s >> block_messages);
 
         const_data_buffer signature;
-        CHECK_EXPECTED(deserialize(s, signature));
+        CHECK_EXPECTED(s >> signature);
 
         return transaction_block(
           version,

@@ -38,8 +38,12 @@ static vds::async_task<vds::expected<std::string>> step3(
 
 
 vds::async_task<vds::expected<std::string>> async_future(int v) {
-  GET_EXPECTED_ASYNC(t, co_await step1(v));
-  GET_EXPECTED_ASYNC(r, co_await step2(t));
+  std::string t;
+  GET_EXPECTED_VALUE_ASYNC(t, co_await step1(v));
+
+  std::string r;
+  GET_EXPECTED_VALUE_ASYNC(r, co_await step2(t));
+
   co_return r;
 }
 

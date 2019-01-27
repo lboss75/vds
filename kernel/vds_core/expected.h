@@ -45,7 +45,7 @@ namespace vds {
 
     template <typename error_type, class... _Args>
     inline unexpected make_unexpected(_Args&&... __args){
-        return std::make_unique<error_type>(std::forward<_Args>(__args)...);
+        return unexpected(std::make_unique<error_type>(std::forward<_Args>(__args)...));
     }
 
     template <typename value_type>
@@ -116,7 +116,9 @@ namespace vds {
                 : has_value_(true){
         }
 
-        expected(expected<void> && origin)
+        expected(const expected<void> & origin) = delete;
+
+        expected(expected<void> && origin) noexcept
           : has_value_(origin.has_value_), error_(std::move(origin.error_)) {
         }
 
@@ -172,13 +174,13 @@ namespace vds {
 
 #define CHECK_EXPECTED(v)\
   {\
-    auto __result = (v);\
+    auto __result { std::move(v) };\
     CHECK_EXPECTED_ERROR(__result);\
   }
 
 #define GET_EXPECTED_VALUE(var, v)  \
   {\
-    auto __result = (v);\
+    auto __result { std::move(v) };\
     if(__result.has_error()){\
       return vds::unexpected(std::move(__result.error()));\
     }\
@@ -217,19 +219,20 @@ namespace vds {
     co_return vds::unexpected(std::move((v).error()));\
   }
 
-#define CHECK_EXPECTED_ASYNC(v) { auto __result = (v); CHECK_EXPECTED_ERROR_ASYNC(__result); }
+#define CHECK_EXPECTED_ASYNC(v) { auto __result { std::move(v) }; CHECK_EXPECTED_ERROR_ASYNC(__result); }
 
 #define GET_EXPECTED_VALUE_ASYNC(var, v)  \
   {\
-    auto __result = (v);\
+    auto __result { v };\
     if(__result.has_error()){\
       co_return vds::unexpected(std::move(__result.error()));\
     }\
     var = std::move(__result.value());\
   }
 #define GET_EXPECTED_ASYNC(var, v) \
-  std::remove_reference<decltype((v).value())>::type var; \
+  typename std::remove_reference<decltype((v).value())>::type var; \
   GET_EXPECTED_VALUE_ASYNC(var, v);
+
 
 
 #endif //__VDS_CORE_EXPECTED_H_

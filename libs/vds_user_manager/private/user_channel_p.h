@@ -106,7 +106,7 @@ namespace vds {
       auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
       binary_serializer s;
-      CHECK_EXPECTED(serialize(s, (uint8_t)item_type::message_id));
+      CHECK_EXPECTED(s << (uint8_t)item_type::message_id);
 
       _serialize_visitor v(s);
       item.value().visit(v);
@@ -137,7 +137,7 @@ namespace vds {
       CHECK_EXPECTED_ERROR(item);
 
       binary_serializer s;
-      CHECK_EXPECTED(serialize(s, (uint8_t)item_type::message_id));
+      CHECK_EXPECTED(s << (uint8_t)item_type::message_id);
       _serialize_visitor v(s);
       item.value().visit(v);
 

@@ -28,12 +28,13 @@ namespace vds {
       const service_provider * sp,
       const network_address & address);
 
+    expected<
     std::tuple<
       std::shared_ptr<vds::stream_input_async<uint8_t>>,
-      std::shared_ptr<vds::stream_output_async<uint8_t>>> start(
+      std::shared_ptr<vds::stream_output_async<uint8_t>>>> start(
         const service_provider * sp);
 
-    void close();
+    expected<void> close();
 
     class _tcp_network_socket * operator ->() const {
       return this->impl_;
@@ -42,7 +43,7 @@ namespace vds {
     bool operator ! () const;
 
 #ifndef _WIN32
-    void process(uint32_t events) override;
+        expected<void> process(uint32_t events) override;
 #endif
 
   private:

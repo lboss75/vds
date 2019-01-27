@@ -321,7 +321,7 @@ vds::async_task<vds::expected<vds::dht::network::sync_process::base_message_type
     if (
       message.generation == t2.generation.get(st)
       && t2.voted_for.get(st) != leader_node) {
-      co_await this->make_new_election(t, message.object_id);
+      CHECK_EXPECTED_ASYNC(co_await this->make_new_election(t, message.object_id));
 
       this->sp_->get<logger>()->trace(
         SyncModule,
@@ -820,7 +820,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
 
   auto& client = *this->sp_->get<network::client>();
 
-  GET_EXPECTED_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied));
+  base_message_type state;
+  GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied));
   switch (state) {
   case base_message_type::successful:
   case base_message_type::not_found:
@@ -1132,7 +1133,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
                                                     const messages::sync_leader_broadcast_request& message,
                                                     const imessage_map::message_info_t& message_info) {
   //auto client = this->sp_->get<network::client>();
-  GET_EXPECTED_ASYNC(status, co_await this->apply_base_message(
+  base_message_type status;
+  GET_EXPECTED_VALUE_ASYNC(status, co_await this->apply_base_message(
     t,
     message,
     message_info,
@@ -1196,7 +1198,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
     base64::from_bytes(message.message_source_node).c_str(),
     message.message_source_index);
 
-  GET_EXPECTED_ASYNC(
+  base_message_type state;
+  GET_EXPECTED_VALUE_ASYNC(
     state,
     co_await this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied - 1));
   if (base_message_type::successful == state) {
@@ -1303,7 +1306,9 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
     "sync_replica_operations_response from %s about %s",
     base64::from_bytes(message_info.source_node()).c_str(),
     base64::from_bytes(message.object_id).c_str());
-  GET_EXPECTED_ASYNC(state, co_await this->apply_base_message(t, message, message_info));
+
+  bool state;
+  GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info));
   if (state) {
   }
 
@@ -1317,7 +1322,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
   const imessage_map::message_info_t& message_info) {
 
   //auto client = this->sp_->get<network::client>();
-  GET_EXPECTED_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied));
+  base_message_type state;
+  GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied));
   if (base_message_type::successful != state) {
     co_return expected<void>();
   }
@@ -1408,7 +1414,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
   const imessage_map::message_info_t& message_info) {
 
   //auto client = this->sp_->get<network::client>();
-  GET_EXPECTED_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied));
+  base_message_type state;
+  GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied));
   if (base_message_type::successful != state) {
     co_return expected<void>();
   }
@@ -1785,7 +1792,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
         t2.replica = message.replica,
         t2.replica_hash = data_hash)));
 
-    GET_EXPECTED_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message.leader_node, message.last_applied));
+    base_message_type state;
+    GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message.leader_node, message.last_applied));
     switch (state) {
     case base_message_type::not_found: {
       orm::sync_member_dbo t3;
@@ -1836,7 +1844,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
   const messages::sync_replica_query_operations_request& message,
   const imessage_map::message_info_t& message_info) {
 
-  GET_EXPECTED_ASYNC(state, co_await this->apply_base_message(t, message, message_info));
+  bool state;
+  GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info));
   if(!state) {
     co_return expected<void>();
   }

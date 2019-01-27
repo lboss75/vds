@@ -267,7 +267,7 @@ namespace vds {
 
     void await_suspend(std::experimental::coroutine_handle<> _ResumeCb)
     {
-      this->then([_ResumeCb]() {
+      this->then([_ResumeCb]() mutable {
         _ResumeCb();
       });
     }
@@ -324,7 +324,7 @@ namespace vds {
 
     void await_suspend(std::experimental::coroutine_handle<> _ResumeCb)
     {
-      this->then([_ResumeCb]() {
+      this->then([_ResumeCb]() mutable {
         _ResumeCb();
       });
     }
@@ -408,8 +408,8 @@ namespace vds {
       });
     }
 
-    T & await_resume() {
-      return _future.get();
+    T && await_resume() {
+      return std::move(_future.get());
     }
   };
 
@@ -421,7 +421,7 @@ namespace vds {
         : _future(std::move(f)) {}
 
     bool await_ready() const noexcept {
-      return _future.is_ready();
+      return _future.await_ready();
     }
 
     template<typename U>

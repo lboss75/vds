@@ -94,7 +94,7 @@ namespace vds {
     static expected<std::shared_ptr<udp_socket>> create(const service_provider * sp, sa_family_t af);
 
 #ifndef _WIN32
-    void process(uint32_t events) override;
+        expected<void> process(uint32_t events) override;
 #endif
 
   private:

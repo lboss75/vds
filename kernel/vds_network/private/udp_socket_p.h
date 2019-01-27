@@ -94,9 +94,9 @@ namespace vds {
         const service_provider * sp,
         const std::shared_ptr<socket_base> & owner);
 
-    void process(uint32_t events);
+        expected<void> process(uint32_t events);
 
-    void change_mask(
+    expected<void>  change_mask(
         const std::shared_ptr<socket_base> & owner,
         uint32_t set_events,
         uint32_t clear_events = 0)
@@ -107,18 +107,19 @@ namespace vds {
       this->event_masks_ &= ~clear_events;
 
       if(last_mask == this->event_masks_){
-        return;
+          return expected<void>();
       }
 
       if(0 != last_mask && 0 != this->event_masks_){
-        (*this->sp_->get<network_service>())->set_events(this->s_, this->event_masks_);
+        CHECK_EXPECTED((*this->sp_->get<network_service>())->set_events(this->s_, this->event_masks_));
       }
       else if (0 == this->event_masks_){
-        (*this->sp_->get<network_service>())->remove_association(this->s_);
+          CHECK_EXPECTED((*this->sp_->get<network_service>())->remove_association(this->s_));
       }
       else {
-        (*this->sp_->get<network_service>())->associate(this->s_, owner, this->event_masks_);
+          CHECK_EXPECTED((*this->sp_->get<network_service>())->associate(this->s_, owner, this->event_masks_));
       }
+      return expected<void>();
     }
 
 #endif//_WIN32
@@ -385,7 +386,7 @@ namespace vds {
         int error = errno;
         if (EAGAIN == error) {
           this->read_result_ = r;
-          (*this->owner())->change_mask(this->owner_, EPOLLIN);
+          CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, EPOLLIN));
         }
         else {
           this->sp_->get<logger>()->trace("UDP", "Error %d at get recive UDP package", error);
@@ -401,7 +402,7 @@ namespace vds {
     }
 
 
-    void process() {
+    expected<void> process() {
       this->addr_.reset();
       int len = recvfrom((*this->owner())->handle(),
                          this->read_buffer_,
@@ -414,10 +415,10 @@ namespace vds {
       if (len <= 0) {
         int error = errno;
         if (EAGAIN == error) {
-          return;
+          return expected<void>();
         }
 
-        (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
+        CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
         this->sp_->get<logger>()->trace("UDP", "Error %d at get recive UDP package", error);
         r->set_value(
           make_unexpected<std::system_error>(error, std::system_category(), "recvfrom"));
@@ -429,9 +430,10 @@ namespace vds {
             len,
             this->addr_.to_string().c_str());
 
-        (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
+          CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
         r->set_value(_udp_datagram::create(this->addr_, this->read_buffer_, len));
       }
+      return expected<void>();
     }
 
 
@@ -473,8 +475,8 @@ namespace vds {
         if (EAGAIN == error) {
           this->write_message_ = message;
           this->write_result_ = r;
-          (*this->owner())->change_mask(
-              this->owner_, EPOLLOUT);
+          CHECK_EXPECTED((*this->owner())->change_mask(
+              this->owner_, EPOLLOUT));
         }
         else {
           auto address = message.address().to_string();
@@ -505,14 +507,14 @@ namespace vds {
             "Sent %d bytes UDP package to %s",
             message.data_size(),
             message.address().to_string().c_str());
-          r->set_value();
+          r->set_value(expected<void>());
         }
       }
 
       return r->get_future();
     }
 
-    void process(){
+    expected<void> process(){
 
       auto size = this->write_message_.data_size();
       int len = sendto(
@@ -527,10 +529,10 @@ namespace vds {
       if (len < 0) {
         int error = errno;
         if (EAGAIN == error) {
-          return;
+          return expected<void>();
         }
 
-        (*this->owner())->change_mask(this->owner_, 0, EPOLLOUT);
+        CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLOUT));
         this->sp_->get<logger>()->trace(
           "UDP",
           "Error %d at sending UDP to %s",
@@ -551,7 +553,7 @@ namespace vds {
         }
       }
       else {
-        (*this->owner())->change_mask(this->owner_, 0, EPOLLOUT);
+          CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLOUT));
 
         this->sp_->get<logger>()->trace(
           "UDP",
@@ -562,9 +564,10 @@ namespace vds {
           result->set_value(make_unexpected<std::runtime_error>("Invalid send UDP"));
         }
         else {
-          result->set_value();
+          result->set_value(expected<void>());
         }
       }
+      return expected<void>();
     }
 
   private:

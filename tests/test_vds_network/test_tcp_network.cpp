@@ -22,7 +22,8 @@ vds::async_task<vds::expected<void>> copy_stream(
   std::shared_ptr<vds::stream_output_async<uint8_t>> writer) {
   auto buffer = std::shared_ptr<uint8_t>(new uint8_t[1024]);
   for (;;) {
-    GET_EXPECTED_ASYNC(readed, co_await reader->read_async(buffer.get(), 1024));
+    size_t readed;
+    GET_EXPECTED_VALUE_ASYNC(readed, co_await reader->read_async(buffer.get(), 1024));
     if (0 == readed) {
       CHECK_EXPECTED_ASYNC(co_await writer->write_async(nullptr, 0));
       co_return vds::expected<void>();
@@ -56,7 +57,10 @@ TEST(network_tests, test_server)
     sp,
     vds::network_address::any_ip4(8000),
     [sp](const std::shared_ptr<vds::tcp_network_socket> & s) -> vds::async_task<vds::expected<void>> {
-      auto[reader, writer] = s->start(sp);
+      GET_EXPECTED(streams, s->start(sp));
+      auto reader = std::get<0>(streams);
+      auto writer = std::get<1>(streams);
+
       return copy_stream(reader, writer);
   }).get());
   
@@ -67,21 +71,19 @@ TEST(network_tests, test_server)
   GET_EXPECTED_GTEST(s, vds::tcp_network_socket::connect(sp, address));
 
   sp->get<vds::logger>()->debug("TCP", "Connected");
-  auto [reader, writer] = s->start(sp);
+  GET_EXPECTED_GTEST(streams, s->start(sp));
+  auto reader = std::get<0>(streams);
+  auto writer = std::get<1>(streams);
 
-  //workaround clang bug
-  auto r = reader;
-  auto w = writer;
-
-  std::thread t1([sp, w, &data]() {
-    auto rs = std::make_shared<random_stream<uint8_t>>(w);
+  std::thread t1([sp, writer, &data]() {
+    auto rs = std::make_shared<random_stream<uint8_t>>(writer);
     (void)rs->write_async(data.data(), data.size()).get();
     (void)rs->write_async(nullptr, 0).get();
   });
 
-  std::thread t2([sp, r, &data]() {
+  std::thread t2([sp, reader, &data]() {
     const auto cd = std::make_shared<compare_data_async<uint8_t>>(data.data(), data.size());
-    (void)copy_stream(r, cd).get();
+    (void)copy_stream(reader, cd).get();
   });
 
   t1.join();

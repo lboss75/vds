@@ -60,7 +60,8 @@ public:
   }
 
   vds::async_task<vds::expected<void>> on_file( const file_info & file) {
-    GET_EXPECTED_ASYNC(buffer, co_await file.stream->read_all());
+    vds::const_data_buffer buffer;
+    GET_EXPECTED_VALUE_ASYNC(buffer, co_await file.stream->read_all());
     GET_EXPECTED_VALUE_ASYNC(this->successful_, vds::user_manager::parse_join_request(
         buffer,
         this->userName_,
@@ -124,7 +125,8 @@ public:
   }
 
   vds::async_task<vds::expected<void>> on_file( const file_info & file) {
-    GET_EXPECTED_ASYNC(buffer, co_await file.stream->read_all());
+    vds::const_data_buffer buffer;
+    GET_EXPECTED_VALUE_ASYNC(buffer, co_await file.stream->read_all());
     GET_EXPECTED_VALUE_ASYNC(this->successful_, co_await this->user_mng_->approve_join_request(buffer));
     co_return vds::expected<void>();
   }

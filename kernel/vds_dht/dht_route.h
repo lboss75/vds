@@ -319,9 +319,9 @@ namespace vds {
           this->nodes_mutex_.unlock();
 
           for (const auto & s : sessions) {
-            co_await std::get<1>(s)->ping_node(
+            CHECK_EXPECTED_ASYNC(co_await std::get<1>(s)->ping_node(
               std::get<0>(s),
-              std::forward<timer_arg_types>(timer_args)...);
+              std::forward<timer_arg_types>(timer_args)...));
           }
           co_return expected<void>();
         }

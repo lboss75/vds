@@ -104,6 +104,8 @@ namespace vds {
       else {
         co_return vds::make_unexpected<std::runtime_error>("Invalid content type");
       }
+
+      co_return expected<void>();
     }
 
     template <typename implementation_class>
@@ -170,12 +172,13 @@ namespace vds {
               }
               co_return vds::make_unexpected<std::runtime_error>("Not implemented");
             }
-            co_await this->skip_part(part);
+            CHECK_EXPECTED_ASYNC(co_await this->skip_part(part));
             co_return expected<void>();
           }
         }
 
-        GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
+        size_t readed;
+        GET_EXPECTED_VALUE_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
         if (0 == readed) {
           co_return expected<void>();
         }
@@ -187,7 +190,8 @@ namespace vds {
         
       const std::shared_ptr<std::string>& buffer, const http_message& part) {
       for(;;){
-        GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
+        size_t readed;
+        GET_EXPECTED_VALUE_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
         if (0 == readed) {
           co_return expected<void>();
         }
@@ -201,7 +205,8 @@ namespace vds {
       const std::shared_ptr<stream_output_async<uint8_t>>& buffer,
       const http_message& part) {
       for(;;){
-        GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
+        size_t readed;
+        GET_EXPECTED_VALUE_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
 
         if (0 == readed) {
           co_await buffer->write_async(nullptr, 0);
@@ -217,7 +222,8 @@ namespace vds {
       
       const vds::http_message& part) {
       for (;;) {
-        GET_EXPECTED_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
+        size_t readed;
+        GET_EXPECTED_VALUE_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
         if (0 == readed) {
           co_return expected<void>();
         }

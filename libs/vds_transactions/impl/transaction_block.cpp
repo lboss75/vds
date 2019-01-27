@@ -10,12 +10,12 @@ All rights reserved
 
 vds::expected<bool> vds::transactions::transaction_block::validate(const certificate& write_cert) {
   binary_serializer block_data;
-  CHECK_EXPECTED(serialize(block_data, this->version_));
-  CHECK_EXPECTED(serialize(block_data, (uint64_t)std::chrono::system_clock::to_time_t(this->time_point_)));
-  CHECK_EXPECTED(serialize(block_data, this->order_no_));
-  CHECK_EXPECTED(serialize(block_data, this->write_cert_id_));
-  CHECK_EXPECTED(serialize(block_data, this->ancestors_));
-  CHECK_EXPECTED(serialize(block_data, this->block_messages_));
+  CHECK_EXPECTED(block_data << this->version_);
+  CHECK_EXPECTED(block_data << (uint64_t)std::chrono::system_clock::to_time_t(this->time_point_));
+  CHECK_EXPECTED(block_data << this->order_no_);
+  CHECK_EXPECTED(block_data << this->write_cert_id_);
+  CHECK_EXPECTED(block_data << this->ancestors_);
+  CHECK_EXPECTED(block_data << this->block_messages_);
 
   GET_EXPECTED(write_cert_public_key, write_cert.public_key());
 

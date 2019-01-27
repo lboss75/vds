@@ -24,7 +24,6 @@
     }
 
 vds::async_task<vds::expected<void>> vds::_server::process_message(
-  
   const message_info_t & message_info) {
 
   if(this->sp_->get_shutdown_event().is_shuting_down()) {
@@ -184,6 +183,8 @@ vds::async_task<vds::expected<void>> vds::_server::process_message(
       co_return vds::make_unexpected<std::runtime_error>("Invalid command");
     }
   }
+
+  co_return expected<void>();
 }
 
 

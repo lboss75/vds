@@ -311,36 +311,35 @@ namespace vds {
     _certificate_store * impl_;
   };
 
-inline expected<void> serialize(vds::binary_serializer & s, const std::shared_ptr<vds::certificate> & cert)
-{
-  GET_EXPECTED(der, cert->der());
-  return serialize(s, der);
-}
+    inline vds::expected<void> operator <<(vds::binary_serializer & s, const std::shared_ptr<vds::certificate> & cert)
+    {
+        GET_EXPECTED(der, cert->der());
+        return (s << der);
+    }
 
-inline expected<void> deserialize(vds::binary_deserializer & s, std::shared_ptr<vds::certificate> & cert)
-{
-	vds::const_data_buffer cert_data;
-	CHECK_EXPECTED(s.get(cert_data));
-  GET_EXPECTED(der, vds::certificate::parse_der(cert_data));
-	cert = std::make_shared<vds::certificate>(std::move(der));
-	return expected<void>();
-}
+    inline vds::expected<void> operator >>(vds::binary_deserializer & s, std::shared_ptr<vds::certificate> & cert)
+    {
+        vds::const_data_buffer cert_data;
+        CHECK_EXPECTED(s.get(cert_data));
+        GET_EXPECTED(der, vds::certificate::parse_der(cert_data));
+        cert = std::make_shared<vds::certificate>(std::move(der));
+        return expected<void>();
+    }
 
-inline expected<void> serialize(vds::binary_serializer & s, const std::shared_ptr<vds::asymmetric_private_key> & key)
-{
-  GET_EXPECTED(der, key->der(std::string()));
-  return serialize(s, der);
-}
+    inline vds::expected<void> operator <<(vds::binary_serializer & s, const std::shared_ptr<vds::asymmetric_private_key> & key)
+    {
+        GET_EXPECTED(der, key->der(std::string()));
+        return (s << der);
+    }
 
-inline expected<void> deserialize(vds::binary_deserializer & s, std::shared_ptr<vds::asymmetric_private_key> & key)
-{
-  vds::const_data_buffer key_data;
-  CHECK_EXPECTED(deserialize(s, key_data));
-  GET_EXPECTED(der, vds::asymmetric_private_key::parse_der(key_data, std::string()));
-  key = std::make_shared<vds::asymmetric_private_key>(std::move(der));
-  return expected<void>();
-}
-
+    inline vds::expected<void> operator >>(vds::binary_deserializer & s, std::shared_ptr<vds::asymmetric_private_key> & key)
+    {
+        vds::const_data_buffer key_data;
+        CHECK_EXPECTED(s >> key_data);
+        GET_EXPECTED(der, vds::asymmetric_private_key::parse_der(key_data, std::string()));
+        key = std::make_shared<vds::asymmetric_private_key>(std::move(der));
+        return expected<void>();
+    }
 }
 
 

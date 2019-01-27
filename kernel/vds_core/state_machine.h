@@ -53,8 +53,10 @@ namespace vds {
           vds::async_result<vds::expected<void>> result;
           auto f = result.get_future();
           this->state_expectants_[expected_state] = std::make_tuple(new_state, std::move(result));
-          co_return co_await std::move(f);
+          co_return std::move(co_await std::move(f));
         }
+
+      co_return expected<void>();
     }
 
     vds::async_task<vds::expected<void>> wait(state_enum_type expected_state)
@@ -65,8 +67,10 @@ namespace vds {
         vds::async_result<vds::expected<void>> result;
         auto ret = result.get_future();
         this->state_expectants_[expected_state] = std::make_tuple(expected_state, std::move(result));
-        co_return co_await std::move(ret);
+        co_return std::move(co_await std::move(ret));
       }
+
+      co_return expected<void>();
     }
 
 

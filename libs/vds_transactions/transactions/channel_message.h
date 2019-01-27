@@ -27,12 +27,12 @@ namespace vds {
         const asymmetric_private_key & write_key) {
 
         binary_serializer s;
-        CHECK_EXPECTED(vds::serialize(s, (uint8_t)message_id));
-        CHECK_EXPECTED(vds::serialize(s, channel_id));
-        CHECK_EXPECTED(vds::serialize(s, channel_read_cert_subject));
-        CHECK_EXPECTED(vds::serialize(s, write_cert_subject));
-        CHECK_EXPECTED(vds::serialize(s, crypted_key));
-        CHECK_EXPECTED(vds::serialize(s, crypted_data));
+        CHECK_EXPECTED(s << (uint8_t)message_id);
+        CHECK_EXPECTED(s << channel_id);
+        CHECK_EXPECTED(s << channel_read_cert_subject);
+        CHECK_EXPECTED(s << write_cert_subject);
+        CHECK_EXPECTED(s << crypted_key);
+        CHECK_EXPECTED(s << crypted_data);
 
         GET_EXPECTED(signature, asymmetric_sign::signature(
           hash::sha256(),

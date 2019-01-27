@@ -19,7 +19,8 @@ vds::async_task<vds::expected<void>> vds::http_parser::process(
   const std::shared_ptr<stream_input_async<uint8_t>>& input_stream) {
 
   while (!this->eof_) {
-    GET_EXPECTED_ASYNC(len, co_await input_stream->read_async(this->buffer_, sizeof(this->buffer_)));
+    size_t len;
+    GET_EXPECTED_VALUE_ASYNC(len, co_await input_stream->read_async(this->buffer_, sizeof(this->buffer_)));
     if (0 == len) {
       this->eof_ = true;
       break;
@@ -183,12 +184,13 @@ vds::async_task<vds::expected<void>> vds::http_parser::http_body_reader::parse_c
   return result.get_future();
 }
 
-vds::async_task<vds::expected<unsigned>> vds::http_parser::http_body_reader::read_async(uint8_t* buffer,
+vds::async_task<vds::expected<size_t>> vds::http_parser::http_body_reader::read_async(uint8_t* buffer,
                                                                                         size_t buffer_size) {
   for (;;) {
     switch (this->state_) {
     case StateEnum::STATE_PARSE_BODY: {
-      GET_EXPECTED_ASYNC(parse_result, co_await this->parse_body(buffer, buffer_size));
+      size_t parse_result;
+      GET_EXPECTED_VALUE_ASYNC(parse_result, co_await this->parse_body(buffer, buffer_size));
       co_return parse_result;
     }
     case StateEnum::STATE_PARSE_SIZE: {

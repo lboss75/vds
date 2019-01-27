@@ -37,7 +37,7 @@ namespace vds {
 
         while (0 < s.size()) {
           uint8_t message_id;
-          CHECK_EXPECTED(deserialize(s, message_id));
+          CHECK_EXPECTED(s >> message_id);
 
           switch ((transaction_id) message_id) {
             case transactions::payment_transaction::message_id: {

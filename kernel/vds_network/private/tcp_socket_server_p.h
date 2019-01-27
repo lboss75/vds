@@ -103,7 +103,7 @@ namespace vds {
             this->s_ = socket(AF_INET, SOCK_STREAM, 0);
             if (this->s_ < 0) {
               auto error = errno;
-              return vds::make_unexpected<std::system_error>(error, std::system_category());
+              co_return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
             
             /*************************************************************/
@@ -112,7 +112,7 @@ namespace vds {
             int on = 1;
             if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
               auto error = errno;
-              return vds::make_unexpected<std::system_error>(error, std::system_category());
+                co_return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
 
             /*************************************************************/
@@ -122,19 +122,19 @@ namespace vds {
             /*************************************************************/
             if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
               auto error = errno;
-              return vds::make_unexpected<std::system_error>(error, std::system_category());
+                co_return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
             
             //bind to address
             sp->get<logger>()->trace("UDP", "Starting UDP server on %s", address.to_string().c_str());
             if (0 > ::bind(this->s_, address, address.size())) {
               auto error = errno;
-              return vds::make_unexpected<std::system_error>(error, std::system_category());
+                co_return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
 
             if (0 > ::listen(this->s_, SOMAXCONN)) {
               auto error = errno;
-              return vds::make_unexpected<std::system_error>(error, std::system_category());
+                co_return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
 
             /* Set the socket to non-blocking, this is essential in event
@@ -143,13 +143,13 @@ namespace vds {
             auto flags = fcntl(this->s_, F_GETFL);
             if (0 > flags) {
               auto error = errno;
-              return vds::make_unexpected<std::system_error>(error, std::system_category());
+                co_return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
 
             flags |= O_NONBLOCK;
             if (0 > fcntl(this->s_, F_SETFL, flags)) {
               auto error = errno;
-              return vds::make_unexpected<std::system_error>(error, std::system_category());
+                co_return vds::make_unexpected<std::system_error>(error, std::system_category());
             }
 
             this->new_connection_ = new_connection;
@@ -158,8 +158,7 @@ namespace vds {
               [this, sp](){
                 auto epollfd = epoll_create(1);
                 if (0 > epollfd) {
-                  return vds::make_unexpected<std::runtime_error>("epoll_create failed");
-                  return;
+                  throw std::runtime_error("epoll_create failed");
                 }
 
                 struct epoll_event ev;
@@ -167,8 +166,7 @@ namespace vds {
                 ev.events = EPOLLIN;
                 ev.data.fd = this->s_;
                 if (0 > epoll_ctl(epollfd, EPOLL_CTL_ADD, this->s_, &ev)) {
-                  return vds::make_unexpected<std::runtime_error>("epoll_create failed");
-                  return;
+                  throw std::runtime_error("epoll_create failed");
                 }
                 
                 while(!this->is_shuting_down_ && !sp->get_shutdown_event().is_shuting_down()) {
@@ -180,7 +178,7 @@ namespace vds {
                     auto socket = accept(this->s_, &client_address, &client_address_length);
                     if (INVALID_SOCKET != socket) {
                       auto s = _tcp_network_socket::from_handle(sp, socket);
-                      (*s)->make_socket_non_blocking();
+                      (void)((*s)->make_socket_non_blocking());
                       (*s)->set_timeouts();
                       (*sp->get<network_service>())->add_connection(this->new_connection_(s));
                     }

@@ -88,7 +88,8 @@ void vds::http_router::add_file(
 vds::http_route_handler::auth_api_handler::auth_api_handler(
   const std::function<async_task<expected<std::shared_ptr<json_value>>>(const service_provider*, const std::shared_ptr<user_manager> &, const http_request&)>& callback)
   : auth_handler([callback](const service_provider* sp, const std::shared_ptr<user_manager> & user_mng, const http_request& request) ->async_task<expected<http_message>> {
-  GET_EXPECTED_ASYNC(result, co_await callback(sp, user_mng, request));
+    std::shared_ptr<json_value> result;
+  GET_EXPECTED_VALUE_ASYNC(result, co_await callback(sp, user_mng, request));
   GET_EXPECTED_ASYNC(result_str, result->str());
   co_return http_response::simple_text_response(
     result_str,
@@ -110,7 +111,8 @@ vds::async_task<vds::expected<vds::http_message>> vds::http_route_handler::web_h
 vds::http_route_handler::api_handler::api_handler(
   const std::function<async_task<expected<std::shared_ptr<json_value>>>(const service_provider*, const http_request&)>& callback)
   : web_handler([callback](const service_provider* sp, const http_request& request) ->async_task<expected<http_message>> {
-  GET_EXPECTED_ASYNC(result, co_await callback(sp, request));
+    std::shared_ptr<json_value> result;
+    GET_EXPECTED_VALUE_ASYNC(result, co_await callback(sp, request));
   GET_EXPECTED_ASYNC(result_str, result->str());
   co_return http_response::simple_text_response(
     result_str,

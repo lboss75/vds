@@ -47,10 +47,10 @@ namespace vds {
 
     ~_tcp_network_socket()
     {
-      this->close();
+      (void)this->close();
     }
 
-    void close();
+    expected<void> close();
 
     expected<SOCKET_HANDLE> handle() const {
 #ifdef _WIN32
@@ -110,18 +110,23 @@ namespace vds {
     //    }
 
 #ifndef _WIN32
-    void make_socket_non_blocking()
+    expected<void> make_socket_non_blocking()
     {
-      auto flags = fcntl(this->handle(), F_GETFL, 0);
+        GET_EXPECTED(handle, this->handle());
+
+
+      auto flags = fcntl(handle, F_GETFL, 0);
       if (flags == -1) {
         return vds::make_unexpected<std::runtime_error>("fcntl");
       }
 
       flags |= O_NONBLOCK;
-      auto s = fcntl(this->handle(), F_SETFL, flags);
+      auto s = fcntl(handle, F_SETFL, flags);
       if (s == -1) {
         return vds::make_unexpected<std::runtime_error>("fcntl");
       }
+
+      return expected<void>();
     }
     void set_timeouts()
     {
@@ -131,9 +136,9 @@ namespace vds {
       // setsockopt(this->handle(), SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(struct timeval));
     }
 
-    void process(uint32_t events);
+        expected<void> process(uint32_t events);
 
-    void change_mask(
+    expected<void> change_mask(
         const std::shared_ptr<socket_base> & s,
         uint32_t set_events,
         uint32_t clear_events = 0)
@@ -143,18 +148,20 @@ namespace vds {
       this->event_masks_ |= set_events;
       this->event_masks_ &= ~clear_events;
       if(last_mask == this->event_masks_){
-        return;
+        return expected<void>();
       }
 
       if(0 != last_mask && 0 != this->event_masks_){
-        (*this->sp_->get<network_service>())->set_events(this->s_, this->event_masks_ | EPOLLRDHUP | EPOLLERR | EPOLLET);
+        CHECK_EXPECTED((*this->sp_->get<network_service>())->set_events(this->s_, this->event_masks_ | EPOLLRDHUP | EPOLLERR | EPOLLET));
       }
       else if (0 == this->event_masks_){
-        (*this->sp_->get<network_service>())->remove_association(this->s_);
+        CHECK_EXPECTED((*this->sp_->get<network_service>())->remove_association(this->s_));
       }
       else {
-        (*this->sp_->get<network_service>())->associate(this->s_, s, this->event_masks_ | EPOLLRDHUP | EPOLLERR | EPOLLET);
+        CHECK_EXPECTED((*this->sp_->get<network_service>())->associate(this->s_, s, this->event_masks_ | EPOLLRDHUP | EPOLLERR | EPOLLET));
       }
+
+      return expected<void>();
     }
 
 #endif//_WIN32
@@ -374,15 +381,16 @@ namespace vds {
         const uint8_t *data,
         size_t size) override {
 
+      GET_EXPECTED(handle, (*this->owner())->handle());
       auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
       if(0 == size){
-        shutdown((*this->owner())->handle(), SHUT_WR);
-        r->set_value();
+        shutdown(handle, SHUT_WR);
+        r->set_value(expected<void>());
       }
       else {
         for (;;) {
           int len = send(
-              (*this->owner())->handle(),
+              handle,
               data,
               size,
               MSG_NOSIGNAL);
@@ -393,7 +401,7 @@ namespace vds {
               this->buffer_ = data;
               this->buffer_size_ = size;
               this->result_ = r;
-              (*this->owner())->change_mask(this->owner_, EPOLLOUT);
+              CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, EPOLLOUT));
             } else {
               r->set_value(make_unexpected<std::system_error>(error, std::generic_category(), "Send TCP"));
             }
@@ -405,7 +413,7 @@ namespace vds {
               continue;
             }
 
-            r->set_value();
+            r->set_value(expected<void>());
           }
 
           break;
@@ -415,10 +423,12 @@ namespace vds {
       return r->get_future();
     }
 
-    void process() {
+    expected<void> process() {
+      GET_EXPECTED(handle, (*this->owner())->handle());
+
       for (;;) {
         int len = send(
-            (*this->owner())->handle(),
+            handle,
             this->buffer_,
             this->buffer_size_,
             MSG_NOSIGNAL);
@@ -426,10 +436,10 @@ namespace vds {
         if (len < 0) {
           int error = errno;
           if (EAGAIN == error) {
-            return;
+            return expected<void>();
           }
 
-          (*this->owner())->change_mask(this->owner_, 0, EPOLLOUT);
+          CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLOUT));
           auto r = std::move(this->result_);
           r->set_value(make_unexpected<std::system_error>(
                   error,
@@ -442,22 +452,25 @@ namespace vds {
             continue;
           }
 
-          (*this->owner())->change_mask(this->owner_, 0, EPOLLOUT);
+          CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLOUT));
           auto r = std::move(this->result_);
-          r->set_value();
+          r->set_value(expected<void>());
         }
 
         break;
       }
+      return expected<void>();
     }
 
-    void close_write() {
-      (*this->owner())->change_mask(this->owner_, 0, EPOLLOUT);
+    expected<void> close_write() {
+      CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLOUT));
 
       if(this->result_){
         auto r = std::move(this->result_);
         r->set_value(make_unexpected<std::system_error>(ECONNRESET, std::generic_category(), "Send TCP"));
       }
+
+      return expected<void>();
     }
 
   private:
@@ -486,8 +499,8 @@ namespace vds {
     ~_read_socket_task() {
     }
 
-    void start(const service_provider * sp){
-        timeout_timer_.start(sp, std::chrono::seconds(30), [sp, pthis_ = this->shared_from_this()]() -> async_task<expected<bool>>{
+      expected<void> start(const service_provider * sp){
+        return timeout_timer_.start(sp, std::chrono::seconds(30), [sp, pthis_ = this->shared_from_this()]() -> async_task<expected<bool>>{
             auto pthis = static_cast<_read_socket_task *>(pthis_.get());
             if(pthis->read_count_ < 0){
                 co_return false;
@@ -523,8 +536,9 @@ namespace vds {
         return r->get_future();
       }
 
-      int len = read(
-          (*this->owner())->handle(),
+      GET_EXPECTED(handle, (*this->owner())->handle());
+      auto len = read(
+          handle,
           buffer,
           buffer_size);
 
@@ -539,7 +553,7 @@ namespace vds {
           this->result_ = r;
           lock.unlock();
 
-          (*this->owner())->change_mask(this->owner_, EPOLLIN);
+          CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, EPOLLIN));
         }
         else if ((0 == error || EINTR == error || ENOENT == error) && 0 == len) {
           this->read_count_ = -1;
@@ -563,19 +577,20 @@ namespace vds {
       return r->get_future();
     }
 
-    void process() {
-      int len = read(
-          (*this->owner())->handle(),
+    expected<void> process() {
+      GET_EXPECTED(handle, (*this->owner())->handle());
+      auto len = read(
+          handle,
           this->buffer_,
           this->buffer_size_);
 
       if (len < 0) {
         int error = errno;
         if (EAGAIN == error) {
-          return;
+          return expected<void>();
         }
 
-        (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
+        CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
         
         std::unique_lock<std::mutex> lock(this->result_mutex_);
         auto r = std::move(this->result_);
@@ -593,7 +608,7 @@ namespace vds {
         }
       }
       else {
-        (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
+        CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
         
         std::unique_lock<std::mutex> lock(this->result_mutex_);
         auto r = std::move(this->result_);
@@ -602,11 +617,12 @@ namespace vds {
         this->read_count_++;
         r->set_value(len);
       }
+      return expected<void>();
     }
 
-    void close_read() {
+    expected<void> close_read() {
       this->read_count_ = -1;
-      (*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
+      CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
 
       std::unique_lock<std::mutex> lock(this->result_mutex_);
       if(this->result_){
@@ -615,6 +631,7 @@ namespace vds {
 
         r->set_value(0);
       }
+      return expected<void>();
     }
 
   private:

@@ -139,7 +139,7 @@ vds::expected<void> vds::_network_service::start(const service_provider * sp)
             continue;
           }
           
-          return vds::make_unexpected<std::system_error>(error, std::system_category(), "epoll_wait");
+          throw std::system_error(error, std::system_category(), "epoll_wait");
         }
         else if(0 < result){
           for(int i = 0; i < result; ++i){
@@ -148,8 +148,8 @@ vds::expected<void> vds::_network_service::start(const service_provider * sp)
             if(this->tasks_.end() != p){
               auto handler = p->second;
               lock.unlock();
-              
-              handler->process(events[i].events);
+
+                (void)handler->process(events[i].events);
             }
             else {
               lock.unlock();
@@ -281,7 +281,7 @@ void vds::_network_service::thread_loop()
 }
 #else
 
-void vds::_network_service::associate(
+vds::expected<void> vds::_network_service::associate(
   SOCKET_HANDLE s,
   const std::shared_ptr<socket_base> & handler,
   uint32_t event_mask)
@@ -303,9 +303,10 @@ void vds::_network_service::associate(
   }
   
   this->tasks_[s] = handler;
+  return expected<void>();
 }
 
-void vds::_network_service::set_events(
+vds::expected<void> vds::_network_service::set_events(
   SOCKET_HANDLE s,
   uint32_t event_mask)
 {
@@ -319,9 +320,11 @@ void vds::_network_service::set_events(
     auto error = errno;
     return vds::make_unexpected<std::system_error>(error, std::system_category(), "epoll_ctl(EPOLL_CTL_MOD)");
   }
+
+  return expected<void>();
 }
 
-void vds::_network_service::remove_association(
+vds::expected<void> vds::_network_service::remove_association(
   SOCKET_HANDLE s)
 {
   struct epoll_event event_data;
@@ -336,6 +339,7 @@ void vds::_network_service::remove_association(
   
   std::unique_lock<std::mutex> lock(this->tasks_mutex_);
   this->tasks_.erase(s);
+  return expected<void>();
 }
 
 #endif//_WIN32

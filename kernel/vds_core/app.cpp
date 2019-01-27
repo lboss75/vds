@@ -11,46 +11,50 @@ vds::app * vds::app::the_app_ = nullptr;
 #ifndef _WIN32
 vds::barrier vds::app::stop_barrier;
 
-void vds::app::kill_prev(const vds::foldername &root_folder, const std::string & process_name) {
+vds::expected<void> vds::app::kill_prev(const vds::foldername &root_folder, const std::string & process_name) {
     chdir("/");
 
-    root_folder.create();
+    CHECK_EXPECTED(root_folder.create());
 
     filename pid_file_name(root_folder, process_name + ".pid");
 
-    try {
-        file f(pid_file_name, file::file_mode::open_read);
 
-        char buffer[20];
-        auto readed = f.read(buffer, sizeof(buffer) - 1);
-        buffer[readed] = 0;
-        auto pid = strtoul(buffer, (char **) nullptr, 10);
-
-        if (0 == kill(pid, 0)) {
-            return vds::make_unexpected<std::runtime_error>(
-                    string_format(
-                            "A lock file %s has been detected. It appears it is owned\nby the (active) process with PID %ld.",
-                            pid_file_name.name().c_str(),
-                            pid));
-        } else {
-            auto error = errno;
-            if (ESRCH != error) {
-                return vds::make_unexpected<std::system_error>(error, std::system_category(), "acquire exclusive lock on lock file");
-            }
+    file f;
+    auto result = f.open(pid_file_name, file::file_mode::open_read);
+    if (result.has_error()) {
+        auto ex = dynamic_cast<std::system_error *>(result.error().get());
+        if (nullptr == ex
+            || ex->code().category() != std::system_category()
+            || ex->code().value() != ENOENT) {
+            return unexpected(std::move(result.error()));
         }
     }
-    catch (const std::system_error &ex) {
-        if (ex.code().category() != std::system_category()
-            || ex.code().value() != ENOENT) {
-            std::cout << "Fatal " << ex.code().value() << " " << ex.code().category().name() << "\n";
-            throw;
+
+
+    char buffer[20];
+    GET_EXPECTED(readed, f.read(buffer, sizeof(buffer) - 1));
+    buffer[readed] = 0;
+    auto pid = strtoul(buffer, (char **) nullptr, 10);
+
+    if (0 == kill(pid, 0)) {
+        return vds::make_unexpected<std::runtime_error>(
+                string_format(
+                        "A lock file %s has been detected. It appears it is owned\nby the (active) process with PID %ld.",
+                        pid_file_name.name().c_str(),
+                        pid));
+    } else {
+        auto error = errno;
+        if (ESRCH != error) {
+            return vds::make_unexpected<std::system_error>(error, std::system_category(),
+                                                           "acquire exclusive lock on lock file");
         }
     }
 
     signal(SIGHUP, SIG_IGN);
+    return expected<void>();
 }
 
-void vds::app::demonize(const vds::foldername &root_folder, const std::string & process_name) {
+vds::expected<void> vds::app::demonize(const vds::foldername &root_folder, const std::string & process_name) {
     /* make the process a session and process group leader. This simplifies
       job control if we are spawning child servers, and starts work on
       detaching us from a controlling TTY */
@@ -63,7 +67,10 @@ void vds::app::demonize(const vds::foldername &root_folder, const std::string & 
     signal(SIGHUP, SIG_IGN);
 
     auto pid_str = std::to_string(getpid());
-    file(filename(root_folder, process_name + ".pid"), file::file_mode::truncate).write(pid_str.c_str(), pid_str.length());
+    file f;
+    CHECK_EXPECTED(f.open(filename(root_folder, process_name + ".pid"), file::file_mode::truncate));
+    CHECK_EXPECTED(f.write(pid_str.c_str(), pid_str.length()));
+    f.close();
     /*close open file descriptors */
 
     auto num_files = sysconf(_SC_OPEN_MAX); /* how many file descriptors? */
@@ -87,6 +94,8 @@ void vds::app::demonize(const vds::foldername &root_folder, const std::string & 
       to the children */
 
     setpgrp();
+
+    return expected<void>();
 }
 
 #endif

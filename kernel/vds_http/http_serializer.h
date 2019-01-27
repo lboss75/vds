@@ -43,13 +43,14 @@ namespace vds {
       CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(reinterpret_cast<const uint8_t *>(data->c_str()), data->length()));
 
       for (;;) {
-        GET_EXPECTED_ASYNC(readed, co_await message.body()->read_async(this->output_buffer_, sizeof(this->output_buffer_)));
+        size_t readed;
+        GET_EXPECTED_VALUE_ASYNC(readed, co_await message.body()->read_async(this->output_buffer_, sizeof(this->output_buffer_)));
         if (0 == readed) {
           CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(nullptr, 0));
           break;
         }
 
-        co_await this->target_->write_async(this->output_buffer_, readed);
+        CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(this->output_buffer_, readed));
       }
 
       co_return expected<void>();

@@ -111,7 +111,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::try_hands
   out_message.add(PROTOCOL_VERSION);
 
   binary_serializer bs;
-  CHECK_EXPECTED_ASYNC(serialize(bs, this->node_cert_->der()));
+  CHECK_EXPECTED_ASYNC(bs << this->node_cert_->der());
 
   out_message += bs.move_data();
 
@@ -209,7 +209,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
         && PROTOCOL_VERSION == datagram.data()[5]) {
         binary_deserializer bd(datagram.data() + 6, datagram.data_size() - 6);
         const_data_buffer partner_node_cert_der;
-        CHECK_EXPECTED_ASYNC(deserialize(bd, partner_node_cert_der));
+        CHECK_EXPECTED_ASYNC(bd >> partner_node_cert_der);
         GET_EXPECTED_ASYNC(partner_node_cert, certificate::parse_der(partner_node_cert_der));
         GET_EXPECTED_ASYNC(partner_node_id, partner_node_cert.fingerprint(hash::sha256()));
         if (partner_node_id == this->this_node_id_) {
@@ -238,9 +238,9 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
         out_message.add(MAGIC_LABEL);
 
         binary_serializer bs;
-        CHECK_EXPECTED_ASYNC(serialize(bs, this->node_cert_->der()));
+        CHECK_EXPECTED_ASYNC(bs << this->node_cert_->der());
         GET_EXPECTED_ASYNC(public_key, partner_node_cert.public_key());
-        CHECK_EXPECTED_ASYNC(serialize(bs, public_key.encrypt(session_info.session_key_)));
+        CHECK_EXPECTED_ASYNC(bs << public_key.encrypt(session_info.session_key_));
 
         session_info.session_mutex_.unlock();
 
@@ -267,8 +267,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
         const_data_buffer cert_buffer;
         const_data_buffer key_buffer;
         binary_deserializer bd(datagram.data() + 5, datagram.data_size() - 5);
-        CHECK_EXPECTED_ASYNC(deserialize(bd, cert_buffer));
-        CHECK_EXPECTED_ASYNC(deserialize(bd, key_buffer));
+        CHECK_EXPECTED_ASYNC(bd >> cert_buffer);
+        CHECK_EXPECTED_ASYNC(bd >> key_buffer);
 
         GET_EXPECTED_ASYNC(cert, certificate::parse_der(cert_buffer));
         GET_EXPECTED_ASYNC(key, this->node_key_->decrypt(key_buffer));

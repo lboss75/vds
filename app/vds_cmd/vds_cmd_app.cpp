@@ -161,7 +161,9 @@ vds::expected<std::string> vds::vds_cmd_app::login(const service_provider * sp)
 
   GET_EXPECTED(address, network_address::parse(server));
   GET_EXPECTED(s, tcp_network_socket::connect(sp, address));
-  auto[reader, writer] = s->start(sp);
+  GET_EXPECTED(streams, s->start(sp));
+  auto reader = std::get<0>(streams);
+  auto writer = std::get<1>(streams);
 
   auto client = std::make_shared<http_client>();
   auto client_task = client->start(reader, writer);
@@ -178,7 +180,9 @@ vds::expected<std::string> vds::vds_cmd_app::login(const service_provider * sp)
     if (login_response.code() != http_response::HTTP_OK) {
       co_return vds::make_unexpected<std::runtime_error>("Login failed");
     }
-    GET_EXPECTED_ASYNC(response_body, co_await response.body()->read_all());
+
+    const_data_buffer response_body;
+    GET_EXPECTED_VALUE_ASYNC(response_body, co_await response.body()->read_all());
     GET_EXPECTED_ASYNC(body, json_parser::parse(server + "/api/login", response_body));
 
     auto body_object = dynamic_cast<const json_object *>(body.get());
@@ -194,7 +198,7 @@ vds::expected<std::string> vds::vds_cmd_app::login(const service_provider * sp)
     co_return expected<void>();
   }).get());
 
-  s->close();
+  CHECK_EXPECTED(s->close());
   CHECK_EXPECTED(client_task.get());
 
   return session;
@@ -205,7 +209,9 @@ vds::expected<void> vds::vds_cmd_app::logout(const service_provider* sp, const s
 
   GET_EXPECTED(address, network_address::parse(server));
   GET_EXPECTED(s, tcp_network_socket::connect(sp, address));
-  auto[reader, writer] = s->start(sp);
+  GET_EXPECTED(streams, s->start(sp));
+  auto reader = std::get<0>(streams);
+  auto writer = std::get<1>(streams);
 
   auto client = std::make_shared<http_client>();
   auto client_task = client->start(reader, writer);
@@ -224,9 +230,8 @@ vds::expected<void> vds::vds_cmd_app::logout(const service_provider* sp, const s
     co_return expected<void>();
   }).get());
 
-  s->close();
-
-  (void)client_task.get();
+  CHECK_EXPECTED(s->close());
+  CHECK_EXPECTED(client_task.get());
 
   return expected<void>();
 }
@@ -238,7 +243,9 @@ vds::expected<void> vds::vds_cmd_app::upload_file(const service_provider * sp, c
   filename fn(this->attachment_.value());
   GET_EXPECTED(address, network_address::parse(server));
   GET_EXPECTED(s, tcp_network_socket::connect(sp, address));
-  auto[reader, writer] = s->start(sp);
+  GET_EXPECTED(streams, s->start(sp));
+  auto reader = std::get<0>(streams);
+  auto writer = std::get<1>(streams);
 
   auto client = std::make_shared<http_client>();
   auto client_task = client->start(reader, writer);
@@ -270,9 +277,9 @@ vds::expected<void> vds::vds_cmd_app::upload_file(const service_provider * sp, c
     co_return expected<void>();
   }).get());
 
-  s->close();
+  CHECK_EXPECTED(s->close());
+  CHECK_EXPECTED(client_task.get());
 
-  (void)client_task.get();
   return expected<void>();
 }
 
@@ -281,7 +288,9 @@ vds::expected<void> vds::vds_cmd_app::channel_list(const service_provider* sp, c
 
   GET_EXPECTED(address, network_address::parse(server));
   GET_EXPECTED(s, tcp_network_socket::connect(sp, address));
-  auto[reader, writer] = s->start(sp);
+  GET_EXPECTED(streams, s->start(sp));
+  auto reader = std::get<0>(streams);
+  auto writer = std::get<1>(streams);
 
   auto client = std::make_shared<http_client>();
   auto client_task = client->start(reader, writer);
@@ -300,8 +309,8 @@ vds::expected<void> vds::vds_cmd_app::channel_list(const service_provider* sp, c
     return this->channel_list_out(server, response);
   }).get());
 
-  s->close();
-  (void)client_task.get();
+  CHECK_EXPECTED(s->close());
+  CHECK_EXPECTED(client_task.get());
 
   return expected<void>();
 }
@@ -311,7 +320,9 @@ vds::expected<void> vds::vds_cmd_app::channel_create(const service_provider* sp,
 
   GET_EXPECTED(address, network_address::parse(server));
   GET_EXPECTED(s, tcp_network_socket::connect(sp, address));
-  auto[reader, writer] = s->start(sp);
+  GET_EXPECTED(streams, s->start(sp));
+  auto reader = std::get<0>(streams);
+  auto writer = std::get<1>(streams);
 
   auto client = std::make_shared<http_client>();
   auto client_task = client->start(reader, writer);
@@ -331,21 +342,23 @@ vds::expected<void> vds::vds_cmd_app::channel_create(const service_provider* sp,
     co_return expected<void>();
   }).get());
 
-    s->close();
-    (void)client_task.get();
+  CHECK_EXPECTED(s->close());
+  CHECK_EXPECTED(client_task.get());
   return expected<void>();
 }
 
 vds::async_task<vds::expected<void>> vds::vds_cmd_app::channel_list_out(const std::string& server, const http_message response) {
 
+  const_data_buffer response_body;
+  GET_EXPECTED_VALUE_ASYNC(response_body, co_await response.body()->read_all());
+
   if (this->output_format_.value() == "json") {
-    GET_EXPECTED_ASYNC(response_body, co_await response.body()->read_all());
-    std::cout << response_body << std::endl;
+    std::cout << std::string((const char *)response_body.data(), response_body.size()) << std::endl;
   }
   else {
     GET_EXPECTED_ASYNC(body, json_parser::parse(
       server + "/api/channels",
-      co_await response.body()->read_all()));
+      response_body));
 
     std::cout << std::setw(44) << std::left << "ID" << "|"
       << std::setw(15) << std::left << "Type" << "|"
