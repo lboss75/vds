@@ -44,7 +44,7 @@ vds::expected<vds::foldername> vds::persistence::current_user(const service_prov
 
   foldername r(result->pw_dir);
   free(buf);
-  return r;
+  return foldername(r, ".vds");
 
   //struct passwd *pw = getpwuid(getuid());
   //return foldername(pw->pw_dir);

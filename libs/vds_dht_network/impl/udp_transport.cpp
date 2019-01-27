@@ -151,8 +151,7 @@ void vds::dht::network::udp_transport::get_session_statistics(session_statistic&
 }
 
 
-vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_read(
-  ) {
+vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_read() {
   for (;;) {
     auto datagram_result = co_await this->reader_->read_async();
     if(datagram_result.has_error()) {
