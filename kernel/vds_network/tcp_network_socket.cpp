@@ -69,9 +69,9 @@ vds::expected<void> vds::tcp_network_socket::close()
 }
 
 #ifdef _WIN32
-std::tuple<
+vds::expected<std::tuple<
   std::shared_ptr<vds::stream_input_async<uint8_t>>,
-  std::shared_ptr<vds::stream_output_async<uint8_t>>> vds::tcp_network_socket::start(
+  std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::tcp_network_socket::start(
   const vds::service_provider *sp) {
   auto pthis = this->shared_from_this();
   return {std::make_shared< _read_socket_task>(sp, pthis), std::make_shared< _write_socket_task>(sp, pthis) };
