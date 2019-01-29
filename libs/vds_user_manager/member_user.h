@@ -18,6 +18,9 @@ namespace vds {
   {
   public:
     member_user();
+    member_user(_member_user * impl);
+    member_user(const member_user &) = delete;
+    member_user(member_user && original) noexcept;
     ~member_user();
 
     member_user(
@@ -43,10 +46,11 @@ namespace vds {
       return this->impl_;
     }
 
+    member_user & operator = (const member_user &) = delete;
+    member_user & operator = (member_user &&) noexcept;
+
   private:
     _member_user * impl_;
-
-    member_user(_member_user * impl);
   };
 }
 

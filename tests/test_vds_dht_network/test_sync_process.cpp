@@ -320,14 +320,14 @@ const vds::network_address& mock_server::address() const {
 
 #define route_client(message_type)\
   case vds::dht::network::message_type_t::message_type: {\
-      CHECK_EXPECTED_ASYNC(co_await this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, message_info](vds::database_transaction & t) -> vds::expected<void> {\
+      CHECK_EXPECTED_ASYNC(co_await this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, message_info, &final_tasks](vds::database_transaction & t) -> vds::expected<void> {\
         vds::binary_deserializer s(message_info.message_data());\
         GET_EXPECTED(message, vds::message_deserialize<vds::dht::messages::message_type>(s));\
-        CHECK_EXPECTED((*sp->get<vds::dht::network::client>())->apply_message(\
+        return (*sp->get<vds::dht::network::client>())->apply_message(\
          t,\
+         final_tasks, \
          message,\
-         message_info).get());\
-         return vds::expected<void>();\
+         message_info);\
       }));\
       co_return vds::expected<void>();\
       break;\
@@ -350,6 +350,8 @@ vds::async_task<vds::expected<void>> mock_server::process_message(
 
   static_cast<mock_transport *>(this->transport_.get())->hab()->register_message(
     this->sp_->get<vds::dht::network::client>()->current_node_id(), message_info);
+
+  std::list<std::function<vds::async_task<vds::expected<void>>()>> final_tasks;
 
   switch (message_info.message_type()) {
     route_client(sync_new_election_request)
@@ -386,6 +388,12 @@ vds::async_task<vds::expected<void>> mock_server::process_message(
       co_return vds::make_unexpected<std::runtime_error>("Invalid command");
     }
   }
+
+  while (!final_tasks.empty()) {
+    CHECK_EXPECTED_ASYNC(co_await final_tasks.front()());
+    final_tasks.pop_front();
+  }
+
   co_return vds::expected<void>();
 
 }
@@ -397,7 +405,10 @@ vds::async_task<vds::expected<void>> mock_server::on_new_session( const vds::con
 
 void mock_server::add_sync_entry(  
   const vds::const_data_buffer& object_data) {
-  CHECK_EXPECTED_THROW(this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, object_data](vds::database_transaction & t) -> vds::expected<void> {
+
+  std::list<std::function<vds::async_task<vds::expected<void>>()>> final_tasks;
+
+  CHECK_EXPECTED_THROW(this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, object_data, &final_tasks](vds::database_transaction & t) -> vds::expected<void> {
     auto client = sp->get<vds::dht::network::client>();
     GET_EXPECTED_THROW(object_id, vds::hash::signature(vds::hash::sha256(), object_data));
     CHECK_EXPECTED_THROW((*client)->save_data(sp, t, object_id, object_data));
@@ -407,9 +418,14 @@ void mock_server::add_sync_entry(
         t1.object_id = object_id,
         t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
       )));
-    CHECK_EXPECTED_THROW((*client)->add_sync_entry(t, object_id, object_data.size()).get());
-    return vds::expected<void>();
+    return (*client)->add_sync_entry(t, final_tasks, object_id, object_data.size());
   }).get());
+
+  while (!final_tasks.empty()) {
+    CHECK_EXPECTED_THROW(final_tasks.front()().get());
+    final_tasks.pop_front();
+  }
+
 }
 
 mock_transport::mock_transport(mock_server * owner, const std::shared_ptr<transport_hab>& hab)

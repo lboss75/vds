@@ -86,13 +86,18 @@ vds::expected<void> vds::_server::start(const service_provider* sp)
   this->transaction_log_sync_process_.reset(new transaction_log::sync_process(sp));
 
   return this->update_timer_.start(sp, std::chrono::seconds(60), [sp, pthis = this->shared_from_this()]() -> async_task<expected<bool>>{
-    CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_transaction([pthis](database_transaction & t) -> expected<void> {
+    std::list<std::function<async_task<expected<void>>()>> final_tasks;
+    CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_transaction([pthis, &final_tasks](database_transaction & t) -> expected<void> {
         if (!pthis->sp_->get_shutdown_event().is_shuting_down()) {
-          CHECK_EXPECTED(pthis->transaction_log_sync_process_->do_sync(t).get());
+          CHECK_EXPECTED(pthis->transaction_log_sync_process_->do_sync(t, final_tasks));
         }
         return expected<void>();
       }));
-    
+
+    while (!final_tasks.empty()) {
+      CHECK_EXPECTED_ASYNC(co_await final_tasks.front()());
+      final_tasks.pop_front();
+    }
 
     co_return !sp->get_shutdown_event().is_shuting_down();
   });
@@ -270,37 +275,43 @@ vds::async_task<vds::expected<vds::server_statistic>> vds::_server::get_statisti
   co_return *result;
 }
 
-vds::async_task<vds::expected<void>> vds::_server::apply_message(
-  
+vds::expected<void> vds::_server::apply_message(
   database_transaction & t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const dht::messages::transaction_log_state & message,
   const message_info_t & message_info) {
-  return this->transaction_log_sync_process_->apply_message(t, message, message_info);
+  return this->transaction_log_sync_process_->apply_message(t, final_tasks, message, message_info);
 }
 
-vds::async_task<vds::expected<void>> vds::_server::apply_message(
-  
+vds::expected<void> vds::_server::apply_message(
   database_transaction & t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const dht::messages::transaction_log_request & message,
   const message_info_t & message_info) {
-  return this->transaction_log_sync_process_->apply_message(t, message, message_info);
+  return this->transaction_log_sync_process_->apply_message(t, final_tasks, message, message_info);
 }
 
-vds::async_task<vds::expected<void>> vds::_server::apply_message(
-  
+vds::expected<void> vds::_server::apply_message(
   database_transaction & t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const dht::messages::transaction_log_record & message,
   const message_info_t & message_info) {
-  return this->transaction_log_sync_process_->apply_message(t, message, message_info);
+  return this->transaction_log_sync_process_->apply_message(t, final_tasks, message, message_info);
 }
 
 vds::async_task<vds::expected<void>> vds::_server::on_new_session( const const_data_buffer& partner_id) {
   
-  CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_read_transaction([this, partner_id](database_read_transaction & t) -> expected<void> {
-    CHECK_EXPECTED(this->transaction_log_sync_process_->on_new_session(t, partner_id).get());
-    CHECK_EXPECTED((*this->sp_->get<dht::network::client>())->on_new_session(t, partner_id).get());
+  std::list<std::function<async_task<expected<void>>()>> final_tasks;
+  CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_read_transaction([this, partner_id, &final_tasks](database_read_transaction & t) -> expected<void> {
+    CHECK_EXPECTED(this->transaction_log_sync_process_->on_new_session(t, final_tasks, partner_id));
+    CHECK_EXPECTED((*this->sp_->get<dht::network::client>())->on_new_session(t, final_tasks, partner_id));
     return expected<void>();
   }));
+
+  while (!final_tasks.empty()) {
+    CHECK_EXPECTED_ASYNC(co_await final_tasks.front()());
+    final_tasks.pop_front();
+  }
 
   co_return expected<void>();
 }

@@ -139,26 +139,27 @@ vds::async_task<vds::expected<vds::file_manager::file_operations::prepare_downlo
   const const_data_buffer & channel_id,
   const const_data_buffer & target_file) {
 
-  auto result = std::make_shared<file_manager::file_operations::prepare_download_result_t>();
+  file_manager::file_operations::prepare_download_result_t result;
+  std::list<std::function<async_task<expected<void>>()>> final_tasks;
   CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_read_transaction(
-    [pthis = this->shared_from_this(), user_mng, channel_id, target_file, result](database_read_transaction &t) ->expected<void> {
+    [pthis = this->shared_from_this(), user_mng, channel_id, target_file, &result, &final_tasks](database_read_transaction &t) ->expected<void> {
     auto channel = user_mng->get_channel(channel_id);
 
     CHECK_EXPECTED(user_mng->walk_messages(
       channel_id,
       t,
-      [pthis, &t, result, target_file](
+      [pthis, &t, &result, target_file, &final_tasks](
         const transactions::user_message_transaction &message,
         const transactions::message_environment_t & /*message_environment*/) -> expected<bool> {
       for (const auto & file : message.files) {
         if (target_file == file.file_id) {
-          result->name = file.name;
-          result->mime_type = file.mime_type;
-          result->size = file.size;
-          GET_EXPECTED_VALUE(result->blocks, pthis->prepare_download_stream(t, file.file_blocks).get());
+          result.name = file.name;
+          result.mime_type = file.mime_type;
+          result.size = file.size;
+          GET_EXPECTED_VALUE(result.blocks, pthis->prepare_download_stream(t, final_tasks, file.file_blocks));
 
           uint16_t ready_blocks = 0;
-          for (auto & p : result->blocks) {
+          for (auto & p : result.blocks) {
             for (auto & pr : p.second.replicas) {
               if (pr.second.size() >= dht::network::service::MIN_DISTRIBUTED_PIECES) {
                 ++ready_blocks;
@@ -167,12 +168,12 @@ vds::async_task<vds::expected<vds::file_manager::file_operations::prepare_downlo
           }
 
           if(ready_blocks >= dht::network::service::MIN_HORCRUX) {
-            result->progress = 100;
+            result.progress = 100;
           }
           else {
-            result->progress = 100 * ready_blocks / dht::network::service::MIN_HORCRUX;
-            if (result->progress > 99) {
-              result->progress = 99;
+            result.progress = 100 * ready_blocks / dht::network::service::MIN_HORCRUX;
+            if (result.progress > 99) {
+              result.progress = 99;
             }
           }
           return false;
@@ -184,10 +185,15 @@ vds::async_task<vds::expected<vds::file_manager::file_operations::prepare_downlo
       return expected<void>();
     }));
 
-  if (result->mime_type.empty()) {
+  while(!final_tasks.empty()) {
+    CHECK_EXPECTED_ASYNC(co_await final_tasks.front()());
+    final_tasks.pop_front();
+  }
+
+  if (result.mime_type.empty()) {
     co_return vds::make_unexpected<vds_exceptions::not_found>();
   }
-  co_return *result;
+  co_return result;
 }
 
 vds::async_task<vds::expected<void>> vds::file_manager_private::_file_operations::create_message(
@@ -275,9 +281,10 @@ vds::async_task<vds::expected<void>> vds::file_manager_private::_file_operations
   co_return co_await target_stream->write_async(nullptr, 0);
 }
 
-vds::async_task<vds::expected<std::map<vds::const_data_buffer, vds::dht::network::client::block_info_t>>>
+vds::expected<std::map<vds::const_data_buffer, vds::dht::network::client::block_info_t>>
 vds::file_manager_private::_file_operations::prepare_download_stream(
   database_read_transaction & t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const std::list<vds::transactions::user_message_transaction::file_block_t> &file_blocks_param) {
 
   auto result = std::make_shared<std::map<vds::const_data_buffer, vds::dht::network::client::block_info_t>>();
@@ -287,7 +294,7 @@ vds::file_manager_private::_file_operations::prepare_download_stream(
     auto network_client = this->sp_->get<dht::network::client>();
 
     vds::dht::network::client::block_info_t info;
-    GET_EXPECTED_VALUE_ASYNC(info, co_await network_client->prepare_restore(t, dht::network::client::chunk_info{
+    GET_EXPECTED_VALUE(info, network_client->prepare_restore(t, final_tasks, dht::network::client::chunk_info{
         file_blocks.begin()->block_id,
         file_blocks.begin()->block_key,
         file_blocks.begin()->replica_hashes }));
@@ -297,5 +304,5 @@ vds::file_manager_private::_file_operations::prepare_download_stream(
     file_blocks.pop_front();
   }
 
-  co_return std::move(*result);
+  return std::move(*result);
 }

@@ -137,6 +137,7 @@ std::tuple<
 
 void vds::udp_socket::stop()
 {
+  this->impl_->close();
 }
 
 vds::expected<std::shared_ptr<vds::udp_socket>> vds::udp_socket::create(

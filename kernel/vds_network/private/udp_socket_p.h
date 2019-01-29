@@ -86,6 +86,7 @@ namespace vds {
       return this->s_;
     }
 
+
 #ifndef _WIN32
     std::tuple<
         std::shared_ptr<vds::udp_datagram_reader>,
@@ -124,10 +125,6 @@ namespace vds {
 
 #endif//_WIN32
 
-  private:
-    const service_provider * sp_;
-    SOCKET_HANDLE s_;
-
     void close()
     {
 #ifdef _WIN32
@@ -142,6 +139,11 @@ namespace vds {
       }
 #endif
     }
+
+  private:
+    const service_provider * sp_;
+    SOCKET_HANDLE s_;
+
 
 #ifndef _WIN32
     std::mutex event_masks_mutex_;

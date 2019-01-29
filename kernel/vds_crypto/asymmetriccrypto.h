@@ -291,9 +291,10 @@ namespace vds {
   {
   public:
     certificate_store();
+    certificate_store(_certificate_store * impl);
     ~certificate_store();
 
-    expected<void> create();
+    static expected<certificate_store> create();
 
     expected<void> add(const certificate & cert);
     expected<void> load_locations(const std::string & location);

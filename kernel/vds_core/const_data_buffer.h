@@ -132,7 +132,7 @@ namespace vds{
       return this->size() == 0;
     }
 
-    operator bool() const
+    explicit operator bool() const
     {
       return this->size() != 0;
     }

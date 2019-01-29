@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
 
     <title>Децентрализированное Хранилище Данных</title>
 
@@ -151,14 +151,14 @@
                 <div id="chat_feed">
                         <div class="chat-body" id="feed_records">
                         </div>
-                        <form id="send_message" method="post" action="upload" role="form" enctype="multipart/form-data">
+                        <form id="send_message" method="post" action="upload" role="form" enctype="multipart/form-data" accept-charset="UTF-8">
                             <div class="input-group">
-                                <input type="text" class="form-control" aria-label="...">
+                                <input type="text" class="form-control" aria-label="..." name="message">
                                 <div class="input-group-btn">
                                     <label class="btn btn-default btn-file">
                                         Выбрать <input id="answerFile" name="attachment[]" type="file" style="display: none;" multiple>
                                     </label>
-                                    <input type="submit" class="btn btn-success btn-send" name="message" placeholder="Напишите сообщение">
+                                    <input type="submit" class="btn btn-success btn-send" placeholder="Напишите сообщение">
                                 </div>
                                 <input id="channel_id" name="channel_id" type="hidden" />
                             </div>

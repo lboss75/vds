@@ -1133,13 +1133,19 @@ vds::certificate_store::certificate_store()
 {
 }
 
+vds::certificate_store::certificate_store(_certificate_store* impl)
+: impl_(impl) {
+}
+
 vds::certificate_store::~certificate_store()
 {
   delete this->impl_;
 }
 
-vds::expected<void> vds::certificate_store::create() {
-  return this->impl_->create();
+vds::expected<vds::certificate_store> vds::certificate_store::create() {
+  auto impl = std::make_unique<_certificate_store>();
+  CHECK_EXPECTED(impl->create());
+  return certificate_store(impl.release());
 }
 
 vds::expected<void> vds::certificate_store::add(const vds::certificate& cert)

@@ -36,8 +36,7 @@ TEST(test_vds_crypto, test_assymmetric)
 
       GET_EXPECTED_GTEST(private_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048()));
 
-    vds::asymmetric_public_key public_key;
-      CHECK_EXPECTED_GTEST(public_key.create(private_key));
+      GET_EXPECTED_GTEST(public_key, vds::asymmetric_public_key::create(private_key));
 
       GET_EXPECTED_GTEST(crypted, public_key.encrypt(buffer.data(), buffer.size()));
       GET_EXPECTED_GTEST(result, private_key.decrypt(crypted));
@@ -140,8 +139,7 @@ TEST(test_vds_crypto, test_sign)
     CHECK_EXPECTED_GTEST(s->write_async(nullptr, 0).get());
     
     GET_EXPECTED_GTEST(sign, s->signature());
-    vds::asymmetric_public_key pkey;
-    CHECK_EXPECTED_GTEST(pkey.create(key));
+    GET_EXPECTED_GTEST(pkey, vds::asymmetric_public_key::create(key));
 
     
     auto v = std::make_shared<vds::asymmetric_sign_verify>();

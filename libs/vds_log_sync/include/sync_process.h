@@ -28,41 +28,44 @@ namespace vds {
         : sp_(sp) {        
       }
 
-      async_task<expected<void>> do_sync(        
-        database_transaction & t);
-
-      async_task<expected<void>> apply_message(
-        
+      expected<void> do_sync(        
         database_transaction & t,
+        std::list<std::function<async_task<expected<void>>()>> & final_tasks);
+
+      expected<void> apply_message(
+        database_transaction & t,
+        std::list<std::function<async_task<expected<void>>()>> & final_tasks,
         const dht::messages::transaction_log_state & message,
         const dht::network::imessage_map::message_info_t & message_info);
 
-      async_task<expected<void>> apply_message(
-        
+      expected<void> apply_message(
         database_transaction& t,
+        std::list<std::function<async_task<expected<void>>()>> & final_tasks,
         const dht::messages::transaction_log_request& message,
         const dht::network::imessage_map::message_info_t & message_info);
 
-      async_task<expected<void>> apply_message(
-        
+      expected<void> apply_message(
         database_transaction& t,
+        std::list<std::function<async_task<expected<void>>()>> & final_tasks,
         const dht::messages::transaction_log_record & message,
         const dht::network::imessage_map::message_info_t & message_info);
 
-      async_task<expected<void>> on_new_session(
-        
+      expected<void> on_new_session(
         database_read_transaction & t,
+        std::list<std::function<async_task<expected<void>>()>> & final_tasks,
         const const_data_buffer& partner_id);
 
     private:
       const service_provider * sp_;
 
-      async_task<expected<void>> query_unknown_records( database_transaction& t);
+      expected<void> query_unknown_records(
+        database_transaction& t,
+        std::list<std::function<async_task<expected<void>>()>> & final_tasks);
 
 
-      async_task<expected<void>> sync_local_channels(
-        
+      expected<void> sync_local_channels(
         database_read_transaction & t,
+        std::list<std::function<async_task<expected<void>>()>> & final_tasks,
         const const_data_buffer& partner_id);
     };
   }

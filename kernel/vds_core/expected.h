@@ -202,17 +202,6 @@ namespace vds {
   
 #define WHILE_EXPECTED_END() }
 
-#define WHILE_EXPECTED_ASYNC(exp) \
-  for(;;) { \
-    { \
-      GET_EXPECTED_ASYNC(__while_cond, exp); \
-      if (!__while_cond) { \
-        break; \
-      } \
-    }
-
-#define WHILE_EXPECTED_END_ASYNC() }
-
 
 #define CHECK_EXPECTED_ERROR_ASYNC(v)\
   if((v).has_error()) {\

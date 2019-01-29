@@ -318,10 +318,10 @@ namespace vds {
           
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
-          const const_data_buffer& target_node,
-          const const_data_buffer& source_node,
+          const const_data_buffer target_node,
+          const const_data_buffer source_node,
           const uint8_t hops,
-          const const_data_buffer& message) {
+          const const_data_buffer message) {
 
           for (;;) {
             resizable_data_buffer buffer;

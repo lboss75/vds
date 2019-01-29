@@ -270,8 +270,7 @@ vds::expected<vds::certificate> vds::_cert_control::create_root(
   //local_user_options.extensions.push_back(
   //    certificate_extension(user_id_extension_type(), user_id.str()));
 
-  asymmetric_public_key cert_pkey;
-  CHECK_EXPECTED(cert_pkey.create(private_key));
+  GET_EXPECTED(cert_pkey, asymmetric_public_key::create(private_key));
   return certificate::create_new(cert_pkey, private_key, local_user_options);
 }
 
@@ -299,8 +298,7 @@ vds::expected<vds::certificate> vds::_cert_control::create_user_cert(
   //local_user_options.extensions.push_back(
 	 // certificate_extension(parent_user_id_extension_type(), cert_control::get_user_id(user_cert).str()));
 
-  asymmetric_public_key cert_pkey;
-  CHECK_EXPECTED(cert_pkey.create(private_key));
+  GET_EXPECTED(cert_pkey, asymmetric_public_key::create(private_key));
   return certificate::create_new(cert_pkey, private_key, local_user_options);
 }
 
@@ -325,8 +323,7 @@ vds::expected<vds::certificate> vds::_cert_control::create_cert(
 	//local_user_options.extensions.push_back(
 	//	certificate_extension(parent_user_id_extension_type(), cert_control::get_user_id(user_cert).str()));
 
-  asymmetric_public_key cert_pkey;
-  CHECK_EXPECTED(cert_pkey.create(private_key));
+  GET_EXPECTED(cert_pkey, asymmetric_public_key::create(private_key));
 	return certificate::create_new(cert_pkey, private_key, local_user_options);
 }
 

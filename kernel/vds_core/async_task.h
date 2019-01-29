@@ -458,6 +458,7 @@ namespace std {
         }
 
         std::experimental::suspend_never initial_suspend() {
+          vds::thread_protect::check();
           return {};
         }
 
@@ -489,6 +490,7 @@ namespace std {
         }
 
         std::experimental::suspend_never initial_suspend() {
+          vds::thread_protect::check();
           return {};
         }
 

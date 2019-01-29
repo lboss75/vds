@@ -29,7 +29,8 @@ vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
 {
   GET_EXPECTED(block, transaction_block::create(block_data));
 
-  vds_assert(!block.exists(t));
+  GET_EXPECTED(block_exists, block.exists(t));
+  vds_assert(!block_exists);
 
   orm::transaction_log_record_dbo t1;
   CHECK_EXPECTED(
@@ -103,7 +104,8 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
   auto state = orm::transaction_log_record_dbo::state_t::leaf;
   for (const auto & ancestor : block.ancestors()) {
     GET_EXPECTED(st, t.get_reader(t1.select(t1.state,t1.order_no,t1.time_point).where(t1.id == ancestor)));
-    if (!st.execute()) {
+    GET_EXPECTED(st_execute, st.execute());
+    if (!st_execute){
       return expected<void>();
     }
     else {
@@ -410,7 +412,7 @@ vds::expected<bool> vds::transactions::transaction_log::check_consensus(
     t2.select(db_count(t2.owner).as(total_count))
     .where(t2.id == log_id)));
   GET_EXPECTED_VALUE(st_execute, st.execute());
-  if (!st.execute()) {
+  if (!st_execute) {
     return vds::make_unexpected<std::runtime_error>("Invalid data");
   }
   const auto tc = total_count.get(st);

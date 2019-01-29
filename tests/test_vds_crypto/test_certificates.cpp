@@ -33,8 +33,7 @@ TEST(test_certificates, test_pem)
       {
         GET_EXPECTED_GTEST(ca_certificate_private_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048()));
 
-        vds::asymmetric_public_key ca_certificate_public_key;
-        CHECK_EXPECTED_GTEST(ca_certificate_public_key.create(ca_certificate_private_key));
+        GET_EXPECTED_GTEST(ca_certificate_public_key, vds::asymmetric_public_key::create(ca_certificate_private_key));
 
         //Create CA certificate
         vds::certificate::create_options ca_options;
@@ -71,8 +70,7 @@ TEST(test_certificates, test_pem)
 
         GET_EXPECTED_GTEST(sub_certificate_private_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048()));
 
-        vds::asymmetric_public_key sub_certificate_public_key;
-        CHECK_EXPECTED_GTEST(sub_certificate_public_key.create(sub_certificate_private_key));
+        GET_EXPECTED_GTEST(sub_certificate_public_key, vds::asymmetric_public_key::create(sub_certificate_private_key));
 
         //Create sub certificate
         vds::certificate::create_options sub_options;
@@ -101,8 +99,7 @@ TEST(test_certificates, test_pem)
 
         GET_EXPECTED_GTEST(caudal_certificate_private_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048()));
 
-        vds::asymmetric_public_key caudal_certificate_public_key;
-        CHECK_EXPECTED_GTEST(caudal_certificate_public_key.create(caudal_certificate_private_key));
+        GET_EXPECTED_GTEST(caudal_certificate_public_key, vds::asymmetric_public_key::create(caudal_certificate_private_key));
 
         //Create sub certificate
         vds::certificate::create_options caudal_options;
@@ -126,8 +123,7 @@ TEST(test_certificates, test_pem)
       {
         GET_EXPECTED_GTEST(caudal_certificate, vds::certificate::parse(caudal_certificate_text));
 
-        vds::certificate_store store;
-        CHECK_EXPECTED_GTEST(store.create());
+        GET_EXPECTED_GTEST(store, vds::certificate_store::create());
         GET_EXPECTED_GTEST(result, store.verify(caudal_certificate));
         ASSERT_EQ(result.error_code, X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
         ASSERT_EQ(result.issuer, "/C=RU/O=Test Org/CN=Sub Cert");
@@ -137,8 +133,7 @@ TEST(test_certificates, test_pem)
         GET_EXPECTED_GTEST(sub_certificate, vds::certificate::parse(sub_certificate_text));
         GET_EXPECTED_GTEST(caudal_certificate, vds::certificate::parse(caudal_certificate_text));
 
-        vds::certificate_store store;
-        CHECK_EXPECTED_GTEST(store.create());
+        GET_EXPECTED_GTEST(store, vds::certificate_store::create());
         CHECK_EXPECTED_GTEST(store.add(sub_certificate));
         
         GET_EXPECTED_GTEST(result, store.verify(caudal_certificate));
@@ -152,8 +147,7 @@ TEST(test_certificates, test_pem)
         GET_EXPECTED_GTEST(ca_certificate, vds::certificate::parse(ca_certificate_text));
         GET_EXPECTED_GTEST(caudal_certificate, vds::certificate::parse(caudal_certificate_text));
 
-        vds::certificate_store store;
-        CHECK_EXPECTED_GTEST(store.create());
+        GET_EXPECTED_GTEST(store, vds::certificate_store::create());
         CHECK_EXPECTED_GTEST(store.add(ca_certificate));
         
         GET_EXPECTED_GTEST(result, store.verify(caudal_certificate));
@@ -168,8 +162,7 @@ TEST(test_certificates, test_pem)
         GET_EXPECTED_GTEST(sub_certificate, vds::certificate::parse(sub_certificate_text));
         GET_EXPECTED_GTEST(caudal_certificate, vds::certificate::parse(caudal_certificate_text));
 
-        vds::certificate_store store;
-        CHECK_EXPECTED_GTEST(store.create());
+        GET_EXPECTED_GTEST(store, vds::certificate_store::create());
         CHECK_EXPECTED_GTEST(store.add(sub_certificate));
         CHECK_EXPECTED_GTEST(store.add(ca_certificate));
         
@@ -211,8 +204,7 @@ TEST(test_certificates, test_der)
     {
       GET_EXPECTED_GTEST(ca_certificate_private_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048()));
 
-      vds::asymmetric_public_key ca_certificate_public_key;
-      CHECK_EXPECTED_GTEST(ca_certificate_public_key.create(ca_certificate_private_key));
+      GET_EXPECTED_GTEST(ca_certificate_public_key, vds::asymmetric_public_key::create(ca_certificate_private_key));
 
       //Create CA certificate
       vds::certificate::create_options ca_options;
@@ -239,8 +231,7 @@ TEST(test_certificates, test_der)
 
       GET_EXPECTED_GTEST(sub_certificate_private_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048()));
 
-      vds::asymmetric_public_key sub_certificate_public_key;
-      CHECK_EXPECTED_GTEST(sub_certificate_public_key.create(sub_certificate_private_key));
+      GET_EXPECTED_GTEST(sub_certificate_public_key, vds::asymmetric_public_key::create(sub_certificate_private_key));
 
       //Create sub certificate
       vds::certificate::create_options sub_options;
@@ -269,8 +260,7 @@ TEST(test_certificates, test_der)
 
       GET_EXPECTED_GTEST(caudal_certificate_private_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048()));
 
-      vds::asymmetric_public_key caudal_certificate_public_key;
-      CHECK_EXPECTED_GTEST(caudal_certificate_public_key.create(caudal_certificate_private_key));
+      GET_EXPECTED_GTEST(caudal_certificate_public_key, vds::asymmetric_public_key::create(caudal_certificate_private_key));
 
       //Create sub certificate
       vds::certificate::create_options caudal_options;
@@ -294,8 +284,7 @@ TEST(test_certificates, test_der)
     {
       GET_EXPECTED_GTEST(caudal_certificate, vds::certificate::parse_der(caudal_certificate_text));
 
-      vds::certificate_store store;
-      CHECK_EXPECTED_GTEST(store.create());
+      GET_EXPECTED_GTEST(store, vds::certificate_store::create());
       GET_EXPECTED_GTEST(result, store.verify(caudal_certificate));
       ASSERT_EQ(result.error_code, X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
       ASSERT_EQ(result.issuer, "/C=RU/O=Test Org/CN=Sub Cert");
@@ -305,8 +294,7 @@ TEST(test_certificates, test_der)
       GET_EXPECTED_GTEST(sub_certificate, vds::certificate::parse_der(sub_certificate_text));
       GET_EXPECTED_GTEST(caudal_certificate, vds::certificate::parse_der(caudal_certificate_text));
 
-      vds::certificate_store store;
-      CHECK_EXPECTED_GTEST(store.create());
+      GET_EXPECTED_GTEST(store, vds::certificate_store::create());
       CHECK_EXPECTED_GTEST(store.add(sub_certificate));
 
       GET_EXPECTED_GTEST(result, store.verify(caudal_certificate));
@@ -320,8 +308,7 @@ TEST(test_certificates, test_der)
       GET_EXPECTED_GTEST(ca_certificate, vds::certificate::parse_der(ca_certificate_text));
       GET_EXPECTED_GTEST(caudal_certificate, vds::certificate::parse_der(caudal_certificate_text));
 
-      vds::certificate_store store;
-      CHECK_EXPECTED_GTEST(store.create());
+      GET_EXPECTED_GTEST(store, vds::certificate_store::create());
       CHECK_EXPECTED_GTEST(store.add(ca_certificate));
 
       GET_EXPECTED_GTEST(result, store.verify(caudal_certificate));
@@ -336,8 +323,7 @@ TEST(test_certificates, test_der)
       GET_EXPECTED_GTEST(sub_certificate, vds::certificate::parse_der(sub_certificate_text));
       GET_EXPECTED_GTEST(caudal_certificate, vds::certificate::parse_der(caudal_certificate_text));
 
-      vds::certificate_store store;
-      CHECK_EXPECTED_GTEST(store.create());
+      GET_EXPECTED_GTEST(store, vds::certificate_store::create());
       CHECK_EXPECTED_GTEST(store.add(sub_certificate));
       CHECK_EXPECTED_GTEST(store.add(ca_certificate));
 

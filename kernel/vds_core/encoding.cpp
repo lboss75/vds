@@ -111,19 +111,19 @@ vds::expected<void> vds::utf8::add(std::string& result, wchar_t ch)
     result += (char)ch;
   }
   else if (ch < 0x800) {
-    result += (char)(0b11000000 | (0b00011111 & ((ch - 0x80) >> 6)));
-    result += (char)(0b10000000 | (0b00111111 & (ch - 0x80)));
+    result += (char)(0b11000000 | (ch >> 6));
+    result += (char)(0b10000000 | (0b00111111 & ch));
   }
   else if (ch < 0x10000) {
-    result += (char)(0b11000000 | (0b00011111 & ((ch - 0x800) >> 12)));
-    result += (char)(0b10000000 | (0b00111111 & ((ch - 0x800) >> 6)));
-    result += (char)(0b10000000 | (0b00111111 & (ch - 0x800)));
+    result += (char)(0b11000000 | (ch >> 12));
+    result += (char)(0b10000000 | (0b00111111 & (ch >> 6)));
+    result += (char)(0b10000000 | (0b00111111 & ch));
   }
   else if (ch < 0x110000) {
-    result += (char)(0b11000000 | (0b00011111 & ((ch - 0x10000) >> 18)));
-    result += (char)(0b10000000 | (0b00111111 & ((ch - 0x10000) >> 12)));
-    result += (char)(0b10000000 | (0b00111111 & ((ch - 0x10000) >> 6)));
-    result += (char)(0b10000000 | (0b00111111 & (ch - 0x10000)));
+    result += (char)(0b11000000 | (ch >> 18));
+    result += (char)(0b10000000 | (0b00111111 & (ch >> 12)));
+    result += (char)(0b10000000 | (0b00111111 & (ch >> 6)));
+    result += (char)(0b10000000 | (0b00111111 & ch));
   }
   else {
     return vds::make_unexpected<std::runtime_error>("Invalid UTF16 string");

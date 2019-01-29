@@ -19,7 +19,9 @@ vds::expected<void> vds::dht::network::service::start(
   const service_provider * sp,
   const std::shared_ptr<iudp_transport> & udp_transport,
   const uint16_t port) {
-  return sp->get<db_model>()->async_transaction([this, sp, udp_transport, port](database_transaction& t) -> expected<void> {
+
+  std::list<std::function<async_task<expected<void>>()>> final_tasks;
+  CHECK_EXPECTED(sp->get<db_model>()->async_transaction([this, sp, udp_transport, port, &final_tasks](database_transaction& t) -> expected<void> {
     std::shared_ptr<certificate> node_cert;
     std::shared_ptr<asymmetric_private_key> node_key;
 
@@ -89,19 +91,35 @@ vds::expected<void> vds::dht::network::service::start(
           t2.private_key = storage_key_der)));
     }
 
-    this->udp_transport_task_ = std::make_unique<async_task<expected<void>>>(udp_transport->start(
-      sp,
-      node_cert,
-      node_key, 
-      port));
-
-    CHECK_EXPECTED(this->client_.start(
+      final_tasks.push_back([
+        this,
         sp,
         node_cert,
         node_key,
-        udp_transport));
+        port,
+        udp_transport]()->async_task<expected<void>> {
+        this->udp_transport_task_ = std::make_unique<async_task<expected<void>>>(udp_transport->start(
+          sp,
+          node_cert,
+          node_key,
+          port));
+
+        CHECK_EXPECTED_ASYNC(this->client_.start(
+          sp,
+          node_cert,
+          node_key,
+          udp_transport));
+        co_return expected<void>();
+        });
     return expected<void>();
-  }).get();
+  }).get());
+
+  while(!final_tasks.empty()) {
+    CHECK_EXPECTED(final_tasks.front()().get());
+    final_tasks.pop_front();
+  }
+
+  return expected<void>();
 }
 
 vds::expected<void> vds::dht::network::service::stop() {

@@ -124,6 +124,7 @@ namespace vds {
       size_(0),
       buffer_(new uint8_t[1024 * generator.k() * sizeof(cell_type)]),
       buffer_position_(0) {
+      vds_assert(!!this->target_);
     }
 
     async_task<expected<void>> write_async(

@@ -62,9 +62,9 @@ namespace vds {
           
           std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>& result);
         
-        async_task<expected<void>> on_new_session(
-          
+        expected<void> on_new_session(
           database_read_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const const_data_buffer& partner_id);
 
         static expected<filename> save_data(
@@ -79,8 +79,9 @@ namespace vds {
           const const_data_buffer& data_hash,
           const filename & original_file);
 
-        async_task<expected<std::vector<vds::const_data_buffer>>> save(
+        expected<std::vector<vds::const_data_buffer>> save(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const const_data_buffer& value);
 
         expected<std::shared_ptr<client_save_stream>> create_save_stream();
@@ -118,97 +119,99 @@ namespace vds {
           const imessage_map::message_info_t& message_info);
 
         //Sync messages
-        async_task<expected<void>> apply_message(
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_new_election_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_new_election_response& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(          
+        expected<void> apply_message(          
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_add_message_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_leader_broadcast_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_leader_broadcast_response& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_replica_operations_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_replica_operations_response& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_looking_storage_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_looking_storage_response& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_snapshot_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_snapshot_response& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_offer_send_replica_operation_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_offer_remove_replica_operation_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_replica_request& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_replica_data& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<expected<void>> apply_message(
-          
+        expected<void> apply_message(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const messages::sync_replica_query_operations_request & message,
           const imessage_map::message_info_t& message_info);
 
@@ -270,11 +273,12 @@ namespace vds {
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);
 
-        vds::async_task<vds::expected<client::block_info_t>> prepare_restore(
+        expected<client::block_info_t> prepare_restore(
           database_read_transaction & t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const std::vector<const_data_buffer>& object_ids);
 
-        vds::async_task<vds::expected<uint8_t>> restore_async(
+        async_task<vds::expected<uint8_t>> restore_async(
           
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result);
@@ -292,11 +296,12 @@ namespace vds {
           
           const std::shared_ptr<dht_session>& session);
 
-        async_task<expected<void>> add_sync_entry(
+        expected<void> add_sync_entry(
             database_transaction& t,
+            std::list<std::function<async_task<expected<void>>()>> & final_tasks,
             const const_data_buffer& object_id,
             uint32_t object_size) {
-          return this->sync_process_.add_sync_entry(t, object_id, object_size);
+          return this->sync_process_.add_sync_entry(t, final_tasks, object_id, object_size);
         }
 
         void update_wellknown_connection_enabled(bool value) {
@@ -319,9 +324,9 @@ namespace vds {
         uint32_t update_route_table_counter_;
         bool update_wellknown_connection_enabled_;
         vds::async_task<vds::expected<void>> update_route_table();
-        vds::async_task<vds::expected<void>> process_update(
-          
-          database_transaction& t);
+        vds::expected<void> process_update(
+          database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks);
 
 
         async_task<vds::expected<void>> send_near(
@@ -354,7 +359,8 @@ namespace vds {
           uint16_t replica);
 
         expected<void> update_wellknown_connection(          
-          database_transaction& t);
+          database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks);
 
         static expected<const_data_buffer> read_data(
           const const_data_buffer& data_hash,
@@ -363,6 +369,13 @@ namespace vds {
         static expected<void> delete_data(
           const const_data_buffer& replica_hash,
           const filename& filename);
+
+        expected<void> restore_async(
+          database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+          const std::vector<const_data_buffer>& object_ids,
+          const std::shared_ptr<const_data_buffer>& result,
+          const std::shared_ptr<uint8_t> & result_progress);
       };
     }
   }

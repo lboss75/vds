@@ -43,7 +43,9 @@ vds::async_task<vds::expected<std::vector<vds::const_data_buffer>>> vds::dht::ne
 
   auto result = std::make_shared<std::vector<const_data_buffer>>(service::GENERATE_HORCRUX);
 
-  CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([pthis_ = this->shared_from_this(), result](class database_transaction & t) -> expected<void> {
+  std::list<std::function<async_task<expected<void>>()>> final_tasks;
+
+  CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([pthis_ = this->shared_from_this(), result, &final_tasks](class database_transaction & t) -> expected<void> {
     auto pthis = static_cast<client_save_stream *>(pthis_.get());
     for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
       auto & f = static_cast<file_stream_output_async *>(pthis->generators_[replica].hash_stream_->target().get())->target();
@@ -75,7 +77,7 @@ vds::async_task<vds::expected<std::vector<vds::const_data_buffer>>> vds::dht::ne
             )));
         }
 
-        CHECK_EXPECTED((*client)->sync_process_.add_sync_entry(t, replica_hash, size).get());
+        CHECK_EXPECTED((*client)->sync_process_.add_sync_entry(t, final_tasks, replica_hash, size));
       }
       else {
         CHECK_EXPECTED(file::delete_file(f.name()));
@@ -85,6 +87,11 @@ vds::async_task<vds::expected<std::vector<vds::const_data_buffer>>> vds::dht::ne
     }
     return expected<void>();
   }));
+
+  while(!final_tasks.empty()) {
+    CHECK_EXPECTED_ASYNC(co_await final_tasks.front()());
+    final_tasks.pop_front();
+  }
 
   co_return *result;
 }
@@ -96,7 +103,7 @@ vds::dht::network::client_save_stream::generator_info_t::generator_info_t(
   generator_(
     std::make_shared<vds::chunk_output_async<uint16_t>>(
       generator,
-      hash_stream)){
+      this->hash_stream_)){
 }
 
 vds::dht::network::client_save_stream::client_save_stream(const service_provider* sp,

@@ -11,13 +11,14 @@
 
 #define route_client(message_type)\
   case dht::network::message_type_t::message_type: {\
-    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) -> expected<void> {\
+    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this(), &final_tasks](database_transaction & t) -> expected<void> {\
         binary_deserializer s(message_info.message_data());\
         GET_EXPECTED(message, message_deserialize<dht::messages::message_type>(s));\
         CHECK_EXPECTED((*pthis->sp_->get<dht::network::client>())->apply_message(\
          t,\
+         final_tasks,\
          message,\
-         message_info).get());\
+         message_info));\
        return expected<void>();\
       }));\
       break;\
@@ -29,16 +30,17 @@ vds::async_task<vds::expected<void>> vds::_server::process_message(
   if(this->sp_->get_shutdown_event().is_shuting_down()) {
     co_return expected<void>();
   }
-
+  std::list<std::function<async_task<expected<void>>()>> final_tasks;
   switch(message_info.message_type()){
   case dht::network::message_type_t::transaction_log_state: {
-    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) -> expected<void> {
+    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this(), &final_tasks](database_transaction & t) -> expected<void> {
       binary_deserializer s(message_info.message_data());
       GET_EXPECTED(message, message_deserialize<dht::messages::transaction_log_state>(s));
       CHECK_EXPECTED((*pthis->sp_->get<server>())->apply_message(
           t,
+          final_tasks,
           message,
-          message_info).get());
+          message_info));
 
       return expected<void>();
     }));
@@ -46,26 +48,28 @@ vds::async_task<vds::expected<void>> vds::_server::process_message(
   }
   case dht::network::message_type_t::transaction_log_request: {
     CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction(
-        [message_info, pthis = this->shared_from_this()](database_transaction & t) -> expected<void> {
+        [message_info, pthis = this->shared_from_this(), &final_tasks](database_transaction & t) -> expected<void> {
       binary_deserializer s(message_info.message_data());
       GET_EXPECTED(message, message_deserialize<dht::messages::transaction_log_request>(s));
       CHECK_EXPECTED((*pthis->sp_->get<server>())->apply_message(
           t,
+          final_tasks,
           message,
-          message_info).get());
+          message_info));
 
       return expected<void>();
     }));
     break;
   }
   case dht::network::message_type_t::transaction_log_record: {
-    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this()](database_transaction & t) -> expected<void> {
+    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this(), &final_tasks](database_transaction & t) -> expected<void> {
       binary_deserializer s(message_info.message_data());
       GET_EXPECTED(message, message_deserialize<dht::messages::transaction_log_record>(s));
       CHECK_EXPECTED((*pthis->sp_->get<server>())->apply_message(
           t,
+          final_tasks,
           message,
-          message_info).get());
+          message_info));
       return expected<void>();
     }));
     break;
@@ -182,6 +186,11 @@ vds::async_task<vds::expected<void>> vds::_server::process_message(
     default:{
       co_return vds::make_unexpected<std::runtime_error>("Invalid command");
     }
+  }
+
+  while (!final_tasks.empty()) {
+    CHECK_EXPECTED_ASYNC(co_await final_tasks.front()());
+    final_tasks.pop_front();
   }
 
   co_return expected<void>();

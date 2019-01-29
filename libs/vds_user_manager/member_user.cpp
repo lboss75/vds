@@ -35,6 +35,11 @@ vds::member_user::member_user()
 : impl_(nullptr) {
 }
 
+vds::member_user::member_user(member_user&& original) noexcept
+: impl_(original.impl_){
+  original.impl_ = nullptr;
+}
+
 vds::member_user::~member_user() {
   delete this->impl_;
 }
@@ -63,6 +68,13 @@ vds::expected<vds::user_channel> vds::member_user::create_channel(
 
 vds::expected<vds::user_channel> vds::member_user::personal_channel() const {
   return this->impl_->personal_channel();
+}
+
+vds::member_user& vds::member_user::operator=(member_user&& original) noexcept {
+  delete this->impl_;
+  this->impl_ = original.impl_;
+  original.impl_ = nullptr;
+  return *this;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

@@ -40,7 +40,6 @@ namespace vds {
   private:
     std::function<vds::async_task<vds::expected<void>>(http_message message)> message_callback_;
     uint8_t buffer_[1024];
-    size_t readed_;
     bool eof_;
 
     std::string parse_buffer_;

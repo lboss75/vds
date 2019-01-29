@@ -198,8 +198,7 @@ vds::expected<vds::const_data_buffer> vds::user_manager::create_register_request
   GET_EXPECTED(user_private_key, vds::asymmetric_private_key::generate(
     vds::asymmetric_crypto::rsa4096()));
 
-  asymmetric_public_key user_public_key;
-  CHECK_EXPECTED(user_public_key.create(user_private_key));
+  GET_EXPECTED(user_public_key, asymmetric_public_key::create(user_private_key));
 
   binary_serializer s;
   CHECK_EXPECTED(s << userName);
@@ -242,185 +241,203 @@ vds::expected<void> vds::_user_manager::create(
   return expected<void>();
 }
 
- vds::expected<void> vds::_user_manager::update(
-		database_read_transaction &t) {
-	const auto log = this->sp_->get<logger>();
+vds::expected<bool> vds::_user_manager::process_root_user_transaction(const transactions::root_user_transaction & message) {
+  this->root_user_cert_ = message.user_cert;
+  this->root_user_name_ = message.user_name;
 
-  std::list<const_data_buffer> new_records;
-  orm::transaction_log_record_dbo t1;
-	GET_EXPECTED(st, t.get_reader(
-			t1.select(t1.id)
-					.order_by(t1.order_no)));
-  WHILE_EXPECTED (st.execute())
-    auto id = t1.id.get(st);
-    if (this->processed_.end() != this->processed_.find(id)) {
-      continue;
-    }
+  if (this->user_credentials_key_ == message.user_credentials_key) {
+    this->user_cert_ = message.user_cert;
+    this->user_name_ = message.user_name;
+    this->login_state_ = user_manager::login_state_t::login_successful;
 
-    new_records.push_back(id);
-  WHILE_EXPECTED_END()
+    GET_EXPECTED(user_private_key, asymmetric_private_key::parse_der(message.user_private_key, this->user_password_));
+    this->user_private_key_ = std::make_shared<asymmetric_private_key>(std::move(user_private_key));
 
-  if(new_records.empty() && this->login_state_ == user_manager::login_state_t::waiting) {
-    this->login_state_ = user_manager::login_state_t::login_failed;
+    GET_EXPECTED(cp, _user_channel::import_personal_channel(
+      this->user_cert_,
+      this->user_private_key_));
+
+    this->channels_[cp->id()] = cp;
+
+    GET_EXPECTED_VALUE(cp, _user_channel::import_personal_channel(
+      this->user_cert_,
+      this->user_private_key_));
+
+    this->channels_[cp->id()] = cp;
   }
 
-	std::set<const_data_buffer> new_channels;
-	for(auto & id : new_records) {
-    GET_EXPECTED_VALUE(st, t.get_reader(
-      t1.select(t1.data)
-      .where(t1.id == id)));
+  return true;
+}
 
-    GET_EXPECTED(st_result, st.execute());
-    if(!st_result) {
-      return vds::make_unexpected<std::runtime_error>("Invalid program");
-    }
+vds::expected<bool> vds::_user_manager::process_create_user_transaction(
+  const transactions::create_user_transaction & message) {
+  if (this->user_credentials_key_ == message.user_credentials_key) {
+    this->user_cert_ = message.user_cert;
+    this->user_name_ = message.user_name;
 
-    const auto data = t1.data.get(st);
-	  GET_EXPECTED(block, transactions::transaction_block::create(data));
+    GET_EXPECTED(user_private_key, asymmetric_private_key::parse_der(message.user_private_key, this->user_password_));
+    this->user_private_key_ = std::make_shared<asymmetric_private_key>(std::move(user_private_key));
 
-    CHECK_EXPECTED(block.walk_messages(
-      [this](const transactions::root_user_transaction & message)->expected<bool>{
-        this->root_user_cert_ = message.user_cert;
-        this->root_user_name_ = message.user_name;
+    this->login_state_ = user_manager::login_state_t::login_successful;
 
-        if (this->user_credentials_key_ == message.user_credentials_key) {
-          this->user_cert_ = message.user_cert;
-          this->user_name_ = message.user_name;
-          this->login_state_ = user_manager::login_state_t::login_successful;
-          
-          GET_EXPECTED(user_private_key, asymmetric_private_key::parse_der(message.user_private_key, this->user_password_));
-          this->user_private_key_ = std::make_shared<asymmetric_private_key>(std::move(user_private_key));
+    GET_EXPECTED(cp, _user_channel::import_personal_channel(
+      this->user_cert_,
+      this->user_private_key_));
+    this->channels_[cp->id()] = cp;
+  }
+  return true;
+}
 
-          GET_EXPECTED(cp, _user_channel::import_personal_channel(
-            this->user_cert_,
-            this->user_private_key_));
+vds::expected<bool> vds::_user_manager::process_channel_message(
+  const transactions::channel_message & message,
+  std::set<const_data_buffer> & new_channels,
+  std::chrono::system_clock::time_point tp) {
+  const auto log = this->sp_->get<logger>();
+  auto channel = this->get_channel(message.channel_id());
+  if (channel) {
+    auto channel_read_key = channel->read_cert_private_key(message.channel_read_cert_subject());
+    if (channel_read_key) {
+      CHECK_EXPECTED(message.walk_messages(this->sp_, *channel_read_key, transactions::message_environment_t{ tp, "???" },
+        [this, channel_id = message.channel_id(), log](
+          const transactions::channel_add_reader_transaction & message,
+          const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
+        auto cp = std::make_shared<user_channel>(
+          message.id,
+          message.channel_type,
+          message.name,
+          message.read_cert,
+          message.read_private_key,
+          message.write_cert,
+          std::shared_ptr<asymmetric_private_key>());
 
-          this->channels_[cp->id()] = cp;
-
-          GET_EXPECTED_VALUE(cp, _user_channel::import_personal_channel(
-            this->user_cert_,
-            this->user_private_key_));
-
-          this->channels_[cp->id()] = cp;
-        }
+        this->channels_[cp->id()] = cp;
+        log->debug(ThisModule, "Got channel %s reader certificate",
+          base64::from_bytes(cp->id()).c_str());
 
         return true;
       },
-      [this](const transactions::create_user_transaction & message)->expected<bool> {
-        if (this->user_credentials_key_ == message.user_credentials_key) {
-          this->user_cert_ = message.user_cert;
-          this->user_name_ = message.user_name;
+        [this, channel_id = message.channel_id(), log](
+          const transactions::channel_add_writer_transaction & message,
+          const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
+        auto cp = std::make_shared<user_channel>(
+          message.id,
+          message.channel_type,
+          message.name,
+          message.read_cert,
+          message.read_private_key,
+          message.write_cert,
+          message.write_private_key);
 
-          GET_EXPECTED(user_private_key, asymmetric_private_key::parse_der(message.user_private_key, this->user_password_));
-          this->user_private_key_ = std::make_shared<asymmetric_private_key>(std::move(user_private_key));
+        this->channels_[cp->id()] = cp;
 
-          this->login_state_ = user_manager::login_state_t::login_successful;
+        log->debug(ThisModule, "Got channel %s write certificate",
+          base64::from_bytes(cp->id()).c_str());
 
-          GET_EXPECTED(cp, _user_channel::import_personal_channel(
-            this->user_cert_,
-            this->user_private_key_));
-          this->channels_[cp->id()] = cp;
-        }
         return true;
       },
-        [this, &new_channels, log, tp = block.time_point()](const transactions::channel_message  & message)->expected<bool>{
-        auto channel = this->get_channel(message.channel_id());
-        if (channel) {
-          auto channel_read_key = channel->read_cert_private_key(message.channel_read_cert_subject());
-          if (channel_read_key) {
-            CHECK_EXPECTED(message.walk_messages(this->sp_, *channel_read_key, transactions::message_environment_t { tp, "???" },
-              [this, channel_id = message.channel_id(), log](
-                const transactions::channel_add_reader_transaction & message,
-                const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
-              auto cp = std::make_shared<user_channel>(
-                message.id,
-                message.channel_type,
-                message.name,
-                message.read_cert,
-                message.read_private_key,
-                message.write_cert,
-                std::shared_ptr<asymmetric_private_key>());
+        [this, channel_id = message.channel_id(), log, &new_channels](
+          const transactions::channel_create_transaction & message,
+          const transactions::message_environment_t & /*message_environment*/)->expected<bool>{
+        if (new_channels.end() == new_channels.find(channel_id)) {
+          new_channels.emplace(message.channel_id);
+        }
+        auto cp = std::make_shared<user_channel>(
+          message.channel_id,
+          message.channel_type,
+          message.name,
+          message.read_cert,
+          message.read_private_key,
+          message.write_cert,
+          message.write_private_key);
 
-              this->channels_[cp->id()] = cp;
-              log->debug(ThisModule, "Got channel %s reader certificate",
-                base64::from_bytes(cp->id()).c_str());
+        this->channels_[cp->id()] = cp;
 
-              return true;
-            },
-              [this, channel_id = message.channel_id(), log](
-                const transactions::channel_add_writer_transaction & message,
-                const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
-              auto cp = std::make_shared<user_channel>(
-                message.id,
-                message.channel_type,
-                message.name,
-                message.read_cert,
-                message.read_private_key,
-                message.write_cert,
-                message.write_private_key);
+        return true;
+      },
+        [this, channel_id = message.channel_id(), log](
+          const transactions::control_message_transaction & message,
+          const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
+        auto msg = std::dynamic_pointer_cast<json_object>(message.message);
+        std::string type;
+        if (msg) {
+          GET_EXPECTED(have_type, msg->get_property("$type", type));
+          if (have_type) {
+            if (transactions::control_message_transaction::create_wallet_type == type) {
+              std::string name;
+              CHECK_EXPECTED(msg->get_property("name", name));
 
-              this->channels_[cp->id()] = cp;
+              GET_EXPECTED(cert, certificate::parse_der(message.attachments.at("cert")));
+              GET_EXPECTED(private_key, asymmetric_private_key::parse_der(message.attachments.at("key"), std::string()));
+              auto wallet = std::make_shared<user_wallet>(
+                name,
+                std::move(cert),
+                std::move(private_key));
 
-              log->debug(ThisModule, "Got channel %s write certificate",
-                base64::from_bytes(cp->id()).c_str());
+              this->wallets_.push_back(wallet);
 
-              return true;
-            },
-              [this, channel_id = message.channel_id(), log, &new_channels](
-                const transactions::channel_create_transaction & message,
-                const transactions::message_environment_t & /*message_environment*/)->expected<bool>{
-              if (new_channels.end() == new_channels.find(channel_id)) {
-                new_channels.emplace(message.channel_id);
-              }
-              auto cp = std::make_shared<user_channel>(
-                message.channel_id,
-                message.channel_type,
-                message.name,
-                message.read_cert,
-                message.read_private_key,
-                message.write_cert,
-                message.write_private_key);
-
-              this->channels_[cp->id()] = cp;
-
-              return true;
-            },
-              [this, channel_id = message.channel_id(), log](
-                const transactions::control_message_transaction & message,
-                const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
-              auto msg = std::dynamic_pointer_cast<json_object>(message.message);
-              std::string type;
-                if(msg) {
-                  GET_EXPECTED(have_type, msg->get_property("$type", type));
-                  if (have_type) {
-                    if (transactions::control_message_transaction::create_wallet_type == type) {
-                      std::string name;
-                      CHECK_EXPECTED(msg->get_property("name", name));
-
-                      GET_EXPECTED(cert, certificate::parse_der(message.attachments.at("cert")));
-                      GET_EXPECTED(private_key, asymmetric_private_key::parse_der(message.attachments.at("key"), std::string()));
-                      auto wallet = std::make_shared<user_wallet>(
-                        name,
-                        std::move(cert),
-                        std::move(private_key));
-
-                      this->wallets_.push_back(wallet);
-
-                      log->debug(ThisModule, "Got wallet %s write certificate",
-                        name.c_str());
-                    }
-                  }
-                }
-
-              return true;
-            }));
+              log->debug(ThisModule, "Got wallet %s write certificate",
+                name.c_str());
+            }
           }
         }
 
         return true;
       }));
-	}
+    }
+  }
 
+  return true;
+}
+
+vds::expected<void> vds::_user_manager::update(
+  database_read_transaction &t) {
+  const auto log = this->sp_->get<logger>();
+
+  std::list<const_data_buffer> new_records;
+  orm::transaction_log_record_dbo t1;
+  GET_EXPECTED(st, t.get_reader(
+    t1.select(t1.id)
+    .order_by(t1.order_no)));
+  WHILE_EXPECTED(st.execute())
+    auto id = t1.id.get(st);
+  if (this->processed_.end() != this->processed_.find(id)) {
+    continue;
+  }
+
+  new_records.push_back(id);
+  WHILE_EXPECTED_END()
+
+    if (new_records.empty() && this->login_state_ == user_manager::login_state_t::waiting) {
+      this->login_state_ = user_manager::login_state_t::login_failed;
+    }
+
+  std::set<const_data_buffer> new_channels;
+  for (auto & id : new_records) {
+    GET_EXPECTED_VALUE(st, t.get_reader(
+      t1.select(t1.data)
+      .where(t1.id == id)));
+
+    GET_EXPECTED(st_result, st.execute());
+    if (!st_result) {
+      return vds::make_unexpected<std::runtime_error>("Invalid program");
+    }
+
+    const auto data = t1.data.get(st);
+    GET_EXPECTED(block, transactions::transaction_block::create(data));
+
+    CHECK_EXPECTED(block.walk_messages(
+      [this](const transactions::root_user_transaction & message)->expected<bool> {
+      return this->process_root_user_transaction(message);
+    },
+      [this](const transactions::create_user_transaction & message)->expected<bool> {
+      return this->process_create_user_transaction(message);
+    },
+      [this, &new_channels, tp = block.time_point()](const transactions::channel_message  & message)->expected<bool>{
+      return this->process_channel_message(message, new_channels, tp);
+    }
+    ));
+  }
+  
   return expected<void>();
 }
 
@@ -482,8 +499,7 @@ vds::async_task<vds::expected<bool>> vds::_user_manager::approve_join_request(co
 
     GET_EXPECTED(user_cert, certificate::create_new(*user_public_key_param, asymmetric_private_key(), local_user_options));
 
-    transactions::transaction_block_builder playback;
-    CHECK_EXPECTED(playback.create(pthis->sp_, t));
+    GET_EXPECTED(playback, transactions::transaction_block_builder::create(pthis->sp_, t));
 
     CHECK_EXPECTED(playback.add(
       message_create<transactions::create_user_transaction>(
@@ -561,8 +577,7 @@ vds::async_task<vds::expected<vds::user_channel>> vds::_user_manager::create_cha
   CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction(
     [pthis = this->shared_from_this(), channel_type, name, result](database_transaction & t)->expected<void> {
 
-    vds::transactions::transaction_block_builder log;
-    CHECK_EXPECTED(log.create(pthis->sp_, t));
+    GET_EXPECTED(log, vds::transactions::transaction_block_builder::create(pthis->sp_, t));
 
     vds::asymmetric_private_key channel_read_private_key;
     vds::asymmetric_private_key channel_write_private_key;

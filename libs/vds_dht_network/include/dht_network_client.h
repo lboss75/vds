@@ -45,8 +45,9 @@ namespace vds {
           std::map<const_data_buffer, std::list<uint16_t>> replicas;
         };
 
-        async_task<expected<chunk_info>> save(
+        expected<chunk_info> save(
           database_transaction& t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const const_data_buffer& value);
 
         async_task<expected<chunk_info>> start_save(
@@ -57,8 +58,9 @@ namespace vds {
         async_task<expected<const_data_buffer>> restore(          
           const chunk_info& block_id);
 
-        async_task<expected<block_info_t>> prepare_restore(
+        expected<block_info_t> prepare_restore(
           database_read_transaction & t,
+          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const chunk_info& block_id);
 
         const const_data_buffer& current_node_id() const;

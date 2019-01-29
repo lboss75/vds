@@ -54,8 +54,7 @@ vds::expected<vds::user_wallet> vds::user_wallet::create_wallet(
   const std::string & name)
 {
   GET_EXPECTED(cert_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-  asymmetric_public_key cert_public_key;
-  CHECK_EXPECTED(cert_public_key.create(cert_private_key));
+  GET_EXPECTED(cert_public_key, asymmetric_public_key::create(cert_private_key));
 
   certificate::create_options cert_options;
   cert_options.country = "RU";

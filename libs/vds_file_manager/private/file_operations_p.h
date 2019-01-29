@@ -78,8 +78,9 @@ namespace vds {
           const std::shared_ptr<stream_output_async<uint8_t>> & target_stream,
           const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);
 
-      async_task<expected<std::map<vds::const_data_buffer, dht::network::client::block_info_t>>> prepare_download_stream(
+      expected<std::map<vds::const_data_buffer, dht::network::client::block_info_t>> prepare_download_stream(
         database_read_transaction &t,
+        std::list<std::function<async_task<expected<void>>()>> & final_tasks,
         const std::list<vds::transactions::user_message_transaction::file_block_t> &file_blocks_param);
 
 		};

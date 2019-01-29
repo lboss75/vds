@@ -46,20 +46,20 @@ vds::async_task<vds::expected<vds::http_message>> vds::index_page::create_messag
   co_return http_response::redirect("/");
 }
 
-class parse_request_form : public vds::http::form_parser<parse_request_form> {
-  using base_class = vds::http::form_parser<parse_request_form>;
+class parse_request_form : public vds::http::form_parser {
+  using base_class = vds::http::form_parser;
     
 public:
   parse_request_form(const vds::service_provider * sp)
       : base_class(sp), successful_(false) {
   }
 
-  vds::async_task<vds::expected<void>> on_field(const simple_field_info & /*field*/) {
+  vds::async_task<vds::expected<void>> on_field(const simple_field_info & /*field*/) override {
     //Ignore return vds::make_unexpected<std::runtime_error>("Invalid field " + field.name);
     co_return vds::expected<void>();
   }
 
-  vds::async_task<vds::expected<void>> on_file( const file_info & file) {
+  vds::async_task<vds::expected<void>> on_file( const file_info & file) override {
     vds::const_data_buffer buffer;
     GET_EXPECTED_VALUE_ASYNC(buffer, co_await file.stream->read_all());
     GET_EXPECTED_VALUE_ASYNC(this->successful_, vds::user_manager::parse_join_request(
@@ -109,8 +109,8 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::index_page
   co_return result;
 }
 
-class approve_join_request_form : public vds::http::form_parser<approve_join_request_form> {
-  using base_class = vds::http::form_parser<approve_join_request_form>;
+class approve_join_request_form : public vds::http::form_parser {
+  using base_class = vds::http::form_parser;
 
 public:
   approve_join_request_form(
@@ -120,11 +120,11 @@ public:
 
   }
 
-  vds::async_task<vds::expected<void>> on_field(const simple_field_info & /*field*/) {
+  vds::async_task<vds::expected<void>> on_field(const simple_field_info & /*field*/) override {
     co_return vds::expected<void>();
   }
 
-  vds::async_task<vds::expected<void>> on_file( const file_info & file) {
+  vds::async_task<vds::expected<void>> on_file( const file_info & file) override {
     vds::const_data_buffer buffer;
     GET_EXPECTED_VALUE_ASYNC(buffer, co_await file.stream->read_all());
     GET_EXPECTED_VALUE_ASYNC(this->successful_, co_await this->user_mng_->approve_join_request(buffer));

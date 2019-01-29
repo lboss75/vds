@@ -116,15 +116,15 @@ vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const
     return vds::make_unexpected<std::runtime_error>("Invalid signature");
   }
 
-  return sp->get<db_model>()->async_transaction([sp, user_mng, user, local_path, name, reserved_size](database_transaction & t) -> expected<void> {
+  return sp->get<db_model>()->async_transaction([sp, user_mng, local_path, name, reserved_size](database_transaction & t) -> expected<void> {
+    auto user = user_mng->get_current_user();
     auto client = sp->get<dht::network::client>();
     auto current_node = client->current_node_id();
 
     GET_EXPECTED(storage_key_data, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
     auto storage_key = std::make_shared<asymmetric_private_key>(std::move(storage_key_data));
 
-    asymmetric_public_key public_key;
-    CHECK_EXPECTED(public_key.create(*storage_key));
+    GET_EXPECTED(public_key, asymmetric_public_key::create(*storage_key));
 
     certificate::create_options options;
     options.name = "!Storage Cert";

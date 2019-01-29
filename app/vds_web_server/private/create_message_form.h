@@ -11,8 +11,8 @@ All rights reserved
 #include "file_operations.h"
 
 namespace vds {
-  class create_message_form : public http::form_parser<create_message_form> {
-    using base_class = vds::http::form_parser<create_message_form>;
+  class create_message_form : public http::form_parser {
+    using base_class = vds::http::form_parser;
   public:
     create_message_form(
       const vds::service_provider * sp,
@@ -21,7 +21,7 @@ namespace vds {
       this->message_->add_property("$type", "SimpleMessage");
     }
 
-    vds::async_task<vds::expected<void>> on_field(const simple_field_info & field) {
+    vds::async_task<vds::expected<void>> on_field(const simple_field_info & field) override {
       if (field.name == "channel_id") {
         GET_EXPECTED_VALUE_ASYNC(this->channel_id_, vds::base64::to_bytes(field.value));
       }
@@ -35,7 +35,7 @@ namespace vds {
       co_return expected<void>();
     }
 
-    vds::async_task<vds::expected<void>> on_file(const file_info & file) {
+    vds::async_task<vds::expected<void>> on_file(const file_info & file) override {
         vds::transactions::user_message_transaction::file_info_t file_info;
       GET_EXPECTED_VALUE_ASYNC(file_info, co_await this->sp_->get<vds::file_manager::file_operations>()->upload_file(
         this->user_mng_,
@@ -48,6 +48,9 @@ namespace vds {
     }
 
     vds::async_task<vds::expected<void>> complete() {
+      if(!this->channel_id_) {
+        return make_unexpected<std::runtime_error>("Specify channel_id");
+      }
       return this->sp_->get<vds::file_manager::file_operations>()->create_message(
         this->user_mng_,
         this->channel_id_,

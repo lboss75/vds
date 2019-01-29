@@ -103,6 +103,13 @@ namespace vds {
     std::map<const_data_buffer, std::shared_ptr<user_channel>> channels_;
     std::map<std::string, std::shared_ptr<certificate>> certificate_chain_;
     std::list<std::shared_ptr<user_wallet>> wallets_;
+
+    expected<bool> process_root_user_transaction(const transactions::root_user_transaction & message);
+    expected<bool> process_create_user_transaction(const transactions::create_user_transaction & message);
+    expected<bool> process_channel_message(
+      const transactions::channel_message & message,
+      std::set<const_data_buffer> & new_channels,
+      std::chrono::system_clock::time_point tp);
   };
 }
 

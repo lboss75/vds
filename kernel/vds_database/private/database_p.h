@@ -275,16 +275,21 @@ namespace vds {
 
       auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
       this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback]() -> expected<void> {
+        thread_protect protect;
 
         database_read_transaction tr(pthis);
         auto callback_result = callback(tr);
 
         if(callback_result.has_error()) {
           pthis->sp_->get<logger>()->trace("DB", "%s at read transaction", callback_result.error()->what());
-          r->set_value(unexpected(std::move(callback_result.error())));
+          mt_service::async(pthis->sp_, [r, error = callback_result.error().release()]() {
+            r->set_value(unexpected(std::unique_ptr<std::exception>(error)));
+          });
         }
         else {
-          r->set_value(expected<void>());
+          mt_service::async(pthis->sp_, [r]() {
+            r->set_value(expected<void>());
+          });
         }
         return expected<void>();
       });
@@ -297,6 +302,7 @@ namespace vds {
       auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
 
       this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback]() -> expected<void> {
+        thread_protect protect;
         CHECK_EXPECTED(pthis->execute("BEGIN TRANSACTION"));
 
         database_transaction tr(pthis);
@@ -304,15 +310,21 @@ namespace vds {
         if(callback_result.has_error()) {
           CHECK_EXPECTED(pthis->execute("ROLLBACK TRANSACTION"));
           pthis->sp_->get<logger>()->trace("DB", "%s at transaction", callback_result.error()->what());
-          r->set_value(unexpected(std::move(callback_result.error())));
+          mt_service::async(pthis->sp_, [r, error = callback_result.error().release()]() {
+            r->set_value(unexpected(std::unique_ptr<std::exception>(error)));
+          });
         }
         else if(callback_result.value()) {
           CHECK_EXPECTED(pthis->execute("COMMIT TRANSACTION"));
-          r->set_value(expected<void>());
+          mt_service::async(pthis->sp_, [r]() {
+            r->set_value(expected<void>());
+          });
         }
         else {
           CHECK_EXPECTED(pthis->execute("ROLLBACK TRANSACTION"));
-          r->set_value(expected<void>());
+          mt_service::async(pthis->sp_, [r]() {
+            r->set_value(expected<void>());
+          });
         }
 
         return expected<void>();

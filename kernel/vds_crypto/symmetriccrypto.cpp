@@ -180,6 +180,8 @@ vds::expected<vds::const_data_buffer> vds::symmetric_encrypt::encrypt(
   const vds::symmetric_key& key,
   const void * input_buffer,
   size_t input_buffer_size) {
+  thread_unprotect thread_unprotect;
+
   auto result = std::make_shared<collect_data<uint8_t>>();
 
   _symmetric_encrypt s;
@@ -227,6 +229,8 @@ vds::expected<vds::const_data_buffer> vds::symmetric_decrypt::decrypt(
   const void * input_buffer,
   size_t input_buffer_size)
 {
+  thread_unprotect thread_unprotect;
+
   auto result = std::make_shared<collect_data<uint8_t>>();
    
   _symmetric_decrypt s;

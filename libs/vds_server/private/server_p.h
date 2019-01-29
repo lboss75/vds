@@ -59,21 +59,21 @@ namespace vds {
       
       const const_data_buffer& partner_id) override;
 
-      async_task<expected<void>> apply_message(
-      
+      expected<void> apply_message(
       database_transaction & t,
+        std::list<std::function<async_task<expected<void>>()>> & final_tasks,
       const dht::messages::transaction_log_state & message,
       const message_info_t & message_info);
 
-      async_task<expected<void>> apply_message(
-      
+      expected<void> apply_message(
       database_transaction& t,
+        std::list<std::function<async_task<expected<void>>()>> & final_tasks,
       const dht::messages::transaction_log_request& message,
       const message_info_t & message_info);
 
-      async_task<expected<void>> apply_message(
-      
+      expected<void> apply_message(
       database_transaction& t,
+        std::list<std::function<async_task<expected<void>>()>> & final_tasks,
       const dht::messages::transaction_log_record & message,
       const message_info_t & message_info);
 

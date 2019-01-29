@@ -13,8 +13,7 @@ vds::expected<std::shared_ptr<vds::file_stream_output_async>> vds::file_stream_o
 }
 
 vds::expected< std::shared_ptr<vds::file_stream_output_async>> vds::file_stream_output_async::create_tmp(const service_provider * sp) {
-  file f;
-  CHECK_EXPECTED(f.create_temp(sp));
+  GET_EXPECTED(f, file::create_temp(sp));
   return std::make_shared<file_stream_output_async>(std::move(f));
 }
 

@@ -53,7 +53,10 @@ vds::async_task<vds::expected<void>>
 vds::dht::network::udp_transport::write_async( const udp_datagram& datagram) {
   auto result = std::make_shared<vds::async_result<vds::expected<void>>>();
   this->send_thread_->schedule([result, this, datagram]() ->expected<void> {
-    result->set_value(this->writer_->write_async(datagram).get());
+    auto res = std::make_shared<expected<void>>(this->writer_->write_async(datagram).get());
+    mt_service::async(this->sp_, [res, result]() {
+      result->set_value(std::move(*res));
+    });
     return expected<void>();
   });
 
@@ -155,6 +158,9 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
   for (;;) {
     auto datagram_result = co_await this->reader_->read_async();
     if(datagram_result.has_error()) {
+      if(this->sp_->get_shutdown_event().is_shuting_down()) {
+        co_return expected<void>();
+      }
       continue;
     }
 

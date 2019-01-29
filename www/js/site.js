@@ -71,6 +71,7 @@ function load_channels(session_id) {
                     if (!current_channel) {
                         current_channel = this.object_id;
                         sessionStorage.setItem("vds_channel", current_channel);
+                        $('#channel_id').val(channel_id);
                     }
                     $('#channelsMenu')
                         .append($((current_channel == this.object_id) ? '<li class="nav-item  active"/>' : '<li class="nav-item"/>')

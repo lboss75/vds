@@ -29,20 +29,20 @@ vds::dht::network::sync_process::sync_process(const service_provider * sp)
   }
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::do_sync(
-  
-  database_transaction& t) {
+vds::expected<void> vds::dht::network::sync_process::do_sync(  
+  database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks) {
 
-  CHECK_EXPECTED_ASYNC(co_await this->sync_entries(t));
-  CHECK_EXPECTED_ASYNC(co_await this->sync_local_queues(t));
-  CHECK_EXPECTED_ASYNC(co_await this->sync_replicas(t));
+  CHECK_EXPECTED(this->sync_entries(t, final_tasks));
+  CHECK_EXPECTED(this->sync_local_queues(t, final_tasks));
+  CHECK_EXPECTED(this->sync_replicas(t, final_tasks));
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_to_log(
-  
+vds::expected<void> vds::dht::network::sync_process::add_to_log(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& object_id,
   orm::sync_message_dbo::message_type_t message_type,
   const const_data_buffer& member_node,
@@ -50,18 +50,18 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_to_log
   const const_data_buffer& source_node,
   uint64_t source_index) {
   orm::sync_message_dbo t3;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t3.select(t3.object_id)
+  GET_EXPECTED(st, t.get_reader(t3.select(t3.object_id)
                            .where(t3.object_id == object_id
                              && t3.source_node == source_node
                              && t3.source_index == source_index)));
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (st_execute) {
-    co_return expected<void>();
+    return expected<void>();
   }
 
   auto client = this->sp_->get<network::client>();
   orm::sync_member_dbo t2;
-  GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t2.select(
+  GET_EXPECTED_VALUE(st, t.get_reader(t2.select(
                         t2.generation,
                         t2.current_term,
                         t2.commit_index,
@@ -69,9 +69,9 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_to_log
                       .where(t2.object_id == object_id
                         && t2.member_node == client->current_node_id())));
 
-  GET_EXPECTED_VALUE_ASYNC(st_execute, st.execute());
-  if (st_execute) {
-    co_return vds::make_unexpected<vds_exceptions::invalid_operation>();
+  GET_EXPECTED_VALUE(st_execute, st.execute());
+  if (!st_execute) {
+    return vds::make_unexpected<vds_exceptions::invalid_operation>();
   }
 
   const auto generation = t2.generation.get(st);
@@ -79,7 +79,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_to_log
   auto commit_index = t2.commit_index.get(st);
   const auto last_applied = t2.last_applied.get(st) + 1;
 
-  CHECK_EXPECTED_ASYNC(
+  CHECK_EXPECTED(
     t.execute(t3.insert(
     t3.object_id = object_id,
     t3.generation = generation,
@@ -91,13 +91,13 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_to_log
     t3.source_node = source_node,
     t3.source_index = source_index)));
 
-  CHECK_EXPECTED_ASYNC(t.execute(t2.update(
+  CHECK_EXPECTED(t.execute(t2.update(
                 t2.last_applied = last_applied)
               .where(t2.object_id == object_id
                 && t2.member_node == client->current_node_id())));
-  CHECK_EXPECTED_ASYNC(validate_last_applied(t, object_id));
+  CHECK_EXPECTED(validate_last_applied(t, object_id));
 
-  GET_EXPECTED_ASYNC(members, get_members(t, object_id, true));
+  GET_EXPECTED(members, get_members(t, object_id, true));
   for (const auto& member : members) {
     if (client->current_node_id() != member) {
       this->sp_->get<logger>()->trace(
@@ -106,22 +106,36 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_to_log
         base64::from_bytes(member).c_str(),
         base64::from_bytes(object_id).c_str());
 
-      CHECK_EXPECTED_ASYNC(co_await (*client)->send(
-        member,
-        message_create<messages::sync_replica_operations_request>(
+      final_tasks.push_back([
+        client,
           object_id,
-          generation,
-          current_term,
-          commit_index,
-          last_applied,
-          message_type,
-          member_node,
-          replica,
-          source_node,
-          source_index)));
+          member,
+            generation,
+            current_term,
+            commit_index,
+            last_applied,
+            message_type,
+            member_node,
+            replica,
+            source_node,
+            source_index]() {
+        return (*client)->send(
+          member,
+          message_create<messages::sync_replica_operations_request>(
+            object_id,
+            generation,
+            current_term,
+            commit_index,
+            last_applied,
+            message_type,
+            member_node,
+            replica,
+            source_node,
+            source_index));
+      });
     }
   }
-  GET_EXPECTED_ASYNC(quorum, get_quorum(t, object_id));
+  GET_EXPECTED(quorum, get_quorum(t, object_id));
   this->sp_->get<logger>()->trace(
     SyncModule,
     "Sync %s: quorum=%d, commit_index=%d, last_applied=%d",
@@ -130,16 +144,16 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_to_log
     commit_index,
     last_applied);
   while (quorum < 2 && commit_index < last_applied) {
-    CHECK_EXPECTED_ASYNC(
-      co_await apply_record(
-        t, object_id, client->current_node_id(), generation, current_term, ++commit_index, last_applied));
+    CHECK_EXPECTED(apply_record(
+        t, final_tasks, object_id, client->current_node_id(), generation, current_term, ++commit_index, last_applied));
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_local_log(
+vds::expected<void> vds::dht::network::sync_process::add_local_log(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& object_id,
   orm::sync_message_dbo::message_type_t message_type,
   const const_data_buffer& member_node,
@@ -177,6 +191,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_local_
   if (leader_node == client->current_node_id()) {
     return add_to_log(
       t,
+      final_tasks,
       object_id,
       message_type,
       member_node,
@@ -185,17 +200,28 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_local_
       member_index);
   }
   else {
-    return (*client)->send(
+    final_tasks.push_back([
+      client,
       leader_node,
-      message_create<messages::sync_add_message_request>(
-        object_id,
+      object_id,
+      member_index,
+      message_type,
+      member_node,
+      replica]() {
+      return (*client)->send(
         leader_node,
-        client->current_node_id(),
-        member_index,
-        message_type,
-        member_node,
-        replica));
+        message_create<messages::sync_add_message_request>(
+          object_id,
+          leader_node,
+          client->current_node_id(),
+          member_index,
+          message_type,
+          member_node,
+          replica));
+    });
   }
+
+  return expected<void>();
 }
 
 vds::expected<std::set<vds::const_data_buffer>> vds::dht::network::sync_process::get_members(
@@ -221,28 +247,29 @@ vds::expected<std::set<vds::const_data_buffer>> vds::dht::network::sync_process:
   return result;
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::make_new_election(
+vds::expected<void> vds::dht::network::sync_process::make_new_election(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& object_id) {
-  auto& client = *this->sp_->get<network::client>();
+  auto client = this->sp_->get<network::client>();
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(
+  GET_EXPECTED(st, t.get_reader(t1.select(
                              t2.generation, t2.current_term)
                            .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
                            .where(t1.object_id == object_id)));
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (st_execute) {
     const auto generation = t2.generation.get(st);
     const auto current_term = t2.current_term.get(st);
 
-    CHECK_EXPECTED_ASYNC(t.execute(t1.update(
+    CHECK_EXPECTED(t.execute(t1.update(
                   t1.state = orm::sync_state_dbo::state_t::canditate,
                   t1.next_sync = std::chrono::system_clock::now() + ELECTION_TIMEOUT())
                 .where(t1.object_id == object_id)));
 
-    CHECK_EXPECTED_ASYNC(t.execute(t2.update(
+    CHECK_EXPECTED(t.execute(t2.update(
                   t2.voted_for = client->current_node_id(),
                   t2.current_term = current_term + 1,
                   t2.commit_index = 0,
@@ -250,28 +277,36 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::make_new_e
                   t2.last_activity = std::chrono::system_clock::now())
                 .where(t2.object_id == object_id && t2.member_node == client->current_node_id())));
 
-    GET_EXPECTED_ASYNC(members, this->get_members(t, object_id, true));
+    GET_EXPECTED(members, this->get_members(t, object_id, true));
     for (const auto& member : members) {
       if (member != client->current_node_id()) {
-        CHECK_EXPECTED_ASYNC(co_await client->send(
-          member,
-          message_create<messages::sync_new_election_request>(
+        final_tasks.push_back([
+            client,
+            member,
             object_id,
             generation,
-            current_term,
-            client->current_node_id())));
+            current_term]() {
+          return (*client)->send(
+            member,
+            message_create<messages::sync_new_election_request>(
+              object_id,
+              generation,
+              current_term,
+              client->current_node_id()));
+        });
       }
     }
   }
   else {
-    co_return vds::make_unexpected<vds_exceptions::not_found>();
+    return vds::make_unexpected<vds_exceptions::not_found>();
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<vds::dht::network::sync_process::base_message_type>> vds::dht::network::sync_process::apply_base_message(
+vds::expected<vds::dht::network::sync_process::base_message_type> vds::dht::network::sync_process::apply_base_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_base_message_request& message,
   const imessage_map::message_info_t& message_info,
   const const_data_buffer& leader_node,
@@ -281,33 +316,35 @@ vds::async_task<vds::expected<vds::dht::network::sync_process::base_message_type
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(
+  GET_EXPECTED(st, t.get_reader(t1.select(
                              t1.state, t2.generation, t2.current_term, t2.voted_for, t2.last_applied, t2.commit_index)
                            .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
                            .where(t1.object_id == message.object_id)));
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (st_execute) {
     if (
       message.generation > t2.generation.get(st)
       || (message.generation == t2.generation.get(st) && message.current_term > t2.current_term.get(st))) {
-      CHECK_EXPECTED_ASYNC(co_await send_snapshot_request(message.object_id, leader_node));
+
+      this->send_snapshot_request(final_tasks, message.object_id, leader_node);
+
       this->sp_->get<logger>()->trace(
         SyncModule,
         "Object %s from feature. Leader %s",
         base64::from_bytes(message.object_id).c_str(),
         base64::from_bytes(leader_node).c_str());
-      co_return base_message_type::from_future;
+      return base_message_type::from_future;
     }
     if (
       message.generation < t2.generation.get(st)
       || (message.generation == t2.generation.get(st) && message.current_term < t2.current_term.get(st))) {
 
-      GET_EXPECTED_ASYNC(leader, this->get_leader(t, message.object_id));
+      GET_EXPECTED(leader, this->get_leader(t, message.object_id));
       if (client->current_node_id() == leader) {
-        CHECK_EXPECTED_ASYNC(co_await send_snapshot(t, message.object_id, { }));
+        CHECK_EXPECTED(send_snapshot(t, final_tasks, message.object_id, { }));
       }
       else if(leader) {
-        CHECK_EXPECTED_ASYNC(co_await send_snapshot_request(message.object_id, leader_node, message_info.source_node()));
+        this->send_snapshot_request(final_tasks, message.object_id, leader_node, message_info.source_node());
       }
 
       this->sp_->get<logger>()->trace(
@@ -316,25 +353,25 @@ vds::async_task<vds::expected<vds::dht::network::sync_process::base_message_type
         base64::from_bytes(message.object_id).c_str(),
         base64::from_bytes(leader_node).c_str());
 
-      co_return base_message_type::from_past;
+      return base_message_type::from_past;
     }
     if (
       message.generation == t2.generation.get(st)
       && t2.voted_for.get(st) != leader_node) {
-      CHECK_EXPECTED_ASYNC(co_await this->make_new_election(t, message.object_id));
+      CHECK_EXPECTED(this->make_new_election(t, final_tasks, message.object_id));
 
       this->sp_->get<logger>()->trace(
         SyncModule,
         "Object %s other leader. Leader %s",
         base64::from_bytes(message.object_id).c_str(),
         base64::from_bytes(leader_node).c_str());
-      co_return base_message_type::other_leader;
+      return base_message_type::other_leader;
     }
     if (message.generation == t2.generation.get(st)
       && message.current_term == t2.current_term.get(st)) {
       switch (t1.state.get(st)) {
       case orm::sync_state_dbo::state_t::follower: {
-        CHECK_EXPECTED_ASYNC(t.execute(t1.update(
+        CHECK_EXPECTED(t.execute(t1.update(
           t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
           .where(t1.object_id == message.object_id)));
         const auto generation = t2.generation.get(st);
@@ -343,29 +380,39 @@ vds::async_task<vds::expected<vds::dht::network::sync_process::base_message_type
         
         auto commit_index = t2.commit_index.get(st);
         while (commit_index < db_last_applied && commit_index < message.commit_index) {
-          CHECK_EXPECTED_ASYNC(co_await apply_record(t, message.object_id, leader_node, generation, current_term, ++commit_index, db_last_applied));
+          CHECK_EXPECTED(apply_record(t, final_tasks, message.object_id, leader_node, generation, current_term, ++commit_index, db_last_applied));
         }
 
         if(db_last_applied < last_applied) {
-          CHECK_EXPECTED_ASYNC(co_await client->send(
-            leader_node,
-            message_create<messages::sync_replica_query_operations_request>(
-            message.object_id,
-            generation,
-            current_term,
-            commit_index,
-            db_last_applied + 1)));
+          final_tasks.push_back([
+            client,
+              leader_node,
+              object_id = message.object_id,
+                generation,
+                current_term,
+                commit_index,
+              last_applied = db_last_applied + 1
+          ]() {
+            return client->send(
+              leader_node,
+              message_create<messages::sync_replica_query_operations_request>(
+                object_id,
+                generation,
+                current_term,
+                commit_index,
+                last_applied));
+          });
         }
         break;
       }
       case orm::sync_state_dbo::state_t::leader: {
-        GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t2.select(t2.delete_index)
+        GET_EXPECTED_VALUE(st, t.get_reader(t2.select(t2.delete_index)
           .where(t2.object_id == message.object_id
             && t2.member_node == message_info.source_node())));
-        GET_EXPECTED_ASYNC(st_execute, st.execute());
+        GET_EXPECTED(st_execute, st.execute());
         if(st_execute) {
           if(t2.delete_index.get(st) > 0 && message.last_applied >= t2.delete_index.get(st)) {
-            CHECK_EXPECTED_ASYNC(t.execute(t2.delete_if(
+            CHECK_EXPECTED(t.execute(t2.delete_if(
               t2.object_id == message.object_id
               && t2.member_node == message_info.source_node())));
           }
@@ -384,25 +431,24 @@ vds::async_task<vds::expected<vds::dht::network::sync_process::base_message_type
       }
 
 
-      co_return base_message_type::successful;
+      return base_message_type::successful;
     }
     this->sp_->get<logger>()->trace(
       SyncModule,
       "Object %s case error. Leader %s",
       base64::from_bytes(message.object_id).c_str(),
       base64::from_bytes(leader_node).c_str());
-    co_return vds::make_unexpected<std::runtime_error>("Case error");
+    return vds::make_unexpected<std::runtime_error>("Case error");
   }
   this->sp_->get<logger>()->trace(
     SyncModule,
     "Object %s not found. Leader %s",
     base64::from_bytes(message.object_id).c_str(),
     base64::from_bytes(leader_node).c_str());
-  co_return base_message_type::not_found;
+  return base_message_type::not_found;
 }
 
 vds::expected<uint32_t> vds::dht::network::sync_process::get_quorum(
-  
   database_read_transaction& t,
   const const_data_buffer& object_id) {
 
@@ -420,8 +466,9 @@ vds::expected<uint32_t> vds::dht::network::sync_process::get_quorum(
   return 0;
 }
 
-vds::async_task<vds::expected<bool>> vds::dht::network::sync_process::apply_base_message(
+vds::expected<bool> vds::dht::network::sync_process::apply_base_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_base_message_response& message,
   const imessage_map::message_info_t& message_info) {
 
@@ -429,32 +476,32 @@ vds::async_task<vds::expected<bool>> vds::dht::network::sync_process::apply_base
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(
+  GET_EXPECTED(st, t.get_reader(t1.select(
                              t1.state, t2.generation, t2.current_term, t2.voted_for, t2.last_applied, t2.commit_index)
                            .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
                            .where(t1.object_id == message.object_id)));
 
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (st_execute) {
     if (
       message.generation > t2.generation.get(st)
       || (message.generation == t2.generation.get(st) && message.current_term > t2.current_term.get(st))) {
       vds_assert(false);
-      co_return false;
+      return false;
     }
     if (
       message.generation < t2.generation.get(st)
       || (message.generation == t2.generation.get(st) && message.current_term < t2.current_term.get(st))) {
 
-      GET_EXPECTED_ASYNC(leader, this->get_leader(t, message.object_id));
+      GET_EXPECTED(leader, this->get_leader(t, message.object_id));
       if (!leader || client->current_node_id() == leader) {
-        CHECK_EXPECTED_ASYNC(co_await send_snapshot(t, message.object_id, {message_info.source_node()}));
+        CHECK_EXPECTED(send_snapshot(t, final_tasks, message.object_id, {message_info.source_node()}));
       }
       else {
-        CHECK_EXPECTED_ASYNC(co_await send_snapshot_request(message.object_id, leader, message_info.source_node()));
+        this->send_snapshot_request(final_tasks, message.object_id, leader, message_info.source_node());
       }
 
-      co_return false;
+      return false;
     }
     if (message.generation == t2.generation.get(st)
       && message.current_term == t2.current_term.get(st)) {
@@ -465,43 +512,44 @@ vds::async_task<vds::expected<bool>> vds::dht::network::sync_process::apply_base
         const auto last_applied = t2.last_applied.get(st);
         auto commit_index = t2.commit_index.get(st);
 
-        GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t2.select(
+        GET_EXPECTED_VALUE(st, t.get_reader(t2.select(
                               t2.generation,
                               t2.current_term,
                               t2.commit_index,
                               t2.last_applied)
                             .where(
                               t2.object_id == message.object_id && t2.member_node == message_info.source_node())));
-        GET_EXPECTED_ASYNC(st_execute, st.execute());
+        GET_EXPECTED(st_execute, st.execute());
         if (st_execute) {
           if (t2.last_applied.get(st) < message.last_applied) {
-            CHECK_EXPECTED_ASYNC(t.execute(t2.update(
+            CHECK_EXPECTED(t.execute(t2.update(
                           t2.generation = message.generation,
                           t2.current_term = message.current_term,
                           t2.commit_index = message.commit_index,
                           t2.last_applied = message.last_applied,
                           t2.last_activity = std::chrono::system_clock::now())
                         .where(t2.object_id == message.object_id && t2.member_node == message_info.source_node())));
-            CHECK_EXPECTED_ASYNC(validate_last_applied(t, message.object_id));
+            CHECK_EXPECTED(validate_last_applied(t, message.object_id));
             for (;;) {
-              GET_EXPECTED_ASYNC(quorum, this->get_quorum(t, message.object_id));
+              GET_EXPECTED(quorum, this->get_quorum(t, message.object_id));
 
               db_value<int64_t> applied_count;
-              GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t2.select(
+              GET_EXPECTED_VALUE(st, t.get_reader(t2.select(
                                     db_count(t2.member_node).as(applied_count))
                                   .where(t2.object_id == message.object_id
                                     && t2.generation == generation
                                     && t2.current_term == current_term
                                     && t2.last_applied > commit_index)));
 
-              GET_EXPECTED_VALUE_ASYNC(st_execute, st.execute());
+              GET_EXPECTED_VALUE(st_execute, st.execute());
               if (!st_execute) {
                 break;
               }
 
               if (applied_count.get(st) >= quorum) {
-                CHECK_EXPECTED_ASYNC(co_await this->apply_record(
+                CHECK_EXPECTED(this->apply_record(
                   t,
+                  final_tasks,
                   message.object_id,
                   client->current_node_id(),
                   generation,
@@ -523,14 +571,15 @@ vds::async_task<vds::expected<bool>> vds::dht::network::sync_process::apply_base
   }
   else {
     vds_assert(false);
-    co_return false;
+    return false;
   }
 
-  co_return true;
+  return true;
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_sync_entry(
+vds::expected<void> vds::dht::network::sync_process::add_sync_entry(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& object_id,
   uint32_t object_size) {
 
@@ -539,20 +588,20 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_sync_e
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(t1.state, t2.voted_for)
+  GET_EXPECTED(st, t.get_reader(t1.select(t1.state, t2.voted_for)
                            .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
                            .where(t1.object_id == object_id)));
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (!st_execute) {
     leader = client->current_node_id();
 
-    CHECK_EXPECTED_ASYNC(t.execute(t1.insert(
+    CHECK_EXPECTED(t.execute(t1.insert(
       t1.object_id = object_id,
       t1.object_size = object_size,
       t1.state = orm::sync_state_dbo::state_t::leader,
       t1.next_sync = std::chrono::system_clock::now() + FOLLOWER_TIMEOUT())));
 
-    CHECK_EXPECTED_ASYNC(t.execute(t2.insert(
+    CHECK_EXPECTED(t.execute(t2.insert(
       t2.object_id = object_id,
       t2.member_node = client->current_node_id(),
       t2.last_activity = std::chrono::system_clock::now(),
@@ -563,21 +612,24 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_sync_e
       t2.last_applied = 0,
       t2.delete_index = 0)));
 
-    CHECK_EXPECTED_ASYNC(co_await (*client)->find_nodes(
-      object_id,
-      service::GENERATE_DISTRIBUTED_PIECES));
-
-    CHECK_EXPECTED_ASYNC(co_await (*client)->send_near(
-      object_id,
-      service::GENERATE_DISTRIBUTED_PIECES,
-      message_create<messages::sync_looking_storage_request>(
+    final_tasks.push_back([client, object_id]() {
+      return (*client)->find_nodes(
         object_id,
-        0,
-        0,
-        0,
-        0,
-        0)));
+        service::GENERATE_DISTRIBUTED_PIECES);
+    });
 
+    final_tasks.push_back([client, object_id]() {
+      return (*client)->send_near(
+        object_id,
+        service::GENERATE_DISTRIBUTED_PIECES,
+        message_create<messages::sync_looking_storage_request>(
+          object_id,
+          0,
+          0,
+          0,
+          0,
+          0));
+    });
   }
   else {
     leader = t2.voted_for.get(st);
@@ -587,8 +639,9 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_sync_e
 
   orm::sync_replica_map_dbo t3;
   for (uint16_t i = 0; i < service::GENERATE_DISTRIBUTED_PIECES; ++i) {
-    CHECK_EXPECTED_ASYNC(co_await this->add_local_log(
+    CHECK_EXPECTED(this->add_local_log(
       t,
+      final_tasks,
       object_id,
       orm::sync_message_dbo::message_type_t::add_replica,
       client->current_node_id(),
@@ -596,11 +649,12 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::add_sync_e
       leader));
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::sync_process::restore_replica(
+vds::expected<vds::const_data_buffer> vds::dht::network::sync_process::restore_replica(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer object_id) {
 
   auto client = this->sp_->get<network::client>();
@@ -609,16 +663,16 @@ vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::sync_p
 
   orm::chunk_replica_data_dbo t2;
   orm::device_record_dbo t4;
-  GET_EXPECTED_ASYNC(st, t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t2.select(
         t2.replica, t2.replica_hash, t4.local_path)
       .inner_join(t4, t4.node_id == client->current_node_id() && t4.data_hash == t2.replica_hash)
       .where(t2.object_id == object_id)));
 
-  WHILE_EXPECTED_ASYNC (st.execute()) {
+  WHILE_EXPECTED(st.execute()) {
     replicas.push_back(t2.replica.get(st));
 
-    GET_EXPECTED_ASYNC(data, _client::read_data(
+    GET_EXPECTED(data, _client::read_data(
       t2.replica_hash.get(st),
       filename(t4.local_path.get(st))));
 
@@ -628,27 +682,27 @@ vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::sync_p
       break;
     }
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END();
 
   if (replicas.size() >= service::MIN_DISTRIBUTED_PIECES) {
     chunk_restore<uint16_t> restore(service::MIN_DISTRIBUTED_PIECES, replicas.data());
-    GET_EXPECTED_ASYNC(data, restore.restore(datas));
+    GET_EXPECTED(data, restore.restore(datas));
 
-    GET_EXPECTED_ASYNC(sig, hash::signature(hash::sha256(), data));
+    GET_EXPECTED(sig, hash::signature(hash::sha256(), data));
     if (object_id != sig) {
-      co_return vds::make_unexpected<std::runtime_error>("Invalid error");
+      return vds::make_unexpected<std::runtime_error>("Invalid error");
     }
 
-    CHECK_EXPECTED_ASYNC(_client::save_data(this->sp_, t, object_id, data));
+    CHECK_EXPECTED(_client::save_data(this->sp_, t, object_id, data));
 
     this->sp_->get<logger>()->trace(SyncModule, "Restored object %s", base64::from_bytes(object_id).c_str());
     orm::chunk_dbo t1;
-    CHECK_EXPECTED_ASYNC(t.execute(
+    CHECK_EXPECTED(t.execute(
       t1.insert(
         t1.object_id = object_id,
         t1.last_sync = std::chrono::system_clock::now())));
 
-    co_return data;
+    return data;
   }
   std::string log_message = "request replica " + base64::from_bytes(object_id) + ". Exists: ";
   std::set<uint16_t> exist_replicas;
@@ -662,17 +716,17 @@ vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::sync_p
 
   std::set<const_data_buffer> candidates;
   orm::sync_replica_map_dbo t5;
-  GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t5.select(t5.node).where(t5.object_id == object_id)));
-  WHILE_EXPECTED_ASYNC(st.execute()) {
+  GET_EXPECTED_VALUE(st, t.get_reader(t5.select(t5.node).where(t5.object_id == object_id)));
+  WHILE_EXPECTED(st.execute()) {
     if (candidates.end() == candidates.find(t5.node.get(st)) && client->current_node_id() != t5.node.get(st)) {
       candidates.emplace(t5.node.get(st));
     }
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END()
 
   orm::sync_member_dbo t6;
-  GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t6.select(t6.voted_for, t6.member_node).where(t6.object_id == object_id)));
-  WHILE_EXPECTED_ASYNC(st.execute()) {
+  GET_EXPECTED_VALUE(st, t.get_reader(t6.select(t6.voted_for, t6.member_node).where(t6.object_id == object_id)));
+  WHILE_EXPECTED(st.execute()) {
     if (candidates.end() == candidates.find(t6.member_node.get(st))
       && client->current_node_id() != t6.member_node.get(st)) {
       candidates.emplace(t6.member_node.get(st));
@@ -682,7 +736,7 @@ vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::sync_p
       candidates.emplace(t6.voted_for.get(st));
     }
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END()
 
   if (!candidates.empty()) {
     for (const auto& candidate : candidates) {
@@ -692,61 +746,68 @@ vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::sync_p
         log_message.c_str(),
         base64::from_bytes(candidate).c_str());
 
-      CHECK_EXPECTED_ASYNC(co_await (*client)->send(
-        candidate,
-        message_create<messages::sync_replica_request>(
-          object_id,
-          exist_replicas)));
+      final_tasks.push_back([client, candidate, object_id, exist_replicas]() {
+        return (*client)->send(
+          candidate,
+          message_create<messages::sync_replica_request>(
+            object_id,
+            exist_replicas));
+      });
     }
   }
   else {
-    CHECK_EXPECTED_ASYNC(co_await (*client)->send_neighbors(
-      message_create<messages::dht_find_node>(object_id)));
+    final_tasks.push_back([client, object_id]() {
+      return (*client)->send_neighbors(
+        message_create<messages::dht_find_node>(object_id));
+    });
 
-    CHECK_EXPECTED_ASYNC(co_await (*client)->send_near(
-      object_id,
-      service::GENERATE_DISTRIBUTED_PIECES,
-      message_create<messages::sync_replica_request>(
+    final_tasks.push_back([client, object_id, exist_replicas]() {
+      return (*client)->send_near(
         object_id,
-        exist_replicas)));
+        service::GENERATE_DISTRIBUTED_PIECES,
+        message_create<messages::sync_replica_request>(
+          object_id,
+          exist_replicas));
+    });
   }
 
-  co_return const_data_buffer();
+  return const_data_buffer();
 }
 
-vds::async_task<vds::expected<std::list<uint16_t>>> vds::dht::network::sync_process::prepare_restore_replica(
+vds::expected<std::list<uint16_t>> vds::dht::network::sync_process::prepare_restore_replica(
   database_read_transaction & t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer object_id) {
 
   auto client = this->sp_->get<network::client>();
   std::list<uint16_t> replicas;
 
   orm::chunk_dbo t1;
-  GET_EXPECTED_ASYNC(st, t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t1.select(t1.last_sync)
     .where(t1.object_id == object_id)));
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (st_execute) {
     for (uint16_t replica = 0; replica < service::MIN_DISTRIBUTED_PIECES; ++replica) {
       replicas.push_back(replica);
     }
-    co_return replicas;
+    return replicas;
   }
 
   orm::chunk_replica_data_dbo t2;
   orm::device_record_dbo t4;
-  GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(
+  GET_EXPECTED_VALUE(st, t.get_reader(
     t2.select(
         t2.replica)
       .inner_join(t4, t4.node_id == client->current_node_id() && t4.data_hash == t2.replica_hash)
       .where(t2.object_id == object_id)));
-  WHILE_EXPECTED_ASYNC (st.execute()) {
+  WHILE_EXPECTED(st.execute()) {
     replicas.push_back(t2.replica.get(st));
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END()
 
   if (replicas.size() >= service::MIN_DISTRIBUTED_PIECES) {
-    co_return replicas;
+    return replicas;
   }
 
   std::string log_message = "request replica " + base64::from_bytes(object_id) + ". Exists: ";
@@ -761,17 +822,17 @@ vds::async_task<vds::expected<std::list<uint16_t>>> vds::dht::network::sync_proc
 
   std::set<const_data_buffer> candidates;
   orm::sync_replica_map_dbo t5;
-  GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t5.select(t5.node).where(t5.object_id == object_id)));
-  WHILE_EXPECTED_ASYNC(st.execute()) {
+  GET_EXPECTED_VALUE(st, t.get_reader(t5.select(t5.node).where(t5.object_id == object_id)));
+  WHILE_EXPECTED(st.execute()) {
     if (candidates.end() == candidates.find(t5.node.get(st)) && client->current_node_id() != t5.node.get(st)) {
       candidates.emplace(t5.node.get(st));
     }
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END()
 
   orm::sync_member_dbo t6;
-  GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t6.select(t6.voted_for, t6.member_node).where(t6.object_id == object_id)));
-  WHILE_EXPECTED_ASYNC(st.execute()) {
+  GET_EXPECTED_VALUE(st, t.get_reader(t6.select(t6.voted_for, t6.member_node).where(t6.object_id == object_id)));
+  WHILE_EXPECTED(st.execute()) {
     if (candidates.end() == candidates.find(t6.member_node.get(st))
       && client->current_node_id() != t6.member_node.get(st)) {
       candidates.emplace(t6.member_node.get(st));
@@ -781,7 +842,7 @@ vds::async_task<vds::expected<std::list<uint16_t>>> vds::dht::network::sync_proc
       candidates.emplace(t6.voted_for.get(st));
     }
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END()
 
   if (!candidates.empty()) {
     for (const auto& candidate : candidates) {
@@ -790,38 +851,44 @@ vds::async_task<vds::expected<std::list<uint16_t>>> vds::dht::network::sync_proc
         "%s from %s",
         log_message.c_str(),
         base64::from_bytes(candidate).c_str());
-
-      CHECK_EXPECTED_ASYNC(co_await (*client)->send(
-        candidate,
-        message_create<messages::sync_replica_request>(
-          object_id,
-          exist_replicas)));
+      final_tasks.push_back([client, candidate, object_id, exist_replicas]() {
+        return (*client)->send(
+          candidate,
+          message_create<messages::sync_replica_request>(
+            object_id,
+            exist_replicas));
+      });
     }
   }
   else {
-    CHECK_EXPECTED_ASYNC(co_await (*client)->send_neighbors(
-      message_create<messages::dht_find_node>(object_id)));
+    final_tasks.push_back([client, object_id]() {
+      return (*client)->send_neighbors(
+        message_create<messages::dht_find_node>(object_id));
+    });
 
-    CHECK_EXPECTED_ASYNC(co_await (*client)->send_near(
-      object_id,
-      service::GENERATE_DISTRIBUTED_PIECES,
-      message_create<messages::sync_replica_request>(
+    final_tasks.push_back([client, object_id, exist_replicas]() {
+      return (*client)->send_near(
         object_id,
-        exist_replicas)));
+        service::GENERATE_DISTRIBUTED_PIECES,
+        message_create<messages::sync_replica_request>(
+          object_id,
+          exist_replicas));
+    });
   }
 
-  co_return replicas;
+  return replicas;
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_looking_storage_request& message,
   const imessage_map::message_info_t& message_info) {
 
-  auto& client = *this->sp_->get<network::client>();
+  auto client = this->sp_->get<network::client>();
 
   base_message_type state;
-  GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied));
+  GET_EXPECTED_VALUE(state, this->apply_base_message(t, final_tasks, message, message_info, message_info.source_node(), message.last_applied));
   switch (state) {
   case base_message_type::successful:
   case base_message_type::not_found:
@@ -830,24 +897,24 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
   case base_message_type::from_future:
   case base_message_type::from_past:
   case base_message_type::other_leader:
-    co_return expected<void>();
+    return expected<void>();
 
   default:
-    co_return vds::make_unexpected<vds_exceptions::invalid_operation>();
+    return vds::make_unexpected<vds_exceptions::invalid_operation>();
   }
 
-  GET_EXPECTED_ASYNC(records, orm::device_config_dbo::get_free_space(t, client.current_node_id()));
+  GET_EXPECTED(records, orm::device_config_dbo::get_free_space(t, client->current_node_id()));
   for (const auto& record : records) {
     if (record.used_size + message.object_size < record.reserved_size
       && message.object_size < record.free_size) {
 
       std::set<uint16_t> replicas;
       orm::chunk_replica_data_dbo t1;
-      GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(t1.replica).where(t1.object_id == message.object_id)));
-      WHILE_EXPECTED_ASYNC(st.execute()) {
+      GET_EXPECTED(st, t.get_reader(t1.select(t1.replica).where(t1.object_id == message.object_id)));
+      WHILE_EXPECTED(st.execute()) {
         replicas.emplace(t1.replica.get(st));
       }
-      WHILE_EXPECTED_END_ASYNC()
+      WHILE_EXPECTED_END()
 
       this->sp_->get<logger>()->trace(
         SyncModule,
@@ -855,22 +922,24 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
         base64::from_bytes(client->current_node_id()).c_str(),
         base64::from_bytes(message.object_id).c_str());
 
-      CHECK_EXPECTED_ASYNC(co_await client->send(
-        message_info.source_node(),
-        message_create<messages::sync_looking_storage_response>(
-          message.object_id,
-          replicas)));
+      final_tasks.push_back([client, source_node = message_info.source_node(), object_id = message.object_id, replicas]() {
+        return (*client)->send(
+          source_node,
+          message_create<messages::sync_looking_storage_response>(
+            object_id,
+            replicas));
+      });
 
-      co_return expected<void>();
+      return expected<void>();
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
- 
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_looking_storage_response& message,
   const imessage_map::message_info_t& message_info) {
 
@@ -878,7 +947,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t1.select(
         t1.state,
         //t2.generation,
@@ -889,14 +958,14 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
       .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
       .where(t1.object_id == message.object_id)));
 
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (!st_execute) {
     this->sp_->get<logger>()->trace(
         SyncModule,
         "sync_looking_storage_response form %s about unknown object %s",
         base64::from_bytes(message_info.source_node()).c_str(),
         base64::from_bytes(message.object_id).c_str());
-    co_return expected<void>();
+    return expected<void>();
   }
 
   if (orm::sync_state_dbo::state_t::leader != static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st))) {
@@ -905,7 +974,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
         "sync_looking_storage_response form %s about object %s. not leader",
         base64::from_bytes(message_info.source_node()).c_str(),
         base64::from_bytes(message.object_id).c_str());
-    co_return expected<void>();
+    return expected<void>();
   }
 
   //const auto generation = t2.generation.get(st);
@@ -913,10 +982,10 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
   //const auto commit_index = t2.commit_index.get(st);
   //auto index = t2.last_applied.get(st);
 
-  GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t2.select(t2.generation)
+  GET_EXPECTED_VALUE(st, t.get_reader(t2.select(t2.generation)
                       .where(t2.object_id == message.object_id
                         && t2.member_node == message_info.source_node())));
-  GET_EXPECTED_VALUE_ASYNC(st_execute, st.execute());
+  GET_EXPECTED_VALUE(st_execute, st.execute());
   if (!st_execute) {
 
     this->sp_->get<logger>()->trace(
@@ -925,8 +994,9 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
       base64::from_bytes(message_info.source_node()).c_str(),
       base64::from_bytes(message.object_id).c_str());
 
-    CHECK_EXPECTED_ASYNC(co_await this->add_local_log(
+    CHECK_EXPECTED(this->add_local_log(
       t,
+      final_tasks,
       message.object_id,
       orm::sync_message_dbo::message_type_t::add_member,
       message_info.source_node(),
@@ -937,8 +1007,9 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
   if (!message.replicas.empty()) {
     //Register replica
     for (auto replica : message.replicas) {
-      CHECK_EXPECTED_ASYNC(co_await this->add_local_log(
+      CHECK_EXPECTED(this->add_local_log(
         t,
+        final_tasks,
         message.object_id,
         orm::sync_message_dbo::message_type_t::add_replica,
         message_info.source_node(),
@@ -947,32 +1018,36 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
-  
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_snapshot_request& message,
   const imessage_map::message_info_t& message_info) {
 
   auto& client = *this->sp_->get<network::client>();
   GET_EXPECTED(leader, this->get_leader(t, message.object_id));
   if (leader && client->current_node_id() != leader) {
-    return client->send(
-      leader,
-      expected<messages::sync_snapshot_request>(message));
+    final_tasks.push_back([client, leader, message]() {
+      return client->send(
+        leader,
+        expected<messages::sync_snapshot_request>(message));
+    });
+    return expected<void>();
   }
 
-  return send_snapshot(t, message.object_id, {message.source_node});
+  return send_snapshot(t, final_tasks, message.object_id, {message.source_node});
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(  
+vds::expected<void> vds::dht::network::sync_process::apply_message(  
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_snapshot_response& message,
   const imessage_map::message_info_t& message_info) {
 
-  auto& client = *this->sp_->get<network::client>();
+  auto client = this->sp_->get<network::client>();
 
   this->sp_->get<logger>()->trace(
     SyncModule,
@@ -982,12 +1057,12 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(
+  GET_EXPECTED(st, t.get_reader(t1.select(
                              t1.state, t2.generation, t2.current_term, t2.voted_for, t2.last_applied/*, t2.commit_index*/)
                            .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
                            .where(t1.object_id == message.object_id)));
 
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (st_execute) {
     const auto state = t1.state.get(st);
     const auto generation = t2.generation.get(st);
@@ -1000,30 +1075,30 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
       message.generation < generation
       || (message.generation == generation && message.current_term < current_term)) {
       if (state == orm::sync_state_dbo::state_t::leader) {
-        CHECK_EXPECTED_ASYNC(co_await send_snapshot(t, message.object_id, {message.leader_node}));
+        CHECK_EXPECTED(send_snapshot(t, final_tasks, message.object_id, {message.leader_node}));
       }
       else {
-        CHECK_EXPECTED_ASYNC(co_await send_snapshot_request(message.object_id, voted_for, message.leader_node));
+        this->send_snapshot_request(final_tasks, message.object_id, voted_for, message.leader_node);
       }
-      co_return expected<void>();
+      return expected<void>();
     }
 
     if (last_applied > message.last_applied) {
-      co_return expected<void>();
+      return expected<void>();
     }
   }
   else if (message.members.end() != message.members.find(client->current_node_id())) {
-    GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t1.select(t1.object_id).where(t1.object_id == message.object_id)));
-    GET_EXPECTED_ASYNC(st_execute, st.execute());
+    GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.object_id).where(t1.object_id == message.object_id)));
+    GET_EXPECTED(st_execute, st.execute());
     if (st_execute) {
-      CHECK_EXPECTED_ASYNC(t.execute(t1.update(
+      CHECK_EXPECTED(t.execute(t1.update(
                     t1.object_size = message.object_size,
                     t1.state = orm::sync_state_dbo::state_t::follower,
                     t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
                   .where(t1.object_id == message.object_id)));
     }
     else {
-      CHECK_EXPECTED_ASYNC(t.execute(t1.insert(
+      CHECK_EXPECTED(t.execute(t1.insert(
         t1.object_id = message.object_id,
         t1.object_size = message.object_size,
         t1.state = orm::sync_state_dbo::state_t::follower,
@@ -1031,20 +1106,20 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
     }
   }
   else {
-    co_return expected<void>();
+    return expected<void>();
   }
 
   //merge members
-  CHECK_EXPECTED_ASYNC(t.execute(t1.update(
+  CHECK_EXPECTED(t.execute(t1.update(
                 t1.state = orm::sync_state_dbo::state_t::follower,
                 t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
               .where(t1.object_id == message.object_id)));
 
-  GET_EXPECTED_ASYNC(members, this->get_members(t, message.object_id, false));
+  GET_EXPECTED(members, this->get_members(t, message.object_id, false));
   for (const auto& member : message.members) {
     auto p = members.find(member.first);
     if (members.end() == p) {
-      CHECK_EXPECTED_ASYNC(t.execute(t2.insert(
+      CHECK_EXPECTED(t.execute(t2.insert(
         t2.object_id = message.object_id,
         t2.member_node = member.first,
         t2.voted_for = message.leader_node,
@@ -1054,7 +1129,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
         t2.last_applied = message.commit_index,
         t2.delete_index = 0,
         t2.last_activity = std::chrono::system_clock::now())));
-      CHECK_EXPECTED_ASYNC(validate_last_applied(t, message.object_id));
+      CHECK_EXPECTED(validate_last_applied(t, message.object_id));
     }
     else {
       members.erase(p);
@@ -1062,18 +1137,18 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
   }
 
   for (const auto& member : members) {
-    CHECK_EXPECTED_ASYNC(t.execute(t2.delete_if(
+    CHECK_EXPECTED(t.execute(t2.delete_if(
       t2.object_id == message.object_id
       && t2.member_node == member)));
   }
 
   //
   orm::sync_replica_map_dbo t3;
-  CHECK_EXPECTED_ASYNC(t.execute(t3.delete_if(t3.object_id == message.object_id)));
+  CHECK_EXPECTED(t.execute(t3.delete_if(t3.object_id == message.object_id)));
 
   for (const auto& node : message.replica_map) {
     for (const auto& replica : node.second) {
-      CHECK_EXPECTED_ASYNC(t.execute(t3.insert(
+      CHECK_EXPECTED(t.execute(t3.insert(
         t3.object_id = message.object_id,
         t3.replica = replica,
         t3.node = node.first,
@@ -1081,46 +1156,70 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
     }
   }
 
-  CHECK_EXPECTED_ASYNC(co_await client->send(
-    message_info.source_node(),
-    message_create<messages::sync_leader_broadcast_response>(
-      message.object_id,
-      message.generation,
-      message.current_term,
-      message.commit_index,
-      message.last_applied)));
-  co_return expected<void>();
+  final_tasks.push_back([
+      client,
+      source_node = message_info.source_node(),
+      object_id = message.object_id,
+      generation = message.generation,
+        current_term = message.current_term,
+        commit_index = message.commit_index,
+        last_applied = message.last_applied]() {
+    return (*client)->send(
+      source_node,
+      message_create<messages::sync_leader_broadcast_response>(
+        object_id,
+        generation,
+        current_term,
+        commit_index,
+        last_applied));
+  });
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
-  
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_add_message_request& message,
   const imessage_map::message_info_t& message_info) {
 
   auto client = this->sp_->get<network::client>();
   GET_EXPECTED(leader, this->get_leader(t, message.object_id));
   if (leader && leader != message.leader_node) {
-    return (*client)->send(
-      leader,
-      message_create<messages::sync_add_message_request>(
-        message.object_id,
-        leader,
-        message.source_node,
-        message.local_index,
-        message.message_type,
-        message.member_node,
-        message.replica));
+    final_tasks.push_back([
+        client,
+          leader,
+        source_node = message_info.source_node(),
+        object_id = message.object_id,
+          local_index = message.local_index,
+          message_type = message.message_type,
+          member_node = message.member_node,
+          replica = message.replica]() {
+        return (*client)->send(
+          leader,
+          message_create<messages::sync_add_message_request>(
+            object_id,
+            leader,
+            source_node,
+            local_index,
+            message_type,
+            member_node,
+            replica));
+      });
+    return expected<void>();
   }
 
   if (message.leader_node != client->current_node_id()) {
-    return (*client)->send(
-      message.leader_node,
-      expected<messages::sync_add_message_request>(message));
+    final_tasks.push_back([client, message]() {
+      return (*client)->send(
+        message.leader_node,
+        expected<messages::sync_add_message_request>(message));
+    });
+    return expected<void>();
   }
 
   return this->add_to_log(
     t,
+    final_tasks,
     message.object_id,
     message.message_type,
     message.member_node,
@@ -1129,13 +1228,16 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
     message.local_index);
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message( database_transaction& t,
-                                                    const messages::sync_leader_broadcast_request& message,
-                                                    const imessage_map::message_info_t& message_info) {
+vds::expected<void> vds::dht::network::sync_process::apply_message(
+  database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+  const messages::sync_leader_broadcast_request& message,
+  const imessage_map::message_info_t& message_info) {
   //auto client = this->sp_->get<network::client>();
   base_message_type status;
-  GET_EXPECTED_VALUE_ASYNC(status, co_await this->apply_base_message(
+  GET_EXPECTED_VALUE(status, this->apply_base_message(
     t,
+    final_tasks,
     message,
     message_info,
     message_info.source_node(),
@@ -1143,40 +1245,44 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
   if (base_message_type::successful == status) {
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_leader_broadcast_response& message,
   const imessage_map::message_info_t& message_info) {
-  if(!co_await this->apply_base_message(t, message, message_info)) {
-    co_return expected<void>();
+  GET_EXPECTED(base_message, this->apply_base_message(t, final_tasks, message, message_info));
+  if(!base_message) {
+    return expected<void>();
   }
 
   orm::sync_replica_map_dbo t1;
-  GET_EXPECTED_ASYNC(st, t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t1.select(
       t1.replica)
     .where(
       t1.object_id == message.object_id
       && t1.node == message_info.source_node())));
 
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (!st_execute) {
-    CHECK_EXPECTED_ASYNC(co_await this->send_random_replicas(
+    CHECK_EXPECTED(this->send_random_replicas(
       t,
+      final_tasks,
       message.object_id,
       message_info.source_node(),
       send_random_replica_goal_t::new_member,
       std::set<uint16_t>()));
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(  
+vds::expected<void> vds::dht::network::sync_process::apply_message(  
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_replica_operations_request& message,
   const imessage_map::message_info_t& message_info) {
 
@@ -1199,12 +1305,12 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
     message.message_source_index);
 
   base_message_type state;
-  GET_EXPECTED_VALUE_ASYNC(
+  GET_EXPECTED_VALUE(
     state,
-    co_await this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied - 1));
+    this->apply_base_message(t, final_tasks, message, message_info, message_info.source_node(), message.last_applied - 1));
   if (base_message_type::successful == state) {
     orm::sync_message_dbo t1;
-    GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(
+    GET_EXPECTED(st, t.get_reader(t1.select(
                                t1.message_type,
                                t1.member_node,
                                t1.replica,
@@ -1214,7 +1320,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
                                && t1.generation == message.generation
                                && t1.current_term == message.current_term
                                && t1.index == message.last_applied)));
-    GET_EXPECTED_ASYNC(st_execute, st.execute());
+    GET_EXPECTED(st_execute, st.execute());
     if (st_execute) {
       vds_assert(
         t1.message_type.get(st) == message.message_type
@@ -1224,7 +1330,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
         && t1.source_index.get(st) == message.message_source_index);
     }
     else {
-      CHECK_EXPECTED_ASYNC(t.execute(t1.insert(
+      CHECK_EXPECTED(t.execute(t1.insert(
         t1.object_id = message.object_id,
         t1.generation = message.generation,
         t1.current_term = message.current_term,
@@ -1237,12 +1343,12 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
 
       orm::sync_state_dbo t2;
       orm::sync_member_dbo t3;
-      GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t2.select(
+      GET_EXPECTED_VALUE(st, t.get_reader(t2.select(
         t2.state, t3.generation, t3.current_term, t3.voted_for, t3.last_applied, t3.commit_index)
         .inner_join(t3, t3.object_id == t2.object_id && t3.member_node == client->current_node_id())
         .where(t2.object_id == message.object_id)));
 
-      GET_EXPECTED_ASYNC(st_execute, st.execute());
+      GET_EXPECTED(st_execute, st.execute());
       if (!st_execute) {
         vds_assert(false);
       }
@@ -1257,12 +1363,12 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
         const auto last_applied = t3.last_applied.get(st);
         auto new_last_applied = last_applied;
         while(new_last_applied < message.last_applied) {
-          GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t1.select(t1.message_type).where(
+          GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.message_type).where(
             t1.object_id == message.object_id
             && t1.generation == message.generation
             && t1.current_term == message.current_term
             && t1.index == new_last_applied + 1)));
-          GET_EXPECTED_ASYNC(st_execute, st.execute());
+          GET_EXPECTED(st_execute, st.execute());
           if(st_execute) {
             ++new_last_applied;
           }
@@ -1271,7 +1377,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
           }
         }
         if (new_last_applied != last_applied) {
-          CHECK_EXPECTED_ASYNC(t.execute(t3.update(
+          CHECK_EXPECTED(t.execute(t3.update(
             t3.last_applied = last_applied)
             .where(t3.object_id == message.object_id && t3.member_node == client->current_node_id())));
 
@@ -1281,23 +1387,26 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
           "send sync_replica_operations_response to %s about %s",
           base64::from_bytes(message_info.source_node()).c_str(),
           base64::from_bytes(message.object_id).c_str());
-        CHECK_EXPECTED_ASYNC(co_await (*client)->send(
-          message_info.source_node(),
-          message_create<messages::sync_replica_operations_response>(
-            message.object_id,
-            message.generation,
-            message.current_term,
-            commit_index,
-            new_last_applied)));
+        final_tasks.push_back([client, message, source_node = message_info.source_node(), commit_index, new_last_applied]() {
+          return (*client)->send(
+            source_node,
+            message_create<messages::sync_replica_operations_response>(
+              message.object_id,
+              message.generation,
+              message.current_term,
+              commit_index,
+              new_last_applied));
+        });
       }
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
+vds::expected<void> vds::dht::network::sync_process::apply_message(
    database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_replica_operations_response& message,
   const imessage_map::message_info_t& message_info) {
 
@@ -1308,29 +1417,30 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
     base64::from_bytes(message.object_id).c_str());
 
   bool state;
-  GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info));
+  GET_EXPECTED_VALUE(state, this->apply_base_message(t, final_tasks, message, message_info));
   if (state) {
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
-  
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_offer_send_replica_operation_request& message,
   const imessage_map::message_info_t& message_info) {
 
   //auto client = this->sp_->get<network::client>();
   base_message_type state;
-  GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied));
+  GET_EXPECTED_VALUE(state, this->apply_base_message(t, final_tasks, message, message_info, message_info.source_node(), message.last_applied));
   if (base_message_type::successful != state) {
-    co_return expected<void>();
+    return expected<void>();
   }
 
-  CHECK_EXPECTED_ASYNC(co_await send_replica(
+  CHECK_EXPECTED(send_replica(
     this->sp_,
     t,
+    final_tasks,
     message.target_node,
     message.object_id,
     message.replica,
@@ -1340,11 +1450,12 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
     message.commit_index,
     message.last_applied));
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::remove_replica(
+vds::expected<void> vds::dht::network::sync_process::remove_replica(
   vds::database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer & object_id,
   uint16_t replica,
   const const_data_buffer & leader_node) {
@@ -1353,32 +1464,33 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::remove_rep
 
   orm::chunk_replica_data_dbo t1;
   orm::device_record_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(
+  GET_EXPECTED(st, t.get_reader(t1.select(
                              t1.replica_hash,
                              t2.local_path)
                            .inner_join(t2, t2.node_id == client->current_node_id() && t2.data_hash == t1.replica_hash)
                            .where(t1.object_id == object_id && t1.replica == replica)));
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (!st_execute) {
     this->sp_->get<logger>()->trace(
       SyncModule,
       "Remove replica %s:%d not found",
       base64::from_bytes(object_id).c_str(),
       replica);
-    co_return expected<void>();
+    return expected<void>();
   }
 
   const auto replica_hash = t1.replica_hash.get(st);
-  CHECK_EXPECTED_ASYNC(
+  CHECK_EXPECTED(
   _client::delete_data(
     replica_hash,
     filename(t2.local_path.get(st))));
 
-  CHECK_EXPECTED_ASYNC(t.execute(t1.delete_if(t1.object_id == object_id && t1.replica == replica)));
-  CHECK_EXPECTED_ASYNC(t.execute(t2.delete_if(t2.node_id == client->client::current_node_id() && t2.data_hash == replica_hash)));
+  CHECK_EXPECTED(t.execute(t1.delete_if(t1.object_id == object_id && t1.replica == replica)));
+  CHECK_EXPECTED(t.execute(t2.delete_if(t2.node_id == client->client::current_node_id() && t2.data_hash == replica_hash)));
 
-  co_return co_await add_local_log(
+  return add_local_log(
     t,
+    final_tasks,
     object_id,
     orm::sync_message_dbo::message_type_t::remove_replica,
     client->client::current_node_id(),
@@ -1387,7 +1499,6 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::remove_rep
 }
 
 vds::expected<std::map<size_t, std::set<uint16_t>>> vds::dht::network::sync_process::get_replica_frequency(
-  
   database_transaction& t,
   const const_data_buffer& object_id) {
 
@@ -1407,24 +1518,25 @@ vds::expected<std::map<size_t, std::set<uint16_t>>> vds::dht::network::sync_proc
   return result;
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
-  
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_offer_remove_replica_operation_request& message,
   const imessage_map::message_info_t& message_info) {
 
   //auto client = this->sp_->get<network::client>();
   base_message_type state;
-  GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message_info.source_node(), message.last_applied));
+  GET_EXPECTED_VALUE(state, this->apply_base_message(t, final_tasks, message, message_info, message_info.source_node(), message.last_applied));
   if (base_message_type::successful != state) {
-    co_return expected<void>();
+    return expected<void>();
   }
 
-  co_return co_await this->remove_replica(t, message.object_id, message.replica, message_info.source_node());
+  return this->remove_replica(t, final_tasks, message.object_id, message.replica, message_info.source_node());
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_random_replicas(
-  std::map<uint16_t, std::list<std::function<vds::async_task<vds::expected<void>>()>>> allowed_replicas,
+vds::expected<void> vds::dht::network::sync_process::send_random_replicas(
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+  std::map<uint16_t, std::list<std::function<vds::expected<void>()>>> allowed_replicas,
   std::set<uint16_t> send_replicas,
   const uint16_t count,
   const std::map<size_t, std::set<uint16_t>> replica_frequency) {
@@ -1442,7 +1554,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_rando
             auto sender_index = std::rand() % senders->second.size();
             for (const auto& sender : senders->second) {
               if (0 == sender_index--) {
-                CHECK_EXPECTED_ASYNC(co_await sender());
+                CHECK_EXPECTED(sender());
                 break;
               }
             }
@@ -1456,11 +1568,12 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_rando
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_random_replicas(
+vds::expected<void> vds::dht::network::sync_process::send_random_replicas(
   vds::database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer & object_id,
   const const_data_buffer & target_node,
   const send_random_replica_goal_t goal,
@@ -1470,7 +1583,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_rando
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t1.select(
       t1.state,
       t2.voted_for,
@@ -1480,7 +1593,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_rando
       t2.last_applied)
     .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->client::current_node_id())
     .where(t1.object_id == object_id)));
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (!st_execute) {
     this->sp_->get<logger>()->trace(
       SyncModule,
@@ -1506,18 +1619,18 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_rando
       const auto last_applied = t2.last_applied.get(st);
 
       //collect possible sources
-      std::map<uint16_t, std::list<std::function<vds::async_task<vds::expected<void>>(void)>>> allowed_replicas;
+      std::map<uint16_t, std::list<std::function<vds::expected<void>()>>> allowed_replicas;
       auto send_replicas = exist_replicas;
 
       orm::chunk_replica_data_dbo t5;
       orm::device_record_dbo t6;
-      GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(
+      GET_EXPECTED_VALUE(st, t.get_reader(
         t5
         .select(t5.replica, t5.replica_hash, t6.local_path)
         .inner_join(t6, t6.node_id == client->client::current_node_id() && t6.data_hash == t5.replica_hash)
         .where(t5.object_id == object_id)));
 
-      WHILE_EXPECTED_ASYNC (st.execute()) {
+      WHILE_EXPECTED (st.execute()) {
         const auto replica = t5.replica.get(st);
         if (send_replicas.end() == send_replicas.find(replica)) {
           if (goal == send_random_replica_goal_t::new_member) {
@@ -1535,36 +1648,51 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_rando
                 replica_hash = t5.replica_hash.get(st),
                 local_path = t6.local_path.get(st),
                 target_node,
-                object_id]() -> async_task<expected<void>>{
-              GET_EXPECTED(data, _client::read_data(
-                  replica_hash,
-                  filename(local_path)));
-                sp->get<logger>()->trace(
-                  SyncModule,
-                  "Send replica %s:%d to %s",
-                  base64::from_bytes(object_id).c_str(),
+                object_id,
+                &final_tasks]() -> expected<void>{
+                final_tasks.push_back([sp,
+                  client,
+                  generation,
+                  current_term,
+                  commit_index,
+                  last_applied,
                   replica,
-                  base64::from_bytes(target_node).c_str());
-                return (*client)->send(
+                  replica_hash,
+                  local_path,
                   target_node,
-                  message_create<messages::sync_replica_data>(
-                    object_id,
-                    generation,
-                    current_term,
-                    commit_index,
-                    last_applied,
+                  object_id,
+                  &final_tasks]()->async_task<expected<void>> {
+                  GET_EXPECTED(data, _client::read_data(
+                    replica_hash,
+                    filename(local_path)));
+                  sp->get<logger>()->trace(
+                    SyncModule,
+                    "Send replica %s:%d to %s",
+                    base64::from_bytes(object_id).c_str(),
                     replica,
-                    data,
-                    client->current_node_id()));
+                    base64::from_bytes(target_node).c_str());
+                  return (*client)->send(
+                    target_node,
+                    message_create<messages::sync_replica_data>(
+                      object_id,
+                      generation,
+                      current_term,
+                      commit_index,
+                      last_applied,
+                      replica,
+                      data,
+                      client->current_node_id()));
+                });
+                return expected<void>();
               });
           }
         }
       }
-      WHILE_EXPECTED_END_ASYNC()
+      WHILE_EXPECTED_END()
 
       orm::sync_replica_map_dbo t7;
-      GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t7.select(t7.replica, t7.node).where(t7.object_id == object_id)));
-      WHILE_EXPECTED_ASYNC(st.execute()) {
+      GET_EXPECTED_VALUE(st, t.get_reader(t7.select(t7.replica, t7.node).where(t7.object_id == object_id)));
+      WHILE_EXPECTED(st.execute()) {
         auto replica = t7.replica.get(st);
         if (send_replicas.end() == send_replicas.find(replica)
           && t7.node.get(st) != client->client::current_node_id()) {
@@ -1582,41 +1710,56 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_rando
                 commit_index,
                 last_applied,
                 target_node,
-                object_id]() -> async_task<expected<void>> {
-                sp->get<logger>()->trace(
-                  SyncModule,
-                  "Offer %s to send replica %s:%d to %s",
-                  base64::from_bytes(node).c_str(),
-                  base64::from_bytes(object_id).c_str(),
-                  replica,
-                  base64::from_bytes(target_node).c_str());
-                return (*client)->send(
-                  node,
-                  message_create<messages::sync_offer_send_replica_operation_request>(
-                    object_id,
+                object_id,
+                &final_tasks]()->expected<void> {
+                final_tasks.push_back([
+                  sp,
+                    client,
+                    replica,
+                    node,
                     generation,
                     current_term,
                     commit_index,
                     last_applied,
+                    target_node,
+                    object_id]() {
+                  sp->get<logger>()->trace(
+                    SyncModule,
+                    "Offer %s to send replica %s:%d to %s",
+                    base64::from_bytes(node).c_str(),
+                    base64::from_bytes(object_id).c_str(),
                     replica,
-                    target_node));
+                    base64::from_bytes(target_node).c_str());
+                  return (*client)->send(
+                    node,
+                    message_create<messages::sync_offer_send_replica_operation_request>(
+                      object_id,
+                      generation,
+                      current_term,
+                      commit_index,
+                      last_applied,
+                      replica,
+                      target_node));
+                });
+
+                return expected<void>();
               });
           }
         }
       }
-      WHILE_EXPECTED_END_ASYNC()
+      WHILE_EXPECTED_END()
 
       orm::chunk_dbo t3;
       orm::device_record_dbo t4;
-      GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(
+      GET_EXPECTED_VALUE(st, t.get_reader(
         t3
         .select(t4.local_path)
         .inner_join(t4, t4.node_id == client->client::current_node_id() && t4.data_hash == object_id)
         .where(t3.object_id == object_id)));
 
-      GET_EXPECTED_ASYNC(st_execute, st.execute());
+      GET_EXPECTED(st_execute, st.execute());
       if (st_execute) {
-        GET_EXPECTED_ASYNC(data, file::read_all(filename(t4.local_path.get(st))));
+        GET_EXPECTED(data, file::read_all(filename(t4.local_path.get(st))));
         for (uint16_t replica = 0; replica < service::GENERATE_DISTRIBUTED_PIECES; ++replica) {
           if (allowed_replicas.end() == allowed_replicas.find(replica)
             && send_replicas.end() == send_replicas.find(replica)) {
@@ -1631,7 +1774,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_rando
                 last_applied,
                 replica,
                 target_node,
-                object_id]() -> async_task<expected<void>> {
+                object_id,
+                &final_tasks]() -> expected<void> {
               binary_serializer s;
               CHECK_EXPECTED(this->distributed_generators_.find(replica)->second->write(s, data.data(), data.size()));
               const_data_buffer replica_data(s.move_data());
@@ -1651,33 +1795,47 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_rando
                   t5.object_id = object_id,
                   t5.replica = replica,
                   t5.replica_hash = data_hash)));
-
-              return (*client)->send(
+              final_tasks.push_back([
+                client,
                 target_node,
-                message_create<messages::sync_replica_data>(
-                  object_id,
-                  generation,
-                  current_term,
-                  commit_index,
-                  last_applied,
-                  replica,
-                  replica_data,
-                  client->client::current_node_id()));
-            });
+                object_id,
+                generation,
+                current_term,
+                commit_index,
+                last_applied,
+                replica,
+                replica_data
+              ]() {
+                return (*client)->send(
+                  target_node,
+                  message_create<messages::sync_replica_data>(
+                    object_id,
+                    generation,
+                    current_term,
+                    commit_index,
+                    last_applied,
+                    replica,
+                    replica_data,
+                    client->client::current_node_id()));
+              });
+              return expected<void>();
+                });
           }
         }
       }
 
-      GET_EXPECTED_ASYNC(replica_frequency, this->get_replica_frequency(t, object_id));
+      GET_EXPECTED(replica_frequency, this->get_replica_frequency(t, object_id));
       if(goal == send_random_replica_goal_t::new_member) {
-        CHECK_EXPECTED_ASYNC(co_await this->send_random_replicas(
+        CHECK_EXPECTED(this->send_random_replicas(
+          final_tasks,
           allowed_replicas,
           std::set<uint16_t>(),
           1,
           replica_frequency));
       }
       else {
-        CHECK_EXPECTED_ASYNC(co_await this->send_random_replicas(
+        CHECK_EXPECTED(this->send_random_replicas(
+          final_tasks,
           allowed_replicas,
           send_replicas,
           service::MIN_DISTRIBUTED_PIECES,
@@ -1686,7 +1844,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_rando
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
 vds::expected<void> vds::dht::network::sync_process::validate_last_applied(
@@ -1733,8 +1891,9 @@ vds::expected<void> vds::dht::network::sync_process::validate_last_applied(
   return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction & t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_replica_request& message,
   const imessage_map::message_info_t& message_info) {
 
@@ -1748,25 +1907,27 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
 
   return send_random_replicas(
     t,
+    final_tasks,
     message.object_id,
     message_info.source_node(),
     send_random_replica_goal_t::restore_object,
     message.exist_replicas);
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_replica_data& message,
   const imessage_map::message_info_t& message_info) {
 
   auto client = this->sp_->get<network::client>();
 
   orm::chunk_replica_data_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t2.select(t2.replica_hash)
       .where(t2.object_id == message.object_id
         && t2.replica == message.replica)));
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (st_execute) {
     //Already exists
     this->sp_->get<logger>()->trace(
@@ -1777,8 +1938,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
       base64::from_bytes(message_info.source_node()).c_str());
   }
   else {
-    GET_EXPECTED_ASYNC(data_hash, hash::signature(hash::sha256(), message.data));
-    GET_EXPECTED_ASYNC(fn, _client::save_data(this->sp_, t, data_hash, message.data));
+    GET_EXPECTED(data_hash, hash::signature(hash::sha256(), message.data));
+    GET_EXPECTED(fn, _client::save_data(this->sp_, t, data_hash, message.data));
     this->sp_->get<logger>()->trace(
       SyncModule,
       "Got replica %s:%d from %s",
@@ -1786,26 +1947,26 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
       message.replica,
       base64::from_bytes(message_info.source_node()).c_str());
 
-    CHECK_EXPECTED_ASYNC(t.execute(
+    CHECK_EXPECTED(t.execute(
       t2.insert(
         t2.object_id = message.object_id,
         t2.replica = message.replica,
         t2.replica_hash = data_hash)));
 
     base_message_type state;
-    GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info, message.leader_node, message.last_applied));
+    GET_EXPECTED_VALUE(state, this->apply_base_message(t, final_tasks, message, message_info, message.leader_node, message.last_applied));
     switch (state) {
     case base_message_type::not_found: {
       orm::sync_member_dbo t3;
 
-      GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t3.select(
+      GET_EXPECTED_VALUE(st, t.get_reader(t3.select(
         t3.last_applied)
         .where(
           t3.object_id == message.object_id
           && t3.member_node == message_info.source_node())));
-      GET_EXPECTED_ASYNC(st_execute, st.execute());
+      GET_EXPECTED(st_execute, st.execute());
       if (!st_execute) {
-        CHECK_EXPECTED_ASYNC(t.execute(t3.insert(
+        CHECK_EXPECTED(t.execute(t3.insert(
           t3.object_id = message.object_id,
           t3.member_node = message_info.source_node(),
           t3.voted_for = message.leader_node,
@@ -1816,16 +1977,17 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
           t3.last_applied = message.commit_index,
           t3.delete_index = 0,
           t3.last_activity = std::chrono::system_clock::now())));
-        CHECK_EXPECTED_ASYNC(validate_last_applied(t, message.object_id));
+        CHECK_EXPECTED(validate_last_applied(t, message.object_id));
       }
 
-      CHECK_EXPECTED_ASYNC(co_await this->send_snapshot_request(message.object_id, message.leader_node));
+      this->send_snapshot_request(final_tasks, message.object_id, message.leader_node);
       break;
     }
     case base_message_type::successful: {
-      GET_EXPECTED_ASYNC(leader, this->get_leader(t, message.object_id));
-      CHECK_EXPECTED_ASYNC(co_await this->add_local_log(
+      GET_EXPECTED(leader, this->get_leader(t, message.object_id));
+      CHECK_EXPECTED(this->add_local_log(
         t,
+        final_tasks,
         message.object_id,
         orm::sync_message_dbo::message_type_t::add_replica,
         client->current_node_id(),
@@ -1835,23 +1997,23 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
-  
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_replica_query_operations_request& message,
   const imessage_map::message_info_t& message_info) {
 
   bool state;
-  GET_EXPECTED_VALUE_ASYNC(state, co_await this->apply_base_message(t, message, message_info));
+  GET_EXPECTED_VALUE(state, this->apply_base_message(t, final_tasks, message, message_info));
   if(!state) {
-    co_return expected<void>();
+    return expected<void>();
   }
 
   orm::sync_message_dbo t1;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(
+  GET_EXPECTED(st, t.get_reader(t1.select(
     t1.message_type,
     t1.member_node,
     t1.replica,
@@ -1861,29 +2023,45 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
       && t1.generation == message.generation
       && t1.current_term == message.current_term
       && t1.index == message.last_applied)));
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if(!st_execute) {
-    co_return vds::make_unexpected<std::runtime_error>("error");
+    return vds::make_unexpected<std::runtime_error>("error");
   }
 
   auto client = this->sp_->get<network::client>();
-  co_return co_await (*client)->send(
-    message_info.source_node(),
-    message_create<messages::sync_replica_operations_request>(
-      message.object_id,
-      message.generation,
-      message.current_term,
-      message.commit_index,
-      message.last_applied,
-      t1.message_type.get(st),
-      t1.member_node.get(st),
-      t1.replica.get(st),
-      t1.source_node.get(st),
-      t1.source_index.get(st)));
+  final_tasks.push_back([client,
+    target_node = message_info.source_node(),
+    object_id = message.object_id,
+    generation = message.generation,
+    current_term = message.current_term,
+    commit_index = message.commit_index,
+    last_applied = message.last_applied,
+    message_type = t1.message_type.get(st),
+    member_node = t1.member_node.get(st),
+    replica = t1.replica.get(st),
+    source_node = t1.source_node.get(st),
+    source_index = t1.source_index.get(st)
+  ]() {
+    return (*client)->send(
+      target_node,
+      message_create<messages::sync_replica_operations_request>(
+        object_id,
+        generation,
+        current_term,
+        commit_index,
+        last_applied,
+        message_type,
+        member_node,
+        replica,
+        source_node,
+        source_index));
+  });
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::on_new_session(
+vds::expected<void> vds::dht::network::sync_process::on_new_session(
   database_read_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& partner_id) {
 
   const auto client = this->sp_->get<network::client>();
@@ -1891,7 +2069,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::on_new_ses
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
   orm::sync_member_dbo t3;
-  GET_EXPECTED_ASYNC(st, t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t1.select(
       t1.object_id,
       t1.object_size,
@@ -1905,33 +2083,42 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::on_new_ses
     .where(t1.state == orm::sync_state_dbo::state_t::leader
       && db_not_in(t1.object_id, t3.select(t3.object_id).where(t3.member_node == partner_id)))));
 
-  WHILE_EXPECTED_ASYNC(st.execute()) {
-    CHECK_EXPECTED_ASYNC(co_await(*client)->send(partner_id, message_create<messages::sync_looking_storage_request>(
-      t1.object_id.get(st),
-      t2.generation.get(st),
-      t2.current_term.get(st),
-      t2.current_term.get(st),
-      t2.last_applied.get(st),
-      t1.object_size.get(st))));
+  WHILE_EXPECTED(st.execute()) {
+    final_tasks.push_back([
+        client,
+        partner_id,
+          object_id = t1.object_id.get(st),
+          generation = t2.generation.get(st),
+          current_term = t2.current_term.get(st),
+          last_applied = t2.last_applied.get(st),
+          object_size = t1.object_size.get(st)]() {
+      return (*client)->send(partner_id, message_create<messages::sync_looking_storage_request>(
+        object_id,
+        generation,
+        current_term,
+        last_applied,
+        object_size));
+    });
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END()
 
-    co_return expected<void>();
+    return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_leader_broadcast(
+vds::expected<void> vds::dht::network::sync_process::send_leader_broadcast(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& object_id) {
 
-  auto& client = *this->sp_->get<network::client>();
+  auto client = this->sp_->get<network::client>();
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t2.select(t2.member_node, t2.last_activity)
       .where(t2.object_id == object_id)));
   std::set<const_data_buffer> to_remove;
   std::set<const_data_buffer> member_nodes;
-  WHILE_EXPECTED_ASYNC(st.execute()) {
+  WHILE_EXPECTED(st.execute()) {
     const auto member_node = t2.member_node.get(st);
     if (member_node != client->current_node_id()) {
       const auto last_activity = t2.last_activity.get(st);
@@ -1947,15 +2134,15 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_leade
       }
     }
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END()
 
   if (to_remove.empty()) {
-    GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(
+    GET_EXPECTED_VALUE(st, t.get_reader(
       t2.select(t2.generation, t2.current_term, t2.commit_index, t2.last_applied)
         .where(t2.object_id == object_id && t2.member_node == client->current_node_id())));
-    GET_EXPECTED_ASYNC(st_execute, st.execute());
+    GET_EXPECTED(st_execute, st.execute());
     if (!st_execute) {
-      co_return vds::make_unexpected<vds_exceptions::invalid_operation>();
+      return vds::make_unexpected<vds_exceptions::invalid_operation>();
     }
 
     const auto generation = t2.generation.get(st);
@@ -1974,21 +2161,31 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_leade
           commit_index,
           last_applied);
 
-      CHECK_EXPECTED_ASYNC(co_await client->send(
-        member_node,
-        message_create<messages::sync_leader_broadcast_request>(
+      final_tasks.push_back([
+          client,
+          member_node,
           object_id,
           generation,
           current_term,
           commit_index,
-          last_applied)));
+          last_applied]() {
+        return (*client)->send(
+          member_node,
+          message_create<messages::sync_leader_broadcast_request>(
+            object_id,
+            generation,
+            current_term,
+            commit_index,
+            last_applied));
+      });
     }
   }
   else {
     //Remove members
     for (const auto& member_node : to_remove) {
-      CHECK_EXPECTED_ASYNC(co_await this->add_local_log(
+      CHECK_EXPECTED(this->add_local_log(
         t,
+        final_tasks,
         object_id,
         orm::sync_message_dbo::message_type_t::remove_member,
         member_node,
@@ -1998,13 +2195,13 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_leade
   }
 
   if (service::GENERATE_DISTRIBUTED_PIECES > member_nodes.size()) {
-    GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(
+    GET_EXPECTED_VALUE(st, t.get_reader(
       t1.select(t1.object_size, t2.generation, t2.current_term, t2.commit_index, t2.last_applied)
-        .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
-        .where(t1.object_id == object_id)));
-    GET_EXPECTED_ASYNC(st_execute, st.execute());
+      .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
+      .where(t1.object_id == object_id)));
+    GET_EXPECTED(st_execute, st.execute());
     if (!st_execute) {
-      co_return vds::make_unexpected<vds_exceptions::invalid_operation>();
+      return vds::make_unexpected<vds_exceptions::invalid_operation>();
     }
 
     const auto generation = t2.generation.get(st);
@@ -2013,87 +2210,100 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_leade
     const auto last_applied = t2.last_applied.get(st);
     const auto object_size = t1.object_size.get(st);
 
-    CHECK_EXPECTED_ASYNC(co_await client->send_near(
-      object_id,
-      service::GENERATE_DISTRIBUTED_PIECES,
-      message_create<messages::sync_looking_storage_request>(
+    final_tasks.push_back([
+      client,
         object_id,
         generation,
-        current_term,
-        commit_index,
-        last_applied,
-        object_size),
-      [&member_nodes](const dht_route<std::shared_ptr<dht_session>>::node& node)-> expected<bool> {
+      current_term,
+      commit_index,
+      last_applied,
+      object_size,
+        member_nodes]() {
+      return (*client)->send_near(
+        object_id,
+        service::GENERATE_DISTRIBUTED_PIECES,
+        message_create<messages::sync_looking_storage_request>(
+          object_id,
+          generation,
+          current_term,
+          commit_index,
+          last_applied,
+          object_size),
+        [&member_nodes](const dht_route<std::shared_ptr<dht_session>>::node& node)-> expected<bool> {
         return member_nodes.end() == member_nodes.find(node.node_id_);
-      }));
+      });
+    });
   }
 
-  CHECK_EXPECTED_ASYNC(t.execute(
+  CHECK_EXPECTED(t.execute(
     t1.update(
         t1.next_sync = std::chrono::system_clock::now() + FOLLOWER_TIMEOUT())
       .where(t1.object_id == object_id)));
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::sync_entries(
-  database_transaction& t) {
+vds::expected<void> vds::dht::network::sync_process::sync_entries(
+  database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks) {
 
   //auto& client = *this->sp_->get<network::client>();
 
   std::map<const_data_buffer, orm::sync_state_dbo::state_t> objects;
   orm::sync_state_dbo t1;
-  GET_EXPECTED_ASYNC(st, t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t1.select(
         t1.object_id,
         t1.state)
       .where(t1.next_sync <= std::chrono::system_clock::now())));
-  WHILE_EXPECTED_ASYNC (st.execute()) {
+  WHILE_EXPECTED (st.execute()) {
     const auto object_id = t1.object_id.get(st);
     objects[object_id] = t1.state.get(st);
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END()
 
   for (auto& p : objects) {
     switch (p.second) {
 
     case orm::sync_state_dbo::state_t::follower: {
-      CHECK_EXPECTED_ASYNC(co_await this->make_new_election(t, p.first));
+      CHECK_EXPECTED(this->make_new_election(t, final_tasks, p.first));
       break;
     }
 
     case orm::sync_state_dbo::state_t::canditate: {
-      CHECK_EXPECTED_ASYNC(co_await this->make_leader(t, p.first));
+      CHECK_EXPECTED(this->make_leader(t, final_tasks, p.first));
       break;
     }
 
     case orm::sync_state_dbo::state_t::leader: {
-      CHECK_EXPECTED_ASYNC(co_await this->send_leader_broadcast(t, p.first));
+      CHECK_EXPECTED(this->send_leader_broadcast(t, final_tasks, p.first));
       break;
     }
 
     }
   }
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_snapshot_request(
+void vds::dht::network::sync_process::send_snapshot_request(
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& object_id,
   const const_data_buffer& leader_node,
   const const_data_buffer& from_node) {
 
-  auto& client = *this->sp_->get<network::client>();
-  return client->send(
-    leader_node,
-    message_create<messages::sync_snapshot_request>(
-      object_id,
-      ((!from_node) ? client.current_node_id() : from_node)));
-
+  final_tasks.push_back([this, object_id, leader_node, from_node]() {
+    auto& client = *this->sp_->get<network::client>();
+    return client->send(
+      leader_node,
+      message_create<messages::sync_snapshot_request>(
+        object_id,
+        ((!from_node) ? client.current_node_id() : from_node)));
+  });
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
-  
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_new_election_request& message,
   const imessage_map::message_info_t& message_info) {
 
@@ -2101,43 +2311,45 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(
+  GET_EXPECTED(st, t.get_reader(t1.select(
                              t1.state, t2.voted_for, t2.generation, t2.current_term)
                            .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
                            .where(t1.object_id == message.object_id)));
 
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (st_execute) {
     if (t2.generation.get(st) < message.generation
       || (t2.generation.get(st) == message.generation && t2.current_term.get(st) < message.current_term)) {
-      co_return co_await this->make_follower(t, message.object_id, message.generation, message.current_term,
+      return this->make_follower(t, message.object_id, message.generation, message.current_term,
                           message.source_node);
     }
     if (t2.generation.get(st) > message.generation
       || (t2.generation.get(st) == message.generation && t2.current_term.get(st) > message.current_term)) {
       if (t1.state.get(st) == orm::sync_state_dbo::state_t::leader) {
-        CHECK_EXPECTED_ASYNC(co_await send_snapshot(t, message.object_id, {message.source_node}));
+        CHECK_EXPECTED(send_snapshot(t, final_tasks, message.object_id, {message.source_node}));
       }
       else if(t1.state.get(st) == orm::sync_state_dbo::state_t::follower){
-        CHECK_EXPECTED_ASYNC(co_await this->send_snapshot_request(
+        this->send_snapshot_request(
+          final_tasks,
             message.object_id,
             t2.voted_for.get(st),
-            message.source_node));
+            message.source_node);
       }
-      co_return expected<void>();
+      return expected<void>();
     }
 
     vds_assert(t2.generation.get(st) == message.generation && t2.current_term.get(st) == message.current_term);
   }
   else {
-    CHECK_EXPECTED_ASYNC(co_await this->send_snapshot_request(message.object_id, message.source_node, client->current_node_id()));
+    this->send_snapshot_request(final_tasks, message.object_id, message.source_node, client->current_node_id());
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_message(
+vds::expected<void> vds::dht::network::sync_process::apply_message(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_new_election_response& message,
   const imessage_map::message_info_t& message_info) {
 
@@ -2145,24 +2357,24 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(
+  GET_EXPECTED(st, t.get_reader(t1.select(
                              t1.state, t2.voted_for, t2.generation, t2.current_term)
                            .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
                            .where(t1.object_id == message.object_id)));
 
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (st_execute
     && t1.state.get(st) == orm::sync_state_dbo::state_t::canditate
     && t2.generation.get(st) == message.generation
     && t2.current_term.get(st) == message.current_term) {
 
-    GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(t2.select(t2.last_activity).where(
+    GET_EXPECTED_VALUE(st, t.get_reader(t2.select(t2.last_activity).where(
       t2.object_id == message.object_id
       && t2.member_node == message.source_node)));
 
-    GET_EXPECTED_ASYNC(st_execute, st.execute());
+    GET_EXPECTED(st_execute, st.execute());
     if (!st_execute) {
-      CHECK_EXPECTED_ASYNC(t.execute(t2.insert(
+      CHECK_EXPECTED(t.execute(t2.insert(
         t2.object_id = message.object_id,
         t2.member_node = message.source_node,
         t2.voted_for = client->current_node_id(),
@@ -2173,7 +2385,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
         t2.last_activity = std::chrono::system_clock::now())));
     }
     else {
-      CHECK_EXPECTED_ASYNC(t.execute(t2.update(
+      CHECK_EXPECTED(t.execute(t2.update(
                     t2.voted_for = client->current_node_id(),
                     t2.generation = message.generation,
                     t2.current_term = message.current_term,
@@ -2184,25 +2396,25 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_mess
     }
 
     db_value<int64_t> voted_count;
-    GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(
+    GET_EXPECTED_VALUE(st, t.get_reader(
       t2.select(
           db_count(t2.member_node).as(voted_count))
         .where(t2.object_id == message.object_id
           && t2.voted_for == client->current_node_id()
           && t2.generation == message.generation
           && t2.current_term == message.current_term)));
-    GET_EXPECTED_VALUE_ASYNC(st_execute, st.execute());
+    GET_EXPECTED_VALUE(st_execute, st.execute());
     if (!st_execute) {
-      co_return vds::make_unexpected<vds_exceptions::invalid_operation>();
+      return vds::make_unexpected<vds_exceptions::invalid_operation>();
     }
 
     const auto count = voted_count.get(st);
-    GET_EXPECTED_ASYNC(quorum, this->get_quorum(t, message.object_id));
+    GET_EXPECTED(quorum, this->get_quorum(t, message.object_id));
     if (count >= quorum) {
-      CHECK_EXPECTED_ASYNC(co_await this->make_leader(t, message.object_id));
+      CHECK_EXPECTED(this->make_leader(t, final_tasks, message.object_id));
     }
   }
-  co_return expected<void>();
+  return expected<void>();
 }
 
 
@@ -2325,9 +2537,9 @@ vds::expected<vds::const_data_buffer> vds::dht::network::sync_process::get_leade
   return const_data_buffer();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_record(
-  
+vds::expected<void> vds::dht::network::sync_process::apply_record(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& object_id,
   const const_data_buffer& leader_node_id,
   uint64_t generation,
@@ -2335,7 +2547,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_reco
   uint64_t message_index,
   uint64_t last_applied) {
   orm::sync_message_dbo t1;
-  GET_EXPECTED_ASYNC(st, t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t1.select(
         t1.message_type,
         t1.replica,
@@ -2346,13 +2558,14 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_reco
         && t1.generation == generation
         && t1.current_term == current_term
         && t1.index == message_index)));
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (!st_execute) {
-    co_return vds::make_unexpected<vds_exceptions::not_found>();
+    return vds::make_unexpected<vds_exceptions::not_found>();
   }
 
-  CHECK_EXPECTED_ASYNC(co_await apply_record(
+  CHECK_EXPECTED(apply_record(
     t,
+    final_tasks,
     object_id,
     t1.message_type.get(st),
     t1.member_node.get(st),
@@ -2367,7 +2580,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_reco
 
   const auto client = this->sp_->get<network::client>();
   orm::sync_member_dbo t2;
-  CHECK_EXPECTED_ASYNC(t.execute(t2.update(
+  CHECK_EXPECTED(t.execute(t2.update(
                 t2.commit_index = message_index)
               .where(
                 t2.object_id == object_id
@@ -2375,13 +2588,14 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_reco
                 && t2.generation == generation
                 && t2.current_term == current_term
                 && t2.commit_index == message_index - 1)));
-  GET_EXPECTED_ASYNC(rows_modified, t.rows_modified());
+  GET_EXPECTED(rows_modified, t.rows_modified());
   vds_assert(1 == rows_modified);
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_record(
+vds::expected<void> vds::dht::network::sync_process::apply_record(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& object_id,
   orm::sync_message_dbo::message_type_t message_type,
   const const_data_buffer& member_node,
@@ -2405,15 +2619,15 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_reco
       base64::from_bytes(object_id).c_str());
 
     orm::sync_member_dbo t1;
-    GET_EXPECTED_ASYNC(st, t.get_reader(
+    GET_EXPECTED(st, t.get_reader(
       t1.select(t1.object_id)
         .where(
           t1.object_id == object_id
           && t1.member_node == member_node)));
 
-    GET_EXPECTED_ASYNC(st_execute, st.execute());
+    GET_EXPECTED(st_execute, st.execute());
     if (!st_execute) {
-      CHECK_EXPECTED_ASYNC(t.execute(
+      CHECK_EXPECTED(t.execute(
         t1.insert(
           t1.object_id = object_id,
           t1.member_node = member_node,
@@ -2427,7 +2641,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_reco
     }
 
     if (leader_node_id == client->current_node_id()) {
-      CHECK_EXPECTED_ASYNC(co_await send_snapshot(t, object_id, { member_node }));
+      CHECK_EXPECTED(send_snapshot(t, final_tasks, object_id, { member_node }));
     }
 
     break;
@@ -2436,13 +2650,13 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_reco
   case orm::sync_message_dbo::message_type_t::remove_member: {
     orm::sync_member_dbo t1;
     if (leader_node_id != client->current_node_id()) {
-      CHECK_EXPECTED_ASYNC(t.execute(
+      CHECK_EXPECTED(t.execute(
         t1.delete_if(
           t1.object_id == object_id
           && t1.member_node == member_node)));
     }
     else {
-      CHECK_EXPECTED_ASYNC(t.execute(
+      CHECK_EXPECTED(t.execute(
         t1.update(
           t1.delete_index = commit_index)
         .where(
@@ -2461,15 +2675,15 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_reco
       base64::from_bytes(member_node).c_str());
 
     orm::sync_replica_map_dbo t1;
-    GET_EXPECTED_ASYNC(st, t.get_reader(
+    GET_EXPECTED(st, t.get_reader(
       t1.select(t1.last_access)
         .where(
           t1.object_id == object_id
           && t1.node == member_node
           && t1.replica == replica)));
-    GET_EXPECTED_ASYNC(st_execute, st.execute());
+    GET_EXPECTED(st_execute, st.execute());
     if (!st_execute) {
-      CHECK_EXPECTED_ASYNC(t.execute(
+      CHECK_EXPECTED(t.execute(
         t1.insert(
           t1.object_id = object_id,
           t1.node = member_node,
@@ -2482,7 +2696,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_reco
 
   case orm::sync_message_dbo::message_type_t::remove_replica: {
     orm::sync_replica_map_dbo t1;
-    CHECK_EXPECTED_ASYNC(t.execute(
+    CHECK_EXPECTED(t.execute(
       t1.delete_if(
         t1.object_id == object_id
         && t1.node == member_node
@@ -2492,23 +2706,24 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::apply_reco
   }
 
   default: {
-    co_return vds::make_unexpected<std::runtime_error>("Invalid operation");
+    return vds::make_unexpected<std::runtime_error>("Invalid operation");
   }
   }
 
   //remove local record
   if (client->current_node_id() == message_node) {
     orm::sync_local_queue_dbo t2;
-    CHECK_EXPECTED_ASYNC(t.execute(t2.delete_if(t2.object_id == object_id && t2.local_index == message_index)));
-    GET_EXPECTED_ASYNC(rows_modified, t.rows_modified());
+    CHECK_EXPECTED(t.execute(t2.delete_if(t2.object_id == object_id && t2.local_index == message_index)));
+    GET_EXPECTED(rows_modified, t.rows_modified());
     vds_assert(rows_modified == 1);
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_snapshot(
+vds::expected<void> vds::dht::network::sync_process::send_snapshot(
   database_read_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer object_id,
   const std::set<const_data_buffer> target_nodes) {
 
@@ -2516,7 +2731,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_snaps
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(
+  GET_EXPECTED(st, t.get_reader(
     t1.select(
         t1.object_size,
         t1.state,
@@ -2527,10 +2742,10 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_snaps
       .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
       .where(t1.object_id == object_id)));
 
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (!st_execute || orm::sync_state_dbo::state_t::leader != t1.state.get(st)) {
     vds_assert(false);
-    co_return expected<void>();
+    return expected<void>();
   }
 
   const auto object_size = t1.object_size.get(st);
@@ -2541,60 +2756,72 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_snaps
 
   //
   orm::sync_replica_map_dbo t3;
-  GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(
+  GET_EXPECTED_VALUE(st, t.get_reader(
     t3.select(
         t3.replica,
         t3.node)
       .where(t3.object_id == object_id)));
   std::map<const_data_buffer, std::set<uint16_t>> replica_map;
-  WHILE_EXPECTED_ASYNC(st.execute()) {
+  WHILE_EXPECTED(st.execute()) {
     replica_map[t3.node.get(st)].emplace(t3.replica.get(st));
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END()
 
   //
-  GET_EXPECTED_VALUE_ASYNC(st, t.get_reader(
+  GET_EXPECTED_VALUE(st, t.get_reader(
     t2.select(
         t2.member_node,
         t2.voted_for)
       .where(t2.object_id == object_id)));
   std::map<const_data_buffer, messages::sync_snapshot_response::member_state> members;
-  WHILE_EXPECTED_ASYNC(st.execute()) {
+  WHILE_EXPECTED(st.execute()) {
     auto& p = members[t2.member_node.get(st)];
     p.voted_for = t2.voted_for.get(st);
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END()
 
   for (const auto& target_node : target_nodes) {
     if (target_node != client->current_node_id()) {
-      CHECK_EXPECTED_ASYNC(co_await (*client)->send(
+      final_tasks.push_back([
+        client,
+        object_id,
+        object_size,
         target_node,
-        message_create<messages::sync_snapshot_response>(
-          object_id,
-          object_size,
+        generation,
+        current_term,
+        commit_index,
+        last_applied,
+        replica_map,
+        members]() {
+        return (*client)->send(
           target_node,
-          client->current_node_id(),
-          generation,
-          current_term,
-          commit_index,
-          last_applied,
-          replica_map,
-          members)));
+          message_create<messages::sync_snapshot_response>(
+            object_id,
+            object_size,
+            target_node,
+            client->current_node_id(),
+            generation,
+            current_term,
+            commit_index,
+            last_applied,
+            replica_map,
+            members));
+      });
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::sync_local_queues(
-  
-  database_transaction& t) {
+vds::expected<void> vds::dht::network::sync_process::sync_local_queues(
+  database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks) {
   const auto client = this->sp_->get<network::client>();
 
   orm::sync_local_queue_dbo t1;
   orm::sync_state_dbo t2;
   orm::sync_member_dbo t3;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(
+  GET_EXPECTED(st, t.get_reader(t1.select(
                              t1.local_index,
                              t1.object_id,
                              t1.message_type,
@@ -2606,38 +2833,50 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::sync_local
                            .inner_join(t3, t3.object_id == t1.object_id && t3.member_node == client->current_node_id())
                            .where(t1.last_send <= std::chrono::system_clock::now() - LOCAL_QUEUE_TIMEOUT())));
   std::set<uint64_t> processed;
-  WHILE_EXPECTED_ASYNC(st.execute()) {
+  WHILE_EXPECTED(st.execute()) {
     if (client->current_node_id() != t3.voted_for.get(st)) {
-      CHECK_EXPECTED_ASYNC(co_await(*client)->send(
-        t3.voted_for.get(st),
-        message_create<messages::sync_add_message_request>(
-          t1.object_id.get(st),
-          t3.voted_for.get(st),
-          client->current_node_id(),
-          t1.local_index.get(st),
-          t1.message_type.get(st),
-          t1.member_node.get(st),
-          t1.replica.get(st))));
+      final_tasks.push_back([
+        client,
+          voted_for = t3.voted_for.get(st),
+          object_id = t1.object_id.get(st),
+          local_index = t1.local_index.get(st),
+          message_type = t1.message_type.get(st),
+          member_node = t1.member_node.get(st),
+          replica = t1.replica.get(st)
+      ]() {
+        return (*client)->send(
+          voted_for,
+          message_create<messages::sync_add_message_request>(
+            object_id,
+            voted_for,
+            client->current_node_id(),
+            local_index,
+            message_type,
+            member_node,
+            replica));
+      });
     }
     processed.emplace(t1.local_index.get(st));
   }
-  WHILE_EXPECTED_END_ASYNC()
+  WHILE_EXPECTED_END()
 
   for (const auto local_index : processed) {
-    CHECK_EXPECTED_ASYNC(t.execute(t1.update(t1.last_send = std::chrono::system_clock::now()).where(t1.local_index == local_index)));
+    CHECK_EXPECTED(t.execute(t1.update(t1.last_send = std::chrono::system_clock::now()).where(t1.local_index == local_index)));
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::sync_replicas( database_transaction& t) {
+vds::expected<void> vds::dht::network::sync_process::sync_replicas(
+  database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks) {
   if (this->sync_replicas_timeout_++ == 120) {
     replica_sync sync;
-    CHECK_EXPECTED_ASYNC(sync.load(this->sp_, t));
-    CHECK_EXPECTED_ASYNC(co_await sync.normalize_density(this, this->sp_, t));
+    CHECK_EXPECTED(sync.load(this->sp_, t));
+    CHECK_EXPECTED(sync.normalize_density(this, this->sp_, t, final_tasks));
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
 vds::expected<void> vds::dht::network::sync_process::replica_sync::load(
@@ -2705,8 +2944,9 @@ vds::expected<void> vds::dht::network::sync_process::replica_sync::load(
     return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sync::object_info_t::restore_chunk(
+vds::expected<void> vds::dht::network::sync_process::replica_sync::object_info_t::restore_chunk(
   const service_provider * sp,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
   const const_data_buffer& object_id) const {
   const auto client = sp->get<network::client>();
@@ -2743,23 +2983,25 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
     for (const auto& source : candidates) {
       if (index-- == 0) {
         processed.emplace(source);
-
-        CHECK_EXPECTED_ASYNC(co_await (*client)->send(
-          source,
-          message_create<messages::sync_replica_request>(
-            object_id,
-            exist_replicas)));
+        final_tasks.push_back([client, source, object_id, exist_replicas]() {
+          return (*client)->send(
+            source,
+            message_create<messages::sync_replica_request>(
+              object_id,
+              exist_replicas));
+        });
         break;
       }
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sync::object_info_t::generate_missing_replicas(
+vds::expected<void> vds::dht::network::sync_process::replica_sync::object_info_t::generate_missing_replicas(
   const service_provider * sp,
   const database_read_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
   const const_data_buffer& object_id,
   std::set<const_data_buffer> chunk_nodes) const {
@@ -2795,9 +3037,10 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
       auto index = std::rand() % chunk_nodes.size();
       for (const auto& chunk_node : chunk_nodes) {
         if (chunk_node == client->current_node_id()) {
-          CHECK_EXPECTED_ASYNC(co_await send_replica(
+          CHECK_EXPECTED(send_replica(
             sp,
             t,
+            final_tasks,
             node,
             object_id,
             replica,
@@ -2809,16 +3052,27 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
         }
         else {
           vds_assert(this->sync_leader_ == client->current_node_id());
-          CHECK_EXPECTED_ASYNC(co_await (*client)->send(
-            chunk_node,
-            message_create<messages::sync_offer_send_replica_operation_request>(
+          final_tasks.push_back([
+            client,
+              chunk_node,
               object_id,
-              this->sync_generation_,
-              this->sync_current_term_,
-              this->sync_commit_index_,
-              this->sync_last_applied_,
+              sync_generation = this->sync_generation_,
+              sync_current_term = this->sync_current_term_,
+              sync_commit_index = this->sync_commit_index_,
+              sync_last_applied = this->sync_last_applied_,
               replica,
-              node)));
+              node]() {
+            return (*client)->send(
+              chunk_node,
+              message_create<messages::sync_offer_send_replica_operation_request>(
+                object_id,
+                sync_generation,
+                sync_current_term,
+                sync_commit_index,
+                sync_last_applied,
+                replica,
+                node));
+          });
         }
         if (index-- == 0) {
           break;
@@ -2830,12 +3084,13 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sync::object_info_t::restore_replicas(
+vds::expected<void> vds::dht::network::sync_process::replica_sync::object_info_t::restore_replicas(
   const service_provider * sp,
   const database_read_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
   const const_data_buffer& object_id) const {
 
@@ -2850,16 +3105,17 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
   }
 
   if (chunk_nodes.empty()) {
-    return this->restore_chunk(sp, replica_nodes, object_id);
+    return this->restore_chunk(sp, final_tasks, replica_nodes, object_id);
   }
   else {
-    return this->generate_missing_replicas(sp, t, replica_nodes, object_id, chunk_nodes);
+    return this->generate_missing_replicas(sp, t, final_tasks, replica_nodes, object_id, chunk_nodes);
   }
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sync::object_info_t::normalize_density(
+vds::expected<void> vds::dht::network::sync_process::replica_sync::object_info_t::normalize_density(
   const service_provider * sp,
   const database_read_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
   const const_data_buffer& object_id) const {
 
@@ -2928,9 +3184,10 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
         base64::from_bytes(*head_node).c_str());
       vds_assert(this->sync_leader_ == client->current_node_id());
       if(*tail_node == client->current_node_id()) {
-        CHECK_EXPECTED_ASYNC(co_await send_replica(
+        CHECK_EXPECTED(send_replica(
           sp,
           t,
+          final_tasks,
           *head_node,
           object_id,
           minimal_replica,
@@ -2941,16 +3198,27 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
           this->sync_last_applied_));
       }
       else {
-        CHECK_EXPECTED_ASYNC(co_await(*client)->send(
-          *tail_node,
-          message_create<messages::sync_offer_send_replica_operation_request>(
+        final_tasks.push_back([
+          client,
+            target_node = *tail_node,
             object_id,
-            this->sync_generation_,
-            this->sync_current_term_,
-            this->sync_commit_index_,
-            this->sync_last_applied_,
+            sync_generation = this->sync_generation_,
+            sync_current_term = this->sync_current_term_,
+            sync_commit_index = this->sync_commit_index_,
+            sync_last_applied = this->sync_last_applied_,
             minimal_replica,
-            *head_node)));
+            source_node = *head_node]() {
+          return (*client)->send(
+            target_node,
+            message_create<messages::sync_offer_send_replica_operation_request>(
+              object_id,
+              sync_generation,
+              sync_current_term,
+              sync_commit_index,
+              sync_last_applied,
+              minimal_replica,
+              source_node));
+        });
       }
 
       ++head_node;
@@ -2989,13 +3257,14 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sync::object_info_t::remove_duplicates(
+vds::expected<void> vds::dht::network::sync_process::replica_sync::object_info_t::remove_duplicates(
   vds::dht::network::sync_process * owner,
   const service_provider * sp,
   database_transaction & t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
   const const_data_buffer& object_id) const {
 
@@ -3035,19 +3304,29 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
 
             vds_assert(this->sync_leader_ == client->current_node_id());
             if(node == client->current_node_id()) {
-              CHECK_EXPECTED_ASYNC(co_await owner->remove_replica(t, object_id, replica, node));
+              CHECK_EXPECTED(owner->remove_replica(t, final_tasks, object_id, replica, node));
             }
             else {
-              CHECK_EXPECTED_ASYNC(co_await (*client)->send(
-                node,
-                message_create<messages::sync_offer_remove_replica_operation_request>(
+              final_tasks.push_back([
+                client,
                   object_id,
-                  this->sync_generation_,
-                  this->sync_current_term_,
-                  this->sync_commit_index_,
-                  this->sync_last_applied_,
+                  sync_generation = this->sync_generation_,
+                  sync_current_term = this->sync_current_term_,
+                  sync_commit_index = this->sync_commit_index_,
+                  sync_last_applied = this->sync_last_applied_,
                   node,
-                  replica)));
+                  replica]() {
+                return (*client)->send(
+                  node,
+                  message_create<messages::sync_offer_remove_replica_operation_request>(
+                    object_id,
+                    sync_generation,
+                    sync_current_term,
+                    sync_commit_index,
+                    sync_last_applied,
+                    node,
+                    replica));
+              });
             }
           }
         }
@@ -3055,26 +3334,31 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sync::object_info_t::try_to_attach(
+vds::expected<void> vds::dht::network::sync_process::replica_sync::object_info_t::try_to_attach(
   const service_provider * sp,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& object_id) const {
 
   const auto client = sp->get<network::client>();
   const auto p = this->nodes_.find(client->current_node_id());
   if (this->nodes_.end() != p) {
-
-    CHECK_EXPECTED_ASYNC(co_await (*client)->send_near(
+    final_tasks.push_back([
+      client,
       object_id,
-      service::GENERATE_DISTRIBUTED_PIECES,
-      message_create<messages::sync_looking_storage_response>(
+      replicas = p->second.replicas_]() {
+      return (*client)->send_near(
         object_id,
-        p->second.replicas_)));
+        service::GENERATE_DISTRIBUTED_PIECES,
+        message_create<messages::sync_looking_storage_response>(
+          object_id,
+          replicas));
+    });
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
 void vds::dht::network::sync_process::replica_sync::register_local_chunk(
@@ -3119,10 +3403,11 @@ void vds::dht::network::sync_process::replica_sync::register_sync_member(
   }
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sync::normalize_density(
+vds::expected<void> vds::dht::network::sync_process::replica_sync::normalize_density(
   vds::dht::network::sync_process * owner,
   const service_provider * sp,
-  database_transaction& t) {
+  database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks) {
   const auto client = sp->get<network::client>();
   for (const auto& object : this->objects_) {
     //Send chunks if this node is not in memebers
@@ -3132,7 +3417,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
         "This node has replicas %s without leader",
         base64::from_bytes(object.first).c_str());
 
-      CHECK_EXPECTED_ASYNC(co_await object.second.try_to_attach(sp, object.first));
+      CHECK_EXPECTED(object.second.try_to_attach(sp, final_tasks, object.first));
     }
     else if (object.second.sync_leader_ == client->current_node_id()) {
       std::map<uint16_t, std::set<const_data_buffer>> replica_nodes;
@@ -3149,42 +3434,45 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::replica_sy
           "object %s have %d replicas",
           base64::from_bytes(object.first).c_str(),
           replica_nodes.size());
-        CHECK_EXPECTED_ASYNC(co_await object.second.restore_replicas(sp, t, replica_nodes, object.first));
+        CHECK_EXPECTED(object.second.restore_replicas(sp, t, final_tasks, replica_nodes, object.first));
       }
       else {
         //All replicas exists
-        CHECK_EXPECTED_ASYNC(co_await object.second.normalize_density(sp, t, replica_nodes, object.first));
-        CHECK_EXPECTED_ASYNC(co_await object.second.remove_duplicates(owner, sp, t, replica_nodes, object.first));
+        CHECK_EXPECTED(object.second.normalize_density(sp, t, final_tasks, replica_nodes, object.first));
+        CHECK_EXPECTED(object.second.remove_duplicates(owner, sp, t, final_tasks, replica_nodes, object.first));
       }
     }
   }
 
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::make_leader(
+vds::expected<void> vds::dht::network::sync_process::make_leader(
   database_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& object_id) {
 
   //const auto client = this->sp_->get<network::client>();
 
   orm::sync_state_dbo t1;
-  CHECK_EXPECTED_ASYNC(t.execute(t1.update(
+  CHECK_EXPECTED(t.execute(t1.update(
                 t1.state = orm::sync_state_dbo::state_t::leader,
                 t1.next_sync = std::chrono::system_clock::now() + FOLLOWER_TIMEOUT())
               .where(t1.object_id == object_id)));
 
-  GET_EXPECTED_ASYNC(members, this->get_members(t, object_id, true));
-  co_return co_await this->send_snapshot(t, object_id, members);
+  GET_EXPECTED(members, this->get_members(t, object_id, true));
+  return this->send_snapshot(t, final_tasks, object_id, members);
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::make_follower( database_transaction& t,
-                                                    const const_data_buffer& object_id, uint64_t generation,
-                                                    uint64_t current_term,
-                                                    const const_data_buffer& leader_node) {
+vds::expected<void> vds::dht::network::sync_process::make_follower(
+  database_transaction& t,
+  const const_data_buffer& object_id,
+  uint64_t generation,
+  uint64_t current_term,
+  const const_data_buffer& leader_node) {
 
   orm::sync_state_dbo t1;
-  CHECK_EXPECTED_ASYNC(t.execute(t1.update(
+  CHECK_EXPECTED(t.execute(t1.update(
                 t1.state = orm::sync_state_dbo::state_t::follower,
                 t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
               .where(t1.object_id == object_id)));
@@ -3192,19 +3480,20 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::make_follo
   const auto client = this->sp_->get<network::client>();
 
   orm::sync_member_dbo t2;
-  CHECK_EXPECTED_ASYNC(t.execute(t2.update(
+  CHECK_EXPECTED(t.execute(t2.update(
                 t2.generation = generation,
                 t2.current_term = current_term,
                 t2.commit_index = 0,
                 t2.last_applied = 0,
                 t2.last_activity = std::chrono::system_clock::now())
               .where(t2.object_id == object_id && t2.member_node == client->current_node_id())));
-  co_return expected<void>();
+  return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_replica(
+vds::expected<void> vds::dht::network::sync_process::send_replica(
   const service_provider * sp,
   const database_read_transaction& t,
+  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const const_data_buffer& target_node,
   const const_data_buffer& object_id,
   uint16_t replica,
@@ -3218,29 +3507,43 @@ vds::async_task<vds::expected<void>> vds::dht::network::sync_process::send_repli
 
   orm::chunk_replica_data_dbo t1;
   orm::device_record_dbo t2;
-  GET_EXPECTED_ASYNC(st, t.get_reader(t1.select(
+  GET_EXPECTED(st, t.get_reader(t1.select(
                              t1.replica_hash,
                              t2.local_path)
                            .inner_join(t2, t2.node_id == client->current_node_id() && t2.data_hash == t1.replica_hash)
                            .where(t1.object_id == object_id && t1.replica == replica)));
-  GET_EXPECTED_ASYNC(st_execute, st.execute());
+  GET_EXPECTED(st_execute, st.execute());
   if (!st_execute) {
-    co_return expected<void>();
+    return expected<void>();
   }
 
-  GET_EXPECTED_ASYNC(data, _client::read_data(
+  GET_EXPECTED(data, _client::read_data(
     t1.replica_hash.get(st),
     filename(t2.local_path.get(st))));
 
-  co_return co_await (*client)->send(
+  final_tasks.push_back([
+    client,
     target_node,
-    message_create<messages::sync_replica_data>(
-      object_id,      
+      object_id,
       generation,
       current_term,
       commit_index,
       last_applied,
       replica,
       data,
-      leader_node_id));
+      leader_node_id]() {
+    return (*client)->send(
+      target_node,
+      message_create<messages::sync_replica_data>(
+        object_id,
+        generation,
+        current_term,
+        commit_index,
+        last_applied,
+        replica,
+        data,
+        leader_node_id));
+  });
+
+  return expected<void>();
 }
