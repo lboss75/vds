@@ -109,10 +109,10 @@ namespace vds {
     expected<void> open(const service_provider * sp, const filename & fn);
     expected<void> close();
 
-    vds::async_task<vds::expected<void>> async_transaction(      
+    vds::async_task<vds::expected<void>> async_transaction(
       const std::function<expected<bool>(database_transaction & tr)> & callback);
 
-    vds::async_task<vds::expected<void>> async_read_transaction(      
+    vds::async_task<vds::expected<void>> async_read_transaction(
       const std::function<expected<void>(database_read_transaction & tr)> & callback);
 
     vds::async_task<vds::expected<void>> prepare_to_stop();

@@ -18,12 +18,12 @@ namespace vds {
 		vds::async_task<vds::expected<void>> async_read_transaction(
 				const std::function<expected<void>(class database_read_transaction & t)> & handler);
 
-    async_task<vds::expected<void>> async_transaction_dbg(
+    async_task<vds::expected<void>> async_transaction(
       const char * file_name,
       int line,
       const std::function<expected<void>(class database_transaction & t)> & handler);
 
-    vds::async_task<vds::expected<void>> async_read_transaction_dbg(
+    vds::async_task<vds::expected<void>> async_read_transaction(
       const char * file_name,
       int line,
       const std::function<expected<void>(class database_read_transaction & t)> & handler);
@@ -45,8 +45,5 @@ namespace vds {
   };
 
 }
-
-//#define async_transaction(x) async_transaction_dbg(__FILE__, __LINE__, (x))
-//#define async_read_transaction(x) async_read_transaction_dbg(__FILE__, __LINE__, (x))
 
 #endif //__VDS_DB_MODEL_DB_MODEL_H_

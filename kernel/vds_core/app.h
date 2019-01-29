@@ -122,7 +122,7 @@ namespace vds{
         }
         else {
           CHECK_EXPECTED(pthis->start());
-          return 2;
+          return 0;
         }
       }
 

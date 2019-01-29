@@ -101,14 +101,15 @@ vds::async_task<vds::expected<vds::file_manager::file_operations::download_resul
   const std::shared_ptr<stream_output_async<uint8_t>> & output_stream) {
 
   auto result = std::make_shared<file_manager::file_operations::download_result_t>();
+  std::list<std::list<transactions::user_message_transaction::file_block_t>> download_tasks;
   CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction(
-      [pthis = this->shared_from_this(), user_mng, channel_id, target_file, output_stream, result](database_transaction &t) -> expected<void> {
+      [pthis = this->shared_from_this(), user_mng, channel_id, target_file, output_stream, result, &download_tasks](database_transaction &t) -> expected<void> {
         auto channel = user_mng->get_channel(channel_id);
 
     CHECK_EXPECTED(user_mng->walk_messages(
             channel_id,
             t,
-            [pthis, result, target_file, output_stream](
+            [pthis, result, target_file, output_stream, &download_tasks](
               const transactions::user_message_transaction &message,
               const transactions::message_environment_t & /*message_environment*/) -> expected<bool> {
           for (const auto & file : message.files) {
@@ -116,9 +117,8 @@ vds::async_task<vds::expected<vds::file_manager::file_operations::download_resul
               result->name = file.name;
               result->mime_type = file.mime_type;
               result->size = file.size;
-              mt_service::async(pthis->sp_, [pthis, output_stream, fb = file.file_blocks]() {
-                (void)pthis->download_stream(output_stream, fb).get();
-              });
+
+              download_tasks.push_back(file.file_blocks);
               return false;
             }
           }
@@ -127,6 +127,16 @@ vds::async_task<vds::expected<vds::file_manager::file_operations::download_resul
 
         return expected<void>();
   }));
+
+  mt_service::async(this->sp_, [pthis = this->shared_from_this(), output_stream, download_tasks]() {
+    for (auto & block : download_tasks) {
+      auto result = pthis->download_stream(output_stream, block).get();
+      if(result.has_error()) {
+        break;
+      }
+    }
+    //TODO: Alert error to client
+  });
 
   if (result->mime_type.empty()) {
     co_return vds::make_unexpected<vds_exceptions::not_found>();
@@ -278,7 +288,9 @@ vds::async_task<vds::expected<void>> vds::file_manager_private::_file_operations
     file_blocks.pop_front();
   }
 
-  co_return co_await target_stream->write_async(nullptr, 0);
+  CHECK_EXPECTED_ASYNC(co_await target_stream->write_async(nullptr, 0));
+
+  co_return expected<void>();
 }
 
 vds::expected<std::map<vds::const_data_buffer, vds::dht::network::client::block_info_t>>

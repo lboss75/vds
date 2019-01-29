@@ -14,26 +14,26 @@ vds::async_task<vds::expected<void>> vds::db_model::async_read_transaction(
   return this->db_.async_read_transaction(handler);
 }
 
-vds::async_task<vds::expected<void>> vds::db_model::async_transaction_dbg(
+vds::async_task<vds::expected<void>> vds::db_model::async_transaction(
   const char * file_name,
   int line,
   const std::function<expected<void>(vds::database_transaction &)> &handler) {
   return this->db_.async_transaction([handler, file_name, line, sp = this->sp_](database_transaction & t)->expected<bool> {
-    sp->get<logger>()->trace(ThisModule, "Start Transaction %s:%s", file_name, line);
+    sp->get<logger>()->trace(ThisModule, "Start Transaction %s:%d", file_name, line);
     CHECK_EXPECTED(handler(t));
-    sp->get<logger>()->trace(ThisModule, "Finish transaction %s:%s", file_name, line);
+    sp->get<logger>()->trace(ThisModule, "Finish transaction %s:%d", file_name, line);
     return true;
   });
 }
 
-vds::async_task<vds::expected<void>> vds::db_model::async_read_transaction_dbg(
+vds::async_task<vds::expected<void>> vds::db_model::async_read_transaction(
   const char * file_name,
   int line,
   const std::function<expected<void>(vds::database_read_transaction &)> &handler) {
   return this->db_.async_read_transaction([handler, file_name, line, sp = this->sp_](database_read_transaction & t)->expected<void> {
-    sp->get<logger>()->trace(ThisModule, "Start Transaction %s:%s", file_name, line);
+    sp->get<logger>()->trace(ThisModule, "Start Transaction %s:%d", file_name, line);
     CHECK_EXPECTED(handler(t));
-    sp->get<logger>()->trace(ThisModule, "Finish transaction %s:%s", file_name, line);
+    sp->get<logger>()->trace(ThisModule, "Finish transaction %s:%d", file_name, line);
     return expected<void>();
   });
 }
