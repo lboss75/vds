@@ -139,7 +139,7 @@ vds::async_task<vds::expected<void>> vds::http::form_parser::_form_parser::read_
     GET_EXPECTED_VALUE_ASYNC(readed, co_await part.body()->read_async(this->buffer_, sizeof(this->buffer_)));
 
     if (0 == readed) {
-      co_await buffer->write_async(nullptr, 0);
+      CHECK_EXPECTED_ASYNC(co_await buffer->write_async(nullptr, 0));
       co_return expected<void>();
     }
 
