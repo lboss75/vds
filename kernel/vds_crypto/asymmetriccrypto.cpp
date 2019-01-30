@@ -340,6 +340,7 @@ vds::expected<vds::const_data_buffer> vds::asymmetric_sign::signature(
   const void* data,
   size_t data_size)
 {
+  thread_unprotect unprotect;
   _asymmetric_sign s;
   CHECK_EXPECTED(s.create(hash_info, key));
   CHECK_EXPECTED(s.write_async(reinterpret_cast<const uint8_t *>(data), data_size).get());
@@ -453,6 +454,8 @@ vds::expected<bool> vds::asymmetric_sign_verify::verify(
     const void *data,
     size_t data_size)
 {
+  thread_unprotect unprotect;
+
   _asymmetric_sign_verify s;
   CHECK_EXPECTED(s.create(hash_info, key, signature));
   CHECK_EXPECTED(s.write_async(reinterpret_cast<const uint8_t *>(data), data_size).get());
