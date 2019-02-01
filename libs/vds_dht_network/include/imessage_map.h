@@ -58,11 +58,10 @@ namespace vds {
         };
 
         virtual vds::async_task<vds::expected<void>> process_message(
-          const message_info_t& message_info) = 0;
+          message_info_t message_info) = 0;
 
         virtual vds::async_task<vds::expected<void>> on_new_session(
-          
-          const const_data_buffer & partner_id) = 0;
+          const_data_buffer partner_id) = 0;
       };
     }
   }

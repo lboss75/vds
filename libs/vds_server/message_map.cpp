@@ -25,7 +25,7 @@
     }
 
 vds::async_task<vds::expected<void>> vds::_server::process_message(
-  const message_info_t & message_info) {
+  message_info_t message_info) {
 
   if(this->sp_->get_shutdown_event().is_shuting_down()) {
     co_return expected<void>();

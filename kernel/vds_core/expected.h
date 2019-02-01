@@ -126,10 +126,6 @@ namespace vds {
                 : has_value_(false), error_(std::move(error.error())){
         }
 
-        bool operator !() const {
-          return !this->has_value_ && !this->error_;
-        }
-
         bool has_value() const {
           return this->has_value_;
         }

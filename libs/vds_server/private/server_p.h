@@ -53,11 +53,10 @@ namespace vds {
     vds::async_task<vds::expected<server_statistic>> get_statistic();
 
     vds::async_task<vds::expected<void>> process_message(
-        const message_info_t & message_info) override;
+        message_info_t message_info) override;
 
     vds::async_task<vds::expected<void>> on_new_session(
-      
-      const const_data_buffer& partner_id) override;
+      const_data_buffer partner_id) override;
 
       expected<void> apply_message(
       database_transaction & t,
