@@ -172,8 +172,9 @@ namespace vds {
 
         for (auto &presult : result_nodes) {
           for (auto & node : presult.second) {
-            GET_EXPECTED_ASYNC(callback_result, co_await callback(node.second));
-            if (!callback_result) {
+            auto callback_result = co_await callback(node.second);
+            CHECK_EXPECTED_ERROR_ASYNC(callback_result);
+            if (!callback_result.value()) {
               co_return expected<void>();
             }
           }
@@ -197,8 +198,9 @@ namespace vds {
 
         for (auto &presult : result_nodes) {
           for (auto & node : presult.second) {
-            GET_EXPECTED_ASYNC(callback_result, co_await callback(node.second));
-            if (!callback_result) {
+            auto callback_result = co_await callback(node.second);
+            CHECK_EXPECTED_ERROR_ASYNC(callback_result);
+            if (!callback_result.value()) {
               co_return expected<void>();
             }
           }
@@ -220,8 +222,9 @@ namespace vds {
         this->get_neighbors(result_nodes);
 
         for (auto & node : result_nodes) {
-          GET_EXPECTED_ASYNC(callback_result, co_await callback(node));
-          if (!callback_result) {
+          auto callback_result = co_await callback(node);
+          CHECK_EXPECTED_ERROR_ASYNC(callback_result);
+          if (!callback_result.value()) {
             co_return expected<void>();
           }
         }
