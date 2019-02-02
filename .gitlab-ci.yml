@@ -3,9 +3,8 @@ build-raspbian:
     stage: build
     script:
         - ls /usr/bin/
-        - sudo ls /usr/bin/
-        - sudo aptitude update
-        - sudo aptitude reinstall apt
+        - aptitude update
+        - aptitude reinstall apt
         - apt-get -qq update
         - apt-get -qq install -y git cmake clang-6.0 gcovr subversion
         - ./build_dep.sh
