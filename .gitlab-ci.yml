@@ -1,5 +1,5 @@
 build-raspbian:
-    image: arm32v7/ubuntu:16.04
+    image: ubuntu:16.04
     stage: build
     script:
         - ls /usr/bin/
