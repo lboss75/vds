@@ -93,8 +93,7 @@ TEST(test_vds_crypto, test_symmetric)
     GET_EXPECTED_GTEST(result1, vds::symmetric_encrypt::encrypt(key, data));
 
     auto cmp_stream = std::make_shared<compare_data_async<uint8_t>>(result1.data(), result1.size());
-    auto crypto_stream = std::make_shared<vds::symmetric_encrypt>();
-    CHECK_EXPECTED_GTEST(crypto_stream->create(key, cmp_stream));
+    GET_EXPECTED_GTEST(crypto_stream, vds::symmetric_encrypt::create(key, cmp_stream));
     auto rand_stream = std::make_shared<random_stream<uint8_t>>(crypto_stream);
 
     CHECK_EXPECTED_GTEST(rand_stream->write_async(buffer.data(), (int)len).get());

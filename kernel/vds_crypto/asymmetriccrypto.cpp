@@ -1140,6 +1140,11 @@ vds::certificate_store::certificate_store(_certificate_store* impl)
 : impl_(impl) {
 }
 
+vds::certificate_store::certificate_store(certificate_store&& original) noexcept
+: impl_(original.impl_){
+  original.impl_ = nullptr;
+}
+
 vds::certificate_store::~certificate_store()
 {
   delete this->impl_;
@@ -1165,6 +1170,13 @@ vds::expected<void> vds::certificate_store::load_locations(const std::string & l
 vds::expected<vds::certificate_store::verify_result> vds::certificate_store::verify(const vds::certificate& cert) const
 {
   return this->impl_->verify(cert);
+}
+
+vds::certificate_store& vds::certificate_store::operator=(certificate_store&& original) noexcept {
+  delete this->impl_;
+  this->impl_ = original.impl_;
+  original.impl_ = nullptr;
+  return *this;
 }
 
 //////////////////////////////////////////////////////////

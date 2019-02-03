@@ -292,6 +292,8 @@ namespace vds {
   public:
     certificate_store();
     certificate_store(_certificate_store * impl);
+    certificate_store(const certificate_store &) = delete;
+    certificate_store(certificate_store &&) noexcept;
     ~certificate_store();
 
     static expected<certificate_store> create();
@@ -307,7 +309,9 @@ namespace vds {
     };
     
     expected<verify_result> verify(const certificate & cert) const;
-    
+    certificate_store & operator = (const certificate_store &) = delete;
+    certificate_store & operator = (certificate_store &&) noexcept;
+
   private:
     _certificate_store * impl_;
   };
