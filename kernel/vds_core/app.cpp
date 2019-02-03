@@ -29,7 +29,7 @@ vds::expected<void> vds::app::kill_prev(const vds::foldername &root_folder, cons
             return unexpected(std::move(result.error()));
         }
     }
-
+else {
 
     char buffer[20];
     GET_EXPECTED(readed, f.read(buffer, sizeof(buffer) - 1));
@@ -49,7 +49,7 @@ vds::expected<void> vds::app::kill_prev(const vds::foldername &root_folder, cons
                                                            "acquire exclusive lock on lock file");
         }
     }
-
+}
     signal(SIGHUP, SIG_IGN);
     return expected<void>();
 }
