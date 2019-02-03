@@ -12,15 +12,23 @@ vds::inflate::inflate()
 {
 }
 
+vds::inflate::inflate(_inflate_handler* impl)
+: impl_(impl) {
+}
+
+vds::inflate::inflate(inflate&& origin) noexcept {
+  this->impl_ = origin.impl_;
+  origin.impl_ = nullptr;
+}
+
 vds::inflate::~inflate() {
   delete this->impl_;
 }
 
-vds::expected<void> vds::inflate::create(const std::shared_ptr<stream_output_async<uint8_t>> & target) {
-  vds_assert(nullptr == this->impl_);
-  this->impl_ = new _inflate_handler();
-
-  return this->impl_->create(target);
+vds::expected<std::shared_ptr<vds::inflate>> vds::inflate::create(const std::shared_ptr<stream_output_async<uint8_t>> & target) {
+  auto impl = std::make_unique<_inflate_handler>();
+  CHECK_EXPECTED(impl->create(target));
+  return std::make_shared<inflate>(impl.release());
 }
 
 vds::expected<vds::const_data_buffer> vds::inflate::decompress(  
@@ -39,5 +47,12 @@ vds::expected<vds::const_data_buffer> vds::inflate::decompress(
 
 vds::async_task<vds::expected<void>> vds::inflate::write_async( const uint8_t *data, size_t len) {
   return this->impl_->write_async(data, len);
+}
+
+vds::inflate& vds::inflate::operator=(inflate&& origin) noexcept {
+  delete this->impl_;
+  this->impl_ = origin.impl_;
+  origin.impl_ = nullptr;
+  return *this;
 }
 

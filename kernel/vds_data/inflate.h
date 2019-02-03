@@ -18,11 +18,13 @@ namespace vds {
   {
   public:
     inflate();
+    explicit inflate(_inflate_handler * impl);
+    inflate(const inflate &) = delete;
+    inflate(inflate &&) noexcept;
     ~inflate();
 
-    expected<void> create(
+    static expected<std::shared_ptr<inflate>> create(
       const std::shared_ptr<stream_output_async<uint8_t>> & target);
-
 	  static expected<const_data_buffer> decompress(
       const void * data,
       size_t size);
@@ -30,6 +32,9 @@ namespace vds {
     vds::async_task<vds::expected<void>> write_async(        
         const uint8_t * data,
         size_t len) override ;
+
+    inflate & operator = (const inflate &) = delete;
+    inflate & operator = (inflate &&) noexcept;
 
   private:
     _inflate_handler * impl_;

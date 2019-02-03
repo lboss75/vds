@@ -26,11 +26,9 @@ TEST(test_zip, inflate_tests) {
     random_buffer buffer;
     
     auto cd = std::make_shared<compare_data_async<uint8_t>>(buffer.data(), buffer.size());
-    auto il = std::make_shared<vds::inflate>();
-    CHECK_EXPECTED_GTEST(il->create(cd));
+    GET_EXPECTED_GTEST(il, vds::inflate::create(cd));
 
-    auto dl = std::make_shared<vds::deflate>();
-    CHECK_EXPECTED_GTEST(dl->create(il));
+    GET_EXPECTED_GTEST(dl, vds::deflate::create(il));
 
     auto rs = std::make_shared<random_stream<uint8_t>>(dl);
     

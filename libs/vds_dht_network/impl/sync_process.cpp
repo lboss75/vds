@@ -1029,7 +1029,11 @@ vds::expected<void> vds::dht::network::sync_process::apply_message(
 
   auto& client = *this->sp_->get<network::client>();
   GET_EXPECTED(leader, this->get_leader(t, message.object_id));
-  if (leader && client->current_node_id() != leader) {
+  if (!leader) {
+    return expected<void>();
+  }
+
+  if (client->current_node_id() != leader) {
     final_tasks.push_back([client, leader, message]() {
       return client->send(
         leader,
@@ -1037,8 +1041,9 @@ vds::expected<void> vds::dht::network::sync_process::apply_message(
     });
     return expected<void>();
   }
-
-  return send_snapshot(t, final_tasks, message.object_id, {message.source_node});
+  else {
+    return send_snapshot(t, final_tasks, message.object_id, { message.source_node });
+  }
 }
 
 vds::expected<void> vds::dht::network::sync_process::apply_message(  
