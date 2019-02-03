@@ -345,8 +345,7 @@ const vds::network_address& mock_server::address() const {
     }
 
 vds::async_task<vds::expected<void>> mock_server::process_message(
-  
-  const message_info_t& message_info) {
+  message_info_t message_info) {
 
   static_cast<mock_transport *>(this->transport_.get())->hab()->register_message(
     this->sp_->get<vds::dht::network::client>()->current_node_id(), message_info);
@@ -398,7 +397,7 @@ vds::async_task<vds::expected<void>> mock_server::process_message(
 
 }
 
-vds::async_task<vds::expected<void>> mock_server::on_new_session( const vds::const_data_buffer& partner_id) {
+vds::async_task<vds::expected<void>> mock_server::on_new_session(vds::const_data_buffer partner_id) {
   return vds::make_unexpected<vds::vds_exceptions::invalid_operation>();
 }
 

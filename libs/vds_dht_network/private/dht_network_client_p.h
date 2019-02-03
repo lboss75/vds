@@ -90,12 +90,12 @@ namespace vds {
           return this->route_.current_node_id();
         }
 
-        void neighbors(
+        expected<void> neighbors(
           
           const const_data_buffer& key,
           std::map<const_data_buffer /*distance*/, std::list<const_data_buffer/*node_id*/>>& result,
           uint16_t max_count) const {
-          this->route_.neighbors(key, result, max_count);
+          return this->route_.neighbors(key, result, max_count);
         }
 
         async_task<expected<void>> apply_message(

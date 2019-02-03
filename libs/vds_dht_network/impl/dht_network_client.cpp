@@ -102,7 +102,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::apply_message(
   const imessage_map::message_info_t& message_info) {
   std::map<const_data_buffer /*distance*/,
   std::map<const_data_buffer, std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>> result_nodes;
-  this->route_.search_nodes(message.target_id, 70, result_nodes);
+
+  CHECK_EXPECTED(this->route_.search_nodes(message.target_id, 70, result_nodes));
 
   std::list<messages::dht_find_node_response::target_node> result;
   for (auto& presult : result_nodes) {

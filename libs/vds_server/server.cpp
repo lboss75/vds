@@ -299,7 +299,7 @@ vds::expected<void> vds::_server::apply_message(
   return this->transaction_log_sync_process_->apply_message(t, final_tasks, message, message_info);
 }
 
-vds::async_task<vds::expected<void>> vds::_server::on_new_session( const const_data_buffer& partner_id) {
+vds::async_task<vds::expected<void>> vds::_server::on_new_session( const_data_buffer partner_id) {
   
   std::list<std::function<async_task<expected<void>>()>> final_tasks;
   CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_read_transaction([this, partner_id, &final_tasks](database_read_transaction & t) -> expected<void> {

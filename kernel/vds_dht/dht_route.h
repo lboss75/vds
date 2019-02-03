@@ -117,7 +117,7 @@ namespace vds {
         return this->ping_buckets(std::forward<timer_arg_types>(timer_args)...);
       }
 
-      void neighbors(
+      expected<void> neighbors(
           
           const const_data_buffer &target_id,
           std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> &result,
@@ -125,7 +125,7 @@ namespace vds {
 
         std::map<vds::const_data_buffer /*distance*/, std::map<vds::const_data_buffer, std::shared_ptr<node>>> tmp;
 
-        this->search_nodes(target_id, max_count, tmp);
+        CHECK_EXPECTED(this->search_nodes(target_id, max_count, tmp));
 
         uint16_t count = 0;
         for (auto &p : tmp) {
@@ -138,41 +138,43 @@ namespace vds {
             break;
           }
         }
+
+        return expected<void>();
       }
 
-      void search_nodes(
-        
+      expected<void> search_nodes(        
         const const_data_buffer &target_id,
         size_t max_count,
         std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes) const {
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
-        this->_search_nodes(target_id, max_count, result_nodes);
+        return this->_search_nodes(target_id, max_count, result_nodes);
       }
 
-      void search_nodes(
-        
+      expected<void>  search_nodes(        
         const const_data_buffer &target_id,
         size_t max_count,
         const std::function<expected<bool>(const node & node)>& filter,
         std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes) const {
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
-        this->_search_nodes(target_id, max_count, filter, result_nodes);
+        return this->_search_nodes(target_id, max_count, filter, result_nodes);
       }
 
+      template<typename callback_type>//std::function<vds::async_task<vds::expected<bool>>(const std::shared_ptr<node> & candidate)>
       vds::async_task<vds::expected<void>> for_near(
-        
         const const_data_buffer &target_node_id,
         size_t max_count,
-        const std::function<async_task<expected<bool>>(const std::shared_ptr<node> & candidate)> &callback) {
+        callback_type callback) {
 
         std::map<
             const_data_buffer /*distance*/,
             std::map<const_data_buffer, std::shared_ptr<node>>> result_nodes;
-        this->search_nodes(target_node_id, max_count, result_nodes);
+        CHECK_EXPECTED_ASYNC(this->search_nodes(target_node_id, max_count, result_nodes));
 
         for (auto &presult : result_nodes) {
           for (auto & node : presult.second) {
-            if (!co_await callback(node.second)) {
+            auto callback_result = co_await callback(node.second);
+            CHECK_EXPECTED_ERROR_ASYNC(callback_result);
+            if (!callback_result.value()) {
               co_return expected<void>();
             }
           }
@@ -181,21 +183,24 @@ namespace vds {
         co_return expected<void>();
       }
 
+      template<typename callback_type>//std::function<vds::async_task<vds::expected<bool>>(const std::shared_ptr<node> & candidate)>
       vds::async_task<vds::expected<void>> for_near(
         
         const const_data_buffer &target_node_id,
         size_t max_count,
         const std::function<expected<bool>(const node & node)>& filter,
-        const std::function<vds::async_task<vds::expected<bool>>(const std::shared_ptr<node> & candidate)> &callback) {
+        callback_type callback) {
 
         std::map<
             const_data_buffer /*distance*/,
             std::map<const_data_buffer, std::shared_ptr<node>>> result_nodes;
-        this->search_nodes(target_node_id, max_count, filter, result_nodes);
+        CHECK_EXPECTED_ASYNC(this->search_nodes(target_node_id, max_count, filter, result_nodes));
 
         for (auto &presult : result_nodes) {
           for (auto & node : presult.second) {
-            if (!co_await callback(node.second)) {
+            auto callback_result = co_await callback(node.second);
+            CHECK_EXPECTED_ERROR_ASYNC(callback_result);
+            if (!callback_result.value()) {
               co_return expected<void>();
             }
           }
@@ -209,15 +214,17 @@ namespace vds {
         
         std::list<std::shared_ptr<node>> & result_nodes) const;
 
+      template<typename callback_type>//std::function<vds::async_task<vds::expected<bool>>(const std::shared_ptr<node> & candidate)>
       vds::async_task<vds::expected<void>> for_neighbors(
-        
-        const std::function<vds::async_task<vds::expected<bool>>(const std::shared_ptr<node> & candidate)> &callback) {
+        callback_type callback) {
 
         std::list<std::shared_ptr<node>> result_nodes;
         this->get_neighbors(result_nodes);
 
         for (auto & node : result_nodes) {
-          if (!co_await callback(node)) {
+          auto callback_result = co_await callback(node);
+          CHECK_EXPECTED_ERROR_ASYNC(callback_result);
+          if (!callback_result.value()) {
             co_return expected<void>();
           }
         }
@@ -374,13 +381,13 @@ namespace vds {
       mutable std::shared_mutex buckets_mutex_;
       std::map<size_t, std::shared_ptr<bucket>> buckets_;
 
-      void _search_nodes(          
+      expected<void> _search_nodes(          
           const const_data_buffer &target_id,
           size_t max_count,
           std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes) const {
 
         if (this->buckets_.empty()) {
-          return;
+          return expected<void>();
         }
 
         auto index = dht_object_id::distance_exp(this->current_node_id_, target_id);
@@ -395,26 +402,31 @@ namespace vds {
             && (index + distance <= max_index || (index >= distance && index - distance >= min_index));
             ++distance) {
           if (index + distance <= max_index) {
-            count += this->looking_nodes(target_id, [](const node &)->bool {return true; }, result_nodes, index + distance);
+            auto fond_nodes = this->looking_nodes(target_id, [](const node &)->expected<bool> {return true; }, result_nodes, index + distance);
+            CHECK_EXPECTED_ERROR(fond_nodes);
+            count += fond_nodes.value();
           }
           if (index >= distance && index - distance >= min_index) {
-            count += this->looking_nodes(target_id, [](const node &)->bool {return true; }, result_nodes, index - distance);
+            auto fond_nodes = this->looking_nodes(target_id, [](const node &)->expected<bool> {return true; }, result_nodes, index - distance);
+            CHECK_EXPECTED_ERROR(fond_nodes);
+            count += fond_nodes.value();
           }
           if (count > max_count) {
             break;
           }
         }
+
+        return expected<void>();
       }
 
-      void _search_nodes(
-        
+      expected<void> _search_nodes(        
         const const_data_buffer &target_id,
         size_t max_count,
         const std::function<expected<bool>(const node & node)>& filter,
         std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes) const {
 
         if (this->buckets_.empty()) {
-          return;
+          return expected<void>();
         }
 
         auto index = dht_object_id::distance_exp(this->current_node_id_, target_id);
@@ -429,20 +441,25 @@ namespace vds {
           && (index + distance <= max_index || (index >= distance && index - distance >= min_index));
           ++distance) {
           if (index + distance <= max_index) {
-            count += this->looking_nodes(target_id, filter, result_nodes, index + distance);
+            GET_EXPECTED(found_nodes, this->looking_nodes(target_id, filter, result_nodes, index + distance));
+            count += found_nodes;
           }
           if (index >= distance && index - distance >= min_index) {
-            count += this->looking_nodes(target_id, filter, result_nodes, index - distance);
+            GET_EXPECTED(found_nodes, this->looking_nodes(target_id, filter, result_nodes, index - distance));
+            count += found_nodes;
           }
           if (count > max_count) {
             break;
           }
         }
+
+        return expected<void>();
       }
 
-      size_t looking_nodes(
+      template <typename filter_type>//std::function<expected<bool>(const node & node)>
+      expected<size_t> looking_nodes(
           const const_data_buffer &target_id,
-          const std::function<expected<bool>(const node & node)>& filter,
+          const filter_type & filter,
           std::map<const_data_buffer, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes,
           size_t index) const {
         size_t result = 0;
@@ -454,8 +471,13 @@ namespace vds {
         std::shared_lock<std::shared_mutex> lock(p->second->nodes_mutex_);
 
         for (const auto & node : p->second->nodes_) {
-          if (!node->is_good() || !filter(*node)) {
+          if (!node->is_good()) {
             continue;
+          }
+
+          GET_EXPECTED(filter_result, filter(*node));
+          if(!filter_result) {
+            continue;;
           }
 
           auto & result_node = result_nodes[dht_object_id::distance(node->node_id_, target_id)];
