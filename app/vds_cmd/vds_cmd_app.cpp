@@ -23,6 +23,7 @@ namespace vds {
 vds::vds_cmd_app::vds_cmd_app()
 : file_upload_cmd_set_("Upload file", "Upload file on the network", "upload", "file"),
   file_download_cmd_set_("Download file", "Download file from the network", "download", "file"),
+  file_sync_cmd_set_("Synchronize files", "Synchronize local files with the network", "sync", "file"),
   channel_list_cmd_set_("Channel list", "List user channels", "list", "channel"),
   channel_create_cmd_set_("Channel create", "Create new channel", "create", "channel"),
   user_login_(
@@ -60,6 +61,14 @@ vds::vds_cmd_app::vds_cmd_app()
     "output",
     "output folder",
     "Folder to store files"),
+  sync_style_(
+    "s",
+    "sync-style",
+    "Sync style",
+    "Synchronize style: default - set local state equal to channel state, "
+    "download - download new files from the network, "
+    "upload - upload files to the network and remove its local copy"
+  ),
   output_format_(
     "f",
     "format",
@@ -83,6 +92,11 @@ vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
   if (this->current_command_set_ == &this->file_upload_cmd_set_) {
     GET_EXPECTED(session, this->login(sp));
     CHECK_EXPECTED(this->upload_file(sp, session));
+    CHECK_EXPECTED(this->logout(sp, session));
+  }
+  else if (this->current_command_set_ == &this->file_sync_cmd_set_) {
+    GET_EXPECTED(session, this->login(sp));
+    CHECK_EXPECTED(this->sync_files(sp, session));
     CHECK_EXPECTED(this->logout(sp, session));
   }
   else if(this->current_command_set_ == &this->channel_list_cmd_set_) {
@@ -129,6 +143,14 @@ void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
   this->file_download_cmd_set_.required(this->attachment_);
   this->file_download_cmd_set_.optional(this->output_folder_);
 
+  cmd_line.add_command_set(this->file_sync_cmd_set_);
+  this->file_sync_cmd_set_.required(this->user_login_);
+  this->file_sync_cmd_set_.required(this->user_password_);
+  this->file_sync_cmd_set_.optional(this->server_);
+  this->file_sync_cmd_set_.required(this->channel_id_);
+  this->file_sync_cmd_set_.optional(this->sync_style_);
+  this->file_sync_cmd_set_.required(this->output_folder_);
+
   cmd_line.add_command_set(this->channel_list_cmd_set_);
   this->channel_list_cmd_set_.required(this->user_login_);
   this->channel_list_cmd_set_.required(this->user_password_);
@@ -155,7 +177,10 @@ bool vds::vds_cmd_app::need_demonize()
   return false;
 }
 
-vds::expected<std::string> vds::vds_cmd_app::login(const service_provider * sp)
+vds::expected<void> vds::vds_cmd_app::invoke_server(
+  const service_provider * sp,
+  vds::http_message request,
+  const std::function<vds::async_task<vds::expected<void>>(vds::http_message response)> & response_handler)
 {
   auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
 
@@ -168,12 +193,24 @@ vds::expected<std::string> vds::vds_cmd_app::login(const service_provider * sp)
   auto client = std::make_shared<http_client>();
   auto client_task = client->start(reader, writer);
 
+  CHECK_EXPECTED(client->send(request, response_handler).get());
+
+  CHECK_EXPECTED(s->close());
+  CHECK_EXPECTED(client_task.get());
+
+  return expected<void>();
+}
+
+vds::expected<std::string> vds::vds_cmd_app::login(const service_provider * sp)
+{
   std::string session;
-  CHECK_EXPECTED(client->send(http_request::create(
-    "GET",
-    "/api/login?login=" + url_encode::encode(this->user_login_.value())
-    + "&password=" + url_encode::encode(this->user_password_.value())).get_message(),
-    [server, &session](const http_message response) -> async_task<expected<void>> {
+  CHECK_EXPECTED(this->invoke_server(
+    sp,
+    http_request::create(
+      "GET",
+      "/api/login?login=" + url_encode::encode(this->user_login_.value())
+      + "&password=" + url_encode::encode(this->user_password_.value())).get_message(),
+    [&session](const http_message response) -> async_task<expected<void>> {
 
     http_response login_response(response);
 
@@ -183,9 +220,9 @@ vds::expected<std::string> vds::vds_cmd_app::login(const service_provider * sp)
 
     const_data_buffer response_body;
     GET_EXPECTED_VALUE_ASYNC(response_body, co_await response.body()->read_all());
-    GET_EXPECTED_ASYNC(body, json_parser::parse(server + "/api/login", response_body));
+    GET_EXPECTED_ASYNC(body, json_parser::parse("/api/login", response_body));
 
-    auto body_object = dynamic_cast<const json_object *>(body.get());
+    const auto body_object = dynamic_cast<const json_object *>(body.get());
 
     std::string value;
     CHECK_EXPECTED_ASYNC(body_object->get_property("state", value));
@@ -196,59 +233,31 @@ vds::expected<std::string> vds::vds_cmd_app::login(const service_provider * sp)
 
     CHECK_EXPECTED_ASYNC(body_object->get_property("session", session));
     co_return expected<void>();
-  }).get());
-
-  CHECK_EXPECTED(s->close());
-  CHECK_EXPECTED(client_task.get());
+  }));
 
   return session;
 }
 
 vds::expected<void> vds::vds_cmd_app::logout(const service_provider* sp, const std::string& session) {
-  auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
-
-  GET_EXPECTED(address, network_address::parse(server));
-  GET_EXPECTED(s, tcp_network_socket::connect(sp, address));
-  GET_EXPECTED(streams, s->start(sp));
-  auto reader = std::get<0>(streams);
-  auto writer = std::get<1>(streams);
-
-  auto client = std::make_shared<http_client>();
-  auto client_task = client->start(reader, writer);
-
-  auto request = http_request::create(
+  return this->invoke_server(
+    sp,
+    http_request::create(
     "POST",
-    "/api/logout?session=" + url_encode::encode(session)).get_message();
-
-  CHECK_EXPECTED(client->send(request,
-    [server, this](const http_message response) -> async_task<expected<void>> {
+    "/api/logout?session=" + url_encode::encode(session)).get_message(),
+    [](const http_message response) -> async_task<expected<void>> {
 
     if (http_response(response).code() != http_response::HTTP_OK && http_response(response).code() != http_response::HTTP_Found) {
       co_return vds::make_unexpected<std::runtime_error>("Logout failed " + http_response(response).comment());
     }
 
     co_return expected<void>();
-  }).get());
-
-  CHECK_EXPECTED(s->close());
-  CHECK_EXPECTED(client_task.get());
-
-  return expected<void>();
+  });
 }
 
 
 vds::expected<void> vds::vds_cmd_app::upload_file(const service_provider * sp, const std::string & session) {
-  auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
 
   filename fn(this->attachment_.value());
-  GET_EXPECTED(address, network_address::parse(server));
-  GET_EXPECTED(s, tcp_network_socket::connect(sp, address));
-  GET_EXPECTED(streams, s->start(sp));
-  auto reader = std::get<0>(streams);
-  auto writer = std::get<1>(streams);
-
-  auto client = std::make_shared<http_client>();
-  auto client_task = client->start(reader, writer);
 
   http_multipart_request request(
     "POST",
@@ -267,87 +276,79 @@ vds::expected<void> vds::vds_cmd_app::upload_file(const service_provider * sp, c
 
   CHECK_EXPECTED(request.add_file("attachment", fn, fn.name(), mimetype));
 
-  CHECK_EXPECTED(client->send(request.get_message(),
-    [server](const http_message response) -> async_task<expected<void>> {
+  return this->invoke_server(
+    sp,
+    request.get_message(),
+    [](const http_message response) -> async_task<expected<void>> {
 
     if (http_response(response).code() != http_response::HTTP_OK) {
       co_return vds::make_unexpected<std::runtime_error>("Upload failed " + http_response(response).comment());
     }
 
     co_return expected<void>();
-  }).get());
-
-  CHECK_EXPECTED(s->close());
-  CHECK_EXPECTED(client_task.get());
-
-  return expected<void>();
+  });
 }
 
-vds::expected<void> vds::vds_cmd_app::channel_list(const service_provider* sp, const std::string& session) {
-  auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
+      vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, const std::string& session) {
+        return this->invoke_server(
+          sp,
+          http_request::create(
+            "GET",
+            "/api/channel_feed?session=" + url_encode::encode(session)
+            + "&channel_id=" + url_encode::encode(this->channel_id_.value())).get_message(),
+          [this](const http_message response) -> async_task<expected<void>> {
 
-  GET_EXPECTED(address, network_address::parse(server));
-  GET_EXPECTED(s, tcp_network_socket::connect(sp, address));
-  GET_EXPECTED(streams, s->start(sp));
-  auto reader = std::get<0>(streams);
-  auto writer = std::get<1>(streams);
+          if (http_response(response).code() != http_response::HTTP_OK) {
+            return vds::make_unexpected<std::runtime_error>("Query channel failed " + http_response(response).comment());
+          }
 
-  auto client = std::make_shared<http_client>();
-  auto client_task = client->start(reader, writer);
+          GET_EXPECTED(response_body, response.body()->read_all().get());
 
-  auto request = http_request::create(
+          GET_EXPECTED(body, json_parser::parse(
+            "/api/channel_feed",
+            response_body));
+
+
+          return expected<void>();
+        });
+      }
+
+      vds::expected<void> vds::vds_cmd_app::channel_list(const service_provider* sp, const std::string& session) {
+  return this->invoke_server(
+    sp,
+    http_request::create(
     "GET",
-    "/api/channels?session=" + url_encode::encode(session)).get_message();
-
-  CHECK_EXPECTED(client->send(request,
-    [server, this](const http_message response) -> async_task<expected<void>> {
+    "/api/channels?session=" + url_encode::encode(session)).get_message(),
+    [this](const http_message response) -> async_task<expected<void>> {
 
     if (http_response(response).code() != http_response::HTTP_OK) {
       return vds::make_unexpected<std::runtime_error>("Query channels failed " + http_response(response).comment());
     }
 
-    return this->channel_list_out(server, response);
-  }).get());
-
-  CHECK_EXPECTED(s->close());
-  CHECK_EXPECTED(client_task.get());
-
-  return expected<void>();
+    return this->channel_list_out(response);
+  });
 }
 
 vds::expected<void> vds::vds_cmd_app::channel_create(const service_provider* sp, const std::string& session) {
-  auto server = this->server_.value().empty() ? "tcp://localhost:8050" : this->server_.value();
-
-  GET_EXPECTED(address, network_address::parse(server));
-  GET_EXPECTED(s, tcp_network_socket::connect(sp, address));
-  GET_EXPECTED(streams, s->start(sp));
-  auto reader = std::get<0>(streams);
-  auto writer = std::get<1>(streams);
-
-  auto client = std::make_shared<http_client>();
-  auto client_task = client->start(reader, writer);
-
-  CHECK_EXPECTED(client->send(http_request::create(
+  return this->invoke_server(
+    sp,
+    http_request::create(
     "POST",
     "/api/channels?session=" + url_encode::encode(session)
     + "&name=" + url_encode::encode(this->channel_name_.value())
     + "&type=" + url_encode::encode(this->channel_type_.value())
     ).get_message(),
-    [server, this](const http_message response) -> async_task<expected<void>> {
+    [this](const http_message response) -> async_task<expected<void>> {
 
     if (http_response(response).code() != http_response::HTTP_OK) {
       co_return vds::make_unexpected<std::runtime_error>("Create channel failed");
     }
 
     co_return expected<void>();
-  }).get());
-
-  CHECK_EXPECTED(s->close());
-  CHECK_EXPECTED(client_task.get());
-  return expected<void>();
+  });
 }
 
-vds::async_task<vds::expected<void>> vds::vds_cmd_app::channel_list_out(const std::string& server, const http_message response) {
+vds::async_task<vds::expected<void>> vds::vds_cmd_app::channel_list_out(const http_message response) {
 
   const_data_buffer response_body;
   GET_EXPECTED_VALUE_ASYNC(response_body, co_await response.body()->read_all());
@@ -357,7 +358,7 @@ vds::async_task<vds::expected<void>> vds::vds_cmd_app::channel_list_out(const st
   }
   else {
     GET_EXPECTED_ASYNC(body, json_parser::parse(
-      server + "/api/channels",
+      "/api/channels",
       response_body));
 
     std::cout << std::setw(44) << std::left << "ID" << "|"

@@ -25,6 +25,7 @@ namespace vds {
   private:
     command_line_set file_upload_cmd_set_;
     command_line_set file_download_cmd_set_;
+    command_line_set file_sync_cmd_set_;
     command_line_set channel_list_cmd_set_;
     command_line_set channel_create_cmd_set_;
 
@@ -38,6 +39,9 @@ namespace vds {
     command_line_value attachment_;
     command_line_value output_folder_;
 
+    //Sync options
+    command_line_value sync_style_;
+
     command_line_value output_format_;
 
     command_line_value channel_name_;
@@ -47,15 +51,21 @@ namespace vds {
     mt_service mt_service_;
     network_service network_service_;
 
+    vds::expected<void> vds::vds_cmd_app::invoke_server(
+      const service_provider * sp,
+      vds::http_message request,
+      const std::function<vds::async_task<vds::expected<void>>(vds::http_message response)> & response_handler);
+
     expected<std::string> login(const service_provider * sp);
     expected<void> logout(const service_provider * sp, const std::string & session);
 
     expected<void> upload_file(const service_provider * sp, const std::string & session);
+    expected<void> sync_files(const service_provider * sp, const std::string & session);
 
     expected<void> channel_list(const service_provider * sp, const std::string & session);
     expected<void> channel_create(const service_provider * sp, const std::string & session);
 
-    async_task<expected<void>> channel_list_out(const std::string & server, http_message response);
+    async_task<expected<void>> channel_list_out(http_message response);
   };
 }
 
