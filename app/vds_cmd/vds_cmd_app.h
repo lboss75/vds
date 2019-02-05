@@ -10,17 +10,17 @@ All rights reserved
 namespace vds {
   class http_message;
 
-  class vds_cmd_app : public console_app<vds_cmd_app>
+  class vds_cmd_app : public console_app
   {
-    using base_class = console_app<vds_cmd_app>;
+    using base_class = console_app;
   public:
     vds_cmd_app();
 
-    expected<void> main(const service_provider * sp);
+    expected<void> main(const service_provider * sp) override;
     
-    void register_services(service_registrator & registrator);
-    void register_command_line(command_line & cmd_line);
-    bool need_demonize();
+    void register_services(service_registrator & registrator) override;
+    void register_command_line(command_line & cmd_line) override;
+    bool need_demonize() override;
 
   private:
     command_line_set file_upload_cmd_set_;

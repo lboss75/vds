@@ -16,17 +16,17 @@ namespace vds {
   class service_registrator;
   class service_provider;
 
-  class get_root_app : public console_app<get_root_app>
+  class get_root_app : public console_app
   {
-    using base_class = console_app<get_root_app>;
+    using base_class = console_app;
   public:
     get_root_app();
 
-    expected<void> main(const service_provider * sp);
+    expected<void> main(const service_provider * sp) override;
 
-    void register_services(service_registrator & registrator);
-    void register_command_line(command_line & cmd_line);
-    expected<void> start_services(service_registrator & registrator, service_provider * sp);
+    void register_services(service_registrator & registrator) override;
+    void register_command_line(command_line & cmd_line) override;
+    expected<void> start_services(service_registrator & registrator, service_provider * sp) override;
 
   private:
     command_line_set key_generate_command_set_;

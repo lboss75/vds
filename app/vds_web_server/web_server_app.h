@@ -10,21 +10,21 @@ All rights reserved
 #include "server.h"
 
 namespace vds {
-  class web_server_app : public console_app<web_server_app>
+  class web_server_app : public console_app
   {
-    using base_class = console_app<web_server_app>;
+    using base_class = console_app;
   public:
     web_server_app();
 
-    expected<void> main(const service_provider * sp);
+    expected<void> main(const service_provider * sp) override;
     
-    void register_services(service_registrator & registrator);
-    void register_command_line(command_line & cmd_line);
+    void register_services(service_registrator & registrator) override;
+    void register_command_line(command_line & cmd_line) override;
 
-    bool need_demonize();
+    bool need_demonize() override;
 
 #ifdef _WIN32
-    TCHAR * service_name() const {
+    TCHAR * service_name() const override {
       return "ivsoft_vds";
     }
 #endif

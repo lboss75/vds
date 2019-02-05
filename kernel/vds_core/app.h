@@ -37,94 +37,19 @@ namespace vds{
   class app
   {
   public:
-    app() {
-      the_app_ = this;
-    }
+    virtual std::string app_name() const;
 
-    std::string app_name() const {
-      return "VDS application";
-    }
-    
-    std::string app_description() const {
-      return "Distributed file system";
-    }
-    
-    std::string app_version() const {
-      return "0.1";
-    }
-    
-  protected:
-    static app * the_app_;
+    virtual std::string app_description() const;
 
-#ifndef _WIN32
-    static barrier stop_barrier;
-    static expected<void> kill_prev(const foldername & root_folder, const std::string & process_name);
-    static expected<void> demonize(const foldername & root_folder, const std::string & process_name);
-#endif
+    virtual std::string app_version() const;
 
-  };
-  
-  template <typename app_impl>
-  class app_base : public app {
-  public:
-      app_base()
-              : logger_(log_level::ll_info, std::unordered_set<std::string>()),
-                log_level_("ll", "log_level", "Log Level", "Set log level"),
-                log_modules_("lm", "log_modules", "Log modules", "Set log modules"),
-                root_folder_("", "root-folder", "Root folder", "Root folder to store files"),
-                current_command_set_(nullptr),
-                help_cmd_set_("Show help", "Show application help", "help"),
-                help_cmd_switch_("h", "help", "Help", "Show help") {
-      }
+    virtual expected<void> main(const service_provider * sp) = 0;
 
-      int run(int argc, const char **argv) {
-        auto result = run_app(argc, argv);
-        if(result.has_error()) {
-          std::cerr << result.error()->what() << "\n";
-          return 1;
-        }
-        return result.value();
-      }
+    app();
 
-      expected<int> run_app(int argc, const char **argv) {
-        this->current_process_ = filename(argv[0]);
-#ifndef _WIN32
-        // core dumps may be disallowed by parent of this process; change that
-        struct rlimit core_limits;
-        core_limits.rlim_cur = core_limits.rlim_max = RLIM_INFINITY;
-        setrlimit(RLIMIT_CORE, &core_limits);
-#endif
-        setlocale(LC_ALL, "Russian");
+    int run(int argc, const char** argv);
 
-        auto pthis = static_cast<app_impl *>(this);
-        command_line cmd_line(
-          pthis->app_name(),
-          pthis->app_description(),
-          pthis->app_version()
-        );
-
-        pthis->register_command_line(cmd_line);
-        pthis->register_common_parameters(cmd_line);
-
-        GET_EXPECTED_VALUE(this->current_command_set_, cmd_line.parse(argc, argv));
-
-        pthis->process_common_parameters();
-
-        if (
-          nullptr == this->current_command_set_
-          || this->current_command_set_ == &this->help_cmd_set_) {
-          cmd_line.show_help(this->current_process_.name_without_extension());
-          return 1;
-        }
-
-        if (pthis->need_demonize()) {
-          return pthis->demonize();
-        }
-        else {
-          CHECK_EXPECTED(pthis->start());
-          return 0;
-        }
-      }
+    expected<int> run_app(int argc, const char** argv);
 
   protected:
       file_logger logger_;
@@ -134,211 +59,53 @@ namespace vds{
       const command_line_set *current_command_set_;
       filename current_process_;
 
-      expected<void> start() {
-          vds::service_registrator registrator;
+    expected<void> start(vds::service_registrator& registrator);
 
-          auto pthis = static_cast<app_impl *>(this);
-          pthis->register_services(registrator);
+    virtual void register_services(service_registrator& registrator);
 
-          if (!this->root_folder_.value().empty()) {
-              vds::foldername folder(this->root_folder_.value());
-            CHECK_EXPECTED(folder.create());
+    virtual expected<void> start_services(service_registrator& registrator, service_provider* /*sp*/);
 
-              registrator.current_user(folder);
-              registrator.local_machine(folder);
-          }
+    virtual expected<void> before_main(service_provider* /*sp*/);
 
-          GET_EXPECTED(sp, registrator.build());
-          CHECK_EXPECTED(pthis->prepare(sp));
-          CHECK_EXPECTED(pthis->start_services(registrator, sp));
-          CHECK_EXPECTED(pthis->before_main(sp));
-          CHECK_EXPECTED(pthis->main(sp));
+    virtual expected<void> prepare(service_provider* /*sp*/);
 
-          return registrator.shutdown();
-      }
+    virtual void register_command_line(command_line& cmd_line);
 
-      void register_services(service_registrator &registrator) {
-          registrator.add(this->logger_);
-      }
+    virtual void register_common_parameters(command_line& cmd_line);
 
-      expected<void> start_services(service_registrator &registrator, service_provider * /*sp*/) {
-        CHECK_EXPECTED(registrator.start());
-          this->logger_.debug("core", "Start application");
-          return expected<void>();
-      }
+    void process_common_parameters();
 
-      expected<void> before_main(service_provider * /*sp*/) {
-        return expected<void>();
-      }
-
-      expected<void> prepare(service_provider * /*sp*/) {
-        return expected<void>();
-      }
-
-      void register_command_line(command_line &cmd_line) {
-          cmd_line.add_command_set(this->help_cmd_set_);
-          this->help_cmd_set_.required(this->help_cmd_switch_);
-      }
-
-      void register_common_parameters(command_line &cmd_line) {
-          cmd_line.register_common_parameter(this->log_level_);
-          cmd_line.register_common_parameter(this->log_modules_);
-          cmd_line.register_common_parameter(this->root_folder_);
-      }
-
-      void process_common_parameters() {
-          if ("trace" == this->log_level_.value()) {
-              this->logger_.set_log_level(log_level::ll_trace);
-          } else if ("debug" == this->log_level_.value()) {
-              this->logger_.set_log_level(log_level::ll_debug);
-          } else if ("info" == this->log_level_.value()) {
-              this->logger_.set_log_level(log_level::ll_info);
-          } else if ("error" == this->log_level_.value()) {
-              this->logger_.set_log_level(log_level::ll_error);
-          }
-
-          auto p = this->log_modules_.value().c_str();
-          for (;;) {
-              auto s = strchr(p, ',');
-              if (nullptr == s) {
-                  if (0 != *p) {
-                      this->logger_.set_log_module(p);
-                  }
-                  break;
-              } else {
-                  this->logger_.set_log_module(std::string(p, s - p));
-                  p = s + 1;
-              }
-          }
-      }
-
-      bool need_demonize() {
-          return false;
-      }
+    virtual bool need_demonize();
 
 #ifdef _WIN32
-      TCHAR * service_name() const {
-        throw vds_exceptions::invalid_operation();
-      }
+      static app * the_app_;
 
-      expected<int> demonize()
-      {
-        SERVICE_TABLE_ENTRY DispatchTable[] =
-        {
-          { static_cast<app_impl *>(this)->service_name(), (LPSERVICE_MAIN_FUNCTION)SvcMain },
-          { NULL, NULL }
-        };
+    virtual TCHAR* service_name() const;
 
-        // This call returns when the service has stopped.
-        // The process should simply terminate when the call returns.
+    expected<int> demonize();
 
-        if (!StartServiceCtrlDispatcher(DispatchTable)) {
-          DWORD error = GetLastError();
-          return vds::make_unexpected<std::system_error>(error, std::system_category(), "StartServiceCtrlDispatcher");
-        }
-
-        return 0;
-      }
-
-      static VOID WINAPI SvcMain(DWORD dwArgc, LPTSTR *lpszArgv)
-      {
-        static_cast<app_impl *>(the_app_)->service_main();
-      }
+    static VOID WINAPI SvcMain(DWORD dwArgc, LPTSTR* lpszArgv);
 
       SERVICE_STATUS          gSvcStatus;
       SERVICE_STATUS_HANDLE   gSvcStatusHandle;
       HANDLE                  ghSvcStopEvent;
 
-      void service_main()
-      {
-        gSvcStatusHandle = RegisterServiceCtrlHandler(
-          static_cast<app_impl *>(this)->service_name(),
-          SvcCtrlHandler);
+    void service_main();
 
-        if (!gSvcStatusHandle) {
-          return;
-        }
+    void SvcInit();
 
-        // These SERVICE_STATUS members remain as set here
+    void waiting_stop_signal();
 
-        gSvcStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
-        gSvcStatus.dwServiceSpecificExitCode = 0;
+    VOID ReportSvcStatus(DWORD dwCurrentState,
+                         DWORD dwWin32ExitCode,
+                         DWORD dwWaitHint);
 
-        ReportSvcStatus(SERVICE_START_PENDING, NO_ERROR, 3000);
-
-        SvcInit();
-      }
-
-      void SvcInit()
-      {
-        ghSvcStopEvent = CreateEvent(
-          NULL,    // default security attributes
-          TRUE,    // manual reset event
-          FALSE,   // not signaled
-          NULL);   // no name
-
-        if (ghSvcStopEvent == NULL) {
-          ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
-          return;
-        }
-
-        //::Sleep(60 * 1000);
-        (void)static_cast<app_impl *>(this)->start();
-      }
-
-      void waiting_stop_signal() {
-        ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
-        WaitForSingleObject(ghSvcStopEvent, INFINITE);
-        ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
-      }
-
-      VOID ReportSvcStatus(DWORD dwCurrentState,
-        DWORD dwWin32ExitCode,
-        DWORD dwWaitHint)
-      {
-        static DWORD dwCheckPoint = 1;
-
-        // Fill in the SERVICE_STATUS structure.
-
-        gSvcStatus.dwCurrentState = dwCurrentState;
-        gSvcStatus.dwWin32ExitCode = dwWin32ExitCode;
-        gSvcStatus.dwWaitHint = dwWaitHint;
-
-        if (dwCurrentState == SERVICE_START_PENDING)
-          gSvcStatus.dwControlsAccepted = 0;
-        else gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
-
-        if ((dwCurrentState == SERVICE_RUNNING) ||
-          (dwCurrentState == SERVICE_STOPPED))
-          gSvcStatus.dwCheckPoint = 0;
-        else gSvcStatus.dwCheckPoint = dwCheckPoint++;
-
-        // Report the status of the service to the SCM.
-        SetServiceStatus(gSvcStatusHandle, &gSvcStatus);
-      }
-
-      static VOID WINAPI SvcCtrlHandler(DWORD dwCtrl)
-      {
-
-
-        switch (dwCtrl)
-        {
-        case SERVICE_CONTROL_STOP:
-          static_cast<app_base *>(the_app_)->ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
-
-          SetEvent(static_cast<app_base *>(the_app_)->ghSvcStopEvent);
-          static_cast<app_base *>(the_app_)->ReportSvcStatus(static_cast<app_base *>(the_app_)->gSvcStatus.dwCurrentState, NO_ERROR, 0);
-
-          return;
-
-        case SERVICE_CONTROL_INTERROGATE:
-          break;
-
-        default:
-          break;
-        }
-      }
+    static VOID WINAPI SvcCtrlHandler(DWORD dwCtrl);
 #else//_WIN32
+
+static barrier stop_barrier;
+static expected<void> kill_prev(const foldername & root_folder, const std::string & process_name);
+static expected<void> demonize(const foldername & root_folder, const std::string & process_name);
 
         expected<int> demonize() {
           CHECK_EXPECTED(app::kill_prev(
@@ -422,8 +189,7 @@ namespace vds{
       command_line_switch help_cmd_switch_;
   };
   
-  template <typename app_impl>
-  class console_app : public app_base<app_impl>
+  class console_app : public app
   {
   public:
     console_app()

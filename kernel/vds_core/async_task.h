@@ -92,15 +92,8 @@ namespace vds {
   template <typename result_type>
   class _async_task_state {
   public:
-    _async_task_state()
-    : is_processed_(false) {
+    _async_task_state() {
     }
-
-#ifdef DEBUG
-    ~_async_task_state() noexcept(false) {
-      vds_assert(this->is_processed_);
-    }
-#endif
 
     template<class _Rep, class _Period>
     std::future_status wait_for(std::chrono::duration<_Rep, _Period> timeout) {
@@ -124,8 +117,6 @@ namespace vds {
       while (!this->value_) {
         this->value_cond_.wait(lock);
       }
-      vds_assert(!this->is_processed_);
-      this->is_processed_ = true;
       return std::move(this->value_->get());
     }
 
@@ -152,14 +143,9 @@ namespace vds {
         this->then_function_();
       }
     }
-
-    bool is_processed() const {
-      return this->is_processed_;
-    }
   private:
     std::mutex value_mutex_;
     std::condition_variable value_cond_;
-    bool is_processed_;
     std::unique_ptr<_async_task_value<result_type>> value_;
     std::function<void(void)> then_function_;
   };
