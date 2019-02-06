@@ -41,6 +41,7 @@ namespace vds {
 
     //Sync options
     command_line_value sync_style_;
+    command_line_value exclude_;
 
     command_line_value output_format_;
 
@@ -60,6 +61,17 @@ namespace vds {
     expected<void> logout(const service_provider * sp, const std::string & session);
 
     expected<void> upload_file(const service_provider * sp, const std::string & session);
+    expected<void> upload_file(const service_provider * sp, const std::string & session, const filename & fn, const std::string & name);
+    
+    expected<void> download_file(
+      const service_provider * sp,
+      const std::string & session);    
+    expected<void> download_file(
+      const service_provider * sp,
+      const std::string & session,
+      const filename & fn,
+      const const_data_buffer & file_id);
+
     expected<void> sync_files(const service_provider * sp, const std::string & session);
 
     expected<void> channel_list(const service_provider * sp, const std::string & session);

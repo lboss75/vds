@@ -31,6 +31,9 @@ namespace vds {
 #ifdef _WIN32
         std::replace(this->value_.begin(), this->value_.end(), '\\', '/');
 #endif
+        if (this->value_.empty() && '/' == this->value_[this->value_.size() - 1]) {
+          this->value_.erase(this->value_.size() - 1);
+        }
       }
       
       foldername(

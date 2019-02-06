@@ -47,7 +47,12 @@ namespace vds {
       {
         return this->value_ == other.value_;
       }
-      
+
+      bool operator < (const filename& other) const
+      {
+        return this->value_ < other.value_;
+      }
+
       foldername contains_folder() const;
 
       const std::string & full_name() const { return this->value_; }

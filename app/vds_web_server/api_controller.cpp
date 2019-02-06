@@ -184,7 +184,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::api_contro
       auto files = std::make_shared<json_array>();
         for(const auto & file : message.files) {
           auto item = std::make_shared<json_object>();
-          item->add_property("object_id", base64::from_bytes(file.file_id));
+          item->add_property("object_id", file.file_id);
           item->add_property("name", file.name);
           item->add_property("mimetype", file.mime_type);
           item->add_property("size", file.size);
