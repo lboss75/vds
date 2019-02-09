@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "stdafx.h"
+#include <list>
+#include <list>
 
 namespace vds {
   class http_message;
@@ -78,6 +80,22 @@ namespace vds {
     expected<void> channel_create(const service_provider * sp, const std::string & session);
 
     async_task<expected<void>> channel_list_out(http_message response);
+
+
+    struct sync_file_info {
+      vds::const_data_buffer object_id_;
+      std::string file_name_;
+      std::string mimetype_;
+      size_t size_;
+    };
+
+    expected<void> sync_file(
+      const service_provider* sp,
+      const std::string & session,
+      const filename& exists_files,
+      const std::string & rel_name,
+      const std::list<sync_file_info> & file_history);
+
   };
 }
 

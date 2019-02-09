@@ -494,7 +494,10 @@ vds::expected<bool> vds::dht::network::sync_process::apply_base_message(
       || (message.generation == t2.generation.get(st) && message.current_term < t2.current_term.get(st))) {
 
       GET_EXPECTED(leader, this->get_leader(t, message.object_id));
-      if (!leader || client->current_node_id() == leader) {
+      if(!leader) {
+        return false;
+      }
+      else if (client->current_node_id() == leader) {
         CHECK_EXPECTED(send_snapshot(t, final_tasks, message.object_id, {message_info.source_node()}));
       }
       else {
@@ -1082,7 +1085,7 @@ vds::expected<void> vds::dht::network::sync_process::apply_message(
       if (state == orm::sync_state_dbo::state_t::leader) {
         CHECK_EXPECTED(send_snapshot(t, final_tasks, message.object_id, {message.leader_node}));
       }
-      else {
+      else if (state == orm::sync_state_dbo::state_t::follower) {
         this->send_snapshot_request(final_tasks, message.object_id, voted_for, message.leader_node);
       }
       return expected<void>();
@@ -1111,14 +1114,15 @@ vds::expected<void> vds::dht::network::sync_process::apply_message(
     }
   }
   else {
+    CHECK_EXPECTED(t.execute(t1.delete_if(t1.object_id == message.object_id)));
     return expected<void>();
   }
 
   //merge members
-  CHECK_EXPECTED(t.execute(t1.update(
-                t1.state = orm::sync_state_dbo::state_t::follower,
-                t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
-              .where(t1.object_id == message.object_id)));
+  //CHECK_EXPECTED(t.execute(t1.update(
+  //              t1.state = orm::sync_state_dbo::state_t::follower,
+  //              t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
+  //            .where(t1.object_id == message.object_id)));
 
   GET_EXPECTED(members, this->get_members(t, message.object_id, false));
   for (const auto& member : message.members) {
@@ -1137,6 +1141,17 @@ vds::expected<void> vds::dht::network::sync_process::apply_message(
       CHECK_EXPECTED(validate_last_applied(t, message.object_id));
     }
     else {
+      CHECK_EXPECTED(t.execute(t1.update(
+        t2.object_id = message.object_id,
+        t2.member_node = member.first,
+        t2.voted_for = message.leader_node,
+        t2.generation = message.generation,
+        t2.current_term = message.current_term,
+        t2.commit_index = message.commit_index,
+        t2.last_applied = message.commit_index,
+        t2.delete_index = 0,
+        t2.last_activity = std::chrono::system_clock::now())));
+      CHECK_EXPECTED(validate_last_applied(t, message.object_id));
       members.erase(p);
     }
   }
@@ -2295,14 +2310,14 @@ void vds::dht::network::sync_process::send_snapshot_request(
   const const_data_buffer& object_id,
   const const_data_buffer& leader_node,
   const const_data_buffer& from_node) {
-
+  vds_assert(leader_node != this->sp_->get<network::client>()->current_node_id());
   final_tasks.push_back([this, object_id, leader_node, from_node]() {
-    auto& client = *this->sp_->get<network::client>();
-    return client->send(
+    auto client = this->sp_->get<network::client>();
+    return (*client)->send(
       leader_node,
       message_create<messages::sync_snapshot_request>(
         object_id,
-        ((!from_node) ? client.current_node_id() : from_node)));
+        ((!from_node) ? client->current_node_id() : from_node)));
   });
 }
 
@@ -2333,12 +2348,12 @@ vds::expected<void> vds::dht::network::sync_process::apply_message(
       if (t1.state.get(st) == orm::sync_state_dbo::state_t::leader) {
         CHECK_EXPECTED(send_snapshot(t, final_tasks, message.object_id, {message.source_node}));
       }
-      else if(t1.state.get(st) == orm::sync_state_dbo::state_t::follower){
+      else if (t1.state.get(st) == orm::sync_state_dbo::state_t::follower) {
         this->send_snapshot_request(
           final_tasks,
-            message.object_id,
-            t2.voted_for.get(st),
-            message.source_node);
+          message.object_id,
+          t2.voted_for.get(st),
+          message.source_node);
       }
       return expected<void>();
     }
@@ -3476,16 +3491,19 @@ vds::expected<void> vds::dht::network::sync_process::make_follower(
   uint64_t current_term,
   const const_data_buffer& leader_node) {
 
+  const auto client = this->sp_->get<network::client>();
+  vds_assert(leader_node != client->current_node_id());
+
   orm::sync_state_dbo t1;
   CHECK_EXPECTED(t.execute(t1.update(
                 t1.state = orm::sync_state_dbo::state_t::follower,
                 t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
               .where(t1.object_id == object_id)));
 
-  const auto client = this->sp_->get<network::client>();
 
   orm::sync_member_dbo t2;
   CHECK_EXPECTED(t.execute(t2.update(
+                t2.voted_for = leader_node,
                 t2.generation = generation,
                 t2.current_term = current_term,
                 t2.commit_index = 0,

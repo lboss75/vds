@@ -267,59 +267,52 @@ vds::expected<void> vds::vds_cmd_app::upload_file(const service_provider * sp, c
   return this->upload_file(sp, session, fn, fn.name());
 }
 
-      vds::expected<void> vds::vds_cmd_app::upload_file(const service_provider* sp, const std::string& session,
-        const filename& fn, const std::string& name) {
+vds::expected<void> vds::vds_cmd_app::upload_file(const service_provider* sp, const std::string& session,
+  const filename& fn, const std::string& name) {
 
-        http_multipart_request request(
-          "POST",
-          "/api/upload?session=" + url_encode::encode(session));
+  http_multipart_request request(
+    "POST",
+    "/api/upload?session=" + url_encode::encode(session));
 
-        request.add_string("channel_id", this->channel_id_.value());
-        if (!this->message_.value().empty()) {
-          request.add_string("message", this->message_.value());
-        }
+  request.add_string("channel_id", this->channel_id_.value());
+  if (!this->message_.value().empty()) {
+    request.add_string("message", this->message_.value());
+  }
 
 
-        auto mimetype = http_mimetype::mimetype(fn);
-        if (mimetype.empty()) {
-          mimetype = "application/octet-stream";
-        }
+  auto mimetype = http_mimetype::mimetype(fn);
+  if (mimetype.empty()) {
+    mimetype = "application/octet-stream";
+  }
 
-        CHECK_EXPECTED(request.add_file("attachment", fn, name, mimetype));
+  CHECK_EXPECTED(request.add_file("attachment", fn, name, mimetype));
 
-        return this->invoke_server(
-          sp,
-          request.get_message(),
-          [](const http_message response) -> async_task<expected<void>> {
+  return this->invoke_server(
+    sp,
+    request.get_message(),
+    [](const http_message response) -> async_task<expected<void>> {
 
-          if (http_response(response).code() != http_response::HTTP_OK) {
-            co_return vds::make_unexpected<std::runtime_error>("Upload failed " + http_response(response).comment());
-          }
+    if (http_response(response).code() != http_response::HTTP_OK) {
+      co_return vds::make_unexpected<std::runtime_error>("Upload failed " + http_response(response).comment());
+    }
 
-          co_return expected<void>();
-        });
-      }
+    co_return expected<void>();
+  });
+}
 
-      vds::expected<void> vds::vds_cmd_app::download_file(
-        const service_provider* sp,
-        const std::string& session) {
-        return make_unexpected<vds_exceptions::invalid_operation>();
-      }
+vds::expected<void> vds::vds_cmd_app::download_file(
+  const service_provider* sp,
+  const std::string& session) {
+  return make_unexpected<vds_exceptions::invalid_operation>();
+}
 
-      vds::expected<void> vds::vds_cmd_app::download_file(
-        const service_provider* sp,
-        const std::string& session,
-        const filename& fn,
-        const const_data_buffer& file_id) {
-        return make_unexpected<vds_exceptions::invalid_operation>();
-      }
-
-      struct sync_file_info {
-  vds::const_data_buffer object_id_;
-  std::string file_name_;
-  std::string mimetype_;
-  size_t size_;
-};
+vds::expected<void> vds::vds_cmd_app::download_file(
+  const service_provider* sp,
+  const std::string& session,
+  const filename& fn,
+  const const_data_buffer& file_id) {
+  return make_unexpected<vds_exceptions::invalid_operation>();
+}
 
 
 vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, const std::string& session) {
@@ -345,8 +338,8 @@ vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, con
     std::map<std::string, std::list<sync_file_info>> name2file;
     std::map<const_data_buffer, std::list<sync_file_info>> hash2file;
     const auto messages = dynamic_cast<const json_array *>(body.get());
-    if(nullptr != messages) {
-      for(size_t i = 0; i < messages->size(); ++i) {
+    if (nullptr != messages) {
+      for (size_t i = 0; i < messages->size(); ++i) {
         const auto item = dynamic_cast<const json_object *>(messages->get(messages->size() - i - 1).get());//Reverse
         if (nullptr != item) {
           std::shared_ptr<json_value> files_prop = item->get_property("files");
@@ -409,19 +402,19 @@ vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, con
     std::map<filename, bool> files;
     (void)sync_folder.files([&filters, &files](const filename & fn) -> expected<bool> {
       bool filtered = false;
-      for(const auto & filter : filters) {
-        if(filter.empty()) {
+      for (const auto & filter : filters) {
+        if (filter.empty()) {
           continue;
         }
 
-        if('/' == filter[filter.size() - 1]) {
+        if ('/' == filter[filter.size() - 1]) {
           //It folder
-          if(fn.full_name().size() > filter.size() && fn.full_name().substr(0, filter.size()) == filter) {
+          if (fn.full_name().size() > filter.size() && fn.full_name().substr(0, filter.size()) == filter) {
             filtered = true;
             break;
           }
         }
-        else if('*' == filter[0]) {
+        else if ('*' == filter[0]) {
           //file extension
           if (fn.extension() == filter) {
             filtered = true;
@@ -430,28 +423,32 @@ vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, con
         }
         else {
           //file name
-          if(fn.name() == filter) {
+          if (fn.name() == filter) {
             filtered = true;
             break;
           }
         }
       }
 
-      if(!filtered) {
+      if (!filtered) {
         files[fn] = false;
       }
 
       return true;
     });
 
-    if(this->sync_style_.value().empty()
+    if (this->sync_style_.value().empty()
       || "default" == this->sync_style_.value()
       || "upload" == this->sync_style_.value()) {
-      for(const auto & fn : files) {
+      for (const auto & fn : files) {
         auto name = fn.first.full_name().substr(0, sync_folder.full_name().size() + 1);
-        if(name2file.end() == name2file.find(name)) {
+        auto p = name2file.find(name);
+        if (name2file.end() == p) {
           //Upload
           CHECK_EXPECTED(this->upload_file(sp, session, fn.first, name));
+        }
+        else {
+          CHECK_EXPECTED(this->sync_file(sp, session, fn.first, name, p->second));
         }
       }
     }
@@ -461,9 +458,14 @@ vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, con
       || "download" == this->sync_style_.value()) {
       for (const auto & name : name2file) {
         filename fn(sync_folder, name.first);
-        if (files.end() == files.find(fn)) {
+        auto p = files.find(fn);
+        if (files.end() == p) {
           //Upload
           CHECK_EXPECTED(this->download_file(sp, session, fn, name.second.front().object_id_));
+        }
+        else {
+          //CHECK_EXPECTED(this->sync_file(sp, session, fn, name.first, p->second));
+
         }
       }
     }
@@ -540,4 +542,15 @@ vds::async_task<vds::expected<void>> vds::vds_cmd_app::channel_list_out(const ht
     }
   }
   co_return expected<void>();
+}
+
+vds::expected<void> vds::vds_cmd_app::sync_file(
+  const service_provider* sp,
+  const std::string& session,
+  const filename& exists_files,
+  const std::string& rel_name,
+  const std::list<sync_file_info>& file_history) {
+
+  return expected<void>();
+
 }
