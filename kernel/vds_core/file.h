@@ -52,7 +52,7 @@ namespace vds {
     ~file();
     
     expected<void> open(const filename & filename, file_mode mode);
-    void close();
+    expected<void> close();
     
     expected<size_t> read(
       void * buffer,

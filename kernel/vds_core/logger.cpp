@@ -117,7 +117,7 @@ vds::expected<void> vds::file_logger::stop()
 
   this->logger_thread_.join();
 
-  this->f_->close();
+  (void)this->f_->close();
   this->f_.reset();
 
   return expected<void>();

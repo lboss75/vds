@@ -19,22 +19,23 @@ namespace vds {
     class _file_operations : public std::enable_shared_from_this<_file_operations> {
     public:
 			vds::async_task<vds::expected<transactions::user_message_transaction::file_info_t>> upload_file(
-					
           const std::shared_ptr<user_manager> & user_mng,
           const std::string & name,
           const std::string & mime_type,
-					const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
+					const std::shared_ptr<stream_input_async<uint8_t>> & input_stream,
+          const const_data_buffer & file_hash);
 
 	    async_task<expected<file_manager::file_operations::download_result_t>> download_file(
-					
           const std::shared_ptr<user_manager> & user_mng,
           const const_data_buffer & channel_id,
-          const const_data_buffer & target_file,
+          const std::string & file_name,
+          const const_data_buffer & file_hash,
           const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
       async_task<expected<file_manager::file_operations::prepare_download_result_t>> prepare_download_file(
         const std::shared_ptr<user_manager> & user_mng,
         const const_data_buffer & channel_id,
+        const std::string& file_name,
         const const_data_buffer & target_file);
 
       vds::async_task<vds::expected<void>> create_message(
@@ -64,8 +65,8 @@ namespace vds {
       };
 
       vds::async_task<vds::expected<pack_file_result>> pack_file(
-          
-          const std::shared_ptr<stream_input_async<uint8_t>> & input_stream) const;
+        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream,
+        const const_data_buffer & file_hash) const;
 
 //			void restore_chunk(
 //					

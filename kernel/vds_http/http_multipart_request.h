@@ -25,10 +25,13 @@ namespace vds {
       const std::string & name,
       const filename & body_file,
       const std::string & filename,
-      const std::string & content_type = "application/octet-stream");
+      const std::string & content_type = "application/octet-stream",
+      const std::list<std::string> & headers = std::list<std::string>());
 
 
     http_message get_message();
+
+    void add_header(const std::string & header);
 
   private:
     std::list<std::string> headers_;

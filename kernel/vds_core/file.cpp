@@ -17,19 +17,30 @@ vds::file::file(file&& f) noexcept
 
 vds::file::~file()
 {
-  this->close();
+  (void)this->close();
 }
 
-void vds::file::close()
+vds::expected<void> vds::file::close()
 {
   if(0 < this->handle_){
+    int error = 0;
 #ifndef _WIN32
-    ::close(this->handle_);
+    if(0 > ::close(this->handle_)) {
+      error = errno;
+    }
 #else
-    ::_close(this->handle_);
+    if (0 > ::_close(this->handle_)) {
+      error = errno;
+    }
 #endif
     this->handle_ = 0;
+
+    if (error != 0) {
+      return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to close file " + this->filename_.str());
+    }
   }
+
+  return expected<void>();
 }
   
 vds::expected<void> vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
@@ -130,7 +141,7 @@ vds::expected<void> vds::file::write(
 }
 
 vds::file& vds::file::operator = (file&& f) noexcept {
-  this->close();
+  (void)this->close();
   this->filename_ = std::move(f.filename_);
   this->handle_ = f.handle_;
   f.handle_ = 0;
@@ -366,7 +377,7 @@ vds::expected<void> vds::file::write_all(const vds::filename &fn, const vds::con
   file f;
   CHECK_EXPECTED(f.open(fn, file::file_mode::truncate));
   CHECK_EXPECTED(f.write(data.data(), data.size()));
-  f.close();
+  CHECK_EXPECTED(f.close());
 
   return expected<void>();
 }

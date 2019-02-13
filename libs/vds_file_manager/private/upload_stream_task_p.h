@@ -35,9 +35,15 @@ namespace vds {
       return this->total_hash_.signature();
     }
 
+    void set_file_hash(const const_data_buffer & file_hash) {
+      this->target_file_hash_ = file_hash;
+    }
+
   private:
     uint64_t total_size_;
     hash total_hash_;
+    
+    const_data_buffer target_file_hash_;
 
     uint64_t readed_;
     uint8_t buffer_[1024];

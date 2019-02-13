@@ -63,7 +63,12 @@ namespace vds {
     expected<void> logout(const service_provider * sp, const std::string & session);
 
     expected<void> upload_file(const service_provider * sp, const std::string & session);
-    expected<void> upload_file(const service_provider * sp, const std::string & session, const filename & fn, const std::string & name);
+    expected<void> upload_file(
+      const service_provider * sp,
+      const std::string & session,
+      const filename & fn,
+      const std::string & name,
+      const_data_buffer file_hash);
     
     expected<void> download_file(
       const service_provider * sp,
@@ -72,6 +77,7 @@ namespace vds {
       const service_provider * sp,
       const std::string & session,
       const filename & fn,
+      const std::string & file_name,
       const const_data_buffer & file_id);
 
     expected<void> sync_files(const service_provider * sp, const std::string & session);
@@ -94,7 +100,8 @@ namespace vds {
       const std::string & session,
       const filename& exists_files,
       const std::string & rel_name,
-      const std::list<sync_file_info> & file_history);
+      const std::list<sync_file_info> & file_history,
+      bool enable_upload);
 
   };
 }

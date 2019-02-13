@@ -1141,16 +1141,16 @@ vds::expected<void> vds::dht::network::sync_process::apply_message(
       CHECK_EXPECTED(validate_last_applied(t, message.object_id));
     }
     else {
-      CHECK_EXPECTED(t.execute(t1.update(
-        t2.object_id = message.object_id,
-        t2.member_node = member.first,
+      CHECK_EXPECTED(t.execute(t2.update(
         t2.voted_for = message.leader_node,
         t2.generation = message.generation,
         t2.current_term = message.current_term,
         t2.commit_index = message.commit_index,
         t2.last_applied = message.commit_index,
         t2.delete_index = 0,
-        t2.last_activity = std::chrono::system_clock::now())));
+        t2.last_activity = std::chrono::system_clock::now())
+        .where(t2.object_id == message.object_id
+          && t2.member_node == member.first)));
       CHECK_EXPECTED(validate_last_applied(t, message.object_id));
       members.erase(p);
     }

@@ -98,6 +98,7 @@ vds::http_message vds::http_response::file_response(
   const std::shared_ptr<stream_input_async<uint8_t>>& body,
   uint64_t body_size,
   const std::string & filename,
+  const const_data_buffer & file_hash,
   const std::string & content_type,
   int result_code,
   const std::string & message)
@@ -107,6 +108,9 @@ vds::http_message vds::http_response::file_response(
   headers.push_back("Content-Type:" + content_type);
   headers.push_back("Content-Length:" + std::to_string(body_size));
   headers.push_back("Content-Disposition:attachment; filename=\"" + filename + "\"");
+  if(0 < file_hash.size()) {
+    headers.push_back("X-VDS-SHA256:" + base64::from_bytes(file_hash));
+  }
 
   return http_message(headers, body);
 }
@@ -114,6 +118,7 @@ vds::http_message vds::http_response::file_response(
 vds::http_message vds::http_response::file_response(
   const const_data_buffer& body,
   const std::string& filename,
+  const const_data_buffer & file_hash,
   const std::string& content_type,
   int result_code,
   const std::string& message) {
@@ -122,6 +127,7 @@ vds::http_message vds::http_response::file_response(
     std::make_shared<buffer_stream_input_async>(body),
     body.size(),
     filename,
+    file_hash,
     content_type,
     result_code,
     message);

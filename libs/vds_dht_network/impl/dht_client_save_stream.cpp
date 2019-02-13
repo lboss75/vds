@@ -49,7 +49,7 @@ vds::async_task<vds::expected<std::vector<vds::const_data_buffer>>> vds::dht::ne
     auto pthis = static_cast<client_save_stream *>(pthis_.get());
     for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
       auto & f = static_cast<file_stream_output_async *>(pthis->generators_[replica].hash_stream_->target().get())->target();
-      f.close();
+      CHECK_EXPECTED(f.close());
 
       const auto replica_hash = pthis->generators_[replica].hash_stream_->signature();
 

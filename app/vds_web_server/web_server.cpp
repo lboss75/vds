@@ -153,6 +153,7 @@ router_({
     const http_request & request) -> async_task<expected<http_message>> {
                   GET_EXPECTED_ASYNC(channel_id, base64::to_bytes(request.get_parameter("channel_id")));
                   GET_EXPECTED_ASYNC(file_hash, base64::to_bytes(request.get_parameter("object_id")));
+                  auto file_name = request.get_parameter("file_name");
 
                   auto buffer = std::make_shared<continuous_buffer<uint8_t>>(sp);
 
@@ -163,6 +164,7 @@ router_({
                     sp,
                     user_mng,
                     channel_id,
+                    file_name,
                     file_hash,
                     std::make_shared<continuous_stream_output_async<uint8_t>>(buffer)));
 
@@ -170,6 +172,7 @@ router_({
                         std::make_shared<continuous_stream_input_async<uint8_t>>(buffer),
                         result.size,
                         result.name,
+                        result.file_hash,
                         result.mime_type);
                       }
   },
@@ -179,6 +182,7 @@ router_({
     const http_request & request) -> async_task<expected<std::shared_ptr<json_value>>> {
                   GET_EXPECTED_ASYNC(channel_id, base64::to_bytes(request.get_parameter("channel_id")));
                   GET_EXPECTED_ASYNC(file_hash, base64::to_bytes(request.get_parameter("object_id")));
+                  auto file_name = request.get_parameter("file_name");
 
                   CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
@@ -186,6 +190,7 @@ router_({
                     sp,
                     user_mng,
                     channel_id,
+                    file_name,
                     file_hash);
       }
   },

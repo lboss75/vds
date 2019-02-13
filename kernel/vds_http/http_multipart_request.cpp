@@ -41,13 +41,19 @@ vds::expected<void> vds::http_multipart_request::add_file(
   const std::string & name,
   const filename& body_file,
   const std::string& filename,
-  const std::string& content_type) {
+  const std::string& content_type,
+  const std::list<std::string> & headers) {
 
   GET_EXPECTED(size, file::length(body_file));
-  const auto header = "--" + this->boundary_ + "\r\n"
+  auto header = "--" + this->boundary_ + "\r\n"
     + "Content-Disposition: form-data; name=\"" + url_encode::encode(name) + "\"; filename=\"" + url_encode::encode(filename) + "\"\r\n"
     + "Content-Type: " + content_type + "\r\n"
-    + "Content-Length: " + std::to_string(size) + "\r\n\r\n";
+    + "Content-Length: " + std::to_string(size) + "\r\n";
+  for(const auto & h : headers) {
+    header += h;
+    header += "\r\n";
+  }
+  header += "\r\n";
 
   this->total_size_ += header.length();
   this->total_size_ += size;
@@ -71,6 +77,10 @@ vds::http_message vds::http_multipart_request::get_message() {
   this->headers_.push_back("Content-Length: " + std::to_string(this->total_size_));
 
   return http_message(this->headers_, std::make_shared<multipart_body>(std::move(this->inputs_)));
+}
+
+void vds::http_multipart_request::add_header(const std::string& header) {
+  this->headers_.push_back(header);
 }
 
 vds::http_multipart_request::multipart_body::multipart_body(

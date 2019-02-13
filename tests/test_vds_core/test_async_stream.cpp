@@ -22,7 +22,7 @@ TEST(core_tests, test_file) {
 
   vds::file f1;
   CHECK_EXPECTED_GTEST(f1.open(fn1, vds::file::file_mode::create_new));
-  f1.close();
+  CHECK_EXPECTED_GTEST(f1.close());
 
   vds::file f2;
   auto result = f2.open(fn1, vds::file::file_mode::create_new);
@@ -32,11 +32,11 @@ TEST(core_tests, test_file) {
       GTEST_FATAL_FAILURE_("file_mode::create_new failed");
     }
   }
-  f2.close();
+  CHECK_EXPECTED_GTEST(f2.close());
 
   vds::file f3;
   CHECK_EXPECTED_GTEST(f3.open(fn1, vds::file::file_mode::open_read));
-  f3.close();
+  CHECK_EXPECTED_GTEST(f3.close());
 
   vds::file f4;
   result = f4.open(fn2, vds::file::file_mode::open_write);

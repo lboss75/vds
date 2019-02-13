@@ -527,7 +527,8 @@ vds::const_data_buffer vds_mock::upload_file(
     user_mng,
     name,
     mimetype,
-    input_stream).get());
+    input_stream,
+    vds::const_data_buffer()).get());
 
   auto message = std::make_shared<vds::json_object>();
   message->add_property("$type", "SimpleMessage");
@@ -555,7 +556,7 @@ vds_mock::download_data(
   auto user_mng = std::make_shared<vds::user_manager>(sp);
 
   CHECK_EXPECTED_ASYNC(co_await sp->get<vds::db_model>()->async_transaction(
-    [this, user_mng, name, channel_id, file_hash](vds::database_transaction &t) -> vds::expected<void>{
+    [this, user_mng, channel_id, file_hash](vds::database_transaction &t) -> vds::expected<void>{
 
     return user_mng->load(
       t,
@@ -567,6 +568,7 @@ vds_mock::download_data(
   co_return co_await sp->get<vds::file_manager::file_operations>()->download_file(
     user_mng,
     channel_id,
+    name,
     file_hash,
     output_stream);
 }

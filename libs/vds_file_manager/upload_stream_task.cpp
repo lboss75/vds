@@ -74,5 +74,9 @@ vds::async_task<vds::expected<std::list<vds::transactions::user_message_transact
   }
   CHECK_EXPECTED_ASYNC(this->total_hash_.final());
 
+  if(this->target_file_hash_.size() > 0 && this->target_file_hash_ != this->total_hash_.signature()) {
+    co_return make_unexpected<std::runtime_error>("File hash changed during upload process");
+  }
+
   co_return result;
 }

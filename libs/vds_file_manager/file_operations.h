@@ -23,12 +23,14 @@ namespace vds {
     class file_operations {
     public:
       struct download_result_t {
+        const_data_buffer file_hash;
         std::string name;
         std::string mime_type;
         uint64_t size;
       };
 
       struct prepare_download_result_t {
+        const_data_buffer file_hash;
         std::string name;
         std::string mime_type;
         uint64_t size;
@@ -73,11 +75,11 @@ namespace vds {
       file_operations();
 
 			vds::async_task<vds::expected<transactions::user_message_transaction::file_info_t>> upload_file(
-				
         const std::shared_ptr<user_manager> & user_mng,
         const std::string & name,
         const std::string & mime_type,
-        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
+        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream,
+        const const_data_buffer & file_hash);
 
       vds::async_task<vds::expected<void>> create_message(
         
@@ -88,10 +90,10 @@ namespace vds {
 
 
 			vds::async_task<vds::expected<download_result_t>> download_file(
-		    
-        const std::shared_ptr<user_manager> & user_mng,
-        const const_data_buffer & channel_id,
-        const const_data_buffer & target_file,
+			  const std::shared_ptr<user_manager> & user_mng,
+			  const const_data_buffer & channel_id,
+        const std::string & file_name,
+        const const_data_buffer & file_hash,
         const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
       void start(const service_provider * sp);
@@ -102,6 +104,7 @@ namespace vds {
       async_task<expected<prepare_download_result_t>> prepare_download_file(
         const std::shared_ptr<user_manager> & user_mng,
         const const_data_buffer& channel_id,
+        const std::string& file_name,
         const const_data_buffer& file_hash);
 
     protected:

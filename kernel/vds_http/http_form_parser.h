@@ -26,6 +26,7 @@ namespace vds {
         std::string name;
         std::string file_name;
         std::string mimetype;
+        std::list<std::string> headers;
         std::shared_ptr<stream_input_async<uint8_t>> stream;
       };
 

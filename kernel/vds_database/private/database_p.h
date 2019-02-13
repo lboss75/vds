@@ -224,6 +224,8 @@ namespace vds {
         return vds::make_unexpected<std::runtime_error>(sqlite3_errmsg(this->db_));
       }
 
+      sqlite3_trace_v2(this->db_, SQLITE_TRACE_STMT, tracer, (void *)this->sp_);
+
       return expected<void>();
     }
 
@@ -369,6 +371,14 @@ namespace vds {
     const service_provider * sp_;
     sqlite3 * db_;    
     std::shared_ptr<thread_apartment> execute_queue_;
+
+    static int tracer(unsigned, void*sp, void *stmt, void*)
+    {
+      char *sql = sqlite3_expanded_sql((sqlite3_stmt*)stmt);
+      static_cast<service_provider *>(sp)->get<logger>()->trace("DB", "%s", sql);
+      sqlite3_free(sql);
+      return 0;
+    }
   };
 }
 

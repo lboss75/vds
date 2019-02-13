@@ -204,10 +204,11 @@ vds::api_controller::download_file(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager> & user_mng,
   const const_data_buffer& channel_id,
+  const std::string & file_name,
   const const_data_buffer& file_hash,
   const std::shared_ptr<stream_output_async<uint8_t>> & output_stream) {
 
-  return sp->get<file_manager::file_operations>()->download_file(user_mng, channel_id, file_hash, output_stream);
+  return sp->get<file_manager::file_operations>()->download_file(user_mng, channel_id, file_name, file_hash, output_stream);
 }
 
 vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>>
@@ -215,9 +216,11 @@ vds::api_controller::prepare_download_file(
   const vds::service_provider * sp,
   const std::shared_ptr<vds::user_manager> & user_mng,
   const const_data_buffer& channel_id,
+  const std::string& file_name,
   const const_data_buffer& file_hash) {
   vds::file_manager::file_operations::prepare_download_result_t result;
-  GET_EXPECTED_VALUE_ASYNC(result, co_await sp->get<file_manager::file_operations>()->prepare_download_file(user_mng, channel_id, file_hash));
+  GET_EXPECTED_VALUE_ASYNC(result, co_await sp->get<file_manager::file_operations>()->prepare_download_file(
+    user_mng, channel_id, file_name, file_hash));
   co_return result.to_json();
 }
 

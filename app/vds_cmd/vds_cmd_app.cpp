@@ -100,6 +100,11 @@ vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
     CHECK_EXPECTED(this->upload_file(sp, session));
     CHECK_EXPECTED(this->logout(sp, session));
   }
+  else if (this->current_command_set_ == &this->file_download_cmd_set_) {
+    GET_EXPECTED(session, this->login(sp));
+    CHECK_EXPECTED(this->download_file(sp, session));
+    CHECK_EXPECTED(this->logout(sp, session));
+  }
   else if (this->current_command_set_ == &this->file_sync_cmd_set_) {
     GET_EXPECTED(session, this->login(sp));
     CHECK_EXPECTED(this->sync_files(sp, session));
@@ -145,9 +150,8 @@ void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
   this->file_download_cmd_set_.required(this->user_password_);
   this->file_download_cmd_set_.optional(this->server_);
   this->file_download_cmd_set_.required(this->channel_id_);
-  this->file_download_cmd_set_.optional(this->message_);
   this->file_download_cmd_set_.required(this->attachment_);
-  this->file_download_cmd_set_.optional(this->output_folder_);
+  this->file_download_cmd_set_.required(this->output_folder_);
 
   cmd_line.add_command_set(this->file_sync_cmd_set_);
   this->file_sync_cmd_set_.required(this->user_login_);
@@ -203,7 +207,7 @@ vds::expected<void> vds::vds_cmd_app::invoke_server(
   CHECK_EXPECTED(client->send(request, response_handler).get());
 
   CHECK_EXPECTED(s->close());
-  CHECK_EXPECTED(client_task.get());
+  (void)client_task.get();
 
   return expected<void>();
 }
@@ -264,11 +268,15 @@ vds::expected<void> vds::vds_cmd_app::logout(const service_provider* sp, const s
 
 vds::expected<void> vds::vds_cmd_app::upload_file(const service_provider * sp, const std::string & session) {
   filename fn(this->attachment_.value());
-  return this->upload_file(sp, session, fn, fn.name());
+  return this->upload_file(sp, session, fn, fn.name(), const_data_buffer());
 }
 
-vds::expected<void> vds::vds_cmd_app::upload_file(const service_provider* sp, const std::string& session,
-  const filename& fn, const std::string& name) {
+vds::expected<void> vds::vds_cmd_app::upload_file(
+  const service_provider* sp,
+  const std::string& session,
+  const filename& fn,
+  const std::string& name,
+  const_data_buffer file_hash_) {
 
   http_multipart_request request(
     "POST",
@@ -279,13 +287,37 @@ vds::expected<void> vds::vds_cmd_app::upload_file(const service_provider* sp, co
     request.add_string("message", this->message_.value());
   }
 
+  if (!file_hash_) {
+    GET_EXPECTED(file_hash, hash::create(hash::sha256()));
+
+    file f;
+    CHECK_EXPECTED(f.open(fn, file::file_mode::open_read));
+    for (;;) {
+      uint8_t buffer[1024];
+      GET_EXPECTED(readed, f.read(buffer, sizeof(buffer)));
+
+      if (readed == 0) {
+        break;
+      }
+
+      CHECK_EXPECTED(file_hash.update(buffer, readed));
+    }
+    CHECK_EXPECTED(f.close());
+
+    CHECK_EXPECTED(file_hash.final());
+
+    file_hash_ = file_hash.signature();
+  }
+
+  std::list<std::string> headers;
+  headers.push_back("X-VDS-SHA256:" + base64::from_bytes(file_hash_));
 
   auto mimetype = http_mimetype::mimetype(fn);
   if (mimetype.empty()) {
     mimetype = "application/octet-stream";
   }
-
-  CHECK_EXPECTED(request.add_file("attachment", fn, name, mimetype));
+  
+  CHECK_EXPECTED(request.add_file("attachment", fn, name, mimetype, headers));
 
   return this->invoke_server(
     sp,
@@ -303,15 +335,70 @@ vds::expected<void> vds::vds_cmd_app::upload_file(const service_provider* sp, co
 vds::expected<void> vds::vds_cmd_app::download_file(
   const service_provider* sp,
   const std::string& session) {
-  return make_unexpected<vds_exceptions::invalid_operation>();
+  filename fn(foldername(this->output_folder_.value()), this->attachment_.value());
+  CHECK_EXPECTED(fn.contains_folder().create());
+
+  return this->download_file(
+    sp,
+    session,
+    fn,
+    this->attachment_.value(),
+    const_data_buffer());
+
 }
 
 vds::expected<void> vds::vds_cmd_app::download_file(
   const service_provider* sp,
   const std::string& session,
-  const filename& fn,
+  const filename & fn,
+  const std::string & file_name,
   const const_data_buffer& file_id) {
-  return make_unexpected<vds_exceptions::invalid_operation>();
+  return this->invoke_server(
+    sp,
+    http_request::create(
+      "GET",
+      "/api/download?session=" + url_encode::encode(session)
+      + "&channel_id=" + url_encode::encode(this->channel_id_.value())
+      + "&object_id=" + url_encode::encode(base64::from_bytes(file_id))
+      + "&file_name=" + url_encode::encode(file_name)
+    ).get_message(),
+    [this, sp, file_id, fn](const http_message response) -> async_task<expected<void>> {
+
+    if (http_response(response).code() != http_response::HTTP_OK) {
+      co_return vds::make_unexpected<std::runtime_error>("File download failed: " + http_response(response).comment());
+    }
+
+    GET_EXPECTED_ASYNC(tmp_file, file::create_temp(sp));
+
+    GET_EXPECTED_ASYNC(h, hash::create(hash::sha256()));
+
+    auto stream = response.body();
+    for(;;) {
+      uint8_t buffer[1024];
+      size_t readed;
+      GET_EXPECTED_VALUE_ASYNC(readed, co_await stream->read_async(buffer, sizeof(buffer)));
+      if(0 == readed) {
+        break;
+      }
+      CHECK_EXPECTED_ASYNC(tmp_file.write(buffer, readed));
+      CHECK_EXPECTED_ASYNC(h.update(buffer, readed));
+    }
+    CHECK_EXPECTED_ASYNC(tmp_file.close());
+    CHECK_EXPECTED_ASYNC(h.final());
+
+    if(0 < file_id.size() && file_id != h.signature()) {
+      (void)file::delete_file(tmp_file.name());
+      co_return vds::make_unexpected<std::runtime_error>("File download failed: file is corrupted");
+    }
+
+    if(file::exists(fn)) {
+      CHECK_EXPECTED_ASYNC(file::delete_file(fn));
+    }
+
+    CHECK_EXPECTED_ASYNC(file::move(tmp_file.name(), fn));
+
+    co_return expected<void>();
+  });
 }
 
 
@@ -440,15 +527,17 @@ vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, con
     if (this->sync_style_.value().empty()
       || "default" == this->sync_style_.value()
       || "upload" == this->sync_style_.value()) {
+      std::cout << "Checking local files...\n";
       for (const auto & fn : files) {
-        auto name = fn.first.full_name().substr(0, sync_folder.full_name().size() + 1);
+        auto name = fn.first.full_name().substr(sync_folder.full_name().size() + 1);
         auto p = name2file.find(name);
         if (name2file.end() == p) {
-          //Upload
-          CHECK_EXPECTED(this->upload_file(sp, session, fn.first, name));
+          std::cout << "File " << name << " not found in the network. Uploading file...\n";
+          CHECK_EXPECTED(this->upload_file(sp, session, fn.first, name, const_data_buffer()));
         }
         else {
-          CHECK_EXPECTED(this->sync_file(sp, session, fn.first, name, p->second));
+          std::cout << "File " << name << " found in the network. Sync file.\n";
+          CHECK_EXPECTED(this->sync_file(sp, session, fn.first, name, p->second, true));
         }
       }
     }
@@ -456,17 +545,26 @@ vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, con
     if (this->sync_style_.value().empty()
       || "default" == this->sync_style_.value()
       || "download" == this->sync_style_.value()) {
+      std::cout << "Checking remove files...\n";
       for (const auto & name : name2file) {
         filename fn(sync_folder, name.first);
         auto p = files.find(fn);
         if (files.end() == p) {
-          //Upload
-          CHECK_EXPECTED(this->download_file(sp, session, fn, name.second.front().object_id_));
+          std::cout << "File " << name.first << " not found in the computed. Downloading file.\n";
+          CHECK_EXPECTED(this->download_file(sp, session, fn, name.first, name.second.front().object_id_));
         }
         else {
-          //CHECK_EXPECTED(this->sync_file(sp, session, fn, name.first, p->second));
-
+          std::cout << "File " << name.first << " found in the computed. Sync file.\n";
+          CHECK_EXPECTED(this->sync_file(sp, session, fn, name.first, name.second, false));
         }
+      }
+    }
+
+    if ("upload" == this->sync_style_.value()) {
+      std::cout << "Checking local files...\n";
+      for (const auto & fn : files) {
+          std::cout << "Remove file " << fn.first.full_name() << "\n";
+          CHECK_EXPECTED(file::delete_file(fn.first));
       }
     }
 
@@ -549,8 +647,54 @@ vds::expected<void> vds::vds_cmd_app::sync_file(
   const std::string& session,
   const filename& exists_files,
   const std::string& rel_name,
-  const std::list<sync_file_info>& file_history) {
+  const std::list<sync_file_info>& file_history,
+  bool enable_upload) {
+
+  GET_EXPECTED(h, hash::create(hash::sha256()));
+  file f;
+  CHECK_EXPECTED(f.open(exists_files, file::file_mode::open_read));
+
+  for(;;) {
+    uint8_t buffer[1024];
+    GET_EXPECTED(readed, f.read(buffer, sizeof(buffer)));
+
+    if(0 == readed) {
+      break;
+    }
+    CHECK_EXPECTED(h.update(buffer, readed));
+  }
+  CHECK_EXPECTED(f.close());
+  CHECK_EXPECTED(h.final());
+
+  int state = 0;
+  for(const auto & hist : file_history) {
+    if(hist.object_id_ == h.signature()) {
+      state = 1;
+    }
+    else if(state == 1) {
+      state = 2;
+      break;
+    }
+  }
+
+  switch(state) {
+  case 0: {
+    if (enable_upload) {
+      std::cout << "Local file has unique hash " << base64::from_bytes(h.signature()) << ". Uploading file...\n";
+      return this->upload_file(sp, session, exists_files, rel_name, h.signature());
+    }
+  }
+
+  case 1: {//Last
+    std::cout << "Local file is up to date.\n";
+    return expected<void>();
+  }
+
+  case 2: {//Uplate
+    std::cout << "Local file has old hash " << base64::from_bytes(h.signature()) << ". Downloading new file...\n";
+    return this->download_file(sp, session, exists_files, rel_name, file_history.rbegin()->object_id_);
+  }
+  }
 
   return expected<void>();
-
 }

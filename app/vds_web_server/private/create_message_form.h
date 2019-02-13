@@ -36,12 +36,22 @@ namespace vds {
     }
 
     vds::async_task<vds::expected<void>> on_file(const file_info & file) override {
-        vds::transactions::user_message_transaction::file_info_t file_info;
+      const_data_buffer file_hash;
+      for(auto & h : file.headers) {
+        static char vds_sha256[] = "X-VDS-SHA256:";
+        if(0 == strncmp(h.c_str(), vds_sha256, sizeof(vds_sha256) - 1)) {
+          GET_EXPECTED_VALUE_ASYNC(file_hash, base64::to_bytes(h.c_str() + (sizeof(vds_sha256) - 1)));
+          break;
+        }
+      }
+
+      vds::transactions::user_message_transaction::file_info_t file_info;
       GET_EXPECTED_VALUE_ASYNC(file_info, co_await this->sp_->get<vds::file_manager::file_operations>()->upload_file(
         this->user_mng_,
         file.file_name,
         file.mimetype,
-        file.stream));
+        file.stream,
+        file_hash));
 
       this->files_.push_back(file_info);
       co_return expected<void>();

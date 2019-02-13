@@ -150,6 +150,8 @@ function start_download(session_id, channel_id, object_id, file_name) {
                     + encodeURIComponent(session_id)
                     + "&channel_id="
                     + encodeURIComponent(channel_id)
+                    + "&file_name="
+                    + encodeURIComponent(file_name)
                     + "&object_id="
                     + encodeURIComponent(object_id),
         success: function (data) {
@@ -161,6 +163,8 @@ function start_download(session_id, channel_id, object_id, file_name) {
                     encodeURIComponent(session_id) +
                     "&channel_id=" +
                     encodeURIComponent(channel_id) +
+                    "&file_name=" +
+                    encodeURIComponent(file_name) +
                     "&object_id=" +
                     encodeURIComponent(object_id);
                 link.download = file_name;
