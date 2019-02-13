@@ -54,7 +54,7 @@ namespace vds {
     mt_service mt_service_;
     network_service network_service_;
 
-    vds::expected<void> vds::vds_cmd_app::invoke_server(
+    vds::expected<void> invoke_server(
       const service_provider * sp,
       vds::http_message request,
       const std::function<vds::async_task<vds::expected<void>>(vds::http_message response)> & response_handler);

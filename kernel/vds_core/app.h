@@ -107,80 +107,12 @@ static barrier stop_barrier;
 static expected<void> kill_prev(const foldername & root_folder, const std::string & process_name);
 static expected<void> demonize(const foldername & root_folder, const std::string & process_name);
 
-        expected<int> demonize() {
-          CHECK_EXPECTED(app::kill_prev(
-                  foldername(this->root_folder_.value()),
-                  this->current_process_.name_without_extension()));
-
-          auto cur_pid = fork();
-          switch (cur_pid) {
-              case 0: /* we are the child process */
-                  break;
-
-              case -1: /* error - bail out (fork failing is very bad) */
-                  return vds::make_unexpected<std::system_error>(errno, std::system_category(), "initial fork");
-
-              default: /* we are the parent, so exit */
-                  return 0;
-          }
-
-          CHECK_EXPECTED(app::demonize(
-                  foldername(this->root_folder_.value()),
-                  this->current_process_.name_without_extension()));
-
-          sigset_t sigset;
-          sigaddset(&sigset, SIGQUIT);
-          sigaddset(&sigset, SIGINT);
-          sigaddset(&sigset, SIGTERM);
-          sigaddset(&sigset, SIGCHLD);
-          sigprocmask(SIG_BLOCK, &sigset, NULL);
-
-          for (bool bContinue = true; bContinue;) {
-              auto cur_pid = fork();
-
-              switch (cur_pid) {
-                  case 0: {/* we are the child process */
-                      auto pthis = static_cast<app_impl *>(this);
-                      CHECK_EXPECTED(pthis->start());
-                      return 0;
-                  }
+        expected<int> demonize();
 
 
-                  case -1: /* error - bail out (fork failing is very bad) */
-                      return vds::make_unexpected<std::system_error>(errno, std::system_category(), "initial fork");
+      static void signalHandler(int /*signum*/);
 
-                  default: {/* we are the parent */
-                      siginfo_t siginfo;
-                      sigwaitinfo(&sigset, &siginfo);
-                      if (siginfo.si_signo == SIGCHLD) {
-                          int status;
-                          wait(&status);
-                          status = WEXITSTATUS(status);
-
-                          if (status == CHILD_NEED_TERMINATE) {
-                              return CHILD_NEED_TERMINATE;
-                          }
-                      } else {
-                          kill(cur_pid, SIGTERM);
-                          bContinue = false;
-                      }
-                      break;
-                  }
-              }
-          }
-
-          return 0;
-      }
-
-
-      static void signalHandler(int /*signum*/) {
-          stop_barrier.set();
-      }
-
-      void waiting_stop_signal() {
-          signal(SIGINT, signalHandler);
-          stop_barrier.wait();
-      }
+      void waiting_stop_signal();
 
 #endif // _WIN32
 

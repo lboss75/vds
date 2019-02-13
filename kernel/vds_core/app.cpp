@@ -6,7 +6,6 @@ All rights reserved
 #include "stdafx.h"
 #include "app.h"
 
-vds::app * vds::app::the_app_ = nullptr;
 
 #ifndef _WIN32
 vds::barrier vds::app::stop_barrier;
@@ -98,78 +97,84 @@ vds::expected<void> vds::app::demonize(const vds::foldername &root_folder, const
     return expected<void>();
 }
 
-#endif
+        vds::expected<int> vds::app::demonize() {
+          CHECK_EXPECTED(app::kill_prev(
+                  foldername(this->root_folder_.value()),
+                  this->current_process_.name_without_extension()));
 
-std::string vds::app::app_name() const {
-  return "VDS application";
-}
+          auto cur_pid = fork();
+          switch (cur_pid) {
+              case 0: /* we are the child process */
+                  break;
 
-std::string vds::app::app_description() const {
-  return "Distributed file system";
-}
+              case -1: /* error - bail out (fork failing is very bad) */
+                  return vds::make_unexpected<std::system_error>(errno, std::system_category(), "initial fork");
 
-std::string vds::app::app_version() const {
-  return "0.1";
-}
+              default: /* we are the parent, so exit */
+                  return 0;
+          }
 
-vds::expected<void> vds::app::start_services(service_registrator& registrator, service_provider*) {
-  CHECK_EXPECTED(registrator.start());
-  this->logger_.debug("core", "Start application");
-  return expected<void>();
-}
+          CHECK_EXPECTED(app::demonize(
+                  foldername(this->root_folder_.value()),
+                  this->current_process_.name_without_extension()));
 
-vds::expected<void> vds::app::before_main(service_provider*) {
-  return expected<void>();
-}
+          sigset_t sigset;
+          sigaddset(&sigset, SIGQUIT);
+          sigaddset(&sigset, SIGINT);
+          sigaddset(&sigset, SIGTERM);
+          sigaddset(&sigset, SIGCHLD);
+          sigprocmask(SIG_BLOCK, &sigset, NULL);
 
-vds::expected<void> vds::app::prepare(service_provider*) {
-  return expected<void>();
-}
+          for (bool bContinue = true; bContinue;) {
+              auto cur_pid = fork();
 
-void vds::app::register_command_line(command_line& cmd_line) {
-  cmd_line.add_command_set(this->help_cmd_set_);
-  this->help_cmd_set_.required(this->help_cmd_switch_);
-}
+              switch (cur_pid) {
+                  case 0: {/* we are the child process */
+                      vds::service_registrator registrator;
+                      CHECK_EXPECTED(this->start(registrator));
+                      (void)registrator.shutdown();
+                      return 0;
+                  }
 
-void vds::app::register_common_parameters(command_line& cmd_line) {
-  cmd_line.register_common_parameter(this->log_level_);
-  cmd_line.register_common_parameter(this->log_modules_);
-  cmd_line.register_common_parameter(this->root_folder_);
-}
 
-void vds::app::process_common_parameters() {
-  if ("trace" == this->log_level_.value()) {
-    this->logger_.set_log_level(log_level::ll_trace);
-  }
-  else if ("debug" == this->log_level_.value()) {
-    this->logger_.set_log_level(log_level::ll_debug);
-  }
-  else if ("info" == this->log_level_.value()) {
-    this->logger_.set_log_level(log_level::ll_info);
-  }
-  else if ("error" == this->log_level_.value()) {
-    this->logger_.set_log_level(log_level::ll_error);
-  }
+                  case -1: /* error - bail out (fork failing is very bad) */
+                      return vds::make_unexpected<std::system_error>(errno, std::system_category(), "initial fork");
 
-  auto p = this->log_modules_.value().c_str();
-  for (;;) {
-    auto s = strchr(p, ',');
-    if (nullptr == s) {
-      if (0 != *p) {
-        this->logger_.set_log_module(p);
+                  default: {/* we are the parent */
+                      siginfo_t siginfo;
+                      sigwaitinfo(&sigset, &siginfo);
+                      if (siginfo.si_signo == SIGCHLD) {
+                          int status;
+                          wait(&status);
+                          status = WEXITSTATUS(status);
+
+                          if (status == CHILD_NEED_TERMINATE) {
+                              return CHILD_NEED_TERMINATE;
+                          }
+                      } else {
+                          kill(cur_pid, SIGTERM);
+                          bContinue = false;
+                      }
+                      break;
+                  }
+              }
+          }
+
+          return 0;
       }
-      break;
-    }
-    else {
-      this->logger_.set_log_module(std::string(p, s - p));
-      p = s + 1;
-    }
-  }
-}
 
-bool vds::app::need_demonize() {
-  return false;
-}
+
+      void vds::app::signalHandler(int /*signum*/) {
+          stop_barrier.set();
+      }
+
+      void vds::app::waiting_stop_signal() {
+          signal(SIGINT, signalHandler);
+          stop_barrier.wait();
+      }
+#else
+
+vds::app * vds::app::the_app_ = nullptr;
 
 TCHAR* vds::app::service_name() const {
   throw vds_exceptions::invalid_operation();
@@ -281,6 +286,80 @@ void vds::app::SvcCtrlHandler(DWORD dwCtrl) {
     break;
   }
 }
+
+#endif
+
+std::string vds::app::app_name() const {
+  return "VDS application";
+}
+
+std::string vds::app::app_description() const {
+  return "Distributed file system";
+}
+
+std::string vds::app::app_version() const {
+  return "0.1";
+}
+
+vds::expected<void> vds::app::start_services(service_registrator& registrator, service_provider*) {
+  CHECK_EXPECTED(registrator.start());
+  this->logger_.debug("core", "Start application");
+  return expected<void>();
+}
+
+vds::expected<void> vds::app::before_main(service_provider*) {
+  return expected<void>();
+}
+
+vds::expected<void> vds::app::prepare(service_provider*) {
+  return expected<void>();
+}
+
+void vds::app::register_command_line(command_line& cmd_line) {
+  cmd_line.add_command_set(this->help_cmd_set_);
+  this->help_cmd_set_.required(this->help_cmd_switch_);
+}
+
+void vds::app::register_common_parameters(command_line& cmd_line) {
+  cmd_line.register_common_parameter(this->log_level_);
+  cmd_line.register_common_parameter(this->log_modules_);
+  cmd_line.register_common_parameter(this->root_folder_);
+}
+
+void vds::app::process_common_parameters() {
+  if ("trace" == this->log_level_.value()) {
+    this->logger_.set_log_level(log_level::ll_trace);
+  }
+  else if ("debug" == this->log_level_.value()) {
+    this->logger_.set_log_level(log_level::ll_debug);
+  }
+  else if ("info" == this->log_level_.value()) {
+    this->logger_.set_log_level(log_level::ll_info);
+  }
+  else if ("error" == this->log_level_.value()) {
+    this->logger_.set_log_level(log_level::ll_error);
+  }
+
+  auto p = this->log_modules_.value().c_str();
+  for (;;) {
+    auto s = strchr(p, ',');
+    if (nullptr == s) {
+      if (0 != *p) {
+        this->logger_.set_log_module(p);
+      }
+      break;
+    }
+    else {
+      this->logger_.set_log_module(std::string(p, s - p));
+      p = s + 1;
+    }
+  }
+}
+
+bool vds::app::need_demonize() {
+  return false;
+}
+
 
 vds::app::app(): logger_(log_level::ll_info, std::unordered_set<std::string>()),
                  log_level_("ll", "log_level", "Log Level", "Set log level"),
