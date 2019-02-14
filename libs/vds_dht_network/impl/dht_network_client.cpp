@@ -364,13 +364,27 @@ vds::expected<vds::filename> vds::dht::network::_client::save_data(
 
   auto client = sp->get<network::client>();
 
+  orm::device_record_dbo t4;
+  GET_EXPECTED(st, t.get_reader(t4.select(
+    t4.local_path, t4.data_size)
+    .where(t4.node_id == client->current_node_id()
+      && t4.data_hash == data_hash)));
+  GET_EXPECTED(st_execute, st.execute());
+  if (st_execute) {
+    vds_assert(data.size() == t4.data_size.get(st));
+    if (data.size() != t4.data_size.get(st)) {
+      return make_unexpected<std::runtime_error>("Data collusion " + base64::from_bytes(data_hash));
+    }
+
+    return filename(t4.local_path.get(st));
+  }
+
   uint64_t allowed_size = 0;
   std::string local_path;
 
   orm::device_config_dbo t3;
-  orm::device_record_dbo t4;
   db_value<int64_t> data_size;
-  GET_EXPECTED(st, t.get_reader(
+  GET_EXPECTED_VALUE(st, t.get_reader(
     t3.select(t3.local_path, t3.reserved_size, db_sum(t4.data_size).as(data_size))
       .left_join(t4, t4.node_id == t3.node_id && t4.storage_path == t3.local_path)
       .where(t3.node_id == client->current_node_id())

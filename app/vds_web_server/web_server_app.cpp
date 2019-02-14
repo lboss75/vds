@@ -19,7 +19,12 @@ start_web_(
     "P",
     "port",
     "Port",
-    "Port to listen connections")
+    "Port to listen connections"),
+  dev_network_(
+    "dev",
+    "dev-network",
+    "Use development network",
+    "Use development network")
 {
 }
 
@@ -30,7 +35,7 @@ vds::expected<void> vds::web_server_app::main(const service_provider * sp)
     std::shared_ptr<std::exception> error;
 
     const auto port = (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10));
-    CHECK_EXPECTED(this->server_.start_network(port).get());
+    CHECK_EXPECTED(this->server_.start_network(port, this->dev_network_.value()).get());
     
     std::cout << "Open http://localhost:" << port << "\n";
 
@@ -83,10 +88,12 @@ void vds::web_server_app::register_command_line(command_line & cmd_line)
   cmd_line.add_command_set(this->server_start_command_set_);
   this->server_start_command_set_.optional(this->start_web_);
   this->server_start_command_set_.optional(this->port_);
+  this->server_start_command_set_.optional(this->dev_network_);
 
   cmd_line.add_command_set(this->server_service_command_set_);
   this->server_service_command_set_.optional(this->start_web_);
   this->server_service_command_set_.optional(this->port_);
+  this->server_service_command_set_.optional(this->dev_network_);
 }
 
 bool vds::web_server_app::need_demonize()

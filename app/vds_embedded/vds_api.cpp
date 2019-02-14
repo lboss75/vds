@@ -12,10 +12,10 @@ void APICALL vds_done(APIENV api_void_ptr vds) {
   delete pthis;
 }
 
-api_string APICALL vds_start(APIENV api_void_ptr vds, int port) {
+api_string APICALL vds_start(APIENV api_void_ptr vds, int port, bool dev_network) {
   auto pthis = static_cast<vds::vds_embedded *>(vds);
   try {
-    pthis->start(port);
+    pthis->start(port, dev_network);
     return nullptr;
   }
   catch (const std::exception & ex) {

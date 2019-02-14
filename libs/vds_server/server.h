@@ -21,7 +21,9 @@ namespace vds {
     vds::async_task<vds::expected<void>> prepare_to_stop() override;
 
 
-    vds::async_task<vds::expected<void>> start_network( uint16_t port);
+    vds::async_task<vds::expected<void>> start_network(
+      uint16_t port,
+      bool dev_network);
 
     operator bool () const {
       return nullptr != this->impl_;

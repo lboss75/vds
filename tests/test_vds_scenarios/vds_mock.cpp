@@ -690,7 +690,7 @@ void mock_server::start()
   GET_EXPECTED_VALUE_THROW(this->sp_, this->registrator_.build());
   CHECK_EXPECTED_THROW(this->registrator_.start());
 
-  CHECK_EXPECTED_THROW(this->server_.start_network(this->udp_port_).get());
+  CHECK_EXPECTED_THROW(this->server_.start_network(this->udp_port_, true).get());
   this->sp_->get<vds::dht::network::client>()->update_wellknown_connection_enabled(false);
 }
 
@@ -735,7 +735,7 @@ void mock_server::init(
   GET_EXPECTED_THROW(sp, registrator.build());
   CHECK_EXPECTED_THROW(registrator.start());
 
-  CHECK_EXPECTED_THROW(server.start_network(udp_port).get());
+  CHECK_EXPECTED_THROW(server.start_network(udp_port, true).get());
 
   auto user_mng = std::make_shared<vds::user_manager>(sp);
 

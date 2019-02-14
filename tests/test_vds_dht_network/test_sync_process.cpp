@@ -446,7 +446,7 @@ vds::expected<void> mock_server::register_services(vds::service_registrator& reg
 vds::expected<void> mock_server::start(const vds::service_provider * sp) {
   this->sp_ = sp;
   CHECK_EXPECTED(this->db_model_.start(sp));
-  CHECK_EXPECTED(this->client_.start(sp, this->transport_, 0));
+  CHECK_EXPECTED(this->client_.start(sp, this->transport_, 0, true));
 
   return vds::expected<void>();
 }
@@ -466,7 +466,7 @@ vds::async_task<vds::expected<void>> mock_transport::start(
   const vds::service_provider * /*sp*/,
   const std::shared_ptr<vds::certificate> & node_cert,
   const std::shared_ptr<vds::asymmetric_private_key> & /*node_key*/,
-  uint16_t /*port*/) {
+  uint16_t /*port*/, bool dev_network) {
   GET_EXPECTED_VALUE_ASYNC(this->node_id_, node_cert->fingerprint());
   co_return vds::expected<void>();
 }

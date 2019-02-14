@@ -29,7 +29,7 @@ namespace vds {
       this->last_error_ = value;
     }
 
-    void start(int port);
+    void start(int port, bool dev_network);
     void stop();
     bool local_storage_exists();
 
@@ -72,7 +72,7 @@ namespace vds {
     service_provider * sp_;
 
     expected<void> do_server_root(const std::string & login, const std::string & password);
-    expected<void> do_start(int port);
+    expected<void> do_start(int port, bool dev_network);
     expected<void> do_stop();
     expected<bool> do_local_storage_exists();
 

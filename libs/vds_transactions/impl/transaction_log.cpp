@@ -121,11 +121,19 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
         }
 
         case orm::transaction_log_record_dbo::state_t::processed:
-        case orm::transaction_log_record_dbo::state_t::validated:
           break;
+
+        case orm::transaction_log_record_dbo::state_t::validated: {
+          sp->get<logger>()->trace(
+            ThisModule,
+            "Ancestor %s is not processed. So stop processing this block.",
+            base64::from_bytes(ancestor).c_str());
+          return expected<void>();
+        }
 
         case orm::transaction_log_record_dbo::state_t::invalid:
           state = orm::transaction_log_record_dbo::state_t::invalid;
+          //TODO: And?
           break;
 
         default:

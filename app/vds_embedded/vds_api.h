@@ -71,7 +71,7 @@ API void APICALL vds_done(APIENV api_void_ptr vds);
 API api_string APICALL vds_last_error(APIENV api_void_ptr vds);
 API api_string APICALL vds_local_storage_exists(APIENV api_void_ptr vds);
 
-API api_string APICALL vds_start(APIENV api_void_ptr vds, int port);
+API api_string APICALL vds_start(APIENV api_void_ptr vds, int port, bool dev_network);
 
 API void APICALL vds_set_root_folder(APIENV api_void_ptr vds, api_string root_folder);
 API void APICALL vds_server_root(APIENV api_void_ptr vds, api_string login, api_string password);

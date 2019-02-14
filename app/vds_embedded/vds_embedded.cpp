@@ -87,15 +87,15 @@ vds::expected<void> vds::vds_embedded::do_server_root(const std::string & /*logi
   return expected<void>();
 }
 
-void vds::vds_embedded::start(int port) {
+void vds::vds_embedded::start(int port, bool dev_network) {
   this->last_error_.clear();
-  auto result = do_start(port);
+  auto result = do_start(port, dev_network);
   if (result.has_error()) {
     this->last_error_ = result.error()->what();
   }
 }
 
-vds::expected<void> vds::vds_embedded::do_start(int port) {
+vds::expected<void> vds::vds_embedded::do_start(int port, bool dev_network) {
   if (!this->root_folder_.empty()) {
     auto folder = foldername(this->root_folder_);
     CHECK_EXPECTED(folder.delete_folder(true));
@@ -118,7 +118,7 @@ vds::expected<void> vds::vds_embedded::do_start(int port) {
   GET_EXPECTED_VALUE(this->sp_, this->registrator_.build());
   CHECK_EXPECTED(this->registrator_.start());
 
-  CHECK_EXPECTED(this->server_.start_network(port).get());
+  CHECK_EXPECTED(this->server_.start_network(port, dev_network).get());
 
   return expected<void>();
 }

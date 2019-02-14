@@ -35,6 +35,7 @@ namespace vds {
 
     command_line_value start_web_;
     command_line_value port_;
+    command_line_switch dev_network_;
 
     task_manager task_manager_;
     mt_service mt_service_;

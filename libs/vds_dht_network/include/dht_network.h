@@ -31,7 +31,8 @@ namespace vds {
         expected<void> start(
           const service_provider * sp,
           const std::shared_ptr<iudp_transport> & udp_transport,
-          uint16_t port);
+          uint16_t port,
+          bool dev_network);
         expected<void> stop();
         vds::async_task<expected<void>> prepare_to_stop();
 

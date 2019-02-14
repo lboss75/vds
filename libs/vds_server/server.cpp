@@ -52,8 +52,10 @@ vds::expected<void> vds::server::stop()
   return this->impl_->stop();
 }
 
-vds::async_task<vds::expected<void>> vds::server::start_network( uint16_t port) {
-  CHECK_EXPECTED_ASYNC(this->impl_->dht_network_service_->start(this->impl_->sp_, this->impl_->udp_transport_, port));
+vds::async_task<vds::expected<void>> vds::server::start_network(
+  uint16_t port,
+  bool dev_network) {
+  CHECK_EXPECTED_ASYNC(this->impl_->dht_network_service_->start(this->impl_->sp_, this->impl_->udp_transport_, port, dev_network));
   this->impl_->file_manager_->start(this->impl_->sp_);
   co_return expected<void>();
 }

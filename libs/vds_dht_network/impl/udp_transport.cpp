@@ -12,8 +12,6 @@ All rights reserved
 #include "dht_network_client.h"
 #include "dht_network_client_p.h"
 
-uint32_t vds::dht::network::udp_transport::MAGIC_LABEL = 0xAFAFAFAF;
-
 vds::dht::network::udp_transport::udp_transport(){
 }
 
@@ -24,7 +22,10 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::start(
   const service_provider * sp,
   const std::shared_ptr<certificate> & node_cert,
   const std::shared_ptr<asymmetric_private_key> & node_key,
-  uint16_t port) {
+  uint16_t port, bool dev_network) {
+
+  this->MAGIC_LABEL = dev_network ? 0x54445331 : 0x56445331;
+
   this->send_thread_ = std::make_shared<thread_apartment>(sp);
   this->sp_ = sp;
   GET_EXPECTED_VALUE(this->this_node_id_, node_cert->fingerprint(hash::sha256()));
@@ -107,10 +108,10 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::try_hands
 
   resizable_data_buffer out_message;
   out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
-  out_message.add(MAGIC_LABEL >> 24);
-  out_message.add(MAGIC_LABEL >> 16);
-  out_message.add(MAGIC_LABEL >> 8);
-  out_message.add(MAGIC_LABEL);
+  out_message.add((uint8_t)(MAGIC_LABEL >> 24));
+  out_message.add((uint8_t)(MAGIC_LABEL >> 16));
+  out_message.add((uint8_t)(MAGIC_LABEL >> 8));
+  out_message.add((uint8_t)(MAGIC_LABEL));
   out_message.add(PROTOCOL_VERSION);
 
   binary_serializer bs;
@@ -179,7 +180,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
       if ((std::chrono::steady_clock::now() - session_info.update_time_) > std::chrono::minutes(1)
         && (*datagram.data() == (uint8_t)protocol_message_type_t::Handshake
         || *datagram.data() == (uint8_t)protocol_message_type_t::HandshakeBroadcast
-        || *datagram.data() == (uint8_t)protocol_message_type_t::Welcome)) {
+        || *datagram.data() == (uint8_t)protocol_message_type_t::Welcome
+        || *datagram.data() == (uint8_t)protocol_message_type_t::Failed)) {
         logger::get(this->sp_)->trace(ThisModule, "Unblock session %s", datagram.address().to_string().c_str());
         session_info.blocked_ = false;
       }
@@ -237,10 +239,10 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
 
         resizable_data_buffer out_message;
         out_message.add(static_cast<uint8_t>(protocol_message_type_t::Welcome));
-        out_message.add(MAGIC_LABEL >> 24);
-        out_message.add(MAGIC_LABEL >> 16);
-        out_message.add(MAGIC_LABEL >> 8);
-        out_message.add(MAGIC_LABEL);
+        out_message.add((uint8_t)(MAGIC_LABEL >> 24));
+        out_message.add((uint8_t)(MAGIC_LABEL >> 16));
+        out_message.add((uint8_t)(MAGIC_LABEL >> 8));
+        out_message.add((uint8_t)(MAGIC_LABEL));
 
         binary_serializer bs;
         CHECK_EXPECTED_ASYNC(bs << this->node_cert_->der());

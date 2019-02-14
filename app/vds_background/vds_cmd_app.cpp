@@ -26,7 +26,12 @@ vds::vds_cmd_app::vds_cmd_app()
     "P",
     "port",
     "Port",
-    "Port to listen connections")
+    "Port to listen connections"),
+  dev_network_(
+    "dev",
+    "dev-network",
+    "Development network",
+    "Development network")
 {
 }
 
@@ -36,7 +41,9 @@ vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
     || &this->server_root_cmd_set_ == this->current_command_set_) {
 
     CHECK_EXPECTED(this->server_
-      .start_network((uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
+      .start_network(
+        (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)),
+        this->dev_network_.value())
       .get());
 
     if (&this->server_root_cmd_set_ == this->current_command_set_) {
@@ -108,11 +115,13 @@ void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
 
   cmd_line.add_command_set(this->server_start_command_set_);
   this->server_start_command_set_.optional(this->port_);
+  this->server_start_command_set_.optional(this->dev_network_);
 
   cmd_line.add_command_set(this->server_root_cmd_set_);
   this->server_root_cmd_set_.required(this->user_login_);
   this->server_root_cmd_set_.required(this->user_password_);
   this->server_root_cmd_set_.optional(this->port_);
+  this->server_root_cmd_set_.optional(this->dev_network_);
 
   //cmd_line.add_command_set(this->server_init_command_set_);
   //this->server_init_command_set_.required(this->user_login_);

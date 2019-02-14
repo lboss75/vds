@@ -67,7 +67,7 @@ public:
     const vds::service_provider * sp,
     const std::shared_ptr<vds::certificate> & node_cert,
     const std::shared_ptr<vds::asymmetric_private_key> & node_key,
-    uint16_t port) override;
+    uint16_t port, bool dev_network) override;
 
   void stop() override;
 

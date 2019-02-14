@@ -8,8 +8,7 @@ All rights reserved
 #include "../../libs/vds_dht_network/private/udp_transport.h"
 
 int main(int argc, char **argv) {
-  vds::dht::network::udp_transport::MAGIC_LABEL = 0xAFAFAF00;
-
+  
 #ifndef _WIN32
   // core dumps may be disallowed by parent of this process; change that
   struct rlimit core_limits;

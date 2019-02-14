@@ -317,7 +317,8 @@ namespace vds {
           const messages::sync_base_message_request& message,
           const imessage_map::message_info_t& message_info,
           const const_data_buffer& leader_node,
-          uint64_t last_applied);
+          uint64_t last_applied,
+          bool allow_snapshot_request = true);
 
         expected<bool> apply_base_message(
           database_transaction& t,

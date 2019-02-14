@@ -666,34 +666,26 @@ vds::expected<void> vds::vds_cmd_app::sync_file(
   CHECK_EXPECTED(f.close());
   CHECK_EXPECTED(h.final());
 
-  int state = 0;
+  auto state_exists = false;
   for(const auto & hist : file_history) {
     if(hist.object_id_ == h.signature()) {
-      state = 1;
-    }
-    else if(state == 1) {
-      state = 2;
+      state_exists = true;
       break;
     }
   }
 
-  switch(state) {
-  case 0: {
+  if(!state_exists) {
     if (enable_upload) {
       std::cout << "Local file has unique hash " << base64::from_bytes(h.signature()) << ". Uploading file...\n";
       return this->upload_file(sp, session, exists_files, rel_name, h.signature());
     }
   }
-
-  case 1: {//Last
+  else if(file_history.begin()->object_id_  == h.signature()){
     std::cout << "Local file is up to date.\n";
-    return expected<void>();
   }
-
-  case 2: {//Uplate
+  else {
     std::cout << "Local file has old hash " << base64::from_bytes(h.signature()) << ". Downloading new file...\n";
-    return this->download_file(sp, session, exists_files, rel_name, file_history.rbegin()->object_id_);
-  }
+    return this->download_file(sp, session, exists_files, rel_name, file_history.begin()->object_id_);
   }
 
   return expected<void>();

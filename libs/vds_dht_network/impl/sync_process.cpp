@@ -310,7 +310,8 @@ vds::expected<vds::dht::network::sync_process::base_message_type> vds::dht::netw
   const messages::sync_base_message_request& message,
   const imessage_map::message_info_t& message_info,
   const const_data_buffer& leader_node,
-  uint64_t last_applied) {
+  uint64_t last_applied,
+  bool allow_snapshot_request) {
 
   auto& client = *this->sp_->get<network::client>();
 
@@ -326,7 +327,9 @@ vds::expected<vds::dht::network::sync_process::base_message_type> vds::dht::netw
       message.generation > t2.generation.get(st)
       || (message.generation == t2.generation.get(st) && message.current_term > t2.current_term.get(st))) {
 
-      this->send_snapshot_request(final_tasks, message.object_id, leader_node);
+      if (allow_snapshot_request) {
+        this->send_snapshot_request(final_tasks, message.object_id, leader_node);
+      }
 
       this->sp_->get<logger>()->trace(
         SyncModule,
@@ -1055,13 +1058,35 @@ vds::expected<void> vds::dht::network::sync_process::apply_message(
   const messages::sync_snapshot_response& message,
   const imessage_map::message_info_t& message_info) {
 
-  auto client = this->sp_->get<network::client>();
-
   this->sp_->get<logger>()->trace(
     SyncModule,
-    "Got snapshot %s form %s",
+    "Got snapshot %s from %s",
     base64::from_bytes(message.object_id).c_str(),
     base64::from_bytes(message.leader_node).c_str());
+
+  base_message_type status;
+  GET_EXPECTED_VALUE(status, this->apply_base_message(
+    t,
+    final_tasks,
+    message,
+    message_info,
+    message_info.source_node(),
+    message.last_applied,
+    false));
+  if (base_message_type::from_past == status
+    || base_message_type::other_leader == status) {
+
+    this->sp_->get<logger>()->trace(
+      SyncModule,
+      "Ignore snapshot %s from %s",
+      base64::from_bytes(message.object_id).c_str(),
+      base64::from_bytes(message.leader_node).c_str());
+
+    return expected<void>();
+  }
+
+  auto client = this->sp_->get<network::client>();
+
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
@@ -1118,12 +1143,13 @@ vds::expected<void> vds::dht::network::sync_process::apply_message(
     return expected<void>();
   }
 
-  //merge members
-  //CHECK_EXPECTED(t.execute(t1.update(
-  //              t1.state = orm::sync_state_dbo::state_t::follower,
-  //              t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
-  //            .where(t1.object_id == message.object_id)));
+  //Mark as follower
+  CHECK_EXPECTED(t.execute(t1.update(
+                t1.state = orm::sync_state_dbo::state_t::follower,
+                t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
+              .where(t1.object_id == message.object_id)));
 
+  //merge members
   GET_EXPECTED(members, this->get_members(t, message.object_id, false));
   for (const auto& member : message.members) {
     auto p = members.find(member.first);
@@ -1373,15 +1399,23 @@ vds::expected<void> vds::dht::network::sync_process::apply_message(
         vds_assert(false);
       }
       else {
-        vds_assert(t2.state.get(st) == orm::sync_state_dbo::state_t::follower
-        && t3.generation.get(st) == message.generation
-        && t3.current_term.get(st) == message.current_term
-        && t3.voted_for.get(st) == message_info.source_node()
-        && t3.commit_index.get(st) <= message.commit_index
-        && t3.last_applied.get(st) <= message.last_applied);
+
+        const auto state = t2.state.get(st);
+        const auto generation = t3.generation.get(st);
+        const auto current_term = t3.current_term.get(st);
+        const auto voted_for = t3.voted_for.get(st);
         const auto commit_index = t3.commit_index.get(st);
         const auto last_applied = t3.last_applied.get(st);
         auto new_last_applied = last_applied;
+
+        vds_assert(state == orm::sync_state_dbo::state_t::follower
+          && generation == message.generation
+          && current_term == message.current_term
+          && voted_for == message_info.source_node()
+          && commit_index <= message.commit_index
+          && last_applied <= message.last_applied);
+
+
         while(new_last_applied < message.last_applied) {
           GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.message_type).where(
             t1.object_id == message.object_id
@@ -2817,13 +2851,14 @@ vds::expected<void> vds::dht::network::sync_process::send_snapshot(
           target_node,
           message_create<messages::sync_snapshot_response>(
             object_id,
-            object_size,
-            target_node,
-            client->current_node_id(),
             generation,
             current_term,
             commit_index,
             last_applied,
+
+            object_size,
+            target_node,
+            client->current_node_id(),
             replica_map,
             members));
       });

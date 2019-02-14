@@ -235,7 +235,7 @@ namespace vds {
         }
       };
 
-      class sync_snapshot_response {
+      class sync_snapshot_response : public sync_base_message_request {
       public:
         static const network::message_type_t message_id = network::message_type_t::sync_snapshot_response;
 
@@ -245,28 +245,18 @@ namespace vds {
           const_data_buffer sign;
         };
 
-        const_data_buffer object_id;
         uint32_t object_size;
         const_data_buffer target_node;
         const_data_buffer leader_node;
-        uint64_t generation;
-        uint64_t current_term;
-        uint64_t commit_index;
-        uint64_t last_applied;
         std::map<const_data_buffer, std::set<uint16_t>> replica_map;
         std::map<const_data_buffer, member_state> members;
 
         template <typename visitor_type>
         auto & visit(visitor_type & v) {
-          return v(
-            this->object_id,
+          return sync_base_message_request::visit(v)(
             this->object_size,
             this->target_node,
             this->leader_node,
-            this->generation,
-            this->current_term,
-            this->commit_index,
-            this->last_applied,
             this->replica_map,
             this->members
           );

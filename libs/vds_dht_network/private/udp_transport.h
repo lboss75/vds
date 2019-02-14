@@ -22,7 +22,6 @@ namespace vds {
     namespace network {
       class udp_transport : public iudp_transport {
       public:
-        static uint32_t MAGIC_LABEL;
         static constexpr uint8_t PROTOCOL_VERSION = 0;
 
         udp_transport();
@@ -34,7 +33,8 @@ namespace vds {
           const service_provider * sp,
           const std::shared_ptr<certificate> & node_cert,
           const std::shared_ptr<asymmetric_private_key> & node_key,
-          uint16_t port) override;
+          uint16_t port,
+          bool dev_network) override;
 
         void stop() override;
 
@@ -68,6 +68,9 @@ namespace vds {
         DWORD owner_id_;
 #endif//_WIN32
 #endif//_DEBUG
+
+        uint32_t MAGIC_LABEL;
+
 
         struct session_state {
           std::mutex session_mutex_;

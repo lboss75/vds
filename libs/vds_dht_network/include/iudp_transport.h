@@ -20,7 +20,8 @@ namespace vds {
           const service_provider * sp,
           const std::shared_ptr<certificate> & node_cert,
           const std::shared_ptr<asymmetric_private_key> & node_key,
-          uint16_t port) = 0;
+          uint16_t port,
+          bool dev_network) = 0;
 
         virtual void stop() = 0;
 
