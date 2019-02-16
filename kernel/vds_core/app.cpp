@@ -69,7 +69,7 @@ vds::expected<void> vds::app::demonize(const vds::foldername &root_folder, const
     file f;
     CHECK_EXPECTED(f.open(filename(root_folder, process_name + ".pid"), file::file_mode::truncate));
     CHECK_EXPECTED(f.write(pid_str.c_str(), pid_str.length()));
-    f.close();
+    CHECK_EXPECTED(f.close());
     /*close open file descriptors */
 
     auto num_files = sysconf(_SC_OPEN_MAX); /* how many file descriptors? */
