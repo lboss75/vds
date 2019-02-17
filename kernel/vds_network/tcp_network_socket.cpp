@@ -148,10 +148,6 @@ vds::expected<void> vds::_tcp_network_socket::close()
   }
 #else
   if (0 <= this->s_) {
-    if (0 != this->event_masks_){
-      this->event_masks_ = 0;
-      CHECK_EXPECTED((*this->sp_->get<network_service>())->remove_association(this->s_));
-    }
     auto r = this->read_task_.lock();
     if(r){
       CHECK_EXPECTED(r->close_read());
@@ -160,6 +156,10 @@ vds::expected<void> vds::_tcp_network_socket::close()
     auto w = this->write_task_.lock();
     if(w) {
       CHECK_EXPECTED(w->close_write());
+    }
+    if (0 != this->event_masks_){
+      this->event_masks_ = 0;
+      CHECK_EXPECTED((*this->sp_->get<network_service>())->remove_association(this->s_));
     }
 
     shutdown(this->s_, 2);

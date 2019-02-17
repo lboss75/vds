@@ -463,7 +463,7 @@ namespace vds {
     }
 
     expected<void> close_write() {
-      CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLOUT));
+      (void)(*this->owner())->change_mask(this->owner_, 0, EPOLLOUT);
 
       if(this->result_){
         auto r = std::move(this->result_);
@@ -622,7 +622,7 @@ namespace vds {
 
     expected<void> close_read() {
       this->read_count_ = -1;
-      CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
+      (void)(*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
 
       std::unique_lock<std::mutex> lock(this->result_mutex_);
       if(this->result_){
