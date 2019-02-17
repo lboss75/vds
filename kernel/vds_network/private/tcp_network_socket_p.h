@@ -491,38 +491,14 @@ namespace vds {
         const service_provider * sp,
         const std::shared_ptr<socket_base> &owner)
         : sp_(sp),
-          owner_(owner),
-          timeout_timer_("TCP Read socket"),
-          read_count_(0) {
+          owner_(owner) {
     }
 
     ~_read_socket_task() {
     }
 
-      expected<void> start(const service_provider * sp){
-        return timeout_timer_.start(sp, std::chrono::seconds(30), [sp, pthis_ = this->shared_from_this()]() -> async_task<expected<bool>>{
-            auto pthis = static_cast<_read_socket_task *>(pthis_.get());
-            if(pthis->read_count_ < 0){
-                co_return false;
-            }
-
-            if(pthis->read_count_ == 0){
-                std::unique_lock<std::mutex> lock(pthis->result_mutex_);
-
-                if(pthis->result_){
-                    auto r = std::move(pthis->result_);
-                    lock.unlock();
-
-                    r->set_value(make_unexpected<std::system_error>(
-                                    ECONNRESET,
-                                    std::generic_category(),
-                                    "Read TCP"));
-                }
-            }
-
-            pthis->read_count_ = 0;
-            co_return !sp->get_shutdown_event().is_shuting_down();
-        });
+    expected<void> start(const service_provider * sp){
+      return expected<void>();
     }
 
 
@@ -531,7 +507,6 @@ namespace vds {
         size_t buffer_size) override {
       auto r = std::make_shared<vds::async_result<vds::expected<size_t>>>();
       if(!(*this->owner())){
-        this->read_count_ = -1;
         r->set_value(0);
         return r->get_future();
       }
@@ -556,11 +531,9 @@ namespace vds {
           CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, EPOLLIN));
         }
         else if ((0 == error || EINTR == error || ENOENT == error) && 0 == len) {
-          this->read_count_ = -1;
           r->set_value(0);
         }
         else {
-          this->read_count_ = -1;
           this->sp_->get<logger>()->trace("TCP", "Read error %d", error);
           r->set_value(make_unexpected<std::system_error>(
                   error,
@@ -569,7 +542,6 @@ namespace vds {
         }
       }
       else {
-        this->read_count_++;
         this->sp_->get<logger>()->trace("TCP", "Read %d bytes", len);
         r->set_value(len);
       }
@@ -579,6 +551,15 @@ namespace vds {
 
     expected<void> process() {
       GET_EXPECTED(handle, (*this->owner())->handle());
+
+      std::unique_lock<std::mutex> lock(this->result_mutex_);
+      auto r = std::move(this->result_);
+      lock.unlock();
+
+      if(!r){
+        return expected<void>();
+      }
+
       auto len = read(
           handle,
           this->buffer_,
@@ -587,16 +568,16 @@ namespace vds {
       if (len < 0) {
         int error = errno;
         if (EAGAIN == error) {
+          std::unique_lock<std::mutex> lock(this->result_mutex_);
+          vds_assert(!this->result_);
+          this->result_ = std::move(r);
+          lock.unlock();
+
           return expected<void>();
         }
 
         CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
         
-        std::unique_lock<std::mutex> lock(this->result_mutex_);
-        auto r = std::move(this->result_);
-        lock.unlock();
-
-        this->read_count_ = -1;
         if ((0 == error || EINTR == error || ENOENT == error) && 0 == len) {
           r->set_value(0);
         }
@@ -610,18 +591,13 @@ namespace vds {
       else {
         CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
         
-        std::unique_lock<std::mutex> lock(this->result_mutex_);
-        auto r = std::move(this->result_);
-        lock.unlock();
-
-        this->read_count_++;
         r->set_value(len);
       }
+
       return expected<void>();
     }
 
     expected<void> close_read() {
-      this->read_count_ = -1;
       (void)(*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
 
       std::unique_lock<std::mutex> lock(this->result_mutex_);
@@ -643,8 +619,6 @@ namespace vds {
 
     uint8_t * buffer_;
     size_t buffer_size_;
-    timer timeout_timer_;
-    int read_count_;
 
     tcp_network_socket * owner() const {
       return static_cast<tcp_network_socket *>(this->owner_.get());
