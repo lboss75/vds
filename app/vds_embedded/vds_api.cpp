@@ -9,6 +9,7 @@ api_void_ptr APICALL vds_init(APIENV_) {
 
 void APICALL vds_done(APIENV api_void_ptr vds) {
   auto pthis = static_cast<vds::vds_embedded *>(vds);
+  pthis->stop();
   delete pthis;
 }
 
