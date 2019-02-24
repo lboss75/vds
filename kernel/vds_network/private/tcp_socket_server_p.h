@@ -178,8 +178,17 @@ namespace vds {
                     auto socket = accept(this->s_, &client_address, &client_address_length);
                     if (INVALID_SOCKET != socket) {
                       auto s = _tcp_network_socket::from_handle(sp, socket);
-                      (void)((*s)->make_socket_non_blocking());
-                      (*s)->set_timeouts();
+                      auto r = (*s)->make_socket_non_blocking();
+                      if(r.has_error()){
+                          (void)s->close();
+                          continue;
+                      }
+                      r = (*s)->set_timeouts();
+                      if(r.has_error()){
+                          (void)s->close();
+                          continue;
+                      }
+
                       (*sp->get<network_service>())->add_connection(this->new_connection_(s));
                     }
                   }

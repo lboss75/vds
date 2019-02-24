@@ -108,7 +108,6 @@ namespace vds {
     //      return static_cast<_socket_handler *>(task.get())->write_async(data, size);
     //#endif//_WIN32
     //    }
-
 #ifndef _WIN32
     expected<void> make_socket_non_blocking()
     {
@@ -128,15 +127,21 @@ namespace vds {
 
       return expected<void>();
     }
-    void set_timeouts()
+
+    expected<void> set_timeouts()
     {
-      // struct timeval tv;
-      // tv.tv_sec = 30;        // 30 Secs Timeout
-      // tv.tv_usec = 0;
-      // setsockopt(this->handle(), SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(struct timeval));
+        GET_EXPECTED(handle, this->handle());
+
+        int optval = 1;
+        socklen_t optlen = sizeof(optval);
+        if(setsockopt(handle, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0) {
+            return vds::make_unexpected<std::runtime_error>("set_timeouts()");
+        }
+
+        return expected<void>();
     }
 
-        expected<void> process(uint32_t events);
+    expected<void> process(uint32_t events);
 
     expected<void> change_mask(
         const std::shared_ptr<socket_base> & s,
