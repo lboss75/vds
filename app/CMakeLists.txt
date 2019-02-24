@@ -16,4 +16,9 @@ INCLUDE_EXTERNAL_MSPROJECT(
 	${CMAKE_CURRENT_LIST_DIR}/vds_wf_client/vds_wf_client.csproj
 )
 
+ELSE(MSVC)
+
+	add_subdirectory(vds_linux)
+
+
 ENDIF(MSVC)
