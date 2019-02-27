@@ -6,13 +6,11 @@ public:
   VdsApi();
   ~VdsApi();
 
-
-  void login(const TCHAR * login, const TCHAR * password);
-
   std::tstring start();
+
+  api_void_ptr api() const { return this->vds_; }
 
 private:
   api_void_ptr vds_;
-  api_void_ptr session_;
 };
 

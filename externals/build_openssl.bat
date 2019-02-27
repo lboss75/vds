@@ -1,8 +1,11 @@
 set root_folder=%~d0%~p0
 rmdir %root_folder%\build_openssl /s /q
 
+cd %root_folder%
+git clone --depth=1 --single-branch --branch OpenSSL_1_1_1-stable --quiet https://github.com/openssl/openssl.git
+
 set PATH=%PATH%;%HOMEDRIVE%%HOMEPATH%\AppData\Local\bin\NASM\;
-call ..\setenv.bat
+call %root_folder%..\setenv.bat
 
 mkdir %root_folder%\build_openssl
 cd %root_folder%\openssl

@@ -21,9 +21,6 @@ bool SettingsDlg::show(HINSTANCE hinstance) {
   ShowWindow(this->hWnd_, SW_SHOW);
   SetForegroundWindow(this->hWnd_);
 
-  if(!this->login_dlg_.check_authorized(hinstance, this->hWnd_)) {
-  }
-
   return true;
 }
 

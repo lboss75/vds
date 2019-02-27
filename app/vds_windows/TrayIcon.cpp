@@ -1,9 +1,12 @@
 #include "stdafx.h"
 #include "TrayIcon.h"
+#include "StringUtils.h"
+#include "VdsApi.h"
 
-
-
-TrayIcon::TrayIcon()
+TrayIcon::TrayIcon(VdsApi * api)
+  : api_(api),
+	auth_state_(AuthState::AS_NOT_INITIED),
+	session_(nullptr)
 {
 }
 
@@ -20,15 +23,41 @@ bool TrayIcon::create(HINSTANCE hInst) {
     return false;
   }
 
+  SetTimer(this->hWnd_, 1, 5000, NULL);
+
   NOTIFYICONDATA nid = {};
   nid.cbSize = sizeof(nid);
   nid.hWnd = this->hWnd_;
+  nid.uID = 1;
   nid.uFlags = NIF_ICON | NIF_MESSAGE;
   nid.uCallbackMessage = WM_APP + 1;
 
   nid.hIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_SMALL));
 
-  return (Shell_NotifyIcon(NIM_ADD, &nid) ? true : false);
+  if (!Shell_NotifyIcon(NIM_ADD, &nid)) {
+	  return false;
+  }
+
+
+  nid.uVersion = NOTIFYICON_VERSION_4;
+  Shell_NotifyIcon(NIM_SETVERSION, &nid);
+
+
+  // For a simple Tip
+  nid.uFlags = NIF_TIP | NIF_SHOWTIP;
+  LoadString(hInst, IDS_INIT_TIP, nid.szTip, sizeof(nid.szTip) / sizeof(nid.szTip[0]) - 1);
+  Shell_NotifyIcon(NIM_MODIFY, &nid);
+
+  // For a Ballon Tip
+  nid.uFlags = NIF_INFO | NIF_SHOWTIP;
+  nid.dwInfoFlags = NIIF_INFO;
+  LoadString(hInst, IDS_INIT_TIP, nid.szTip, sizeof(nid.szTip) / sizeof(nid.szTip[0]) - 1);
+  LoadString(hInst, IDS_INIT_TIP_TITLE, nid.szInfoTitle, sizeof(nid.szInfoTitle) / sizeof(nid.szInfoTitle[0]) - 1);
+  nid.uTimeout = 5000;
+
+  Shell_NotifyIcon(NIM_MODIFY, &nid);
+
+  return true;
 }
 
 void TrayIcon::destroy() {
@@ -91,7 +120,7 @@ bool TrayIcon::CreateWnd(int nCmdShow)
 void TrayIcon::ShowContextMenu() {
   SetForegroundWindow(this->hWnd_);
 
-  auto menu = LoadMenu(this->hInst_, MAKEINTRESOURCE(IDR_TRAYMENU));
+  auto menu = LoadMenu(this->hInst_, MAKEINTRESOURCE((this->auth_state_ == AuthState::AS_LOGGED_IN) ? IDR_TRAYMENU : IDR_NOTAUTH_MENU));
   auto popupMenu = GetSubMenu(menu, 0);
 
   POINT pt;
@@ -106,7 +135,7 @@ LRESULT CALLBACK TrayIcon::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
   switch (message)
   {
   case WM_APP + 1: {
-    switch (lParam)
+    switch (LOWORD(lParam))
     {
     case WM_LBUTTONUP:
     //case WM_LBUTTONDBLCLK:
@@ -127,6 +156,28 @@ LRESULT CALLBACK TrayIcon::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
     // Parse the menu selections:
     switch (wmId)
     {
+	case ID_POPUP_LOGIN: {
+		auto pthis = reinterpret_cast<TrayIcon *>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+		if (pthis->session_ != nullptr) {
+			vds_session_destroy(pthis->session_);
+			pthis->session_ = nullptr;
+		}
+
+		LoginDlg dlg;
+		dlg.login(pthis->login_);
+		dlg.password(pthis->password_);
+		if (dlg.show_dialog(pthis->hInst_)) {
+			pthis->login_ = dlg.login();
+			pthis->password_ = dlg.password();
+			pthis->auth_state_ = AuthState::AS_LOGGING_IN;
+			pthis->session_ = vds_login(
+				pthis->api_->api(),
+				StringUtils::to_string(pthis->login_.c_str()).c_str(),
+				StringUtils::to_string(pthis->password_.c_str()).c_str());
+		}
+
+		break;
+	}
     case ID_POPUP_EXIT: {
       PostQuitMessage(0);
       break;
@@ -149,6 +200,28 @@ LRESULT CALLBACK TrayIcon::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
     }
   }
   break;
+  case WM_TIMER: {
+	  auto pthis = reinterpret_cast<TrayIcon *>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+	  switch (pthis->auth_state_){
+	  case AuthState::AS_LOGGING_IN: {
+		  auto result = StringUtils::from_string(vds_session_check(pthis->session_));
+		  if (result == _T("successfull")) {
+			  pthis->auth_state_ = AuthState::AS_LOGGED_IN;
+			  break;
+		  }
+		  else if (result == _T("failed")) {
+			  pthis->auth_state_ = AuthState::AS_FAILED;
+			  break;
+		  }
+		  break;
+	  }
+
+	  default:
+		  break;
+	  }
+
+	  break;
+  }
   //case WM_PAINT:
   //    {
   //        PAINTSTRUCT ps;

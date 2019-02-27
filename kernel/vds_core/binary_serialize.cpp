@@ -191,8 +191,8 @@ vds::expected<void> vds::binary_deserializer::get(std::string& value)
 {
   GET_EXPECTED(len, this->read_number());
 
-  value.resize(len);
-  for(uint64_t i = 0; i < len; ++i){
+  value.resize(safe_cast<size_t>(len));
+  for(size_t i = 0; i < safe_cast<size_t>(len); ++i){
     uint8_t ch;
     CHECK_EXPECTED(this->get(ch));
     value[i] = ch;
@@ -214,10 +214,10 @@ vds::expected<void> vds::binary_deserializer::get(vds::const_data_buffer & data)
     return vds::make_unexpected<std::runtime_error>("Invalid data");
   }
 
-  data.resize(len);
-  memcpy(&data[0], this->data_, len);
-  this->data_ += len;
-  this->len_ -= len;
+  data.resize(safe_cast<size_t>(len));
+  memcpy(&data[0], this->data_, safe_cast<size_t>(len));
+  this->data_ += safe_cast<size_t>(len);
+  this->len_ -= safe_cast<size_t>(len);
 
   return expected<void>();
 }
@@ -229,7 +229,7 @@ vds::expected<void> vds::binary_deserializer::pop_data(void* data, size_t& size,
     if(size < len){
       return vds::make_unexpected<std::runtime_error>("Buffer too small");
     }
-    size = len;
+    size = safe_cast<size_t>(len);
   }
 
   if (size > this->len_) {

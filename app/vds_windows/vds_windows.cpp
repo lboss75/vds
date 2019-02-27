@@ -29,7 +29,7 @@ int APIENTRY _tWinMain(
     return 1;
   }
 
-  TrayIcon trayMenu;
+  TrayIcon trayMenu(&api);
   if(!trayMenu.create(hInstance)) {
     return 2;
   }

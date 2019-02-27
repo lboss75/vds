@@ -3,7 +3,6 @@
 
 
 LoginDlg::LoginDlg()
-  : is_authorized_(false)
 {
 }
 
@@ -12,16 +11,12 @@ LoginDlg::~LoginDlg()
 {
 }
 
-bool LoginDlg::check_authorized(HINSTANCE hinstance, HWND hParent) {
-  if(this->is_authorized_) {
-    return true;
-  }
-
-  if(IDOK != DialogBoxParam(hinstance, MAKEINTRESOURCE(IDD_LOGIN), hParent, DlgProc, reinterpret_cast<LPARAM>(this))) {
+bool LoginDlg::show_dialog(HINSTANCE hinstance) {
+  if(IDOK != DialogBoxParam(hinstance, MAKEINTRESOURCE(IDD_LOGIN), NULL, DlgProc, reinterpret_cast<LPARAM>(this))) {
     return false;
   }
 
-  return this->is_authorized_;
+  return true;
 }
 
 

@@ -11,6 +11,11 @@
 #define IDD_SETTINGS                    129
 #define IDD_LOGIN                       130
 #define IDR_TRAYMENU                    131
+#define IDD_DIALOG1                     132
+#define IDS_INIT_TIP                    133
+#define IDS_INIT_TIP_TITLE              134
+#define IDR_MENU1                       134
+#define IDR_NOTAUTH_MENU                134
 #define IDC_EDIT1                       1000
 #define IDC_EDIT2                       1001
 #define IDC_SELECT_PATH                 1002
@@ -21,6 +26,10 @@
 #define ID_POPUP_32773                  32773
 #define ID_POPUP_EXIT                   32774
 #define ID_POPUP_SETTINGS               32775
+#define ID_POPUP_32776                  32776
+#define ID_POPUP_LOGIN                  32777
+#define ID_POPUP_32778                  32778
+#define ID_POPUP_32779                  32779
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -28,8 +37,8 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
-#define _APS_NEXT_RESOURCE_VALUE        132
-#define _APS_NEXT_COMMAND_VALUE         32776
+#define _APS_NEXT_RESOURCE_VALUE        135
+#define _APS_NEXT_COMMAND_VALUE         32780
 #define _APS_NEXT_CONTROL_VALUE         1006
 #define _APS_NEXT_SYMED_VALUE           110
 #endif
