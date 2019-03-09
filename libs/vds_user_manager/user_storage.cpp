@@ -11,13 +11,13 @@ All rights reserved
 #include "dht_network_client.h"
 #include "member_user.h"
 
-vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::user_storage::device_storages(
+vds::async_task<vds::expected<std::list<vds::user_storage::storage_info_t>>> vds::user_storage::device_storages(
   const service_provider* sp,
   const std::shared_ptr<user_manager>& user_mng) {
 
-  auto result = std::make_shared<json_array>();
+	std::list<vds::user_storage::storage_info_t> result;
 
-  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction([sp, user_mng, result](database_read_transaction & t) -> expected<void> {
+  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction([sp, user_mng, &result](database_read_transaction & t) -> expected<void> {
     auto client = sp->get<dht::network::client>();
     auto current_node = client->current_node_id();
 
@@ -34,29 +34,31 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::user_stora
       .left_join(t2, t2.local_path == t1.local_path && t2.node_id == t1.node_id)
       .where(t1.owner_id == user_mng->get_current_user().user_certificate()->subject())
       .group_by(t1.name, t1.node_id, t1.local_path, t1.reserved_size)));
-    WHILE_EXPECTED (st.execute())
-      auto item = std::make_shared<json_object>();
-      item->add_property("node", base64::from_bytes(t1.node_id.get(st)));
-      item->add_property("name", t1.name.get(st));
-      item->add_property("local_path", t1.local_path.get(st));
-      item->add_property("reserved_size", t1.reserved_size.get(st));
-      item->add_property("used_size", std::to_string(used_size.get(st)));
-      if (t1.node_id.get(st) == current_node) {
-        auto free_size = foldername(t1.local_path.get(st)).free_size();
-        if (free_size.has_value()) {
-          item->add_property("free_size", std::to_string(free_size.value()));
-        }
-        item->add_property("current", "true");
-      }
-      else {
-        item->add_property("current", "false");
-      }
-      result->add(item);
+	WHILE_EXPECTED(st.execute())
+		auto current = (t1.node_id.get(st) == current_node);
+		uint64_t free_size;
+
+		if(current){
+			auto free_size_result = foldername(t1.local_path.get(st)).free_size();
+			if (free_size_result.has_value()) {
+				free_size = free_size_result.value();
+			}
+		}
+
+		result.push_back(vds::user_storage::storage_info_t{
+			t1.node_id.get(st),
+			t1.name.get(st),
+			foldername(t1.local_path.get(st)),
+			safe_cast<uint64_t>(t1.reserved_size.get(st)),
+			safe_cast<uint64_t>(used_size.get(st)),
+			free_size,
+			current });
+
     WHILE_EXPECTED_END()
     return expected<void>();
   }));
 
-  co_return std::static_pointer_cast<json_value>(result);
+  co_return result;
 }
 
 vds::expected<std::shared_ptr<vds::json_value>> vds::user_storage::device_storage_label(
@@ -151,6 +153,93 @@ vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const
   });
 }
 
+vds::async_task<vds::expected<void>> vds::user_storage::set_device_storage(
+	const service_provider * sp,
+	const std::shared_ptr<user_manager>& user_mng,
+	const std::string & local_path,
+	uint64_t reserved_size)
+{
+	return sp->get<db_model>()->async_transaction([sp, user_mng, local_path, reserved_size](database_transaction & t) -> expected<void> {
+		auto user = user_mng->get_current_user();
+		auto client = sp->get<dht::network::client>();
+		auto current_node = client->current_node_id();
+
+		orm::device_config_dbo t1;
+		orm::device_record_dbo t2;
+		db_value<int64_t> used_size;
+		GET_EXPECTED(st, t.get_reader(
+			t1.select(
+				t1.local_path,
+				t1.reserved_size,
+				db_sum(t2.data_size).as(used_size))
+			.left_join(t2, t2.local_path == t1.local_path && t2.node_id == t1.node_id)
+			.where(t1.node_id == current_node && t1.owner_id == user_mng->get_current_user().user_certificate()->subject())
+			.group_by(t1.local_path, t1.reserved_size)));
+
+		std::map<std::string, uint64_t> storages;
+		WHILE_EXPECTED(st.execute())
+			storages[t1.local_path.get(st)] = used_size.get(st);
+		WHILE_EXPECTED_END()
+
+			auto p = storages.find(local_path);
+		if (storages.end() != p && p->second <= reserved_size) {
+			CHECK_EXPECTED(t.execute(t1.update(
+				t1.reserved_size = reserved_size
+			).where(
+				t1.node_id == current_node
+				&& t1.local_path == local_path
+				&& t1.owner_id == user_mng->get_current_user().user_certificate()->subject())));
+
+			for (const auto & other_storage : storages) {
+				if (other_storage.first != local_path) {
+					(void)foldername(other_storage.first).delete_folder(true);
+					CHECK_EXPECTED(t.execute(t1.delete_if(
+						t1.node_id == current_node
+						&& t1.local_path == local_path 
+						&& t1.owner_id == user_mng->get_current_user().user_certificate()->subject())));
+				}
+			}
+		}
+		else {
+			for (const auto & other_storage : storages) {
+				(void)foldername(other_storage.first).delete_folder(true);
+				CHECK_EXPECTED(t.execute(t1.delete_if(
+					t1.node_id == current_node
+					&& t1.local_path == local_path
+					&& t1.owner_id == user_mng->get_current_user().user_certificate()->subject())));
+			}
+
+			GET_EXPECTED(storage_key_data, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+			auto storage_key = std::make_shared<asymmetric_private_key>(std::move(storage_key_data));
+
+			GET_EXPECTED(public_key, asymmetric_public_key::create(*storage_key));
+
+			certificate::create_options options;
+			options.name = "!Storage Cert";
+			options.country = "RU";
+			options.organization = "IVySoft";
+			options.ca_certificate = user.user_certificate().get();
+			options.ca_certificate_private_key = user.private_key().get();
+
+			GET_EXPECTED(storage_cert_data, certificate::create_new(public_key, *storage_key, options));
+			auto storage_cert = std::make_shared<certificate>(std::move(storage_cert_data));
+			GET_EXPECTED(storage_cert_der, storage_cert->der());
+			GET_EXPECTED(storage_cert_key_der, storage_key->der(std::string()));
+
+			return t.execute(
+				t1.insert(
+					t1.node_id = client->current_node_id(),
+					t1.local_path = local_path,
+					t1.owner_id = user.user_certificate()->subject(),
+					t1.name = "Storage",
+					t1.reserved_size = reserved_size,
+					t1.cert = storage_cert_der,
+					t1.private_key = storage_cert_key_der));
+		}
+
+		return expected<void>();
+	});
+}
 vds::async_task<vds::expected<bool>> vds::user_storage::local_storage_exists(const service_provider* sp) {
 
   auto result = std::make_shared<bool>();
@@ -178,4 +267,23 @@ vds::async_task<vds::expected<bool>> vds::user_storage::local_storage_exists(con
   }));
 
   co_return *result;
+}
+
+std::shared_ptr<vds::json_value> vds::user_storage::storage_info_t::serialize() const
+{
+	auto item = std::make_shared<json_object>();
+	item->add_property("node", base64::from_bytes(this->node_id));
+	item->add_property("name", this->name);
+	item->add_property("local_path", this->local_path.full_name());
+	item->add_property("reserved_size", this->reserved_size);
+	item->add_property("used_size", std::to_string(this->used_size));
+	if (this->current) {
+		item->add_property("free_size", std::to_string(this->free_size));
+		item->add_property("current", "true");
+	}
+	else {
+		item->add_property("current", "false");
+	}
+
+	return item;
 }

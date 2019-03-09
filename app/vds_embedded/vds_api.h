@@ -85,6 +85,14 @@ API api_string APICALL vds_get_device_storages(APIENV api_void_ptr vds_session);
 API api_string APICALL vds_prepare_device_storage(APIENV api_void_ptr vds_session);
 API api_string APICALL vds_add_device_storage(APIENV api_void_ptr vds_session, api_string name, api_string local_path, int size);
 
+API api_string APICALL vds_get_device_storage_path(APIENV api_void_ptr vds_session);
+API uint64_t APICALL vds_get_device_storage_used(APIENV api_void_ptr vds_session);
+API uint64_t APICALL vds_get_device_storage_size(APIENV api_void_ptr vds_session);
+
+API api_string APICALL vds_set_device_storage_path(APIENV api_void_ptr vds_session, api_string new_path, uint64_t new_size);
+
+API uint64_t APICALL vds_get_user_balance(APIENV api_void_ptr vds_session);
+
 
 #ifdef __cplusplus
 }

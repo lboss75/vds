@@ -12,11 +12,19 @@ All rights reserved
 #include "user_storage.h"
 
 vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::storage_api::device_storages(
-  const vds::service_provider * sp,
-  const std::shared_ptr<user_manager> & user_mng,
-  const http_request & /*request*/)
+	const vds::service_provider * sp,
+	const std::shared_ptr<user_manager> & user_mng,
+	const http_request & /*request*/)
 {
-  return user_storage::device_storages(sp, user_mng);
+	auto result = co_await user_storage::device_storages(sp, user_mng);
+	CHECK_EXPECTED_ASYNC(result);
+
+	auto result_json = std::make_shared<json_array>();
+	for (const auto & storage : result.value()) {
+		result_json->add(storage.serialize());
+	}
+
+	co_return result_json;
 }
 
 vds::expected<std::shared_ptr<vds::json_value>> vds::storage_api::device_storage_label(

@@ -48,7 +48,13 @@ namespace vds {
         const std::string& local_path,
         uint64_t reserved_size);
 
-    private:
+	  const char * get_device_storage_path();
+	  uint64_t get_device_storage_used();
+	  uint64_t get_device_storage_size();
+	  const char * set_device_storage_path(const std::string & new_path, uint64_t new_size);
+	  uint64_t get_user_balance();
+
+	private:
       service_provider * sp_;
       std::shared_ptr<user_manager> user_mng_;
 

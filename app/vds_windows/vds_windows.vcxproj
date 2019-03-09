@@ -155,6 +155,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="InfoDlg.h" />
     <ClInclude Include="LoginDlg.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="SettingsDlg.h" />
@@ -166,6 +167,7 @@
     <ClInclude Include="vds_windows.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="InfoDlg.cpp" />
     <ClCompile Include="LoginDlg.cpp" />
     <ClCompile Include="SettingsDlg.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -184,6 +186,11 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico" />
+    <Image Include="small_green.ico" />
+    <Image Include="small_progress_1.ico" />
+    <Image Include="small_progress_2.ico" />
+    <Image Include="small_progress_3.ico" />
+    <Image Include="small_red.ico" />
     <Image Include="vds_windows.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

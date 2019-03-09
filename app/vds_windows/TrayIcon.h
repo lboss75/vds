@@ -33,10 +33,15 @@ private:
   api_void_ptr session_;
 
   SettingsDlg settingsDls_;
+  int progress_;
 
   bool RegisterWndClass();
   bool CreateWnd(int nCmdShow);
   void ShowContextMenu();
   static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+  void show_logindlg();
+
+  void update_icon_state();
 };
 
