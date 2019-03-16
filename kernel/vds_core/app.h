@@ -82,7 +82,7 @@ namespace vds{
 
     virtual TCHAR* service_name() const;
 
-    expected<int> demonize();
+    expected<int> demonize(const foldername & root_folder);
 
     static VOID WINAPI SvcMain(DWORD dwArgc, LPTSTR* lpszArgv);
 
@@ -107,7 +107,7 @@ static barrier stop_barrier;
 static expected<void> kill_prev(const foldername & root_folder, const std::string & process_name);
 static expected<void> demonize(const foldername & root_folder, const std::string & process_name);
 
-        expected<int> demonize();
+        expected<int> demonize(const foldername & root_folder);
 
 
       static void signalHandler(int /*signum*/);

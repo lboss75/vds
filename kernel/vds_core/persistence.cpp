@@ -14,9 +14,11 @@ All rights reserved
 
 vds::expected<vds::foldername> vds::persistence::current_user(const service_provider * sp)
 {
-  auto props = sp->current_user();
-  if (!props.empty()) {
-    return props;
+  if (sp != nullptr) {
+    auto props = sp->current_user();
+    if (!props.empty()) {
+      return props;
+    }
   }
 
 #ifndef _WIN32

@@ -97,9 +97,9 @@ vds::expected<void> vds::app::demonize(const vds::foldername &root_folder, const
     return expected<void>();
 }
 
-        vds::expected<int> vds::app::demonize() {
+        vds::expected<int> vds::app::demonize(const foldername & root_folder) {
           CHECK_EXPECTED(app::kill_prev(
-                  foldername(this->root_folder_.value()),
+                  root_folder,
                   this->current_process_.name_without_extension()));
 
           auto cur_pid = fork();
@@ -115,7 +115,7 @@ vds::expected<void> vds::app::demonize(const vds::foldername &root_folder, const
           }
 
           CHECK_EXPECTED(app::demonize(
-                  foldername(this->root_folder_.value()),
+                  root_folder,
                   this->current_process_.name_without_extension()));
 
           sigset_t sigset;
@@ -180,7 +180,7 @@ TCHAR* vds::app::service_name() const {
   throw vds_exceptions::invalid_operation();
 }
 
-vds::expected<int> vds::app::demonize() {
+vds::expected<int> vds::app::demonize(const foldername & root_folder) {
   SERVICE_TABLE_ENTRY DispatchTable[] =
   {
     {this->service_name(), (LPSERVICE_MAIN_FUNCTION)SvcMain},
@@ -409,8 +409,18 @@ vds::expected<int> vds::app::run_app(int argc, const char** argv) {
     return 1;
   }
 
+  foldername root_folder;
+  if(this->root_folder_.value().empty()) {
+    GET_EXPECTED_VALUE(root_folder, persistence::current_user(nullptr));
+  }
+  else {
+    root_folder = foldername(this->root_folder_.value());
+  }
+
+  CHECK_EXPECTED(root_folder.create());
+
   if (this->need_demonize()) {
-    return this->demonize();
+    return this->demonize(root_folder);
   }
   else {
     vds::service_registrator registrator;
@@ -426,8 +436,6 @@ vds::expected<void> vds::app::start(vds::service_registrator& registrator) {
 
   if (!this->root_folder_.value().empty()) {
     vds::foldername folder(this->root_folder_.value());
-    CHECK_EXPECTED(folder.create());
-
     registrator.current_user(folder);
     registrator.local_machine(folder);
   }
