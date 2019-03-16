@@ -1,6 +1,8 @@
 set root_folder=%~d0%~p0
 rmdir %root_folder%build_zlib /s /q
 
+git clone --depth=1 --quiet https://github.com/madler/zlib.git
+
 call ..\setenv.bat
 
 mkdir %root_folder%build_zlib

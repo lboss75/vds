@@ -56,7 +56,7 @@ vds::expected<std::shared_ptr<vds::tcp_network_socket>> vds::tcp_network_socket:
         return vds::make_unexpected<std::system_error>(error, std::generic_category(), "connect");
       }
       CHECK_EXPECTED(s->make_socket_non_blocking());
-      s->set_timeouts();
+      CHECK_EXPECTED(s->set_timeouts());
 #endif
       
       return std::shared_ptr<tcp_network_socket>(new tcp_network_socket(s.release()));

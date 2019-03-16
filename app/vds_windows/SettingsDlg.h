@@ -13,7 +13,6 @@ public:
 
 private:
   HWND hWnd_;
-  LoginDlg login_dlg_;
 
   static INT_PTR CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 

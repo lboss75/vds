@@ -74,7 +74,7 @@ api_string APICALL vds_prepare_device_storage(APIENV api_void_ptr vds_session) {
   return api_return_string(session->prepare_device_storage());
 }
 
-api_string APICALL vds_add_device_storage(api_void_ptr vds_session, api_string name_, api_string local_path_, int size) {
+api_string APICALL vds_add_device_storage(APIENV api_void_ptr vds_session, api_string name_, api_string local_path_, int size) {
   auto session = static_cast<vds::vds_embedded::vds_session *>(vds_session);
 
   api_string_argument(name, name_);
@@ -83,7 +83,38 @@ api_string APICALL vds_add_device_storage(api_void_ptr vds_session, api_string n
   return api_return_string(session->add_device_storage(name, local_path, static_cast<uint64_t>(size) * 1024 * 1024 * 1024));
 }
 
-api_string APICALL vds_local_storage_exists(api_void_ptr vds) {
+api_string APICALL vds_local_storage_exists(APIENV api_void_ptr vds) {
   auto pthis = static_cast<vds::vds_embedded *>(vds);
   return api_return_string(pthis->local_storage_exists() ? "true" : "false");
+}
+
+
+api_string APICALL vds_get_device_storage_path(APIENV api_void_ptr vds_session) {
+	auto session = static_cast<vds::vds_embedded::vds_session *>(vds_session);
+
+	return api_return_string(session->get_device_storage_path());
+}
+
+uint64_t APICALL vds_get_device_storage_used(APIENV api_void_ptr vds_session) {
+	auto session = static_cast<vds::vds_embedded::vds_session *>(vds_session);
+
+	return session->get_device_storage_used();
+}
+
+uint64_t APICALL vds_get_device_storage_size(APIENV api_void_ptr vds_session) {
+	auto session = static_cast<vds::vds_embedded::vds_session *>(vds_session);
+
+	return session->get_device_storage_size();
+}
+
+api_string APICALL vds_set_device_storage_path(APIENV api_void_ptr vds_session, api_string new_path_, uint64_t new_size) {
+	auto session = static_cast<vds::vds_embedded::vds_session *>(vds_session);
+	api_string_argument(new_path, new_path_);
+	return api_return_string(session->set_device_storage_path(new_path, new_size));
+}
+
+uint64_t APICALL vds_get_user_balance(APIENV api_void_ptr vds_session) {
+	auto session = static_cast<vds::vds_embedded::vds_session *>(vds_session);
+
+	return session->get_user_balance();
 }

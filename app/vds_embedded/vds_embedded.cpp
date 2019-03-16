@@ -118,7 +118,7 @@ vds::expected<void> vds::vds_embedded::do_start(int port, bool dev_network) {
   GET_EXPECTED_VALUE(this->sp_, this->registrator_.build());
   CHECK_EXPECTED(this->registrator_.start());
 
-  CHECK_EXPECTED(this->server_.start_network(port, dev_network).get());
+  CHECK_EXPECTED(this->server_.start_network(safe_cast<uint16_t>(port), dev_network).get());
 
   return expected<void>();
 }
@@ -175,23 +175,26 @@ const char* vds::vds_embedded::vds_session::get_login_state() {
 }
 
 const char* vds::vds_embedded::vds_session::get_device_storages() {
-  auto result = user_storage::device_storages(
-    this->sp_,
-    this->user_mng_).get();
-  if(result.has_error()) {
-    this->last_result_ = result.error()->what();
-  }
-  else {
-    auto result_str = result.value()->json_value::str();
-    if (result_str.has_error()) {
-      this->last_result_ = result_str.error()->what();
-    }
-    else {
-      this->last_result_ = std::move(result_str.value());
-    }
-  }
-  return this->last_result_.c_str();
-
+	auto result = user_storage::device_storages(
+		this->sp_,
+		this->user_mng_).get();
+	if (result.has_error()) {
+		this->last_result_ = result.error()->what();
+	}
+	else {
+		auto result_json = std::make_shared<json_array>();
+		for (const auto & storage : result.value()) {
+			result_json->add(storage.serialize());
+		}
+		auto result_str = result_json->json_value::str();
+		if (result_str.has_error()) {
+			this->last_result_ = result_str.error()->what();
+		}
+		else {
+			this->last_result_ = std::move(result_str.value());
+		}
+	}
+	return this->last_result_.c_str();
 }
 
 const char* vds::vds_embedded::vds_session::prepare_device_storage() {
@@ -225,6 +228,91 @@ const char* vds::vds_embedded::vds_session::add_device_storage(
   else {
     return nullptr;
   }
+}
+
+const char * vds::vds_embedded::vds_session::get_device_storage_path()
+{
+	this->last_result_.clear();
+
+	auto result = user_storage::device_storages(
+		this->sp_,
+		this->user_mng_).get();
+	if (result.has_error()) {
+		this->last_result_ = result.error()->what();
+	}
+	else {
+		for (const auto & device : result.value()) {
+			if (device.current) {
+				this->last_result_ = device.local_path.full_name();
+				return this->last_result_.c_str();
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+uint64_t vds::vds_embedded::vds_session::get_device_storage_used()
+{
+	this->last_result_.clear();
+
+	auto result = user_storage::device_storages(
+		this->sp_,
+		this->user_mng_).get();
+	if (result.has_error()) {
+		this->last_result_ = result.error()->what();
+	}
+	else {
+		for (const auto & device : result.value()) {
+			if (device.current) {
+				return device.used_size;
+			}
+		}
+	}
+
+	return 0;
+}
+
+uint64_t vds::vds_embedded::vds_session::get_device_storage_size()
+{
+	this->last_result_.clear();
+
+	auto result = user_storage::device_storages(
+		this->sp_,
+		this->user_mng_).get();
+	if (result.has_error()) {
+		this->last_result_ = result.error()->what();
+	}
+	else {
+		for (const auto & device : result.value()) {
+			if (device.current) {
+				return device.reserved_size;
+			}
+		}
+	}
+
+	return 0;
+}
+
+const char * vds::vds_embedded::vds_session::set_device_storage_path(const std::string & new_path, uint64_t new_size)
+{
+	this->last_result_.clear();
+
+	auto result = user_storage::set_device_storage(
+		this->sp_,
+		this->user_mng_,
+		new_path,
+		new_size).get();
+	if (result.has_error()) {
+		this->last_result_ = result.error()->what();
+	}
+
+	return nullptr;
+}
+
+uint64_t vds::vds_embedded::vds_session::get_user_balance()
+{
+	return uint64_t();
 }
 
 vds::vds_embedded::vds_session * vds::vds_embedded::login(

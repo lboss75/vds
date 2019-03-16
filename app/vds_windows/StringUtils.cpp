@@ -65,3 +65,23 @@ std::tstring StringUtils::from_string(const std::string& original) {
 
   return result;
 }
+
+std::tstring StringUtils::format_size(HINSTANCE hInstance, uint64_t size)
+{
+	TCHAR postfixes[256];
+	LoadString(hInstance, IDS_SIZE_POSTFIXES, postfixes, sizeof(postfixes) / sizeof(postfixes) - 1);
+
+	TCHAR * p = postfixes;
+	while (size > 1024) {
+		size /= 1024;
+		p = _tcschr(p, _T(',')) + 1;
+	}
+
+	*_tcschr(p, _T(',')) = _T('\0');
+
+#ifdef _UNICODE
+	return std::to_wstring(size) + L" " + p;
+#else
+	return std::to_string(size) + " " + p;
+#endif
+}

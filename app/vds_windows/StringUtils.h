@@ -10,5 +10,6 @@ public:
 
   static std::tstring from_string(const std::string & original);
 
+  static std::tstring format_size(HINSTANCE hInstance, uint64_t size);
 };
 

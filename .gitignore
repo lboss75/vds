@@ -71,3 +71,4 @@ externals/googletest/
 externals/openssl/
 externals/zlib/
 externals/zlib_out/
+externals/build_openssl/
