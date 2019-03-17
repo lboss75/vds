@@ -99,7 +99,7 @@ vds::async_task<vds::expected<size_t>> vds::http_multipart_request::multipart_bo
     this->inputs_.pop();
   }
 
-  co_return 0;
+  co_return expected<size_t>(0);
 }
 
 
