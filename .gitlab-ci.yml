@@ -39,3 +39,27 @@ test-ubuntu:
         - build/tests/test_vds_parser/test_vds_parser
         - build/tests/test_vds_scenarios/test_vds_scenarios
         - build/tests/test_vds_user_manager/test_vds_user_manager
+
+
+build-android:
+    image: ubuntu:16.04
+    stage: build
+    script:
+        - apt-get -qq update
+        - apt-get -qq install -y git cmake clang-6.0 libgtk-3-dev subversion
+        - wget -P /ndk.zip https://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip 
+        - unzip /ndk.zip -d ~/Android/Sdk/
+        - ls ~/Android/Sdk/ 
+        - ./build_android.sh
+    artifacts:
+        paths:
+          - build/tests/test_vds_core/test_vds_core
+          - build/tests/test_vds_crypto/test_vds_crypto
+          - build/tests/test_vds_data/test_vds_data
+          - build/tests/test_vds_database/test_vds_database
+          - build/tests/test_vds_dht_network/test_vds_dht_network
+          - build/tests/test_vds_network/test_vds_network
+          - build/tests/test_vds_parser/test_vds_parser
+          - build/tests/test_vds_scenarios/test_vds_scenarios
+          - build/tests/test_vds_user_manager/test_vds_user_manager
+          - build/app/vds_web_server/vds_web_server

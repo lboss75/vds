@@ -3,14 +3,14 @@
 ARCH=x86_64
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-#export NDK=~/Android/Sdk/ndk-bundle
+export NDK=~/Android/Sdk/ndk-bundle
 
-#rm -rf ${DIR}/build-toolchain
-#$NDK/build/tools/make_standalone_toolchain.py \
-#  --arch ${ARCH} \
-#  --api 21 \
-#  --stl=libc++ \
-#  --install-dir=${DIR}/build-toolchain
+rm -rf ${DIR}/build-toolchain
+$NDK/build/tools/make_standalone_toolchain.py \
+  --arch ${ARCH} \
+  --api 21 \
+  --stl=libc++ \
+  --install-dir=${DIR}/build-toolchain
 
 
 # Add the standalone toolchain to the search path.
