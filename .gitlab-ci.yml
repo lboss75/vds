@@ -4,7 +4,7 @@ build-ubuntu:
     script:
         - ls /usr/bin/
         - apt-get -qq update
-        - apt-get -qq install -y git cmake clang-6.0 gcovr subversion
+        - apt-get -qq install -y git cmake clang-6.0 libgtk-3-dev gcovr subversion
         - ./build_dep.sh
         - mkdir build
         - ./build.sh

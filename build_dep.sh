@@ -2,8 +2,6 @@
 set -e
 set -x
 
-apt-get install libgtk-3-dev
-
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export CC=clang-6.0
