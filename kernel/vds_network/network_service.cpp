@@ -10,9 +10,8 @@ All rights reserved
 #include "udp_socket.h"
 #include "service_provider.h"
 #include "logger.h"
-#include <iostream>
 #include "private/socket_task_p.h"
-#include "../../libs/vds_file_manager/stdafx.h"
+#include "private/mt_service_p.h"
 
 vds::network_service::network_service()
 : impl_(new _network_service())
@@ -108,7 +107,7 @@ vds::expected<void> vds::_network_service::start(const service_provider * sp)
 
     //Create worker threads
     for (unsigned int i = 0; i < 2 * std::thread::hardware_concurrency(); ++i) {
-        this->work_threads_.push_back(new std::thread([this, sp] { this->thread_loop(); }));
+        this->work_threads_.push_back(new std::thread([this] { this->thread_loop(); }));
     }
 
 #else
@@ -170,7 +169,7 @@ vds::expected<void> vds::_network_service::start(const service_provider * sp)
      if(p->await_ready()) {
        auto result = p->get();
        if(result.has_error()) {
-         sp->get<logger>()->warning(ThisModule, "Connection error %s", result.error()->what());
+         sp->get<logger>()->warning("network", "Connection error %s", result.error()->what());
        }
 
        p = pthis->connections_.erase(p);       
@@ -245,6 +244,7 @@ vds::expected<void> vds::_network_service::associate(SOCKET_HANDLE s)
 
 void vds::_network_service::thread_loop()
 {
+	_mt_service::set_instance(this->sp_);
   while (!this->sp_->get_shutdown_event().is_shuting_down()) {
     DWORD dwBytesTransfered = 0;
     ULONG_PTR lpContext;

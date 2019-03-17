@@ -536,7 +536,10 @@ namespace vds {
           CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, EPOLLIN));
         }
         else if ((0 == error || EINTR == error || ENOENT == error) && 0 == len) {
+
+          mt_service::async(this->sp_, [r]() {
           r->set_value(0);
+          });
         }
         else {
           this->sp_->get<logger>()->trace("TCP", "Read error %d", error);
@@ -548,7 +551,10 @@ namespace vds {
       }
       else {
         this->sp_->get<logger>()->trace("TCP", "Read %d bytes", len);
+
+      mt_service::async(this->sp_, [r,len]() {
         r->set_value(len);
+      });
       }
 
       return r->get_future();
@@ -584,7 +590,9 @@ namespace vds {
         CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
         
         if ((0 == error || EINTR == error || ENOENT == error) && 0 == len) {
+        mt_service::async(this->sp_, [r]() {
           r->set_value(0);
+      });
         }
         else {
           r->set_value(make_unexpected<std::system_error>(
@@ -595,8 +603,9 @@ namespace vds {
       }
       else {
         CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
-        
+        mt_service::async(this->sp_, [r,len]() {
         r->set_value(len);
+      });
       }
 
       return expected<void>();

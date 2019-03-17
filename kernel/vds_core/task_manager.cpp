@@ -139,6 +139,7 @@ vds::expected<void> vds::task_manager::stop()
 
 vds::async_task<vds::expected<void>> vds::task_manager::prepare_to_stop() {
   this->is_shuting_down_ = true;
+  this->scheduled_changed_.notify_all();
   co_return expected<void>();
 }
 

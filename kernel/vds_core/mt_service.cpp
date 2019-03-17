@@ -17,6 +17,8 @@ All rights reserved
 #include <sys/types.h>
 #endif//_WIN32
 
+thread_local vds::imt_service * current_instance;
+
 vds::mt_service::mt_service()
 {
 }
@@ -50,6 +52,21 @@ vds::expected<void> vds::mt_service::stop()
 
 vds::async_task<vds::expected<void>> vds::mt_service::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
+}
+
+vds::imt_service * vds::imt_service::get_current()
+{
+	return current_instance;
+}
+
+void vds::imt_service::async(const service_provider * sp, const std::function<void(void)>& handler)
+{
+	sp->get<imt_service>()->do_async(handler);
+}
+
+void vds::imt_service::async(const service_provider * sp, std::function<void(void)>&& handler)
+{
+	sp->get<imt_service>()->do_async(std::move(handler));
 }
 
 void vds::imt_service::do_async(const std::function<void(void)>& handler)
@@ -92,6 +109,9 @@ void vds::_mt_service::stop()
 
 vds::async_task<vds::expected<void>> vds::_mt_service::prepare_to_stop() {
   this->is_shuting_down_ = true;
+  for (auto & t : this->work_threads_) {
+	  this->cond_.notify_all();
+  }
   co_return expected<void>();
 }
 
@@ -127,8 +147,14 @@ void vds::_mt_service::do_async( std::function<void(void)> && handler)
   }
 }
 
+void vds::_mt_service::set_instance(const service_provider * sp)
+{
+	current_instance = sp->get<imt_service>();
+}
+
 void vds::_mt_service::work_thread()
 {
+  set_instance(this->sp_);
   while(!this->is_shuting_down_){
     std::unique_lock<std::mutex> lock(this->mutex_);
     if (this->queue_.empty()) {
@@ -153,5 +179,6 @@ void vds::_mt_service::work_thread()
     
     handler();
   }
+  current_instance = nullptr;
 }
 
