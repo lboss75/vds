@@ -7,30 +7,10 @@ All rights reserved
 */
 
 #include "service_provider.h"
+#include "async_task.h"
 
 namespace vds {
   class _mt_service;
-
-  class imt_service
-  {
-  public:
-
-    static void async(const service_provider * sp, const std::function<void(void)> & handler)
-    {
-      sp->get<imt_service>()->do_async(handler);
-    }
-
-    static void async(const service_provider * sp, std::function<void(void)> && handler)
-    {
-      sp->get<imt_service>()->do_async(std::move(handler));
-    }
-
-  private:
-    void do_async(const std::function<void(void)> & handler);
-    void do_async(std::function<void(void)> && handler);
-
-  };
-
 
   class mt_service : public iservice_factory, public imt_service
   {

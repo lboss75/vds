@@ -282,7 +282,11 @@ vds::async_task<vds::expected<void>> vds::_web_server::start(
 }
 
 vds::async_task<vds::expected<void>> vds::_web_server::prepare_to_stop() {
-  return std::move(this->web_task_);
+	if (this->web_task_.has_state()) {
+		return std::move(this->web_task_);
+	}
+
+	return expected<void>();
 }
 
 //  if (request.url() == "/api/offer_device") {

@@ -20,6 +20,20 @@ namespace vds {
   template <typename result_type>
   class async_result;
 
+  class service_provider;
+
+  class imt_service
+  {
+  public:
+	  static imt_service * get_current();
+	  static void async(const service_provider * sp, const std::function<void(void)> & handler);
+	  static void async(const service_provider * sp, std::function<void(void)> && handler);
+
+	  void do_async(const std::function<void(void)> & handler);
+	  void do_async(std::function<void(void)> && handler);
+  };
+
+
   template <typename result_type>
   class _async_task_value {
   public:
@@ -137,10 +151,16 @@ namespace vds {
       vds_assert(!this->value_);
       this->value_.reset(v);
       this->value_cond_.notify_all();
-      if(this->then_function_) {
-        lock.unlock();
+	  if (this->then_function_) {
+		  lock.unlock();
 
-        this->then_function_();
+		  auto mt = imt_service::get_current();
+		  if (nullptr != mt) {
+			  mt->do_async(this->then_function_);
+		  }
+		  else {
+			  this->then_function_();
+		  }
       }
     }
   private:
@@ -198,8 +218,14 @@ namespace vds {
       if (this->then_function_) {
         lock.unlock();
 
-        this->then_function_();
-      }
+		auto mt = imt_service::get_current();
+		if (nullptr != mt) {
+			mt->do_async(this->then_function_);
+		}
+		else {
+			this->then_function_();
+		}
+	  }
     }
 
   private:
@@ -231,6 +257,10 @@ namespace vds {
     async_task(const std::shared_ptr<_async_task_state<result_type>> & state)
     : state_(state) {      
     }
+
+	bool has_state() const {
+		return (nullptr != this->state_.get());
+	}
 
     template<class _Rep, class _Period>
     std::future_status wait_for(std::chrono::duration<_Rep, _Period> timeout) const {

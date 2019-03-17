@@ -29,6 +29,8 @@ namespace vds {
     void do_async( const std::function<void(void)> & handler);
     void do_async( std::function<void(void)> && handler);
 
+	static void set_instance(const service_provider * sp);
+
   private:
     const service_provider * sp_;
     std::list<std::thread> work_threads_;
