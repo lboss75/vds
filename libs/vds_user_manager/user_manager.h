@@ -13,10 +13,12 @@ All rights reserved
 #include "user_channel.h"
 #include "transaction_messages_walker.h"
 #include "encoding.h"
+#include "transaction_log_record_dbo.h"
 
 namespace vds {
   class user_wallet;
   class _user_manager;
+  class member_user;
 
   class user_manager : public std::enable_shared_from_this<user_manager>
   {
@@ -33,6 +35,8 @@ namespace vds {
     login_state_t get_login_state() const;
 
     vds::async_task<vds::expected<void>> update();
+
+    vds::expected<void> update(database_read_transaction & t) const;
 
     expected<void> load(
       class database_read_transaction &t,

@@ -38,9 +38,13 @@ vds::user_manager::login_state_t vds::user_manager::get_login_state() const {
 }
 
 vds::async_task<vds::expected<void>> vds::user_manager::update() {
-  return this->sp_->get<db_model>()->async_transaction([pthis = this->shared_from_this()](database_transaction & t) -> expected<void> {
-    return pthis->impl_->update(t);
+  return this->sp_->get<db_model>()->async_read_transaction([pthis = this->shared_from_this()](database_read_transaction & t) -> expected<void> {
+    return pthis->update(t);
   });
+}
+
+vds::expected<void> vds::user_manager::update(database_read_transaction & t) const {
+  return this->impl_->update(t);
 }
 
 vds::expected<void> vds::user_manager::load(
@@ -87,16 +91,14 @@ vds::expected<void> vds::user_manager::reset(
       private_info.root_private_key_));
 
     //common news
-    auto common_news_admin_certificate = cert_control::get_common_news_admin_certificate();
-    GET_EXPECTED(channel_id, common_news_admin_certificate->fingerprint(hash::sha256()));
     this->sp_->get<logger>()->info(ThisModule, "Create channel %s(Common News)",
-      base64::from_bytes(channel_id).c_str());
+      base64::from_bytes(cert_control::get_common_news_channel_id()).c_str());
 
     GET_EXPECTED(pc, root_user->personal_channel());
     CHECK_EXPECTED(pc.add_log(
       playback,
       message_create<transactions::channel_create_transaction>(
-        channel_id,
+        cert_control::get_common_news_channel_id(),
         user_channel::channel_type_t::news_channel,
         "Common news",
         cert_control::get_common_news_read_certificate(),
@@ -104,6 +106,20 @@ vds::expected<void> vds::user_manager::reset(
         cert_control::get_common_news_write_certificate(),
         private_info.common_news_write_private_key_)));
 
+    //Auto update
+    this->sp_->get<logger>()->info(ThisModule, "Create channel %s(Common News)",
+      base64::from_bytes(cert_control::get_autoupdate_channel_id()).c_str());
+
+    CHECK_EXPECTED(pc.add_log(
+      playback,
+      message_create<transactions::channel_create_transaction>(
+        cert_control::get_autoupdate_channel_id(),
+        user_channel::channel_type_t::news_channel,
+        "Auto update",
+        cert_control::get_autoupdate_read_certificate(),
+        cert_control::get_autoupdate_read_private_key(),
+        cert_control::get_autoupdate_write_certificate(),
+        private_info.autoupdate_write_private_key_)));
 
     CHECK_EXPECTED(playback.save(
       this->sp_,

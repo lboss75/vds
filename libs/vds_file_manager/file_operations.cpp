@@ -56,6 +56,12 @@ vds::file_manager::file_operations::prepare_download_file(
   return this->impl_->prepare_download_file(user_mng, channel_id, file_name, target_file);
 }
 
+vds::async_task<vds::expected<void>> vds::file_manager::file_operations::download_stream(
+  const std::shared_ptr<stream_output_async<uint8_t>>& target_stream,
+  const std::list<transactions::user_message_transaction::file_block_t>& file_blocks) {
+  return this->impl_->download_stream(target_stream, file_blocks);
+}
+
 
 vds::async_task<vds::expected<vds::transactions::user_message_transaction::file_info_t>>
 vds::file_manager::file_operations::upload_file(
@@ -149,7 +155,8 @@ vds::file_manager_private::_file_operations::download_file(
   co_return *result;
 }
 
-vds::async_task<vds::expected<vds::file_manager::file_operations::prepare_download_result_t>> vds::file_manager_private::_file_operations::prepare_download_file(
+vds::async_task<vds::expected<vds::file_manager::file_operations::prepare_download_result_t>>
+vds::file_manager_private::_file_operations::prepare_download_file(
   const std::shared_ptr<user_manager> & user_mng,
   const const_data_buffer & channel_id,
   const std::string& file_name,

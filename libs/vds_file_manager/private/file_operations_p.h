@@ -56,6 +56,7 @@ namespace vds {
       vds::async_task<vds::expected<void>> prepare_to_stop();
 
     private:
+      friend class vds::file_manager::file_operations;
       const service_provider * sp_;
 
       struct pack_file_result {

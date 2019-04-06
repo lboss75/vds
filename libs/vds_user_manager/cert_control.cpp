@@ -26,6 +26,9 @@ char vds::cert_control::root_certificate_[1821] =
 "n8Im6lwFbR/Xmq1NS7gxXONCOlGCoJ4Jmt3OhL8ebF6b4H6XFBMcatu04CH7hTyDcQV2xU1NQeVgKZfu"
 "vKn8CsFDHkFSnV++XfHG6lNFbCyDUScOABepfx56UU0e5s29YolpqOGno8TBQUMiODmuVmR+2hmjlHfZ"
 "jJM7LcOPJfGYmDf1V7GaUmtxmdirab3DZIaxsoKjD67i7HkDZvSE8s5w1A==";
+
+char vds::cert_control::common_news_channel_id_[65];
+
 char vds::cert_control::common_news_read_certificate_[1821] =
 "MIIFTzCCAzegAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
 "U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xODExMTEwNzQ1MTVaFw0xOTExMTEwNzQ1"
@@ -205,6 +208,12 @@ char vds::cert_control::common_storage_private_key_[3137] =
 "9rdcCEhJOtDhn7gzUqy7Ad5SW3PhgvAisVBEdbHlEZ/0GYnDUVs0v2xkbPOyGoZSTuJavEpyPgsuoyCr"
 "6IQmk0tT+AzC";
 
+char vds::cert_control::autoupdate_channel_id_[65];
+char vds::cert_control::autoupdate_read_certificate_[1821];
+char vds::cert_control::autoupdate_read_private_key_[3137];
+char vds::cert_control::autoupdate_write_certificate_[1821];
+char vds::cert_control::autoupdate_admin_certificate_[1821];
+
 /*
  * User: user_id -> certificate (object_id, user_id, parent_id)
  *
@@ -356,6 +365,16 @@ vds::expected<vds::certificate> vds::_cert_control::create_cert(
 //}
 //
 
+const std::string& vds::cert_control::auto_update_login() {
+  static std::string auto_update_login_("auto_update_login");
+  return auto_update_login_;
+}
+
+const std::string& vds::cert_control::auto_update_password() {
+  static std::string auto_update_password_("auto_update_password");
+  return auto_update_password_;
+}
+
 vds::expected<void> vds::cert_control::private_info_t::genereate_all() {
   GET_EXPECTED(key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   this->root_private_key_ = std::make_shared<asymmetric_private_key>(std::move(key));
@@ -366,7 +385,19 @@ vds::expected<void> vds::cert_control::private_info_t::genereate_all() {
   GET_EXPECTED_VALUE(key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   this->common_news_admin_private_key_ = std::make_shared<asymmetric_private_key>(std::move(key));
 
+  GET_EXPECTED_VALUE(key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+  this->autoupdate_write_private_key_ = std::make_shared<asymmetric_private_key>(std::move(key));
+
+  GET_EXPECTED_VALUE(key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+  this->autoupdate_admin_private_key_ = std::make_shared<asymmetric_private_key>(std::move(key));
+
   return expected<void>();
+}
+
+static void save_buffer(char(&buffer_storage)[65], const vds::const_data_buffer & data) {
+  auto storage_str = vds::base64::from_bytes(data);
+  vds_assert(sizeof(buffer_storage) > storage_str.length());
+  strcpy(buffer_storage, storage_str.c_str());
 }
 
 static void save_certificate(char (&cert_storage)[1821], const vds::certificate & cert) {
@@ -425,6 +456,33 @@ vds::expected<void> vds::cert_control::genereate_all(
     root_user_cert,
     *private_info.root_private_key_));
   save_certificate(common_news_admin_certificate_, common_news_admin_certificate);
+
+  //Auto update
+  GET_EXPECTED(autoupdate_read_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+  save_private_key(autoupdate_read_private_key_, autoupdate_read_private_key);
+  GET_EXPECTED(autoupdate_read_certificate, _cert_control::create_cert(
+    "AutoUpdate Read",
+    autoupdate_read_private_key,
+    root_user_cert,
+    *private_info.root_private_key_));
+  save_certificate(autoupdate_read_certificate_, autoupdate_read_certificate);
+
+  GET_EXPECTED(autoupdate_write_certificate, _cert_control::create_cert(
+    "AutoUpdate Write",
+    *private_info.autoupdate_write_private_key_,
+    root_user_cert,
+    *private_info.root_private_key_));
+  save_certificate(autoupdate_write_certificate_, autoupdate_write_certificate);
+
+  GET_EXPECTED(autoupdate_admin_certificate, _cert_control::create_cert(
+    "AutoUpdate Admin",
+    *private_info.autoupdate_admin_private_key_,
+    root_user_cert,
+    *private_info.root_private_key_));
+  save_certificate(autoupdate_admin_certificate_, autoupdate_admin_certificate);
+
+  GET_EXPECTED(autoupdate_channel_id, autoupdate_admin_certificate.fingerprint(hash::sha256()));
+  save_buffer(autoupdate_channel_id_, autoupdate_channel_id);
 
   //
   GET_EXPECTED(common_storage_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));

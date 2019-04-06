@@ -49,6 +49,9 @@ namespace vds {
     const foldername & current_user() const;
     const foldername & local_machine() const;
 
+    static const std::string & system_name();
+    static int system_version();
+
   protected:
     service_provider() {}
 

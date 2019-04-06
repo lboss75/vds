@@ -20,6 +20,11 @@ namespace vds {
     }
 
     //common news read certificate
+    static const_data_buffer get_common_news_channel_id() {
+      GET_EXPECTED_THROW(result, base64::to_bytes(common_news_channel_id_));
+      return result;
+    }
+
     static std::shared_ptr<certificate> get_common_news_read_certificate() {
       return load_certificate(common_news_read_certificate_);
     }
@@ -35,6 +40,28 @@ namespace vds {
     static std::shared_ptr<certificate> get_common_news_admin_certificate() {
       return load_certificate(common_news_admin_certificate_);
     }
+
+    //autoupdate certificates
+    static const_data_buffer get_autoupdate_channel_id() {
+      GET_EXPECTED_THROW(result, base64::to_bytes(autoupdate_channel_id_));
+      return result;
+    }
+
+    static std::shared_ptr<certificate> get_autoupdate_read_certificate() {
+      return load_certificate(autoupdate_read_certificate_);
+    }
+
+    static std::shared_ptr<asymmetric_private_key> get_autoupdate_read_private_key() {
+      return load_private_key(autoupdate_read_private_key_);
+    }
+
+    static std::shared_ptr<certificate> get_autoupdate_write_certificate() {
+      return load_certificate(autoupdate_write_certificate_);
+    }
+
+    static std::shared_ptr<certificate> get_autoupdate_admin_certificate() {
+      return load_certificate(autoupdate_admin_certificate_);
+    }
     //common storage
     static std::shared_ptr<certificate> get_storage_certificate() {
       return load_certificate(common_storage_certificate_);
@@ -44,11 +71,15 @@ namespace vds {
       return load_private_key(common_storage_private_key_);
     }
 
+    static const std::string& auto_update_login();
+    static const std::string& auto_update_password();
     class private_info_t {
     public:
       std::shared_ptr<asymmetric_private_key> root_private_key_;
       std::shared_ptr<asymmetric_private_key> common_news_write_private_key_;
       std::shared_ptr<asymmetric_private_key> common_news_admin_private_key_;
+      std::shared_ptr<asymmetric_private_key> autoupdate_write_private_key_;
+      std::shared_ptr<asymmetric_private_key> autoupdate_admin_private_key_;
 
       expected<void> genereate_all();
     private:
@@ -66,10 +97,17 @@ namespace vds {
 
     static char root_certificate_[1821];
 
+    static char common_news_channel_id_[65];
     static char common_news_read_certificate_[1821];
     static char common_news_read_private_key_[3137];
     static char common_news_write_certificate_[1821];
     static char common_news_admin_certificate_[1821];
+
+    static char autoupdate_channel_id_[65];
+    static char autoupdate_read_certificate_[1821];
+    static char autoupdate_read_private_key_[3137];
+    static char autoupdate_write_certificate_[1821];
+    static char autoupdate_admin_certificate_[1821];
 
     static char common_storage_certificate_[1821];
     static char common_storage_private_key_[3137];

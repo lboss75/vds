@@ -73,29 +73,5 @@ private:
   GET_EXPECTED_VALUE_GTEST(var, v);
 
 
-#define CHECK_EXPECTED_THROW_ERROR(v)\
-  if((v).has_error()) {\
-    throw std::runtime_error((v).error()->what());\
-  }
-
-#define CHECK_EXPECTED_THROW(v)\
-  {\
-    auto __result = (v);\
-    CHECK_EXPECTED_THROW_ERROR(__result);\
-  }
-
-#define GET_EXPECTED_VALUE_THROW(var, v) \
-  {\
-    auto __result = (v);\
-    if(__result.has_error()) { \
-      throw std::runtime_error(__result.error()->what());\
-    }\
-    var = std::move(__result.value());\
-  }
-
-#define GET_EXPECTED_THROW(var, v) \
-  std::remove_reference<decltype((v).value())>::type var;\
-  GET_EXPECTED_VALUE_THROW(var, v);
-
 
 #endif//__TEST_VDS_LIBS__TEST_CONFIG_H_

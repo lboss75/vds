@@ -1,5 +1,5 @@
-#ifndef __VDS_SERVER_STDAFX_H_
-#define __VDS_SERVER_STDAFX_H_
+#ifndef __VDS_VDS_AUTOUPDATE_STDAFX_H_
+#define __VDS_VDS_AUTOUPDATE_STDAFX_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -15,4 +15,4 @@ All rights reserved
 
 #define ThisModule "AutoUpdate"
 
-#endif // __VDS_SERVER_STDAFX_H_
+#endif // __VDS_VDS_AUTOUPDATE_STDAFX_H_

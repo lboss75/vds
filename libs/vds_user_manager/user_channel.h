@@ -9,7 +9,6 @@ All rights reserved
 #include <memory>
 #include "const_data_buffer.h"
 #include "transaction_block_builder.h"
-#include "transaction_log_record_dbo.h"
 
 namespace vds {
   class member_user;
@@ -38,6 +37,7 @@ namespace vds {
       static constexpr const char * personal_channel = "core.personal";
       static constexpr const char * notes_channel = "core.notes";
       static constexpr const char * news_channel = "core.news";
+      static constexpr const char * autoupdate_channel = "core.autoupdate";
     };
 
     user_channel();

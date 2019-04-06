@@ -107,6 +107,10 @@ namespace vds {
         const std::string& file_name,
         const const_data_buffer& file_hash);
 
+      async_task<expected<void>> download_stream(
+        const std::shared_ptr<stream_output_async<uint8_t>> & target_stream,
+        const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);
+
     protected:
       std::shared_ptr<file_manager_private::_file_operations> impl_;
     };

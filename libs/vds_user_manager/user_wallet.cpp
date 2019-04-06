@@ -12,6 +12,7 @@ All rights reserved
 #include "transaction_lack_of_funds.h"
 #include "transaction_source_not_found_error.h"
 #include "transaction_log.h"
+#include "transaction_log_record_dbo.h"
 
 vds::expected<vds::transactions::transaction_record_state> vds::user_wallet::get_balance(database_read_transaction& t) {
     std::set<vds::const_data_buffer> ancestors;

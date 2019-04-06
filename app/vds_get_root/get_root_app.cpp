@@ -53,18 +53,30 @@ vds::expected<void> vds::get_root_app::main(const service_provider * sp)
         private_info));
     
     write_member(root_certificate_);
+
+    write_member(common_news_channel_id_);
     write_member(common_news_read_certificate_);
     write_member(common_news_read_private_key_);
     write_member(common_news_write_certificate_);
     write_member(common_news_admin_certificate_);
+
+    write_member(autoupdate_channel_id_);
+    write_member(autoupdate_read_certificate_);
+    write_member(autoupdate_read_private_key_);
+    write_member(autoupdate_write_certificate_);
+    write_member(autoupdate_admin_certificate_);
 
     write_member(common_storage_certificate_);
     write_member(common_storage_private_key_);
 
     binary_serializer s;
     CHECK_EXPECTED(s << private_info.root_private_key_->der(this->user_password_.value()));
+
     CHECK_EXPECTED(s << private_info.common_news_write_private_key_->der(this->user_password_.value()));
     CHECK_EXPECTED(s << private_info.common_news_admin_private_key_->der(this->user_password_.value()));
+
+    CHECK_EXPECTED(s << private_info.autoupdate_write_private_key_->der(this->user_password_.value()));
+    CHECK_EXPECTED(s << private_info.autoupdate_admin_private_key_->der(this->user_password_.value()));
 
     CHECK_EXPECTED(file::write_all(filename("keys"), s.move_data()));
   }
