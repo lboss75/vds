@@ -10,11 +10,6 @@ All rights reserved
 vds::web_server_app::web_server_app()
 : server_start_command_set_("Server start", "Start server", "start", "server"),
   server_service_command_set_("Service start", "Start service", "service", "server"),
-start_web_(
-    "w",
-    "web",
-    "Start Web",
-    "Start web server"),
   port_(
     "P",
     "port",
@@ -73,11 +68,7 @@ void vds::web_server_app::register_services(vds::service_registrator& registrato
     if(!this->port_.value().empty()) {
       this->web_server_.port(atoi(this->port_.value().c_str()));
     }
-
-    if (!this->start_web_.value().empty()) {
-      this->web_server_.static_root(this->start_web_.value());
-      registrator.add(this->web_server_);
-    }
+    registrator.add(this->web_server_);
   }
 }
 
@@ -86,12 +77,10 @@ void vds::web_server_app::register_command_line(command_line & cmd_line)
   base_class::register_command_line(cmd_line);
 
   cmd_line.add_command_set(this->server_start_command_set_);
-  this->server_start_command_set_.optional(this->start_web_);
   this->server_start_command_set_.optional(this->port_);
   this->server_start_command_set_.optional(this->dev_network_);
 
   cmd_line.add_command_set(this->server_service_command_set_);
-  this->server_service_command_set_.optional(this->start_web_);
   this->server_service_command_set_.optional(this->port_);
   this->server_service_command_set_.optional(this->dev_network_);
 }

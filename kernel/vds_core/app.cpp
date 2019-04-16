@@ -289,6 +289,10 @@ void vds::app::SvcCtrlHandler(DWORD dwCtrl) {
 
 #endif
 
+const char* vds::app::brunch() {
+  return "test";
+}
+
 std::string vds::app::app_name() const {
   return "VDS application";
 }
@@ -298,7 +302,7 @@ std::string vds::app::app_description() const {
 }
 
 std::string vds::app::app_version() const {
-  return "0.1";
+  return string_format("%d.%02d", product_version / 100, product_version % 100);
 }
 
 vds::expected<void> vds::app::start_services(service_registrator& registrator, service_provider*) {
@@ -388,11 +392,16 @@ vds::expected<int> vds::app::run_app(int argc, const char** argv) {
         setrlimit(RLIMIT_CORE, &core_limits);
 #endif
   setlocale(LC_ALL, "Russian");
+  auto version = this->app_version();
+  if ((brunch() == nullptr || *brunch() == '\0')) {
+    version += "-";
+    version += brunch();
+  }
 
   command_line cmd_line(
     this->app_name(),
     this->app_description(),
-    this->app_version()
+    version
   );
 
   this->register_command_line(cmd_line);

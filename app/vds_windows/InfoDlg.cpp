@@ -3,7 +3,7 @@
 #include "StringUtils.h"
 
 
-InfoDlg::InfoDlg(api_void_ptr session)
+InfoDlg::InfoDlg(std::shared_ptr<vds::user_manager> session)
 	: session_(session)
 {
 }
@@ -44,11 +44,23 @@ INT_PTR InfoDlg::DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 			auto pthis = reinterpret_cast<InfoDlg *>(lParam);
 
-			auto balance = vds_get_user_balance(pthis->session_);
-			SetDlgItemInt(hDlg, IDC_BALANCE, (UINT)balance, FALSE);
+			auto balance = pthis->session_->get_user_balance();
+      if(balance.has_error()) {
+        SetDlgItemTextA(hDlg, IDC_BALANCE, balance.error()->what());
+      }
+      else {
+        SetDlgItemInt(hDlg, IDC_BALANCE, (UINT)balance.value(), FALSE);
+      }
 
-			auto used_str = StringUtils::format_size(pthis->hInst_, vds_get_device_storage_used(pthis->session_));
-			auto size_str = StringUtils::format_size(pthis->hInst_, vds_get_device_storage_size(pthis->session_));
+      auto used_value = pthis->session_->get_device_storage_used();
+			auto used_str = used_value.has_error()
+		    ? StringUtils::from_string(used_value.error()->what())
+		    : StringUtils::format_size(pthis->hInst_, used_value.value());
+
+      auto size_value = pthis->session_->get_device_storage_size();
+			auto size_str = size_value.has_error()
+        ? StringUtils::from_string(size_value.error()->what())
+        : StringUtils::format_size(pthis->hInst_, size_value.value());
 
 			TCHAR message[256];
 			LoadString(pthis->hInst_, IDS_SIZE_FORMAT, message, sizeof(message) / sizeof(message[0]));

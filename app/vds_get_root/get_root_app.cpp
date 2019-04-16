@@ -66,6 +66,12 @@ vds::expected<void> vds::get_root_app::main(const service_provider * sp)
     write_member(autoupdate_write_certificate_);
     write_member(autoupdate_admin_certificate_);
 
+    write_member(web_channel_id_);
+    write_member(web_read_certificate_);
+    write_member(web_read_private_key_);
+    write_member(web_write_certificate_);
+    write_member(web_admin_certificate_);
+
     write_member(common_storage_certificate_);
     write_member(common_storage_private_key_);
 
@@ -77,6 +83,9 @@ vds::expected<void> vds::get_root_app::main(const service_provider * sp)
 
     CHECK_EXPECTED(s << private_info.autoupdate_write_private_key_->der(this->user_password_.value()));
     CHECK_EXPECTED(s << private_info.autoupdate_admin_private_key_->der(this->user_password_.value()));
+
+    CHECK_EXPECTED(s << private_info.web_write_private_key_->der(this->user_password_.value()));
+    CHECK_EXPECTED(s << private_info.web_admin_private_key_->der(this->user_password_.value()));
 
     CHECK_EXPECTED(file::write_all(filename("keys"), s.move_data()));
   }

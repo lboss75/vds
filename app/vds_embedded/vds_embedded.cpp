@@ -310,7 +310,7 @@ const char * vds::vds_embedded::vds_session::set_device_storage_path(const std::
 	return nullptr;
 }
 
-uint64_t vds::vds_embedded::vds_session::get_user_balance()
+vds::expected<uint64_t> vds::vds_embedded::vds_session::get_user_balance()
 {
 	return uint64_t();
 }

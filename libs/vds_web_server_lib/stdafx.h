@@ -1,5 +1,5 @@
-#ifndef __VDS_WEB_SERVER_STDAFX_H_
-#define __VDS_WEB_SERVER_STDAFX_H_
+#ifndef __VDS_WEB_SERVER_LIB_STDAFX_H_
+#define __VDS_WEB_SERVER_LIB_STDAFX_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -21,4 +21,4 @@ All rights reserved
 
 #define ThisModule "WebServer"
 
-#endif // __VDS_WEB_SERVER_STDAFX_H_
+#endif // __VDS_WEB_SERVER_LIB_STDAFX_H_

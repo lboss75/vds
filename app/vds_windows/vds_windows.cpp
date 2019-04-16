@@ -4,7 +4,6 @@
 #include "stdafx.h"
 #include "vds_windows.h"
 #include "TrayIcon.h"
-#include "VdsApi.h"
 
 
 // Forward declarations of functions included in this code module:
@@ -22,14 +21,7 @@ int APIENTRY _tWinMain(
   UNREFERENCED_PARAMETER(lpCmdLine);
   UNREFERENCED_PARAMETER(nCmdShow);
 
-  VdsApi api;
-  auto error = api.start();
-  if(!error.empty()) {
-    MessageBox(NULL, error.c_str(), _T("Virtual Data Storage"), MB_ICONERROR);
-    return 1;
-  }
-
-  TrayIcon trayMenu(&api);
+  TrayIcon trayMenu;
   if(!trayMenu.create(hInstance)) {
     return 2;
   }

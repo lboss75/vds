@@ -22,7 +22,6 @@ namespace vds {
     ~_web_server();
 
     vds::async_task<vds::expected<void>> start(
-        const std::string & root_folder,
         uint16_t port);
     vds::async_task<vds::expected<void>> prepare_to_stop();
 
@@ -49,8 +48,6 @@ namespace vds {
     timer update_timer_;
 
     async_task<vds::expected<void>> web_task_;
-
-    expected<void> load_web(const std::string& path, const foldername & folder);
 
     std::shared_ptr<user_manager> get_secured_context(
       const std::string & session_id) const;

@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "db_model.h"
-#include "../vds_file_manager/stdafx.h"
 
 vds::async_task<vds::expected<void>> vds::db_model::async_transaction(const std::function<expected<void>(vds::database_transaction &)> &handler) {
   return this->db_.async_transaction([handler](database_transaction & t)->expected<bool> {

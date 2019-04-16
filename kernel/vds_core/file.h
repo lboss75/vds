@@ -85,6 +85,7 @@ namespace vds {
 
     expected<void> flush();
 
+    static expected<void> copy(const filename & source, const filename & target, bool override_exist);
     static expected<void> move(const filename & source, const filename & target);
     static expected<void> delete_file(const filename & fn);
     static expected<std::string> read_all_text(const filename & fn);

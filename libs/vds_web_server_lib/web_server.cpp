@@ -31,7 +31,7 @@ vds::expected<void> vds::web_server::register_services(service_registrator&) {
 
 vds::expected<void> vds::web_server::start(const service_provider * sp) {
   this->impl_ = std::make_shared<_web_server>(sp);
-  return this->impl_->start(this->root_folder_, this->port_).get();
+  return this->impl_->start(this->port_).get();
 }
 
 vds::expected<void> vds::web_server::stop() {
@@ -231,9 +231,7 @@ vds::async_task<vds::expected<vds::http_message>> vds::_web_server::process_mess
 }
 
 vds::async_task<vds::expected<void>> vds::_web_server::start(
-    const std::string & root_folder,
     uint16_t port) {
-  CHECK_EXPECTED_ASYNC(this->load_web("/", foldername(root_folder)));
   this->web_task_ = this->server_.start(this->sp_, network_address::any_ip4(port),
     [sp = this->sp_, pthis = this->shared_from_this()](std::shared_ptr<tcp_network_socket> s) -> vds::async_task<vds::expected<void>>{
     GET_EXPECTED_ASYNC(streams, s->start(sp));
@@ -287,75 +285,6 @@ vds::async_task<vds::expected<void>> vds::_web_server::prepare_to_stop() {
 	}
 
 	return expected<void>();
-}
-
-//  if (request.url() == "/api/offer_device") {
-//    if (request.method() == "GET") {
-//      const auto user_mng = this->get_secured_context(request.get_parameter("session"));
-//      if (!user_mng) {
-//        co_return http_response::status_response(
-//                http_response::HTTP_Unauthorized,
-//                "Unauthorized");
-//      }
-//
-//      auto result = co_await api_controller::offer_device(
-//          this->sp_,
-//          user_mng,
-//          this->shared_from_this());
-//
-//            co_return http_response::simple_text_response(
-//                    result->str(),
-//                    "application/json; charset=utf-8");
-//    }
-//  }
-//
-
-//
-//  if (request.url() == "/api/download_register_request" && request.method() == "GET") {
-//    const auto request_id = base64::to_bytes(request.get_parameter("id"));
-//    co_await message.ignore_empty_body();
-//
-//    auto result = co_await api_controller::get_register_request_body(
-//        this->sp_,
-//        this->shared_from_this(),
-//        request_id);
-//    co_return http_response::file_response(
-//        result,
-//        "user_invite.bin");
-//  }
-//
-//  if(request.url() == "/register_request" && request.method() == "POST") {
-//    co_return co_await login_page::register_request_post(
-//        this->sp_,
-//        this->shared_from_this(),
-//        message);
-//  }
-//
-//
-//  co_return co_await this->router_.route(message, request.url());
-//}
-
-vds::expected<void> vds::_web_server::load_web(const std::string& path, const foldername & folder) {
-  CHECK_EXPECTED(folder.files([this, path](const filename & fn) -> expected<bool>{
-    if(".html" == fn.extension()) {
-      if(fn.name_without_extension() == "index") {
-        this->router_.add_file(path, fn);
-      }
-      else {
-        this->router_.add_file(path + fn.name_without_extension(), fn);
-      }
-    }
-    else {
-      this->router_.add_file(path + fn.name(), fn);
-    }
-    return true;
-  }));
-  CHECK_EXPECTED(folder.folders([this, path](const foldername & fn) -> expected<bool> {
-    CHECK_EXPECTED(this->load_web(path + fn.name() + "/", fn));
-    return true;
-  }));
-
-  return expected<void>();
 }
 
 void vds::_web_server::add_auth_session(

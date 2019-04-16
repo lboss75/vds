@@ -1,12 +1,10 @@
 #pragma once
 #include "SettingsDlg.h"
 
-class VdsApi;
-
 class TrayIcon
 {
 public:
-  TrayIcon(VdsApi * api);
+  TrayIcon();
   ~TrayIcon();
 
   bool create(HINSTANCE hInst);
@@ -16,7 +14,16 @@ public:
   bool isDialogMessage(MSG & msg);
 
 private:
-  VdsApi * api_;
+  vds::service_registrator registrator_;
+
+  vds::file_logger logger_;
+  vds::task_manager task_manager_;
+  vds::mt_service mt_service_;
+  vds::network_service network_service_;
+  vds::crypto_service crypto_service_;
+  vds::server server_;
+  vds::web_server web_server_;
+  const vds::service_provider * sp_;
   HINSTANCE hInst_;
   HWND hWnd_;
 
@@ -30,7 +37,7 @@ private:
   AuthState auth_state_;
   std::tstring login_;
   std::tstring password_;
-  api_void_ptr session_;
+  std::shared_ptr<vds::user_manager> session_;
 
   SettingsDlg settingsDls_;
   int progress_;

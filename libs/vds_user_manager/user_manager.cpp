@@ -25,6 +25,7 @@ All rights reserved
 #include "private/user_channel_p.h"
 #include "control_message_transaction.h"
 #include "create_user_transaction.h"
+#include "user_storage.h"
 
 vds::user_manager::user_manager(const service_provider * sp)
 : sp_(sp) {
@@ -107,19 +108,35 @@ vds::expected<void> vds::user_manager::reset(
         private_info.common_news_write_private_key_)));
 
     //Auto update
-    this->sp_->get<logger>()->info(ThisModule, "Create channel %s(Common News)",
+    this->sp_->get<logger>()->info(ThisModule, "Create channel %s(Auto update)",
       base64::from_bytes(cert_control::get_autoupdate_channel_id()).c_str());
 
     CHECK_EXPECTED(pc.add_log(
       playback,
       message_create<transactions::channel_create_transaction>(
         cert_control::get_autoupdate_channel_id(),
-        user_channel::channel_type_t::news_channel,
+        user_channel::channel_type_t::file_channel,
         "Auto update",
         cert_control::get_autoupdate_read_certificate(),
         cert_control::get_autoupdate_read_private_key(),
         cert_control::get_autoupdate_write_certificate(),
         private_info.autoupdate_write_private_key_)));
+
+
+    //Web
+    this->sp_->get<logger>()->info(ThisModule, "Create channel %s(Web)",
+      base64::from_bytes(cert_control::get_web_channel_id()).c_str());
+
+    CHECK_EXPECTED(pc.add_log(
+      playback,
+      message_create<transactions::channel_create_transaction>(
+        cert_control::get_web_channel_id(),
+        user_channel::channel_type_t::file_channel,
+        "Web",
+        cert_control::get_web_read_certificate(),
+        cert_control::get_web_read_private_key(),
+        cert_control::get_web_write_certificate(),
+        private_info.web_write_private_key_)));
 
     CHECK_EXPECTED(playback.save(
       this->sp_,
@@ -141,6 +158,38 @@ std::map<vds::const_data_buffer, std::shared_ptr<vds::user_channel>> vds::user_m
   std::list<vds::user_channel> result;
 
   return this->impl_->channels();
+}
+
+vds::expected<uint64_t> vds::user_manager::get_device_storage_used() {
+  GET_EXPECTED(result, user_storage::device_storages(
+    this->sp_,
+    this->shared_from_this()).get());
+
+  for (const auto & device : result) {
+    if (device.current) {
+      return device.used_size;
+    }
+  }  
+
+  return 0;
+}
+
+vds::expected<unsigned long long> vds::user_manager::get_device_storage_size() {
+  GET_EXPECTED(result, user_storage::device_storages(
+    this->sp_,
+    this->shared_from_this()).get());
+
+  for (const auto & device : result) {
+    if (device.current) {
+      return device.reserved_size;
+    }
+  }
+
+  return 0;
+}
+
+vds::expected<unsigned long long> vds::user_manager::get_user_balance() {
+  return 0;
 }
 
 //vds::expected<bool> vds::user_manager::validate_and_save(

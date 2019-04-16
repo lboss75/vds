@@ -1,5 +1,5 @@
-#ifndef __VDS_WEB_SERVER_STORAGE_API_H_
-#define __VDS_WEB_SERVER_STORAGE_API_H_
+#ifndef __VDS_WEB_SERVER_LIB_STORAGE_API_H_
+#define __VDS_WEB_SERVER_LIB_STORAGE_API_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -36,4 +36,4 @@ namespace vds {
 
 }//vds
 
-#endif //__VDS_WEB_SERVER_STORAGE_API_H_
+#endif //__VDS_WEB_SERVER_LIB_STORAGE_API_H_

@@ -37,6 +37,8 @@ namespace vds{
   class app
   {
   public:
+    static const int product_version = 1;
+    static const char * brunch();
     virtual std::string app_name() const;
 
     virtual std::string app_description() const;

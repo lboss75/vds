@@ -228,6 +228,28 @@ vds::expected<void> vds::file::flush()
   return vds::expected<void>();
 }
 
+vds::expected<void> vds::file::copy(const filename& source, const filename& target, bool override_exist) {
+  file fin;
+  file fout;
+  CHECK_EXPECTED(fin.open(source, file_mode::open_read));
+  CHECK_EXPECTED(fout.open(target, override_exist ? file_mode::open_or_create : file_mode::create_new));
+
+  uint8_t buffer[1024];
+  for(;;) {
+    GET_EXPECTED(readed, fin.read(buffer, sizeof(buffer)));
+    if(0 == readed) {
+      break;
+    }
+
+    CHECK_EXPECTED(fout.write(buffer, readed));
+  }
+
+  CHECK_EXPECTED(fin.close());
+  CHECK_EXPECTED(fout.close());
+
+  return expected<void>();
+}
+
 vds::output_text_stream::output_text_stream(file & f)
   : f_(f), written_(0)
 {

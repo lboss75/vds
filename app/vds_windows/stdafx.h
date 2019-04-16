@@ -1,8 +1,3 @@
-// stdafx.h : include file for standard system include files,
-// or project specific include files that are used frequently, but
-// are changed infrequently
-//
-
 #pragma once
 
 #include "targetver.h"
@@ -34,4 +29,11 @@ namespace std {
 #endif
 }
 
-#include "../vds_embedded/vds_api.h"
+#include "task_manager.h"
+#include "mt_service.h"
+#include "network_service.h"
+#include "crypto_service.h"
+#include "server.h"
+#include "web_server.h"
+#include "user_manager.h"
+#include "db_model.h"

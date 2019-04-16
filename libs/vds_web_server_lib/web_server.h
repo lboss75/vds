@@ -1,5 +1,5 @@
-#ifndef __VDS_WEB_SERVER_WEB_SERVER_H_
-#define __VDS_WEB_SERVER_WEB_SERVER_H_
+#ifndef __VDS_WEB_SERVER_LIB_WEB_SERVER_H_
+#define __VDS_WEB_SERVER_LIB_WEB_SERVER_H_
 #include "service_provider.h"
 
 /*
@@ -25,9 +25,6 @@ namespace vds {
     }
 
     class _web_server * operator -> () const;
-    void static_root(const std::string& root_folder) {
-      this->root_folder_ = root_folder;
-    }
 
     uint16_t port() const {
       return this->port_;
@@ -39,9 +36,8 @@ namespace vds {
 
   private:
     uint16_t port_;
-    std::string root_folder_;
     std::shared_ptr<class _web_server> impl_;
   };
 }
 
-#endif // __VDS_WEB_SERVER_WEB_SERVER_H_
+#endif // __VDS_WEB_SERVER_LIB_WEB_SERVER_H_

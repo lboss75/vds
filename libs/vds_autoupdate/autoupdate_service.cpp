@@ -110,22 +110,21 @@ vds::async_task<vds::expected<void>> vds::autoupdate::autoupdate_service::check_
 
         std::string brunch;
         GET_EXPECTED_VALUE(has_property, obj->get_property("brunch", brunch));
-        if (!has_property || arch != "test") {
+        if (!has_property || arch != app::brunch()) {
           return true;
         }
-        static const int product_version = 1;
         GET_EXPECTED_VALUE(has_property, obj->get_property("product_version", version));
-        if (!has_property || version <= product_version) {
+        if (!has_property || version <= app::product_version) {
           return true;
         }
 
         GET_EXPECTED_VALUE(has_property, obj->get_property("min_product_version", version));
-        if (has_property && version > product_version) {
+        if (has_property && version > app::product_version) {
           return true;
         }
 
         GET_EXPECTED_VALUE(has_property, obj->get_property("max_product_version", version));
-        if (has_property && version < product_version) {
+        if (has_property && version < app::product_version) {
           return true;
         }
 

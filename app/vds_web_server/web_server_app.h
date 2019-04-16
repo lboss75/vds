@@ -33,7 +33,6 @@ namespace vds {
     command_line_set server_start_command_set_;
     command_line_set server_service_command_set_;
 
-    command_line_value start_web_;
     command_line_value port_;
     command_line_switch dev_network_;
 

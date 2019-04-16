@@ -104,6 +104,10 @@ namespace vds {
         return expected<void>();
     }
 
+    expected<uint64_t> get_device_storage_used();
+    expected<uint64_t> get_device_storage_size();
+    expected<uint64_t> get_user_balance();
+
     //expected<bool> validate_and_save(
     //    
     //    const std::list<std::shared_ptr<certificate>> &cert_chain);

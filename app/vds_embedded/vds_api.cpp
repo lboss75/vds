@@ -115,6 +115,6 @@ api_string APICALL vds_set_device_storage_path(APIENV api_void_ptr vds_session, 
 
 uint64_t APICALL vds_get_user_balance(APIENV api_void_ptr vds_session) {
 	auto session = static_cast<vds::vds_embedded::vds_session *>(vds_session);
-
-	return session->get_user_balance();
+  auto result = session->get_user_balance();
+  return result.value();
 }

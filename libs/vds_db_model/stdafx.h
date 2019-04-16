@@ -8,4 +8,6 @@ All rights reserved
 
 #include "vds_core.h"
 
+#define ThisModule "DbModel"
+
 #endif//__VDS_DB_MODEL_STDAFX_H_

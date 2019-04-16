@@ -1,22 +1,48 @@
 #include "stdafx.h"
 #include "TrayIcon.h"
 #include "StringUtils.h"
-#include "VdsApi.h"
 
-TrayIcon::TrayIcon(VdsApi * api)
-  : api_(api),
-	auth_state_(AuthState::AS_NOT_INITIED),
-	session_(nullptr),
-	progress_(0)
+TrayIcon::TrayIcon()
+: auth_state_(AuthState::AS_NOT_INITIED),
+	progress_(0),
+  logger_(vds::log_level::ll_error, std::unordered_set<std::string>{"*"})
 {
+  this->registrator_.add(this->mt_service_);
+  this->registrator_.add(this->logger_);
+  this->registrator_.add(this->task_manager_);
+  this->registrator_.add(this->network_service_);
+  this->registrator_.add(this->crypto_service_);
+  this->registrator_.add(this->server_);
+  this->registrator_.add(this->web_server_);
 }
 
 
 TrayIcon::~TrayIcon()
 {
+  (void)this->registrator_.shutdown();
 }
 
 bool TrayIcon::create(HINSTANCE hInst) {
+
+  auto sp = this->registrator_.build();
+  if(sp.has_error()) {
+    MessageBoxA(NULL, sp.error()->what(), "VDS Distributed System", MB_ICONERROR);
+    return false;
+  }
+  this->sp_ = sp.value();
+
+  auto start_result = this->registrator_.start();
+  if (start_result.has_error()) {
+    MessageBoxA(NULL, start_result.error()->what(), "VDS Distributed System", MB_ICONERROR);
+    return false;
+  }
+
+  start_result = this->server_.start_network(8050, true).get();
+  if (start_result.has_error()) {
+    MessageBoxA(NULL, start_result.error()->what(), "VDS Distributed System", MB_ICONERROR);
+    return false;
+  }
+
   this->hInst_ = hInst;
   this->RegisterWndClass();
 
@@ -194,11 +220,11 @@ LRESULT CALLBACK TrayIcon::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 	  auto pthis = reinterpret_cast<TrayIcon *>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 	  switch (pthis->auth_state_){
 	  case AuthState::AS_LOGGING_IN: {
-		  auto result = StringUtils::from_string(vds_session_check(pthis->session_));
-		  if (result == _T("successfull")) {
+		  auto result = pthis->session_->get_login_state();
+		  if (result == vds::user_manager::login_state_t::login_successful) {
 			  pthis->auth_state_ = AuthState::AS_LOGGED_IN;
 		  }
-		  else if (result == _T("failed")) {
+		  else if (result == vds::user_manager::login_state_t::login_failed) {
 			  pthis->auth_state_ = AuthState::AS_FAILED;
 		  }
 		  pthis->update_icon_state();
@@ -235,17 +261,17 @@ void TrayIcon::show_logindlg()
 	dlg.password(this->password_);
 	if (dlg.show_dialog(this->hInst_)) {
 		if (this->session_ != nullptr) {
-			vds_session_destroy(this->session_);
-			this->session_ = nullptr;
+			this->session_.reset();
 		}
 
 		this->login_ = dlg.login();
 		this->password_ = dlg.password();
 		this->auth_state_ = AuthState::AS_LOGGING_IN;
-		this->session_ = vds_login(
-			this->api_->api(),
-			StringUtils::to_string(this->login_.c_str()).c_str(),
-			StringUtils::to_string(this->password_.c_str()).c_str());
+    this->session_ = std::make_shared<vds::user_manager>(this->sp_);
+    auto result = this->sp_->get<vds::db_model>()->async_read_transaction(
+      [this](vds::database_read_transaction & t) -> vds::expected<void> {
+      return this->session_->load(t, StringUtils::to_string(this->login_.c_str()), StringUtils::to_string(this->password_.c_str()));
+    }).get();
 
 		this->update_icon_state();
 	}

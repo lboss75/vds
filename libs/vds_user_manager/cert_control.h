@@ -62,6 +62,28 @@ namespace vds {
     static std::shared_ptr<certificate> get_autoupdate_admin_certificate() {
       return load_certificate(autoupdate_admin_certificate_);
     }
+
+    //web certificates
+    static const_data_buffer get_web_channel_id() {
+      GET_EXPECTED_THROW(result, base64::to_bytes(web_channel_id_));
+      return result;
+    }
+
+    static std::shared_ptr<certificate> get_web_read_certificate() {
+      return load_certificate(web_read_certificate_);
+    }
+
+    static std::shared_ptr<asymmetric_private_key> get_web_read_private_key() {
+      return load_private_key(web_read_private_key_);
+    }
+
+    static std::shared_ptr<certificate> get_web_write_certificate() {
+      return load_certificate(web_write_certificate_);
+    }
+
+    static std::shared_ptr<certificate> get_web_admin_certificate() {
+      return load_certificate(web_admin_certificate_);
+    }
     //common storage
     static std::shared_ptr<certificate> get_storage_certificate() {
       return load_certificate(common_storage_certificate_);
@@ -80,6 +102,8 @@ namespace vds {
       std::shared_ptr<asymmetric_private_key> common_news_admin_private_key_;
       std::shared_ptr<asymmetric_private_key> autoupdate_write_private_key_;
       std::shared_ptr<asymmetric_private_key> autoupdate_admin_private_key_;
+      std::shared_ptr<asymmetric_private_key> web_write_private_key_;
+      std::shared_ptr<asymmetric_private_key> web_admin_private_key_;
 
       expected<void> genereate_all();
     private:
@@ -108,6 +132,12 @@ namespace vds {
     static char autoupdate_read_private_key_[3137];
     static char autoupdate_write_certificate_[1821];
     static char autoupdate_admin_certificate_[1821];
+
+    static char web_channel_id_[65];
+    static char web_read_certificate_[1821];
+    static char web_read_private_key_[3137];
+    static char web_write_certificate_[1821];
+    static char web_admin_certificate_[1821];
 
     static char common_storage_certificate_[1821];
     static char common_storage_private_key_[3137];
