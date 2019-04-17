@@ -101,6 +101,7 @@ void vds::_mt_service::start()
 
 void vds::_mt_service::stop()
 {
+  this->is_shuting_down_ = true;
   for(auto & t : this->work_threads_){
     this->cond_.notify_all();
     t.join();
@@ -108,10 +109,6 @@ void vds::_mt_service::stop()
 }
 
 vds::async_task<vds::expected<void>> vds::_mt_service::prepare_to_stop() {
-  this->is_shuting_down_ = true;
-  for (auto & t : this->work_threads_) {
-	  this->cond_.notify_all();
-  }
   co_return expected<void>();
 }
 
@@ -155,10 +152,10 @@ void vds::_mt_service::set_instance(const service_provider * sp)
 void vds::_mt_service::work_thread()
 {
   set_instance(this->sp_);
-  while(!this->is_shuting_down_){
+  for(;;){
     std::unique_lock<std::mutex> lock(this->mutex_);
     if (this->queue_.empty()) {
-      if(8 < ++this->free_threads_) {
+      if(8 < ++this->free_threads_ || this->is_shuting_down_) {
         --this->free_threads_;
         break;
       }
@@ -168,7 +165,7 @@ void vds::_mt_service::work_thread()
       --this->free_threads_;
 
       if (this->is_shuting_down_) {
-        break;
+        continue;
       }
     }
     

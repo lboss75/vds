@@ -62,7 +62,7 @@ vds::vds_cmd_app::vds_cmd_app()
     "output folder",
     "Folder to store files"),
   sync_style_(
-    "s",
+    "ss",
     "sync-style",
     "Sync style",
     "Synchronize style: default - set local state equal to channel state, "
@@ -287,7 +287,7 @@ vds::expected<void> vds::vds_cmd_app::upload_file(
     request.add_string("message", this->message_.value());
   }
 
-  if (!file_hash_) {
+  if (0 == file_hash_.size()) {
     GET_EXPECTED(file_hash, hash::create(hash::sha256()));
 
     file f;
@@ -311,6 +311,7 @@ vds::expected<void> vds::vds_cmd_app::upload_file(
 
   std::list<std::string> headers;
   headers.push_back("X-VDS-SHA256:" + base64::from_bytes(file_hash_));
+  std::cout << "file hash: " << base64::from_bytes(file_hash_) << "\n";
 
   auto mimetype = http_mimetype::mimetype(fn);
   if (mimetype.empty()) {
@@ -487,7 +488,7 @@ vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, con
     foldername sync_folder(this->output_folder_.value());
 
     std::map<filename, bool> files;
-    (void)sync_folder.files([&filters, &files](const filename & fn) -> expected<bool> {
+    (void)sync_folder.files_recurcive([&filters, &files](const filename & fn) -> expected<bool> {
       bool filtered = false;
       for (const auto & filter : filters) {
         if (filter.empty()) {

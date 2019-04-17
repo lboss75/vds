@@ -27,10 +27,11 @@ vds::foldername::foldername(
 }
 
 
-vds::expected<void> vds::foldername::folders(
+vds::expected<bool> vds::foldername::folders(
   const std::function<expected<bool> (const foldername &) >& callback
 ) const
 {
+  bool result = true;
 #ifdef _WIN32
   WIN32_FIND_DATA ff;
   HANDLE hFind = FindFirstFile((this->local_name() + "\\*.*").c_str(), &ff);
@@ -52,6 +53,7 @@ vds::expected<void> vds::foldername::folders(
         }
 
         if (!r.value()) {
+          result = false;
           break;
         }
       }
@@ -70,6 +72,7 @@ vds::expected<void> vds::foldername::folders(
               stat(foldername(*this, dir->d_name).local_name().c_str(), &statbuf) != -1
               && S_ISDIR(statbuf.st_mode)) {
             if (!callback(foldername(*this, dir->d_name))) {
+              result = false;
               break;
             }
           }
@@ -84,12 +87,13 @@ vds::expected<void> vds::foldername::folders(
     closedir(d);
   }
 #endif
-  return expected<void>();
+  return expected<bool>(result);
 }
 
-vds::expected<void> vds::foldername::files(
+vds::expected<bool> vds::foldername::files(
   const std::function<expected<bool> (const filename &)>& callback) const
 {
+  bool result = true;
 #ifdef _WIN32
   WIN32_FIND_DATA ff;
   HANDLE hFind = FindFirstFile((this->local_name() + "\\*.*").c_str(), &ff);
@@ -109,6 +113,7 @@ vds::expected<void> vds::foldername::files(
           return unexpected(std::move(r.error()));
         }
         if (!r.value()) {
+          result = false;
           break;
         }
       }
@@ -126,6 +131,7 @@ vds::expected<void> vds::foldername::files(
             stat(filename(*this, dir->d_name).local_name().c_str(), &statbuf) != -1
             && S_ISREG(statbuf.st_mode)) {
           if (!callback(filename(*this, dir->d_name))) {
+            result = false;
             break;
           }
         }
@@ -136,7 +142,19 @@ vds::expected<void> vds::foldername::files(
   }
 #endif
 
-  return expected<void>();
+  return expected<bool>(result);
+}
+
+vds::expected<bool> vds::foldername::files_recurcive(
+  const std::function<expected<bool>(const filename& name)>& callback) const {
+  GET_EXPECTED(result, this->files(callback));
+  if(!result) {
+    return false;
+  }
+
+  return this->folders([callback](const foldername & folder)->expected<bool> {
+    return folder.files_recurcive(callback);
+  });
 }
 
 vds::expected<void> vds::foldername::delete_folder(bool recurcive) const

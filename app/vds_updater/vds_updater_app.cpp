@@ -67,7 +67,7 @@ vds::expected<void> vds::updater::vds_updater_app::main(const service_provider* 
       (void)file::move(p.second, p.first);
     }
 
-    return std::move(result);
+    return vds::unexpected(std::move(result.error()));
   }
 
   return expected<void>();

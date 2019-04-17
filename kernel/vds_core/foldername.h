@@ -60,12 +60,16 @@ namespace vds {
         return this->value_;
       }
       
-      expected<void> folders(
+      expected<bool> folders(
         const std::function<expected<bool> (const foldername & name)> & callback
       ) const;
 
-      expected<void> files(
+      expected<bool> files(
         const std::function<expected<bool> (const filename & name)> & callback
+      ) const;
+
+      expected<bool> files_recurcive(
+        const std::function<expected<bool>(const filename & name)> & callback
       ) const;
 
       expected<void> create() const;

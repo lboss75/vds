@@ -7,6 +7,8 @@ All rights reserved
 #include "http_multipart_request.h"
 #include "string_utils.h"
 
+static const char endl[] = "\r\n";
+
 vds::http_multipart_request::http_multipart_request(
   const std::string& method,
   const std::string& url,
@@ -29,9 +31,9 @@ vds::http_multipart_request::http_multipart_request(
 
 void vds::http_multipart_request::add_string(const std::string& name, const std::string& value) {
 
-  const auto part = "--" + this->boundary_ + "\r\n"
-    + "Content-Disposition: form-data; name=\"" + url_encode::encode(name) + "\"\r\n\r\n"
-    + url_encode::encode(value) + "\r\n";
+  const auto part = "--" + this->boundary_ + endl
+    + "Content-Disposition: form-data; name=\"" + url_encode::encode(name) + "\"" + endl + endl
+    + url_encode::encode(value) + endl;
 
   this->total_size_ += part.length();
   this->inputs_.push(std::make_shared<buffer_stream_input_async>(const_data_buffer(part.c_str(), part.length())));
@@ -45,15 +47,15 @@ vds::expected<void> vds::http_multipart_request::add_file(
   const std::list<std::string> & headers) {
 
   GET_EXPECTED(size, file::length(body_file));
-  auto header = "--" + this->boundary_ + "\r\n"
-    + "Content-Disposition: form-data; name=\"" + url_encode::encode(name) + "\"; filename=\"" + url_encode::encode(filename) + "\"\r\n"
-    + "Content-Type: " + content_type + "\r\n"
-    + "Content-Length: " + std::to_string(size) + "\r\n";
+  auto header = "--" + this->boundary_ + endl
+    + "Content-Disposition: form-data; name=\"" + url_encode::encode(name) + "\"; filename=\"" + url_encode::encode(filename) + "\"" + endl
+    + "Content-Type: " + content_type + endl
+    + "Content-Length: " + std::to_string(size) + endl;
   for(const auto & h : headers) {
     header += h;
-    header += "\r\n";
+    header += endl;
   }
-  header += "\r\n";
+  header += endl;
 
   this->total_size_ += header.length();
   this->total_size_ += size;
@@ -64,12 +66,14 @@ vds::expected<void> vds::http_multipart_request::add_file(
   CHECK_EXPECTED(f->open(body_file));
   this->inputs_.push(f);
 
+  this->inputs_.push(std::make_shared<buffer_stream_input_async>(const_data_buffer(endl, sizeof(endl) - 1)));
+
   return expected<void>();
 }
 
 vds::http_message vds::http_multipart_request::get_message() {
 
-  const auto tail = "--" + this->boundary_ + "--\r\n";
+  const auto tail = "--" + this->boundary_ + "--" + endl;
 
   this->total_size_ += tail.length();
   this->inputs_.push(std::make_shared<buffer_stream_input_async>(const_data_buffer(tail.c_str(), tail.length())));
