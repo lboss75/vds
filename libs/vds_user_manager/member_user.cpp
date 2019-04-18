@@ -87,18 +87,30 @@ vds::_member_user::_member_user(
 }
 
 vds::expected<vds::member_user> vds::_member_user::create_user(
-  const std::shared_ptr<asymmetric_private_key> &owner_user_private_key,
-  const std::string &user_name,
+  transactions::transaction_block_builder & log,
+  const std::string & user_email,
+  const std::string & user_password,
   const std::shared_ptr<asymmetric_private_key> &private_key)
 {
   GET_EXPECTED(c, _cert_control::create_user_cert(
-    user_name,
+    user_email,
     *private_key,
     *this->user_cert_,
-    *owner_user_private_key));
-  auto cert = std::make_shared<certificate>(std::move(c));
+    *this->private_key_));
 
-  return member_user(cert, private_key);
+  auto user_cert = std::make_shared<certificate>(std::move(c));
+
+  GET_EXPECTED(user_private_key_der, private_key->der(user_password));
+  GET_EXPECTED(user_id, dht::dht_object_id::user_credentials_to_key(user_email, user_password));
+  CHECK_EXPECTED(log.add(
+    message_create<transactions::create_user_transaction>(
+      user_id,
+      user_cert,
+      user_private_key_der,
+      user_email,
+      this->user_cert_->subject())));
+
+  return member_user(user_cert, private_key);
 }
 
 vds::expected<vds::user_channel> vds::_member_user::create_channel(

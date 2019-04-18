@@ -122,6 +122,27 @@ vds::expected<void> vds::user_manager::reset(
         cert_control::get_autoupdate_write_certificate(),
         private_info.autoupdate_write_private_key_)));
 
+    //Create auto update user
+    GET_EXPECTED(autoupdate_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+
+    GET_EXPECTED(
+      auto_update_user,
+      root_user->create_user(
+        playback,
+        cert_control::auto_update_login(),
+        cert_control::auto_update_password(),
+        std::make_shared<asymmetric_private_key>(std::move(autoupdate_private_key))));
+
+    GET_EXPECTED(auto_update_user_personal_channel, auto_update_user->personal_channel());
+    CHECK_EXPECTED(auto_update_user_personal_channel.add_log(
+      playback,
+      message_create<transactions::channel_add_reader_transaction>(
+        cert_control::get_autoupdate_channel_id(),
+        user_channel::channel_type_t::file_channel,
+        "Auto update",
+        cert_control::get_autoupdate_read_certificate(),
+        cert_control::get_autoupdate_read_private_key(),
+        cert_control::get_autoupdate_write_certificate())));
 
     //Web
     this->sp_->get<logger>()->info(ThisModule, "Create channel %s(Web)",
@@ -137,6 +158,27 @@ vds::expected<void> vds::user_manager::reset(
         cert_control::get_web_read_private_key(),
         cert_control::get_web_write_certificate(),
         private_info.web_write_private_key_)));
+
+    //Create web user
+    GET_EXPECTED(web_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+    GET_EXPECTED(
+      web_user,
+      root_user->create_user(
+        playback,
+        cert_control::web_login(),
+        cert_control::web_password(),
+        std::make_shared<asymmetric_private_key>(std::move(web_private_key))));
+
+    GET_EXPECTED(web_user_personal_channel, web_user->personal_channel());
+    CHECK_EXPECTED(web_user_personal_channel.add_log(
+      playback,
+      message_create<transactions::channel_add_reader_transaction>(
+        cert_control::get_web_channel_id(),
+        user_channel::channel_type_t::file_channel,
+        "Web",
+        cert_control::get_web_read_certificate(),
+        cert_control::get_web_read_private_key(),
+        cert_control::get_web_write_certificate())));
 
     CHECK_EXPECTED(playback.save(
       this->sp_,

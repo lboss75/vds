@@ -19,8 +19,9 @@ namespace vds {
       const std::shared_ptr<asymmetric_private_key> &private_key);
 
     expected<member_user> create_user(
-      const std::shared_ptr<asymmetric_private_key> &owner_user_private_key,
-      const std::string &user_name,
+      transactions::transaction_block_builder & log,
+      const std::string & user_email,
+      const std::string & user_password,
       const std::shared_ptr<asymmetric_private_key> &private_key);
 
     const std::shared_ptr<certificate> & user_certificate() const {

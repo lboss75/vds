@@ -5,7 +5,7 @@
 TrayIcon::TrayIcon()
 : auth_state_(AuthState::AS_NOT_INITIED),
 	progress_(0),
-  logger_(vds::log_level::ll_error, std::unordered_set<std::string>{"*"})
+  logger_(vds::log_level::ll_trace, std::unordered_set<std::string>{"*"})
 {
   this->registrator_.add(this->mt_service_);
   this->registrator_.add(this->logger_);

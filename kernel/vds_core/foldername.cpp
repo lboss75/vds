@@ -17,6 +17,7 @@ All rights reserved
 #include "filename.h"
 #include "file.h"
 #include "persistence.h"
+#include "../../tests/test_libs/test_config.h"
 
 vds::foldername::foldername(
   const vds::foldername& base,

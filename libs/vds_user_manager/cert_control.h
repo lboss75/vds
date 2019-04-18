@@ -95,6 +95,10 @@ namespace vds {
 
     static const std::string& auto_update_login();
     static const std::string& auto_update_password();
+
+    static const std::string& web_login();
+    static const std::string& web_password();
+
     class private_info_t {
     public:
       std::shared_ptr<asymmetric_private_key> root_private_key_;

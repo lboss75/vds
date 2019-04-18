@@ -598,6 +598,16 @@ const std::string& vds::cert_control::auto_update_password() {
   return auto_update_password_;
 }
 
+const std::string& vds::cert_control::web_login() {
+  static std::string web_login_("web_login");
+  return web_login_;
+}
+
+const std::string& vds::cert_control::web_password() {
+  static std::string web_password_("web_password");
+  return web_password_;
+}
+
 vds::expected<void> vds::cert_control::private_info_t::genereate_all() {
   GET_EXPECTED(key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   this->root_private_key_ = std::make_shared<asymmetric_private_key>(std::move(key));

@@ -45,8 +45,9 @@ vds::expected<void> vds::updater::vds_updater_app::main(const service_provider* 
 
     if(!result.has_error()) {
       auto this_folder = this->current_process_.contains_folder();
-      result = this_folder.files([&target_folder](const filename & fn) -> expected<bool> {
-        filename target_file(target_folder, fn.name());
+      result = this_folder.files([&target_folder, &this_folder](const filename & fn) -> expected<bool> {
+        GET_EXPECTED(relative_path, this_folder.relative_path(fn, false));
+        filename target_file(target_folder, relative_path);
         CHECK_EXPECTED(file::copy(fn, target_file, true));
         return true;
       });

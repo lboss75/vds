@@ -25,6 +25,7 @@ vds::foldername vds::filename::contains_folder() const
   }
 }
 
+
 std::string vds::filename::name() const
 {
   auto p = strrchr(this->value_.c_str(), '/');
