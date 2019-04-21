@@ -29,16 +29,16 @@ namespace vds {
 
     ~continuous_buffer()
     {
-#ifdef _DEBUG
-#pragma warning(disable: 4297)
-      if (0 != this->second_ || 0 != this->front_ || 0 != this->back_ || this->continue_read_ || this->continue_write_
-        || !this->eof_ || !this->eof_readed_) {
-        if (!std::current_exception()) {
-          throw std::runtime_error("continuous_buffer::~continuous_buffer logic error");
-        }
-      }
-#pragma warning(default: 4297)
-#endif//_DEBUG
+//#ifdef _DEBUG
+//#pragma warning(disable: 4297)
+//      if (0 != this->second_ || 0 != this->front_ || 0 != this->back_ || this->continue_read_ || this->continue_write_
+//        || !this->eof_ || !this->eof_readed_) {
+//        if (!std::current_exception()) {
+//          throw std::runtime_error("continuous_buffer::~continuous_buffer logic error");
+//        }
+//      }
+//#pragma warning(default: 4297)
+//#endif//_DEBUG
     }
 
     vds::async_task<vds::expected<void>> write_async(      

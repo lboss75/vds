@@ -4,6 +4,7 @@
 #include "http_router.h"
 #include "http_serializer.h"
 #include "http_pipeline.h"
+#include "files_channel.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -37,6 +38,7 @@ namespace vds {
     void kill_session(
       
       const std::string& session_id);
+    async_task<expected<http_message>> not_found_handler(const http_request& request);
 
   private:
     const service_provider * sp_;
@@ -48,6 +50,9 @@ namespace vds {
     timer update_timer_;
 
     async_task<vds::expected<void>> web_task_;
+
+    std::shared_ptr<user_manager> www_user_mng_;
+    std::shared_ptr<file_manager::files_channel> www_channel_;
 
     std::shared_ptr<user_manager> get_secured_context(
       const std::string & session_id) const;

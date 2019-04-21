@@ -55,6 +55,23 @@ vds::http_message vds::http_response::simple_text_response(
   return http_message(headers, std::make_shared<buffer_stream_input_async>(const_data_buffer(body.c_str(), body.length())));
 }
 
+vds::http_message vds::http_response::simple_text_response(
+  const std::shared_ptr<stream_input_async<uint8_t>> & body,
+  uint64_t body_size,
+  const std::string & content_type,
+  int result_code,
+  const std::string& message) {
+
+  std::list<std::string> headers;
+  headers.push_back("HTTP/1.0 " + std::to_string(result_code) + " " + message);
+  if (!content_type.empty()) {
+    headers.push_back("Content-Type:" + content_type);
+  }
+  headers.push_back("Content-Length:" + std::to_string(body_size));
+
+  return http_message(headers, body);
+}
+
 vds::http_message vds::http_response::redirect(const std::string& location) {
   std::list<std::string> headers;
   headers.push_back("HTTP/1.0 302 Found");

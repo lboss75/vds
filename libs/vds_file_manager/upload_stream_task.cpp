@@ -1,4 +1,3 @@
-
 #include "stdafx.h"
 #include "private/upload_stream_task_p.h"
 #include "db_model.h"
@@ -28,8 +27,6 @@ vds::async_task<vds::expected<std::list<vds::transactions::user_message_transact
 
       this->total_size_ += this->readed_;
       CHECK_EXPECTED_ASYNC(this->total_hash_.update(this->buffer_, this->readed_));
-      sp->get<logger>()->trace(ThisModule, "Body[%s]", std::string((const char *)this->buffer_, this->readed_).c_str());
-      
     }
 
     uint64_t readed = 0;
@@ -46,7 +43,6 @@ vds::async_task<vds::expected<std::list<vds::transactions::user_message_transact
 
           pthis->total_size_ += pthis->readed_;
           CHECK_EXPECTED_ASYNC(pthis->total_hash_.update(pthis->buffer_, pthis->readed_));
-          sp->get<logger>()->trace(ThisModule, "Body[%s]", std::string((const char *)pthis->buffer_, pthis->readed_).c_str());
         }
 
         auto len = pthis->readed_;

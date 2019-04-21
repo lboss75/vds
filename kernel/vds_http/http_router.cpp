@@ -62,12 +62,19 @@ vds::async_task<vds::expected<vds::http_message>> vds::http_router::route(
     }
   }
 
-  CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
-  co_return http_response::simple_text_response(
-    std::string(),
-    std::string(),
-    http_response::HTTP_Not_Found,
-    "Not Found");
+  expected<http_message> result;
+  GET_EXPECTED_VALUE_ASYNC(result, co_await this->not_found_handler_(request));
+  if (!result) {
+    CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
+    co_return http_response::simple_text_response(
+      std::string(),
+      std::string(),
+      http_response::HTTP_Not_Found,
+      "Not Found");
+  }
+  else {
+    co_return std::move(result);
+  }
 }
 
 void vds::http_router::add_static(

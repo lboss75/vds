@@ -114,7 +114,9 @@ vds::file_manager_private::_file_operations::download_file(
   std::list<std::list<transactions::user_message_transaction::file_block_t>> download_tasks;
   CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction(
       [pthis = this->shared_from_this(), user_mng, channel_id, file_name, file_hash, output_stream, result, &download_tasks](database_transaction &t) -> expected<void> {
-        auto channel = user_mng->get_channel(channel_id);
+    
+    CHECK_EXPECTED(user_mng->update(t));
+    auto channel = user_mng->get_channel(channel_id);
 
     CHECK_EXPECTED(user_mng->walk_messages(
             channel_id,

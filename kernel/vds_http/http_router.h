@@ -223,9 +223,15 @@ namespace vds {
       this->auth_callback_ = callback;
     }
 
+    void not_found_handler(const std::function<async_task<expected<http_message>>(const http_request &)> & callback) {
+      this->not_found_handler_ = callback;
+    }
+
   private:
     std::list<http_route_handler> handlers_;
+
     std::function<std::shared_ptr<user_manager>(const http_request &)> auth_callback_;
+    std::function<async_task<expected<http_message>>(const http_request &)> not_found_handler_;
   };
 }
 

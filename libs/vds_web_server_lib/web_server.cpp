@@ -17,6 +17,7 @@ All rights reserved
 #include "private/auth_session.h"
 #include "private/index_page.h"
 #include "storage_api.h"
+#include "db_model.h"
 
 vds::web_server::web_server()
 : port_(8050) {
@@ -205,6 +206,9 @@ router_({
   this->router_.auth_callback([this](const http_request & message) {
     return this->get_secured_context(message.get_parameter("session"));
   });
+  this->router_.not_found_handler([this](const http_request & message) -> async_task<expected<http_message>> {
+    return this->not_found_handler(message);
+  });
 }
 
 vds::_web_server::~_web_server() {
@@ -249,7 +253,6 @@ vds::async_task<vds::expected<void>> vds::_web_server::start(
       else {
         co_return std::move(result.value());
       }
-      co_return expected<http_message>();
     });
     CHECK_EXPECTED_ASYNC(co_await session->handler_->process(reader));
     co_return expected<void>();
@@ -275,6 +278,14 @@ vds::async_task<vds::expected<void>> vds::_web_server::start(
 
     co_return !pthis->sp_->get_shutdown_event().is_shuting_down();
   }));
+
+  this->www_user_mng_ = std::make_shared<user_manager>(this->sp_);
+  CHECK_EXPECTED_ASYNC(co_await this->sp_->get<vds::db_model>()->async_read_transaction([this](database_read_transaction & t)->expected<void> {
+    CHECK_EXPECTED(this->www_user_mng_->load(t, cert_control::web_login(), cert_control::web_password()));
+    return expected<void>();
+  }));
+
+    this->www_channel_ = std::make_shared<file_manager::files_channel>(this->sp_, this->www_user_mng_, cert_control::get_web_channel_id());
 
   co_return vds::expected<void>();
 }
@@ -316,7 +327,35 @@ void vds::_web_server::kill_session( const std::string& session_id) {
   }
 }
 
-std::shared_ptr<vds::user_manager> vds::_web_server::get_secured_context(
+vds::async_task<vds::expected<vds::http_message>> vds::_web_server::not_found_handler(
+  const http_request& request) {
+  if (request.method() == "GET") {
+    auto buffer = std::make_shared<continuous_buffer<uint8_t>>(this->sp_);
+
+    CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
+
+    file_manager::file_operations::download_result_t result;
+    GET_EXPECTED_VALUE_ASYNC(result, co_await this->www_channel_->download_file(
+      filename(request.url()),
+      const_data_buffer(),
+      std::make_shared<continuous_stream_output_async<uint8_t>>(buffer)));
+
+    if (result.file_hash.size() > 0) {
+      auto content_type = result.mime_type;
+      if (content_type.empty()) {
+        content_type = "application/octet-stream";
+      }
+      co_return http_response::simple_text_response(
+        std::make_shared<continuous_stream_input_async<uint8_t>>(buffer),
+        result.size,
+        result.mime_type);
+    }
+  }
+
+  co_return vds::expected<vds::http_message>();
+}
+
+        std::shared_ptr<vds::user_manager> vds::_web_server::get_secured_context(
   
   const std::string & session_id) const {
 

@@ -311,7 +311,6 @@ vds::expected<void> vds::vds_cmd_app::upload_file(
 
   std::list<std::string> headers;
   headers.push_back("X-VDS-SHA256:" + base64::from_bytes(file_hash_));
-  std::cout << "file hash: " << base64::from_bytes(file_hash_) << "\n";
 
   auto mimetype = http_mimetype::mimetype(fn);
   if (mimetype.empty()) {
@@ -402,15 +401,45 @@ vds::expected<void> vds::vds_cmd_app::download_file(
   });
 }
 
+struct sync_config {
+  std::string target;
+  std::map<std::string, std::string> file_map;
+};
 
 vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, const std::string& session) {
+  sync_config cfg;
+  filename config_file(foldername(this->output_folder_.value()), ".vds.config");
+  if (file::exists(config_file)) {
+    GET_EXPECTED(config_body, file::read_all_text(config_file));
+    GET_EXPECTED(
+      config,
+      json_parser::parse(
+        config_file.full_name(),
+        const_data_buffer(config_body.c_str(), config_body.length())));
+
+    auto config_obj = std::dynamic_pointer_cast<json_object>(config);
+    if (config_obj) {
+      CHECK_EXPECTED(config_obj->get_property("target", cfg.target));
+
+      auto map_obj = std::dynamic_pointer_cast<json_object>(config_obj->get_property("map"));
+      if (map_obj) {
+        map_obj->visit([&cfg](const std::shared_ptr<json_property> & prop) {
+          auto value = std::dynamic_pointer_cast<json_primitive>(prop->value());
+          if (value) {
+            cfg.file_map.emplace(prop->name(), value->value());
+          }
+        });
+      }
+    }
+  }
+
   return this->invoke_server(
     sp,
     http_request::create(
       "GET",
       "/api/channel_feed?session=" + url_encode::encode(session)
       + "&channel_id=" + url_encode::encode(this->channel_id_.value())).get_message(),
-    [this, sp, session](const http_message response) -> async_task<expected<void>> {
+    [this, sp, session, cfg, config_file](const http_message response) -> async_task<expected<void>> {
 
     if (http_response(response).code() != http_response::HTTP_OK) {
       return vds::make_unexpected<std::runtime_error>("Query channel failed " + http_response(response).comment());
@@ -488,7 +517,12 @@ vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, con
     foldername sync_folder(this->output_folder_.value());
 
     std::map<filename, bool> files;
-    (void)sync_folder.files_recurcive([&filters, &files](const filename & fn) -> expected<bool> {
+    (void)sync_folder.files_recurcive([&filters, &files, config_file](const filename & fn) -> expected<bool> {
+
+      if(fn == config_file) {
+        return expected<bool>(true);
+      }
+
       bool filtered = false;
       for (const auto & filter : filters) {
         if (filter.empty()) {
@@ -530,7 +564,14 @@ vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, con
       || "upload" == this->sync_style_.value()) {
       std::cout << "Checking local files...\n";
       for (const auto & fn : files) {
-        auto name = fn.first.full_name().substr(sync_folder.full_name().size() + 1);
+        GET_EXPECTED(name, sync_folder.relative_path(fn.first));
+        auto pmap = cfg.file_map.find(name);
+        if(cfg.file_map.end() != pmap) {
+          name = pmap->second;
+        }
+        else {
+          name = cfg.target + name;
+        }
         auto p = name2file.find(name);
         if (name2file.end() == p) {
           std::cout << "File " << name << " not found in the network. Uploading file...\n";
@@ -548,7 +589,21 @@ vds::expected<void> vds::vds_cmd_app::sync_files(const service_provider* sp, con
       || "download" == this->sync_style_.value()) {
       std::cout << "Checking remove files...\n";
       for (const auto & name : name2file) {
-        filename fn(sync_folder, name.first);
+        auto fname = name.first;
+        bool is_found = false;
+        for(const auto & item : cfg.file_map) {
+          if(fname == item.second) {
+            is_found = true;
+            fname = item.first;
+            break;
+          }
+        }
+
+        if(!is_found && cfg.target.length() > 0 && 0 == memcmp(cfg.target.c_str(), fname.c_str(), cfg.target.length())) {
+          fname = fname.substr(cfg.target.length());
+        }
+
+        filename fn(sync_folder, fname);
         auto p = files.find(fn);
         if (files.end() == p) {
           std::cout << "File " << name.first << " not found in the computed. Downloading file.\n";

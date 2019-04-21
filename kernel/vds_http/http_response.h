@@ -46,6 +46,13 @@ namespace vds {
       int result_code = HTTP_OK,
       const std::string & message = "OK");
 
+    static http_message simple_text_response(
+      const std::shared_ptr<stream_input_async<uint8_t>> & body,
+      uint64_t body_size,
+      const std::string & content_type = "application/octet-stream",
+      int result_code = HTTP_OK,
+      const std::string & message = "OK");
+
     static expected<http_message> file_response(
       const filename & body_file,
       const std::string & out_filename,

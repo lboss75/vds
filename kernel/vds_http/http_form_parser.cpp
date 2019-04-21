@@ -93,7 +93,7 @@ vds::async_task<vds::expected<void>> vds::http::form_parser::_form_parser::read_
           std::string content_type;
           if (part.get_header("Content-Type", content_type)) {
             CHECK_EXPECTED_ASYNC(co_await this->owner_->on_file(
-              file_info { name, fname->second, content_type, part.headers(), part.body() }));
+              file_info { name, url_encode::decode(fname->second), content_type, part.headers(), part.body() }));
             co_return  expected<void>();
             //if("application/x-zip-compressed" == content_type) {
             //  auto stream = std::make_shared<continuous_buffer<uint8_t>>(sp);
