@@ -9,9 +9,25 @@ import { fade } from '@material-ui/core/styles/colorManipulator';
 import { withStyles } from '@material-ui/core/styles';
 import MenuIcon from '@material-ui/icons/Menu';
 import SearchIcon from '@material-ui/icons/Search';
+import HomeIcon from '@material-ui/icons/Home';
+import AppsIcon from '@material-ui/icons/Apps';
+import ContactsIcon from '@material-ui/icons/Contacts';
 import MenuItem from '@material-ui/core/MenuItem';
 import Menu from '@material-ui/core/Menu';
 import AccountCircle from '@material-ui/icons/AccountCircle';
+import Drawer from '@material-ui/core/Drawer';
+import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
+import ChevronRightIcon from '@material-ui/icons/ChevronRight';
+import Divider from '@material-ui/core/Divider';
+import ListItem from '@material-ui/core/ListItem';
+import ListItemIcon from '@material-ui/core/ListItemIcon';
+import ListItemText from '@material-ui/core/ListItemText';
+import List from '@material-ui/core/List';
+import InboxIcon from '@material-ui/icons/MoveToInbox';
+import MailIcon from '@material-ui/icons/Mail';
+import classNames from 'classnames';
+
+const drawerWidth = 240;
 
 const styles = theme => ({
  root: {
@@ -70,13 +86,65 @@ const styles = theme => ({
         width: 400,
       },
     },
+    },
+ hide: {
+     display: 'none',
+ },
+ drawer: {
+     width: drawerWidth,
+     flexShrink: 0,
+ },
+ drawerPaper: {
+     width: drawerWidth,
+ },
+ drawerHeader: {
+     display: 'flex',
+     alignItems: 'center',
+     padding: '0 8px',
+     ...theme.mixins.toolbar,
+     justifyContent: 'flex-end',
+ },
+ appBar: {
+    transition: theme.transitions.create(['margin', 'width'], {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+  },
+ appBarShift: {
+    width: `calc(100% - ${drawerWidth}px)`,
+    marginLeft: drawerWidth,
+    transition: theme.transitions.create(['margin', 'width'], {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  },
+  content: {
+    flexGrow: 1,
+    padding: theme.spacing.unit * 3,
+    transition: theme.transitions.create('margin', {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+  },
+ contentShift: {
+    transition: theme.transitions.create('margin', {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+    marginLeft: drawerWidth,
   },
 });
 
 class NavBar extends React.Component {
+  constructor(props) {
+    super(props);
+    this.body = props.children;
+  }
+
   state = {
     auth: true,
-    anchorEl: null,
+      anchorEl: null,
+      openDrawer: false
   };
 
   handleChange = event => {
@@ -89,25 +157,42 @@ class NavBar extends React.Component {
 
   handleClose = () => {
     this.setState({ anchorEl: null });
-  };
+    };
+
+    handleDrawerOpen = () => {
+        this.setState({ openDrawer: true });
+    };
+
+    handleDrawerClose = () => {
+        this.setState({ openDrawer: false });
+    };
 
   render() {
-    const { classes } = this.props;
+    const { classes, theme } = this.props;
     const { auth, anchorEl } = this.state;
-    const open = Boolean(anchorEl);
+      const open = Boolean(anchorEl);
+      const { openDrawer } = this.state;
 
     return (
         <div className={classes.root}>
-        <AppBar position="static">
+        <AppBar
+		position="static"
+		className={classNames(classes.appBar, {
+            		[classes.appBarShift]: openDrawer,
+          	})}>
           <Toolbar>
-            <IconButton className={classes.menuButton} color="inherit" aria-label="Menu">
+            <IconButton
+		className={classNames(classes.menuButton, openDrawer && classes.hide)}
+		color="inherit"
+		aria-label="Open drawer"
+		onClick={this.handleDrawerOpen}>
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" color="inherit" noWrap>
-                React & Material-UI Sample Application
+                АйВи Консантинг
             </Typography>
             <div className={classes.grow} />
-            <div className={classes.search}>
+            <div className={classNames(classes.search, classes.hide)}>
               <div className={classes.searchIcon}>
                 <SearchIcon />
               </div>
@@ -119,7 +204,7 @@ class NavBar extends React.Component {
                 }}
               />
             </div>
-	    <div>
+	    <div className={classes.hide}>
                 <IconButton
                   aria-owns={open ? 'menu-appbar' : undefined}
                   aria-haspopup="true"
@@ -147,7 +232,44 @@ class NavBar extends React.Component {
                 </Menu>
               </div>
             </Toolbar>
-	  </AppBar>
+        </AppBar>
+        <Drawer
+            className={classes.drawer}
+            variant="persistent"
+            anchor="left"
+            open={openDrawer}
+            classes={{
+                paper: classes.drawerPaper,
+            }}
+        >
+            <div className={classes.drawerHeader}>
+                <IconButton onClick={this.handleDrawerClose}>
+                    {theme.direction === 'ltr' ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+                </IconButton>
+            </div>
+            <Divider />
+            <List>
+		<ListItem button component="a" href="/">
+			<ListItemIcon><HomeIcon /></ListItemIcon>
+    			<ListItemText primary="Домашняя" />
+  		</ListItem>
+		<ListItem button component="a" href="/products">
+			<ListItemIcon><AppsIcon /></ListItemIcon>
+    			<ListItemText primary="Проекты" />
+  		</ListItem>
+		<ListItem button component="a" href="/contacts">
+			<ListItemIcon><ContactsIcon /></ListItemIcon>
+    			<ListItemText primary="Контакты" />
+  		</ListItem>
+            </List>
+         </Drawer>
+	<main
+          className={classNames(classes.content, {
+            [classes.contentShift]: openDrawer,
+          })}
+        >
+		{this.body}
+        </main>
         </div>
     );
   }
@@ -155,6 +277,7 @@ class NavBar extends React.Component {
 
 NavBar.propTypes = {
   classes: PropTypes.object.isRequired,
+  theme: PropTypes.object.isRequired,
 };
 
-export default withStyles(styles)(NavBar);
+export default withStyles(styles, { withTheme: true })(NavBar);

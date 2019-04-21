@@ -1,14 +1,18 @@
 import React, { Component } from 'react'
 import { Route } from 'react-router';
-import Layout from './components/Layout';
 import Home from './components/Home';
+import NavBar from './components/NavBar';
+import Products from './components/Products';
+import Contacts from './components/Contacts';
 
 class App extends Component {
   render() {
     return (
-      <Layout>
+      <NavBar>
         <Route exact path='/' component={Home} />
-      </Layout>
+        <Route exact path='/products' component={Products} />
+        <Route exact path='/contacts' component={Contacts} />
+      </NavBar>
     );
   }
 }
