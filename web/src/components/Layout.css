@@ -1,0 +1,7 @@
+﻿body {
+    background-color: #021523;
+    color: white;
+}
+.layout:after {
+    content: url('background.jpg');
+}
