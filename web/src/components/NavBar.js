@@ -26,6 +26,7 @@ import List from '@material-ui/core/List';
 import InboxIcon from '@material-ui/icons/MoveToInbox';
 import MailIcon from '@material-ui/icons/Mail';
 import classNames from 'classnames';
+import Link from 'react-router-dom/Link';
 
 const drawerWidth = 240;
 
@@ -249,15 +250,19 @@ class NavBar extends React.Component {
             </div>
             <Divider />
             <List>
-		<ListItem button component="a" href="/">
+		<ListItem button component={Link} to="/">
 			<ListItemIcon><HomeIcon /></ListItemIcon>
     			<ListItemText primary="Домашняя" />
   		</ListItem>
-		<ListItem button component="a" href="/products">
+		<ListItem button component={Link} to="/products">
 			<ListItemIcon><AppsIcon /></ListItemIcon>
     			<ListItemText primary="Проекты" />
   		</ListItem>
-		<ListItem button component="a" href="/contacts">
+      <ListItem button component={Link} to="/vds">
+			<ListItemIcon><AppsIcon /></ListItemIcon>
+    			<ListItemText primary="Хранилище" />
+  		</ListItem>
+		<ListItem button component={Link} to="/contacts">
 			<ListItemIcon><ContactsIcon /></ListItemIcon>
     			<ListItemText primary="Контакты" />
   		</ListItem>
