@@ -16,9 +16,10 @@ namespace vds {
   class http_pipeline : public http_parser {
   public:
     http_pipeline(
+	  const service_provider * sp,
       const std::shared_ptr<http_async_serializer> & output_stream,
       const std::function<vds::async_task<vds::expected<http_message>>(http_message message)> &message_callback)
-      : http_parser([message_callback, this](
+      : http_parser(sp, [message_callback, this](
         const http_message message)->vds::async_task<vds::expected<void>> {
               auto pthis = this->shared_from_this();
               //std::string keep_alive_header;

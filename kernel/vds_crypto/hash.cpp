@@ -27,6 +27,16 @@ const vds::hash_info & vds::hash::sha256()
 
   return result;
 }
+
+const vds::hash_info & vds::hash::sha1()
+{
+	static hash_info result = {
+	  NID_sha1,
+	  EVP_sha1()
+	};
+
+	return result;
+}
 ///////////////////////////////////////////////////////////////
 vds::hash::hash()
 : impl_(nullptr)

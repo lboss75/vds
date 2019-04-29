@@ -7,8 +7,9 @@ All rights reserved
 #include "http_parser.h"
 
 vds::http_parser::http_parser(
+  const service_provider * sp,
   const std::function<vds::async_task<vds::expected<void>>(http_message message)>& message_callback):
-  message_callback_(message_callback), eof_(false) {
+  sp_(sp), message_callback_(message_callback), eof_(false) {
 }
 
 vds::http_parser::~http_parser() {
@@ -22,9 +23,13 @@ vds::async_task<vds::expected<void>> vds::http_parser::process(
     size_t len;
     GET_EXPECTED_VALUE_ASYNC(len, co_await input_stream->read_async(this->buffer_, sizeof(this->buffer_)));
     if (0 == len) {
-      this->eof_ = true;
+		this->sp_->get<logger>()->trace(ThisModule, "HTTP end");
+		this->eof_ = true;
       break;
     }
+
+	this->sp_->get<logger>()->trace(ThisModule, "HTTP[%s]", std::string((const char *)this->buffer_, len).c_str());
+
 
     auto data = this->buffer_;
 
@@ -68,7 +73,7 @@ vds::async_task<vds::expected<void>> vds::http_parser::process(
         if (http_message::get_header(this->headers_, "Content-Length", content_length_header)) {
           content_length = std::stoul(content_length_header);
         }
-        else if (http_message::get_header(this->headers_, "Transfer-Encoding", transfer_encoding)) {
+        else if (http_message::get_header(this->headers_, "Transfer-Encoding", transfer_encoding) || http_message::have_header(this->headers_, "Upgrade")) {
           content_length = (size_t)-1;
         }
         else {
@@ -144,13 +149,15 @@ vds::async_task<vds::expected<size_t>> vds::http_parser::http_body_reader::parse
 
   if (this->readed_ == this->processed_) {
     this->processed_ = 0;
-    GET_EXPECTED_VALUE_ASYNC(this->readed_, co_await this->input_stream_->read_async(this->buffer_, sizeof(this->buffer_
-    )));
+    GET_EXPECTED_VALUE_ASYNC(this->readed_, co_await this->input_stream_->read_async(this->buffer_, sizeof(this->buffer_)));
     if (0 == this->readed_) {
-      vds_assert(0 == this->content_length_);
+		this->owner_->sp_->get<logger>()->trace(ThisModule, "HTTP end");
+		vds_assert(0 == this->content_length_);
       this->eof_ = true;
       co_return 0;
     }
+
+	this->owner_->sp_->get<logger>()->trace(ThisModule, "HTTP[%s]", std::string((const char *)this->buffer_, this->readed_).c_str());
   }
 
   auto size = this->readed_ - this->processed_;
@@ -200,9 +207,13 @@ vds::async_task<vds::expected<size_t>> vds::http_parser::http_body_reader::read_
           this->readed_,
           co_await this->input_stream_->read_async(this->buffer_, sizeof(this->buffer_)));
         if (0 == this->readed_) {
-          this->eof_ = true;
+			this->owner_->sp_->get<logger>()->trace(ThisModule, "HTTP end");
+			this->eof_ = true;
           co_return 0;
         }
+
+		this->owner_->sp_->get<logger>()->trace(ThisModule, "HTTP[%s]", std::string((const char *)this->buffer_, this->readed_).c_str());
+
       }
 
       char* p = (char *)memchr((const char *)this->buffer_ + this->processed_, '\n', this->readed_ - this->processed_);

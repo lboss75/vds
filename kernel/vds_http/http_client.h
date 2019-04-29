@@ -18,6 +18,7 @@ namespace vds {
   {
   public:
     vds::async_task<vds::expected<void>> start(
+		const service_provider * sp,
       const std::shared_ptr<vds::stream_input_async<uint8_t>> & input_stream,
       const std::shared_ptr<vds::stream_output_async<uint8_t>> & output_stream);
 
@@ -29,6 +30,7 @@ namespace vds {
     class client_pipeline : public http_parser {
     public:
       client_pipeline(
+		const service_provider * sp,
         const std::function<vds::async_task<vds::expected<void>>(const http_message message)> &message_callback);
 
     };

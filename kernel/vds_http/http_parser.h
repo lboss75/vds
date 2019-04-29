@@ -19,6 +19,7 @@ namespace vds {
   class http_parser : public std::enable_shared_from_this<http_parser>{
   public:
     http_parser(
+		const service_provider * sp,
       const std::function<vds::async_task<vds::expected<void>>(http_message message)>& message_callback);
 
     ~http_parser();
@@ -38,6 +39,7 @@ namespace vds {
     
 
   private:
+	const service_provider * sp_;
     std::function<vds::async_task<vds::expected<void>>(http_message message)> message_callback_;
     uint8_t buffer_[1024];
     bool eof_;

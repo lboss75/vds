@@ -13,6 +13,7 @@ namespace vds {
   public:
     static const struct hash_info & md5();
     static const hash_info & sha256();
+	static const hash_info & sha1();
 
     hash();
     hash(const hash & original) = delete;

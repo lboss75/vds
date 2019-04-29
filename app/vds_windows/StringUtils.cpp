@@ -56,7 +56,7 @@ std::tstring StringUtils::from_string(const std::string& original) {
 
   ::WideCharToMultiByte(CP_ACP, 0, utf16, -1, utf8, buf_size, NULL, NULL);
 
-  std::string result(utf8, ::wcslen(utf8));
+  std::string result(utf8, ::strlen(utf8));
 
   delete[] utf8;
 #endif

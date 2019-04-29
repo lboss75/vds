@@ -12,7 +12,7 @@ add_subdirectory(vds_embedded)
 
 IF(MSVC)
 
-INCLUDE_EXTERNAL_MSPROJECT(vds_windows ${CMAKE_CURRENT_LIST_DIR}/vds_windows/vds_windows.vcxproj)
+	add_subdirectory(vds_windows)
 
 ELSE(MSVC)
 

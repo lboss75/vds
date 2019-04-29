@@ -34,6 +34,10 @@ namespace vds {
         const std::string& name,
         std::string& value);
 
+	static bool have_header(
+		const std::list<std::string> & headers,
+		const std::string& name);
+
     bool get_header(const std::string & name, std::string & value) const{
       return get_header(this->headers_, name, value);
     }

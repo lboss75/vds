@@ -202,7 +202,7 @@ vds::expected<void> vds::vds_cmd_app::invoke_server(
   auto writer = std::get<1>(streams);
 
   auto client = std::make_shared<http_client>();
-  auto client_task = client->start(reader, writer);
+  auto client_task = client->start(sp, reader, writer);
 
   CHECK_EXPECTED(client->send(request, response_handler).get());
 

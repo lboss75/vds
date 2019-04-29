@@ -9,6 +9,7 @@ All rights reserved
 
 
 vds::async_task<vds::expected<void>> vds::http_client::start(
+	const service_provider * sp,
   const std::shared_ptr<vds::stream_input_async<uint8_t>> & input_stream,
   const std::shared_ptr<vds::stream_output_async<uint8_t>> & output_stream) {
 
@@ -16,6 +17,7 @@ vds::async_task<vds::expected<void>> vds::http_client::start(
 
   this->output_ = std::make_shared<http_async_serializer>(output_stream);
   this->pipeline_ = std::make_shared<client_pipeline>(
+	sp,
     [pthis = this->shared_from_this(), eof](const http_message message) -> async_task<expected<void>> {
 
     if (!message) {
@@ -65,6 +67,7 @@ vds::async_task<vds::expected<void>> vds::http_client::send(
 }
 
 vds::http_client::client_pipeline::client_pipeline(
+  const service_provider * sp,
   const std::function<vds::async_task<vds::expected<void>>(http_message message)>& message_callback)
-  : http_parser(message_callback) {
+  : http_parser(sp, message_callback) {
 }

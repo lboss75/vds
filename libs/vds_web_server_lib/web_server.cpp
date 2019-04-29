@@ -18,6 +18,7 @@ All rights reserved
 #include "private/index_page.h"
 #include "storage_api.h"
 #include "db_model.h"
+#include "websocket_api.h"
 
 vds::web_server::web_server()
 : port_(8050) {
@@ -200,6 +201,7 @@ router_({
   {"/api/upload", "POST", &api_controller::create_message },
   {"/upload", "POST", &index_page::create_message },
   {"/api/statistics", "GET", &api_controller::get_statistics },
+  {"/api/ws", "GET", &websocket_api::open_connection }
   }),
   update_timer_("web session timer")
 {
@@ -243,6 +245,7 @@ vds::async_task<vds::expected<void>> vds::_web_server::start(
     auto writer = std::get<1>(streams);
     auto session = std::make_shared<session_data>(writer);
     session->handler_ = std::make_shared<http_pipeline>(
+		sp,
         session->stream_,
       [sp, pthis, session](const http_message request) -> vds::async_task<vds::expected<http_message>> {
       auto result = co_await pthis->process_message(session, request);

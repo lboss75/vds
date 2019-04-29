@@ -25,6 +25,21 @@ bool vds::http_message::get_header(
   return false;
 }
 
+bool vds::http_message::have_header(const std::list<std::string>& headers, const std::string & name)
+{
+	for (auto& p : headers) {
+		//Start with
+		if (
+			p.size() > name.size()
+			&& p[name.size()] == ':'
+			&& !p.compare(0, name.size(), name)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 vds::async_task<vds::expected<void>> vds::http_message::ignore_empty_body() const {
   const_data_buffer result;
   GET_EXPECTED_VALUE_ASYNC(result, co_await this->body_->read_all());
