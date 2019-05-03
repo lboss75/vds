@@ -1,0 +1,22 @@
+<html>
+    <head>
+        <script>
+            const webSocket = new WebSocket('ws://localhost:8050/api/ws');
+
+            webSocket.onopen = event => {
+                alert('onopen');
+                webSocket.send('{"id":"1","invoke":["hello",["Hello Web Socket!"]]}');
+            };
+
+            webSocket.onmessage = event => {
+                alert('onmessage, ' + event.data);
+            };
+
+            webSocket.onclose = event => {
+                alert('onclose');
+            };
+        </script>
+    </head>
+    <body>
+    </body>
+</html>

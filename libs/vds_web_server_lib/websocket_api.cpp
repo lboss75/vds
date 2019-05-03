@@ -52,7 +52,7 @@ std::shared_ptr<vds::stream_input_async<uint8_t>> vds::websocket_api::start(cons
 			}
 		}
 
-		static const char error_message[] = "{error: \"Invalid command\"}";
+		static const char error_message[] = "{\"error\": \"Invalid command\"}";
 		return buffer->write_async((const uint8_t *)error_message, sizeof(error_message)).get();
 	}, options);
 
