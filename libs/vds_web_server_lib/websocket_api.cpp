@@ -42,18 +42,80 @@ std::shared_ptr<vds::stream_input_async<uint8_t>> vds::websocket_api::start(cons
 
 	auto parser = std::make_shared<json_parser>("Web Socket", [pthis = this->shared_from_this(), buffer](const std::shared_ptr<json_value> & message)->expected<void> {
 
-		auto request = std::dynamic_pointer_cast<json_object>(message);
-		if (request) {
-			int id;
-			GET_EXPECTED(isOk, request->get_property("id", id));
+		std::shared_ptr<json_value> result;
+		std::string error_message;
 
-			if (isOk) {
-					
+		auto request = std::dynamic_pointer_cast<json_object>(message);
+		if (!request) {
+			error_message = "JSON object is expected";
+		}
+		else {
+			int id;
+			auto isOk = request->get_property("id", id);
+
+			if (isOk.has_error() || !isOk.value()) {
+				error_message = "id field is expected";
+			}
+			else {
+				auto invoke = std::dynamic_pointer_cast<json_array>(request->get_property("invoke"));
+
+				if (!invoke) {
+					error_message = "invoke field is expected";
+				}
+				else {
+					auto method_name = std::dynamic_pointer_cast<json_primitive>(invoke->get(0));
+					if (!method_name) {
+						error_message = "method name is expected";
+					}
+					else {
+
+						if ("login" == method_name->value()) {
+							auto args = std::dynamic_pointer_cast<json_array>(invoke->get(1));
+							if (!args) {
+								error_message = "invalid arguments at invoke method 'login'";
+							}
+							else {
+								auto login = std::dynamic_pointer_cast<json_primitive>(args->get(0));
+								auto password = std::dynamic_pointer_cast<json_primitive>(args->get(1));
+
+								if (!login) {
+									error_message = "missing login argument at invoke method 'login'";
+								}
+								else {
+									auto password = std::dynamic_pointer_cast<json_primitive>(args->get(1));
+
+									if (!password) {
+										error_message = "missing password argument at invoke method 'login'";
+									}
+									else {
+										auto res = pthis->login(login->value(), password->value()).get();
+
+										if (res.has_error()) {
+											error_message = std::string(res.error()->what()) + " at invoke method 'login'";
+										}
+										else {
+
+										}
+									}
+								}
+							}
+						}
+						else {
+							error_message = "method name '" + method_name->value() + "' is unexpected";
+						}
+					}
+				}
 			}
 		}
 
-		static const char error_message[] = "{\"error\": \"Invalid command\"}";
-		return buffer->write_async((const uint8_t *)error_message, sizeof(error_message)).get();
+		if (!result) {
+			auto res = std::make_shared<json_object>();
+			res->add_property("error", error_message);
+			result = res;
+		}
+
+		GET_EXPECTED(result_body, result->str());
+		return buffer->write_async((const uint8_t *)result_body.c_str(), result_body.length()).get();
 	}, options);
 
 	this->task_ = this->start_parse(parser, request.get_message().body());
@@ -224,6 +286,11 @@ vds::async_task<vds::expected<void>> vds::websocket_api::start_parse(
 			}
 		}
 	}
+}
+
+vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::websocket_api::login(const std::string & username, const std::string & password_hash)
+{
+	return async_task<expected<std::shared_ptr<json_value>>>();
 }
 
 

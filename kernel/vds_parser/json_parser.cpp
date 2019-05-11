@@ -254,6 +254,63 @@ vds::expected<void> vds::json_parser::write(const uint8_t * input_buffer, size_t
 			}
 			break;
 
+		case ST_INTEGER:
+			switch (current_symbol) {
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+				this->buffer_ += current_symbol;
+				break;
+			default:
+				this->state_ = this->saved_states_.top();
+				saved_states_.pop();
+				switch (this->state_) {
+				case ST_OBJECT_ITEM:
+					this->final_integer_property();
+					break;
+
+				case ST_ARRAY_ITEM:
+					std::static_pointer_cast<json_array>(this->current_object_)->add(
+						std::make_shared<json_primitive>(
+							this->line_, this->column_,
+							this->buffer_,
+							json_primitive::primitive_type::integer
+							));
+					this->buffer_.clear();
+					break;
+
+				default:
+					return vds::make_unexpected<parse_error>(
+						this->stream_name_,
+						this->line_,
+						this->column_,
+						std::string("Unexpected char ") + current_symbol);
+				}
+
+				//Step back
+				++input_len;
+				--input_buffer;
+				switch (current_symbol) {
+				case '\n':
+					this->line_--;
+					break;
+
+				default:
+					this->column_--;
+					break;
+				}
+
+				break;
+			}
+			break;
+
 		case ST_STRING:
 			switch (current_symbol) {
 			case '\\':
@@ -623,6 +680,20 @@ vds::expected<void> vds::json_parser::write(const uint8_t * input_buffer, size_t
 				CHECK_EXPECTED(this->start_array());
 				break;
 
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+				this->state_ = ST_INTEGER;
+				this->buffer_ += current_symbol;
+				break;
+
 			default:
 				if (isspace(current_symbol)) {
 					continue;
@@ -729,6 +800,17 @@ void vds::json_parser::start_property() {
 void vds::json_parser::final_string_property() {
 	std::static_pointer_cast<json_property>(this->current_object_)->value(
 		std::make_shared<json_primitive>(this->line_, this->column_, this->buffer_)
+	);
+
+	this->current_object_ = this->current_path_.top();
+	this->current_path_.pop();
+
+	this->buffer_.clear();
+}
+
+void vds::json_parser::final_integer_property() {
+	std::static_pointer_cast<json_property>(this->current_object_)->value(
+		std::make_shared<json_primitive>(this->line_, this->column_, this->buffer_, json_primitive::primitive_type::integer)
 	);
 
 	this->current_object_ = this->current_path_.top();

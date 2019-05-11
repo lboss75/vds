@@ -22,16 +22,17 @@ vds::json_value::~json_value()
 }
 
 vds::json_primitive::json_primitive(
-    const std::string & value)
-: value_(value)
+    const std::string & value, primitive_type type /*= primitive_type::string*/)
+: value_(value), type_(type)
 {
 }
 
 vds::json_primitive::json_primitive(
     int line,
     int column,
-    const std::string & value)
-: json_value(line, column), value_(value)
+    const std::string & value,
+	primitive_type type/* = primitive_type::string*/)
+: json_value(line, column), value_(value), type_(type)
 {
 }
 
@@ -251,7 +252,7 @@ vds::expected<void> vds::json_primitive::str(json_writer & writer) const
 
 std::shared_ptr<vds::json_value> vds::json_primitive::clone(bool /*is_deep*/) const
 {
-  return std::make_shared<json_primitive>(this->value_);
+  return std::make_shared<json_primitive>(this->value_, this->type_);
 }
 
 vds::expected<void> vds::json_property::str(json_writer & writer) const

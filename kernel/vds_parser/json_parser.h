@@ -68,6 +68,8 @@ namespace vds {
       ST_OBJECT_PROPERTY_VALUE,
       //ST_OBJECT_PROPERTY_VALUE_FINISH,
 
+	  ST_INTEGER,
+
       ST_STRING,
       ST_STRING_BACKSLESH,
 
@@ -101,6 +103,7 @@ namespace vds {
 
 	void start_property();
 	void final_string_property();
+	void final_integer_property();
   };
   
 

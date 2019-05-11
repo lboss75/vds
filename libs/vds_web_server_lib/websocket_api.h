@@ -26,7 +26,13 @@ namespace vds {
 			std::shared_ptr<stream_input_async<uint8_t>> request_stream);
 
 		const service_provider * sp_;
-		vds::async_task<vds::expected<void>> task_;		
+		vds::async_task<vds::expected<void>> task_;
+
+
+		async_task<expected<std::shared_ptr<json_value>>> login(
+			const std::string & username,
+			const std::string & password_hash);
+
 	};
 
 }//vds

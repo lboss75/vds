@@ -42,20 +42,31 @@ namespace vds {
   class json_primitive : public json_value
   {
   public:
-    json_primitive(const std::string & value);
+	  enum class primitive_type
+	  {
+		  string,
+		  integer
+	  };
+    json_primitive(const std::string & value, primitive_type type = primitive_type::string);
     json_primitive(
       int line, int column,
-      const std::string & value);
+      const std::string & value,
+		primitive_type type = primitive_type::string);
     
     const std::string & value() const {
       return this->value_;
     }
-    
+
+	const primitive_type type() const {
+		return this->type_;
+	}
+
     expected<void> str(json_writer & writer) const override;
     std::shared_ptr<json_value> clone(bool is_deep_clone) const override;
 
   private:
     std::string value_;
+	primitive_type type_;
   };
   
   class json_property : public json_value
