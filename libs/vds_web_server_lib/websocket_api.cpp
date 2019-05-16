@@ -4,6 +4,10 @@ All rights reserved
 */
 #include "stdafx.h"
 #include "websocket_api.h"
+#include "db_model.h"
+#include "transaction_log_record_dbo.h"
+#include "user_manager_transactions.h"
+#include "transaction_block.h"
 
 vds::async_task<vds::expected<vds::http_message>> vds::websocket_api::open_connection(const vds::service_provider * sp, const http_request & request)
 {
@@ -82,20 +86,19 @@ std::shared_ptr<vds::stream_input_async<uint8_t>> vds::websocket_api::start(cons
 									error_message = "missing login argument at invoke method 'login'";
 								}
 								else {
-									auto password = std::dynamic_pointer_cast<json_primitive>(args->get(1));
+									auto res = pthis->login(login->value(), password->value()).get();
 
-									if (!password) {
-										error_message = "missing password argument at invoke method 'login'";
+									if (res.has_error()) {
+										error_message = std::string(res.error()->what()) + " at invoke method 'login'";
+									}
+									else if (!res.value()) {
+										error_message = "login failed";
 									}
 									else {
-										auto res = pthis->login(login->value(), password->value()).get();
-
-										if (res.has_error()) {
-											error_message = std::string(res.error()->what()) + " at invoke method 'login'";
-										}
-										else {
-
-										}
+										auto r = std::make_shared<json_object>();
+										r->add_property("id", id);
+										r->add_property("result", res.value());
+										result = r;
 									}
 								}
 							}
@@ -104,6 +107,12 @@ std::shared_ptr<vds::stream_input_async<uint8_t>> vds::websocket_api::start(cons
 							error_message = "method name '" + method_name->value() + "' is unexpected";
 						}
 					}
+				}
+				if (!result) {
+					auto res = std::make_shared<json_object>();
+					res->add_property("id", id);
+					res->add_property("error", error_message);
+					result = res;
 				}
 			}
 		}
@@ -288,9 +297,77 @@ vds::async_task<vds::expected<void>> vds::websocket_api::start_parse(
 	}
 }
 
-vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::websocket_api::login(const std::string & username, const std::string & password_hash)
+vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::websocket_api::login(
+	const std::string & username,
+	const std::string & password_hash)
 {
-	return async_task<expected<std::shared_ptr<json_value>>>();
+	std::shared_ptr<vds::json_object> result;
+
+	CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_read_transaction(
+		[
+			pthis = this->shared_from_this(),
+			username,
+			password_hash,
+			&result
+		](database_read_transaction & t)->expected<void> {
+
+		orm::transaction_log_record_dbo t1;
+		GET_EXPECTED(st, t.get_reader(
+			t1.select(t1.id, t1.data)
+			.order_by(db_desc_order(t1.order_no))));
+
+		WHILE_EXPECTED(st.execute())
+			const auto data = t1.data.get(st);
+			GET_EXPECTED(block, transactions::transaction_block::create(data));
+
+			CHECK_EXPECTED(block.walk_messages(
+				[username, password_hash, &result](const transactions::root_user_transaction & message)->expected<bool> {
+					if (username == message.user_name) {
+						if(password_hash == message.user_credentials_key) {
+							result = std::make_shared<json_object>();
+							result->add_property("result", "successful");
+							CHECK_EXPECTED(result->add_property("cert", message.user_cert->str()));
+							result->add_property("key", base64::from_bytes(message.user_private_key));
+						}
+						else {
+							result = std::make_shared<json_object>();
+							result->add_property("result", "failed");
+						}
+
+						return false;
+					}
+					else {
+						return true;
+					}
+				},
+				[username, password_hash, &result](const transactions::create_user_transaction & message)->expected<bool> {
+					if (username == message.user_name) {
+						if (password_hash == message.user_credentials_key) {
+							result = std::make_shared<json_object>();
+							result->add_property("result", "successful");
+							CHECK_EXPECTED(result->add_property("cert", message.user_cert->str()));
+							result->add_property("key", base64::from_bytes(message.user_private_key));
+						}
+						else {
+							result = std::make_shared<json_object>();
+							result->add_property("result", "failed");
+						}
+
+						return false;
+					}
+					else {
+						return true;
+					}
+				}
+			));
+
+
+			WHILE_EXPECTED_END()
+
+				return expected<void>();
+	}));
+
+	co_return result;
 }
 
 
