@@ -197,9 +197,8 @@ vds::expected<void> vds::vds_cmd_app::invoke_server(
 
   GET_EXPECTED(address, network_address::parse(server));
   GET_EXPECTED(s, tcp_network_socket::connect(sp, address));
-  GET_EXPECTED(streams, s->start(sp));
-  auto reader = std::get<0>(streams);
-  auto writer = std::get<1>(streams);
+  GET_EXPECTED(reader, s->get_input_stream(sp));
+  GET_EXPECTED(writer, s->get_output_stream(sp));
 
   auto client = std::make_shared<http_client>();
   auto client_task = client->start(sp, reader, writer);

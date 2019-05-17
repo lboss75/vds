@@ -56,12 +56,10 @@ TEST(network_tests, test_server)
   CHECK_EXPECTED_GTEST(server.start(
     sp,
     vds::network_address::any_ip4(8000),
-    [sp](const std::shared_ptr<vds::tcp_network_socket> & s) -> vds::async_task<vds::expected<void>> {
-      GET_EXPECTED(streams, s->start(sp));
-      auto reader = std::get<0>(streams);
-      auto writer = std::get<1>(streams);
+    [sp](const std::shared_ptr<vds::tcp_network_socket> & s) -> vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> {
+      GET_EXPECTED_ASYNC(writer, s->get_output_stream(sp));
 
-      return copy_stream(reader, writer);
+      co_return writer;
   }).get());
   
   std::string answer;
@@ -71,15 +69,15 @@ TEST(network_tests, test_server)
   GET_EXPECTED_GTEST(s, vds::tcp_network_socket::connect(sp, address));
 
   sp->get<vds::logger>()->debug("TCP", "Connected");
-  GET_EXPECTED_GTEST(streams, s->start(sp));
-  auto reader = std::get<0>(streams);
-  auto writer = std::get<1>(streams);
+  GET_EXPECTED_GTEST(writer, s->get_output_stream(sp));
 
   std::thread t1([sp, writer, &data]() {
     auto rs = std::make_shared<random_stream<uint8_t>>(writer);
     (void)rs->write_async(data.data(), data.size()).get();
     (void)rs->write_async(nullptr, 0).get();
   });
+
+  GET_EXPECTED_GTEST(reader, s->get_input_stream(sp));
 
   std::thread t2([sp, reader, &data]() {
     const auto cd = std::make_shared<compare_data_async<uint8_t>>(data.data(), data.size());

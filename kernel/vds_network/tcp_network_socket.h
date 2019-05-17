@@ -10,6 +10,7 @@ All rights reserved
 #include "async_buffer.h"
 #include "network_address.h"
 #include "socket_base.h"
+#include "stream.h"
 
 namespace vds {
 
@@ -28,11 +29,8 @@ namespace vds {
       const service_provider * sp,
       const network_address & address);
 
-    expected<
-    std::tuple<
-      std::shared_ptr<vds::stream_input_async<uint8_t>>,
-      std::shared_ptr<vds::stream_output_async<uint8_t>>>> start(
-        const service_provider * sp);
+    expected<std::shared_ptr<vds::stream_output_async<uint8_t>>> get_output_stream(const service_provider * sp);
+	expected<std::shared_ptr<vds::stream_input_async<uint8_t>>> get_input_stream(const service_provider * sp);
 
     expected<void> close();
 

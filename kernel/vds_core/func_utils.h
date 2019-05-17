@@ -216,7 +216,78 @@ namespace vds {
   protected:
     std::function<result(arg_types...)> holder_;
   };
-  */  
+  */
+
+  template< class F >
+  auto make_copyable_function(F&& f) {
+	  using dF = std::decay_t<F>;
+	  auto spf = std::make_shared<dF>(std::forward<F>(f));
+	  return [spf](auto&&... args)->decltype(auto) {
+		  return (*spf)(decltype(args)(args)...);
+	  };
+  }
+
+  template<typename result_type, typename... arg_types>
+  class lambda_holder_t
+  {
+  public:
+	  lambda_holder_t() {
+	  }
+
+	  template<typename F>
+	  lambda_holder_t(F && f)
+		  : holder_(new holder<F>(std::forward<F>(f))) {
+	  }
+
+	  lambda_holder_t(lambda_holder_t && original)
+			  : holder_(std::move(original.holder_)) {
+	  }
+
+	  result_type operator ()(arg_types... args) {
+		  return (*this->holder_)(std::forward<arg_types>(args)...);
+	  }
+
+	  result_type operator ()(arg_types... args) const {
+		  return (*this->holder_)(std::forward<arg_types>(args)...);
+	  }
+
+	  bool operator ! () const {
+		  return !this->holder_;
+	  }
+
+	  explicit operator bool () const {
+		  return this->holder_.get() != nullptr;
+	  }
+
+  private:
+	  class holder_base {
+	  public:
+		  virtual ~holder_base() {}
+		  virtual result_type operator ()(arg_types... args) = 0;
+		  virtual result_type operator ()(arg_types... args) const = 0;
+	  };
+
+	  template<typename F>
+	  class holder : public holder_base {
+	  public:
+		  holder(F && f)
+			  : f_(std::forward<F>(f)) {
+		  }
+
+		  result_type operator ()(arg_types... args) override {
+			  return this->f_(std::forward<arg_types>(args)...);
+		  }
+
+		  result_type operator ()(arg_types... args) const override {
+			  return this->f_(std::forward<arg_types>(args)...);
+		  }
+
+	  private:
+		  F f_;
+	  };
+
+	  std::unique_ptr<holder_base> holder_;
+  };
 }
 
 #endif//__VDS_CORE_FUNC_UTILS_H_

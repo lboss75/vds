@@ -6,8 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-
 #include "network_address.h"
+#include "stream.h"
 
 namespace vds {
   class _tcp_socket_server;
@@ -22,7 +22,7 @@ namespace vds {
     vds::async_task<vds::expected<void>> start(
       const service_provider * sp,
       const network_address & address,
-      const std::function<vds::async_task<vds::expected<void>>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection);
+      const std::function<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection);
     
     void stop();
     

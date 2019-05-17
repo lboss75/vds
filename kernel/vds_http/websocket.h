@@ -10,6 +10,13 @@ All rights reserved
 #include "http_response.h"
 
 namespace vds {
+
+	class websocket_output : public std::enable_shared_from_this<websocket_output>
+	{
+	public:
+		async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> start(size_t message_size, bool is_binary);
+	};
+
 	class websocket : public std::enable_shared_from_this<websocket> {
 	public:
 		enum class message_type {
@@ -25,7 +32,7 @@ namespace vds {
 
 		websocket(
 			const service_provider * sp,
-			const std::function<async_task<expected<message>> (message msg)> & handler);
+			const std::function<async_task<expected<void>> (message msg, std::shared_ptr<websocket_output> & out)> & handler);
 
 		static vds::async_task<vds::expected<http_message>> open_connection(
 			const vds::service_provider * sp,
@@ -38,7 +45,7 @@ namespace vds {
 
 		const service_provider * sp_;
 		vds::async_task<vds::expected<void>> task_;
-		std::function<async_task<expected<message>>(message msg)> handler_;
+		std::function<async_task<expected<void>>(message msg, std::shared_ptr<websocket_output> & out)> handler_;
 
 		//Read state
 		enum class read_state_t {

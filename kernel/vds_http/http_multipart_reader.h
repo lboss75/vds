@@ -23,19 +23,25 @@ namespace vds {
       : sp_(sp), boundary_(boundary), message_callback_(message_callback), readed_(0), is_first_(true), eof_(false) {
     }
 
-    vds::async_task<vds::expected<void>> process(
-      const std::shared_ptr<stream_input_async<uint8_t>> & input_stream)
-    {
-      while(!this->eof_) {
-        auto parser = std::make_shared<http_form_part_parser>(this->message_callback_);
-        CHECK_EXPECTED_ASYNC(
-                co_await parser->start(
-                        this->sp_,
-                        std::make_shared<part_reader>(this->shared_from_this(), input_stream)));
-      }
+	static vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> parse(
+		const service_provider * sp,
+		const std::string & boundary,
+		lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>>, http_message &&> part_handler,
+    lambda_holder_t<vds::async_task<vds::expected<void>>> final_handler);
 
-      co_return expected<void>();
-    }
+    //vds::async_task<vds::expected<void>> process(
+    //  const std::shared_ptr<stream_input_async<uint8_t>> & input_stream)
+    //{
+    //  while(!this->eof_) {
+    //    auto parser = std::make_shared<http_form_part_parser>(this->message_callback_);
+    //    CHECK_EXPECTED_ASYNC(
+    //            co_await parser->start(
+    //                    this->sp_,
+    //                    std::make_shared<part_reader>(this->shared_from_this(), input_stream)));
+    //  }
+
+    //  co_return expected<void>();
+    //}
 
   private:
     const service_provider * sp_;

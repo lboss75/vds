@@ -17,7 +17,7 @@ namespace vds {
 
     virtual ~stream_output_async() {}
 
-    virtual vds::async_task<vds::expected<void>> write_async(
+    virtual async_task<expected<void>> write_async(
         const item_type *data,
         size_t len) = 0;
   };
@@ -76,6 +76,18 @@ namespace vds {
         }
 
         result->apply_size(readed);
+      }
+    }
+
+    async_task<expected<void>> copy_to(std::shared_ptr<stream_output_async<item_type>> target)
+    {
+      item_type buffer[1024];
+      for (;;) {
+        GET_EXPECTED_ASYNC(readed, co_await this->read_async(buffer, sizeof(buffer) / sizeof(buffer[0])));
+        CHECK_EXPECTED_ASYNC(co_await target->write_async(buffer, readed));
+        if (0 == readed) {
+          co_return expected<void>();
+        }
       }
     }
   };
@@ -163,17 +175,30 @@ namespace vds {
   ///////////////////////////////////////////////////////////
    
   ///////////////////////////////////////////////////////////
-  template <typename item_type>
-  class collect_data : public stream_output_async<item_type>
+  class collect_data : public stream_output_async<uint8_t>
   {
   public:
+	  collect_data() {
+	  }
+
+	  collect_data(lambda_holder_t<async_task<expected<void>>, const_data_buffer &&> && handler)
+	  : handler_(std::move(handler)){
+	  }
 
     async_task<expected<void>> write_async(
-      const item_type *data,
+      const uint8_t *data,
       size_t len) override {
-        this->data_.add(data, len);
-        co_return expected<void>();
-      }
+		if (0 == len){
+			if (this->handler_) {
+				return this->handler_(this->move_data());
+			}
+		}
+		else {
+			this->data_.add(data, len);
+		}
+
+		return expected<void>();
+	}
 
       const_data_buffer move_data() {
         return this->data_.move_data();
@@ -181,6 +206,7 @@ namespace vds {
 
     private:
       resizable_data_buffer data_;
+	  lambda_holder_t<async_task<expected<void>>, const_data_buffer &&> handler_;
   };
 }
 

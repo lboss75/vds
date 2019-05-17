@@ -256,7 +256,6 @@ namespace vds {
 
     vds::async_task<vds::expected<void>> write_async(const udp_datagram & data)
     {
-      std::unique_lock<not_mutex> lock(this->not_mutex_);
       vds_assert(!this->result_);
       memset(&this->overlapped_, 0, sizeof(this->overlapped_));
       this->buffer_ = data;
@@ -270,7 +269,6 @@ namespace vds {
 
       auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
       this->result_ = r;
-      lock.unlock();
 
 
       this->sp_->get<logger>()->trace(
@@ -317,7 +315,6 @@ namespace vds {
 
     socklen_t addr_len_;
     udp_datagram buffer_;
-    not_mutex not_mutex_;
 
     void process(DWORD dwBytesTransfered) override
     {
@@ -327,10 +324,8 @@ namespace vds {
         dwBytesTransfered,
         this->buffer_->address().to_string().c_str());
 
-      std::unique_lock<not_mutex> lock(this->not_mutex_);
       vds_assert(this->result_);
       auto result = std::move(this->result_);
-      lock.unlock();
 
       if (this->wsa_buf_.len != (size_t)dwBytesTransfered) {
         result->set_value(make_unexpected<std::runtime_error>("Invalid sent UDP data"));
@@ -348,10 +343,8 @@ namespace vds {
         error_code,
         this->buffer_->address().to_string().c_str());
 
-      std::unique_lock<not_mutex> lock(this->not_mutex_);
       vds_assert(this->result_);
       auto result = std::move(this->result_);
-      lock.unlock();
 
       result->set_value(make_unexpected<std::system_error>(error_code, std::system_category(), "WSASendTo failed"));
     }

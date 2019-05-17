@@ -1,11 +1,20 @@
 <html>
     <head>
         <script>
+const crypto = require('crypto');
+
+const secret = 'abcdefg';
+const hash = crypto.createHmac('sha256', secret)
+                   .update('I love cupcakes')
+                   .digest('hex');
+console.log(hash);
+
+
             const webSocket = new WebSocket('ws://localhost:8050/api/ws');
 
             webSocket.onopen = event => {
                 alert('onopen');
-                webSocket.send('{"id":"1","invoke":["hello",["Hello Web Socket!"]]}');
+                webSocket.send('{"id":"1","invoke":["login",["Hello Web Socket!"]]}');
             };
 
             webSocket.onmessage = event => {

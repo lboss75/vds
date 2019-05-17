@@ -12,6 +12,7 @@ All rights reserved
 #include <functional>
 #include "vds_debug.h"
 #include "expected.h"
+#include "func_utils.h"
 
 namespace vds {
   template <typename result_type>
@@ -26,10 +27,8 @@ namespace vds {
   {
   public:
 	  static imt_service * get_current();
-	  static void async(const service_provider * sp, const std::function<void(void)> & handler);
 	  static void async(const service_provider * sp, std::function<void(void)> && handler);
 
-	  void do_async(const std::function<void(void)> & handler);
 	  void do_async(std::function<void(void)> && handler);
   };
 
@@ -134,7 +133,7 @@ namespace vds {
       return std::move(this->value_->get());
     }
 
-    void then(const std::function<void(void)> & f) {
+    void then(const std::function<void(result_type &&)> & f) {
       std::unique_lock<std::mutex> lock(this->value_mutex_);
       if (!this->value_) {
         this->then_function_ = f;
@@ -142,7 +141,7 @@ namespace vds {
       else {
         lock.unlock();
 
-        f();
+        f(std::move(this->value_->get()));
       }
     }
 
@@ -156,10 +155,14 @@ namespace vds {
 
 		  auto mt = imt_service::get_current();
 		  if (nullptr != mt) {
-			  mt->do_async(this->then_function_);
+			  mt->do_async(
+				  make_copyable_function(
+					  [f = std::move(this->then_function_), v = std::move(this->value_)]() mutable {
+						f(std::move(v->get()));
+			  }));
 		  }
 		  else {
-			  this->then_function_();
+			  this->then_function_(std::move(this->value_->get()));
 		  }
       }
     }
@@ -167,7 +170,7 @@ namespace vds {
     std::mutex value_mutex_;
     std::condition_variable value_cond_;
     std::unique_ptr<_async_task_value<result_type>> value_;
-    std::function<void(void)> then_function_;
+    std::function<void(result_type &&)> then_function_;
   };
 
   template <>
@@ -220,7 +223,7 @@ namespace vds {
 
 		auto mt = imt_service::get_current();
 		if (nullptr != mt) {
-			mt->do_async(this->then_function_);
+			mt->do_async(std::move(this->then_function_));
 		}
 		else {
 			this->then_function_();
@@ -283,12 +286,12 @@ namespace vds {
 
     void await_suspend(std::experimental::coroutine_handle<> _ResumeCb)
     {
-      this->then([_ResumeCb]() mutable {
+      this->then([_ResumeCb](result_type &&) mutable {
         _ResumeCb();
       });
     }
 
-    void then(const std::function<void(void)> & f) {
+    void then(const std::function<void(result_type &&)> & f) {
       this->state_->then(f);
     }
 

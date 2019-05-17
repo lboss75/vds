@@ -26,8 +26,7 @@ namespace vds {
     void stop();
     async_task<expected<void>> prepare_to_stop();
 
-    void do_async( const std::function<void(void)> & handler);
-    void do_async( std::function<void(void)> && handler);
+    void do_async(lambda_holder_t<void> && handler);
 
 	static void set_instance(const service_provider * sp);
 
@@ -39,7 +38,7 @@ namespace vds {
     
     std::mutex mutex_;
     std::condition_variable cond_;
-    std::queue<std::function<void(void)>> queue_;
+    std::queue<lambda_holder_t<void>> queue_;
     
     void work_thread();
   };

@@ -35,7 +35,7 @@ vds::expected<vds::const_data_buffer> vds::inflate::decompress(
   const void * data,
   size_t size)
 {
-	auto result = std::make_shared<collect_data<uint8_t>>();
+	auto result = std::make_shared<collect_data>();
   _inflate_handler inf;
   CHECK_EXPECTED(inf.create(result));
 

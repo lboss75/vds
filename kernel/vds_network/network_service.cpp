@@ -74,9 +74,8 @@ std::string vds::network_service::get_ip_address_string(const sockaddr_in & from
 #define NETWORK_EXIT 0xA1F8
 
 vds::_network_service::_network_service()
-  : worker_timer_("Network Service")
 #ifdef _WIN32
-  , handle_(NULL)
+  : handle_(NULL)
 #endif
 {
 }
@@ -158,29 +157,6 @@ vds::expected<void> vds::_network_service::start(const service_provider * sp)
       }
   });
 #endif
-  CHECK_EXPECTED(
-    this->worker_timer_.start(
-      sp,
-      std::chrono::minutes(1),
-      [sp, pthis = this->shared_from_this()]() -> async_task<expected<bool>> {
-   std::lock_guard<std::mutex> lock(pthis->connections_mutex_);
-   auto p = pthis->connections_.begin();
-   while(pthis->connections_.end() != p) {
-     if(p->await_ready()) {
-       auto result = p->get();
-       if(result.has_error()) {
-         sp->get<logger>()->warning("network", "Connection error %s", result.error()->what());
-       }
-
-       p = pthis->connections_.erase(p);       
-     }
-     else {
-       ++p;
-     }
-   }
-
-   co_return !sp->get_shutdown_event().is_shuting_down();
- }));
   return expected<void>();
 }
 
@@ -216,19 +192,7 @@ vds::expected<void> vds::_network_service::stop()
 
 vds::async_task<vds::expected<void>> vds::_network_service::prepare_to_stop()
 {
-  std::lock_guard<std::mutex> lock(this->connections_mutex_);
-  auto p = this->connections_.begin();
-  while (this->connections_.end() != p) {
-    (void)p->get();
-
-    p = this->connections_.erase(p);
-  }
   co_return expected<void>();
-}
-
-void vds::_network_service::add_connection(async_task<expected<void>>&& new_connection) {
-  std::lock_guard<std::mutex> lock(this->connections_mutex_);
-  this->connections_.push_back(std::move(new_connection));
 }
 
 #ifdef _WIN32

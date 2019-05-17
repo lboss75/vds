@@ -37,11 +37,6 @@ TEST(test_vds, test_initial)
     mock.allow_write_channel(3, channel.id());
 
     auto sp = mock.get_sp(3);
-    auto input_stream = std::make_shared<vds::continuous_buffer<uint8_t>>(sp);
-    vds::mt_service::async(sp, [sp, input_stream, &buffer, len] {
-      CHECK_EXPECTED_THROW(input_stream->write_async(buffer.get(), len).get());
-      CHECK_EXPECTED_THROW(input_stream->write_async(nullptr, 0).get());
-    });
 
     std::cout << "Upload local file...\n";
     auto file_hash = mock.upload_file(
@@ -49,7 +44,7 @@ TEST(test_vds, test_initial)
       channel.id(),
       "test data",
       "application/octet-stream",
-      std::make_shared<vds::continuous_stream_input_async<uint8_t>>(input_stream));
+      std::make_shared<vds::buffer_stream_input_async>(buffer));
 
     std::cout << "Download local file...\n";
 

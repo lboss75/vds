@@ -5,6 +5,58 @@ All rights reserved
 #include "stdafx.h"
 #include "http_message.h"
 
+vds::http_message::http_message(const std::list<std::string>& headers)
+	: headers_(headers)
+{
+	vds_assert(0 != headers.size());
+
+	int index = 0;
+	for (auto ch : *(headers.begin())) {
+		if (isspace(ch)) {
+			if (index < 2) {
+				++index;
+			}
+			else {
+				this->agent_ += ch;
+			}
+		}
+		else {
+			switch (index) {
+			case 0:
+				this->method_ += ch;
+				break;
+
+			case 1:
+				this->url_ += ch;
+				break;
+
+			case 2:
+				this->agent_ += ch;
+				break;
+			}
+		}
+	}
+
+	this->parse_parameters();
+}
+
+vds::http_message::http_message(const std::string & method, const std::string & url, const std::list<std::string>& headers, const std::string & agent)
+	: headers_(headers), method_(method), url_(url), agent_(agent)
+{
+	this->headers_.push_front(method + " " + url + " " + agent);
+}
+
+std::string vds::http_message::get_parameter(const std::string & name) const
+{
+	for (auto & param : this->parameters_) {
+		auto p = param.find('=');
+		if (std::string::npos != p && name == param.substr(0, p)) {
+			return url_encode::decode(param.substr(p + 1));
+		}
+	}
+	return std::string();
+}
+
 bool vds::http_message::get_header(
     const std::list<std::string> & headers,
     const std::string& name,
@@ -40,28 +92,12 @@ bool vds::http_message::have_header(const std::list<std::string>& headers, const
 	return false;
 }
 
-vds::async_task<vds::expected<void>> vds::http_message::ignore_empty_body() const {
-  const_data_buffer result;
-  GET_EXPECTED_VALUE_ASYNC(result, co_await this->body_->read_all());
-  vds_assert(0 == result.size());
-  co_return vds::expected<void>();
+void vds::http_message::parse_parameters()
+{
+	auto p = strchr(this->url_.c_str(), '?');
+	if (nullptr != p) {
+		this->parameters_ = split_string(p + 1, '&', false);
+		this->url_.erase(p - this->url_.c_str());
+	}
 }
 
-vds::async_task<vds::expected<void>> vds::http_message::ignore_body() const {
-  auto buffer = std::make_shared<buffer_t>();
-  CHECK_EXPECTED_ASYNC(co_await ignore_body(this->body_, buffer));
-  co_return vds::expected<void>();
-}
-
-vds::async_task<vds::expected<void>> vds::http_message::ignore_body(  
-  const std::shared_ptr<stream_input_async<uint8_t>> & body,
-  const std::shared_ptr<buffer_t>& buffer) {
-
-  for(;;){
-    size_t readed;
-    GET_EXPECTED_VALUE_ASYNC(readed, co_await body->read_async(buffer->data_, sizeof(buffer->data_)));
-    if (0 == readed) {
-      co_return expected<void>();
-    }
-  }
-}

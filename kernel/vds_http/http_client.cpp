@@ -18,7 +18,7 @@ vds::async_task<vds::expected<void>> vds::http_client::start(
   this->output_ = std::make_shared<http_async_serializer>(output_stream);
   this->pipeline_ = std::make_shared<client_pipeline>(
 	sp,
-    [pthis = this->shared_from_this(), eof](const http_message message) -> async_task<expected<void>> {
+    [pthis = this->shared_from_this(), eof](http_message && message) -> async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
 
     if (!message) {
       vds_assert(!pthis->result_);
@@ -40,11 +40,8 @@ vds::async_task<vds::expected<void>> vds::http_client::start(
         result->set_value(expected<void>());
       }
     }
-    co_return expected<void>();
+    co_return expected<std::shared_ptr<stream_output_async<uint8_t>>>();
   });
-
-  CHECK_EXPECTED_ASYNC(co_await this->pipeline_->process(input_stream));
-  CHECK_EXPECTED_ASYNC(co_await eof->get_future());
 
   co_return expected<void>();
 }
@@ -60,7 +57,8 @@ vds::async_task<vds::expected<void>> vds::http_client::send(
   this->result_ = r;
   this->response_handler_ = response_handler;
 
-  CHECK_EXPECTED_ASYNC(co_await this->output_->write_async(message));
+  GET_EXPECTED_ASYNC(stream, co_await this->output_->start_message(message.headers()));
+
   CHECK_EXPECTED_ASYNC(co_await r->get_future());
 
   co_return expected<void>();
@@ -68,6 +66,6 @@ vds::async_task<vds::expected<void>> vds::http_client::send(
 
 vds::http_client::client_pipeline::client_pipeline(
   const service_provider * sp,
-  const std::function<vds::async_task<vds::expected<void>>(http_message message)>& message_callback)
-  : http_parser(sp, message_callback) {
+  lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message && > message_callback)
+  : http_parser(sp, std::move(message_callback)) {
 }

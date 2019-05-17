@@ -18,7 +18,7 @@ namespace vds {
   public:
     http_async_serializer(
       const std::shared_ptr<stream_output_async<uint8_t>> & target)
-      : target_(target)
+      : target_(target), write_body_(false)
     {
     }
 
@@ -26,39 +26,54 @@ namespace vds {
     {
     }
 
-    vds::async_task<vds::expected<void>> write_async(
-      const http_message message)
+    vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> start_message(
+		const std::list<std::string> & headers)
     {
-      auto pthis = this->shared_from_this();
-
-      vds_assert(message.body());
+		vds_assert(!this->write_body_);
 
       std::stringstream stream;
-      for (auto & header : message.headers()) {
+      for (auto & header : headers) {
         stream << header << "\r\n";
       }
       stream << "\r\n";
 
-      auto data = std::make_shared<std::string>(stream.str());
-      CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(reinterpret_cast<const uint8_t *>(data->c_str()), data->length()));
+      auto data = stream.str();
+      CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(reinterpret_cast<const uint8_t *>(data.c_str()), data.length()));
 
-      for (;;) {
-        size_t readed;
-        GET_EXPECTED_VALUE_ASYNC(readed, co_await message.body()->read_async(this->output_buffer_, sizeof(this->output_buffer_)));
-        if (0 == readed) {
-          CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(nullptr, 0));
-          break;
-        }
-
-        CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(this->output_buffer_, readed));
-      }
-
-      co_return expected<void>();
+	  this->write_body_ = true;
+	  
+      co_return std::make_shared<out_stream>(this->shared_from_this());
     }
 
   private:
     std::shared_ptr<stream_output_async<uint8_t>> target_;
-    uint8_t output_buffer_[1024];
+	bool write_body_;
+
+	class out_stream : public stream_output_async<uint8_t>
+	{
+	public:
+		out_stream(std::shared_ptr<http_async_serializer> target)
+		: target_(target) {
+		}
+
+		async_task<expected<void>> write_async(
+			const uint8_t *data,
+			size_t len) override {
+
+			if (0 != len) {
+				co_await this->target_->target_->write_async(data, len);
+			}
+			else {
+				this->target_->write_body_ = false;
+			}
+
+			co_return expected<void>();
+		}
+
+	private:
+		std::shared_ptr<http_async_serializer> target_;
+	};
+
   };
 
 }

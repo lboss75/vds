@@ -32,7 +32,7 @@ vds::expected<vds::const_data_buffer> vds::deflate::compress(
   const uint8_t * data,
   size_t len)
 {
-  auto result = std::make_shared<collect_data<uint8_t>>();
+  auto result = std::make_shared<collect_data>();
   _deflate_handler df;
   CHECK_EXPECTED(df.create(result, Z_DEFAULT_COMPRESSION));
   

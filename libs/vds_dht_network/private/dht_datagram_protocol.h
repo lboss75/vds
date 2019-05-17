@@ -128,9 +128,7 @@ namespace vds {
             co_return expected<void>();
           }
 
-          this->input_mutex_.lock();
           if (datagram.size() < 33) {
-            this->input_mutex_.unlock();
             co_return vds::make_unexpected<std::runtime_error>("Invalid data");
           }
 
@@ -139,7 +137,6 @@ namespace vds {
             hash::sha256(),
             datagram.data(), datagram.size() - 32,
             datagram.data() + datagram.size() - 32, 32)) {
-            this->input_mutex_.unlock();
 
             co_return vds::make_unexpected<std::runtime_error>("Invalid signature");
           }
@@ -188,7 +185,6 @@ namespace vds {
             }
             }
 
-            this->input_mutex_.unlock();
 
             CHECK_EXPECTED_ASYNC(co_await static_cast<implementation_class *>(this)->process_message(
               s,
@@ -204,7 +200,6 @@ namespace vds {
           case protocol_message_type_t::RouteData:
           case protocol_message_type_t::ProxyData: {
             if (datagram.size() < 33) {
-              this->input_mutex_.unlock();
 
               co_return vds::make_unexpected<std::runtime_error>("Invalid data");
             }
@@ -212,14 +207,12 @@ namespace vds {
             this->last_input_message_id_ = const_data_buffer(datagram.data() + 1, 32);
             this->input_messages_.clear();
             this->input_messages_[0] = datagram;
-            this->input_mutex_.unlock();
 
             co_return expected<void>();
           }
           default: {
             if (datagram.data()[0] == (uint8_t)protocol_message_type_t::ContinueData) {
               if (datagram.size() < 1 + 32 + INDEX_SIZE) {
-                this->input_mutex_.unlock();
 
                 co_return vds::make_unexpected<std::runtime_error>("Invalid data");
               }
@@ -228,7 +221,6 @@ namespace vds {
               if (this->last_input_message_id_ != message_id) {
                 this->last_input_message_id_.clear();
                 this->input_messages_.clear();
-                this->input_mutex_.unlock();
 
                 co_return expected<void>();
               }
@@ -243,12 +235,10 @@ namespace vds {
               co_return expected<void>();
             }
             else {
-              this->input_mutex_.unlock();
               co_return vds::make_unexpected<std::runtime_error>("Invalid data");
             }
           }
           }
-          this->input_mutex_.unlock();
           co_return expected<void>();
         }
 
@@ -308,7 +298,6 @@ namespace vds {
 
         uint16_t mtu_;
 
-        not_mutex input_mutex_;
         const_data_buffer last_input_message_id_;
         std::map<uint32_t, const_data_buffer> input_messages_;
         uint32_t next_sequence_number_;
@@ -486,8 +475,6 @@ namespace vds {
           const std::shared_ptr<transport_type>& s) {
           auto p = this->input_messages_.find(0);
           if (p == this->input_messages_.end()) {
-            this->input_mutex_.unlock();
-
             co_return expected<void>();
           }
 
@@ -567,14 +554,10 @@ namespace vds {
               }
 
               if ((uint8_t)protocol_message_type_t::ContinueData != p1->second.data()[0]) {
-                this->input_mutex_.unlock();
-
                 co_return vds::make_unexpected<std::runtime_error>("Invalid data");
               }
 
               if (size < p1->second.size() - (1 + 32 + INDEX_SIZE + 32)) {
-                this->input_mutex_.unlock();
-
                 co_return vds::make_unexpected<std::runtime_error>("Invalid data");
               }
 
@@ -585,9 +568,8 @@ namespace vds {
               if (0 == size) {
                 this->last_input_message_id_.clear();
                 this->input_messages_.clear();
-                this->input_mutex_.unlock();
 
-                CHECK_EXPECTED_ASYNC(co_await static_cast<implementation_class *>(this)->process_message(
+				CHECK_EXPECTED_ASYNC(co_await static_cast<implementation_class *>(this)->process_message(
                   s,
                   message_type,
                   target_node,
@@ -606,7 +588,6 @@ namespace vds {
             break;
           }
           }
-          this->input_mutex_.unlock();
           co_return expected<void>();
         }
       };

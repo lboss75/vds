@@ -29,17 +29,14 @@ vds::async_task<vds::expected<vds::http_message>> vds::websocket::open_connectio
 	co_return http_response::status_response(http_response::HTTP_Not_Found, "Invalid protocol");
 }
 
-vds::websocket::websocket(const service_provider * sp, const std::function<async_task<expected<message>>(message msg)> & handler)
+vds::websocket::websocket(const service_provider * sp, const std::function<async_task<expected<void>>(message msg, std::shared_ptr<websocket_output> & out)> & handler)
 	: sp_(sp), handler_(handler)
 {
 }
 
 std::shared_ptr<vds::stream_input_async<uint8_t>> vds::websocket::start(const http_request & request)
 {
-	auto buffer = std::make_shared<continuous_buffer<uint8_t>>(this->sp_);
-
-
-	return std::make_shared<continuous_stream_input_async<uint8_t>>(buffer);
+	throw vds::vds_exceptions::invalid_operation();
 }
 
 vds::async_task<vds::expected<bool>> vds::websocket::read_minimal(size_t min_size)
@@ -223,7 +220,8 @@ vds::async_task<vds::expected<void>> vds::websocket::start_read()
 			break;
 		}
 
-		//GET_EXPECTED_ASYNC(result, co_await this->handler_(message{ type, std::make_shared<websocket_stream>(this->shared_from_this()) }));
+		auto out_stream = std::make_shared<websocket_output>();
+		CHECK_EXPECTED_ASYNC(co_await this->handler_(message{ type, std::make_shared<websocket_stream>(this->shared_from_this()) }, out_stream));
 
 
 	}

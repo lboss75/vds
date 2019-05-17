@@ -7,6 +7,8 @@ All rights reserved
 */
 
 #include "http_message.h"
+#include "http_serializer.h"
+
 #include <queue>
 
 namespace vds {
@@ -29,7 +31,8 @@ namespace vds {
       const std::list<std::string> & headers = std::list<std::string>());
 
 
-    http_message get_message();
+    async_task<expected<void>> send(
+      const std::shared_ptr<http_async_serializer> & output_stream);
 
     void add_header(const std::string & header);
 
@@ -38,18 +41,6 @@ namespace vds {
     std::string boundary_;
     size_t total_size_;
     std::queue<std::shared_ptr<stream_input_async<uint8_t>>> inputs_;
-
-    class multipart_body : public stream_input_async<uint8_t> {
-    public:
-      multipart_body(std::queue<std::shared_ptr<stream_input_async<uint8_t>>> && inputs);
-
-      vds::async_task<vds::expected<size_t>> read_async(
-        uint8_t * buffer,
-        size_t len) override;
-
-    private:
-      std::queue<std::shared_ptr<stream_input_async<uint8_t>>> inputs_;
-    };
   };
 }
 

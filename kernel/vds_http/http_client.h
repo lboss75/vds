@@ -30,8 +30,8 @@ namespace vds {
     class client_pipeline : public http_parser {
     public:
       client_pipeline(
-		const service_provider * sp,
-        const std::function<vds::async_task<vds::expected<void>>(const http_message message)> &message_callback);
+		    const service_provider * sp,
+        lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message && > message_callback);
 
     };
     std::shared_ptr<http_async_serializer> output_;

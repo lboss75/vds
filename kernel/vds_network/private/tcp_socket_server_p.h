@@ -40,7 +40,7 @@ namespace vds {
     vds::async_task<vds::expected<void>> start(
       const service_provider * sp,
       const network_address & address,
-      const std::function<vds::async_task<vds::expected<void>>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection)
+      const std::function<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>(const std::shared_ptr<tcp_network_socket> & s)> & new_connection)
     {
        
 #ifdef _WIN32
@@ -93,7 +93,12 @@ namespace vds {
                 sp->get<logger>()->trace("TCP", "Connection from %s", network_service::to_string(client_address).c_str());
                 if (!(*sp->get<network_service>())->associate(socket).has_error()) {
                   auto s = _tcp_network_socket::from_handle(socket);
-                  (*sp->get<network_service>())->add_connection(new_connection(s));
+				  new_connection(s).then([sp, s](vds::expected<std::shared_ptr<stream_output_async<uint8_t>>> && result) {
+					  if (!result.has_value() && result.value()) {
+						  auto handler = std::make_shared<_read_socket_stream>(sp, s, std::move(result.value()));
+						  (void)handler->schedule();
+					  }
+				  });
                 }
               }
             }

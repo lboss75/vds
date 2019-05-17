@@ -290,7 +290,7 @@ namespace vds {
       }
     }
   };
-
+   
   class _write_socket_task : public _socket_task, public stream_output_async<uint8_t>
   {
   public:
@@ -369,6 +369,85 @@ namespace vds {
     }
   };
 
+  class _read_socket_stream : public _socket_task, public std::enable_shared_from_this<_read_socket_stream>
+  {
+  public:
+	  constexpr static size_t BUFFER_SIZE = 1024;
+
+	  _read_socket_stream(
+		  const service_provider * sp,
+		  const std::shared_ptr<tcp_network_socket> & owner,
+		  const std::shared_ptr<stream_output_async<uint8_t>> & target)
+		  : sp_(sp), owner_(owner), target_(target) {
+	  }
+
+	  ~_read_socket_stream() {
+	  }
+
+
+	  vds::expected<void> schedule() {
+		  GET_EXPECTED(handle, (*this->owner_)->handle());
+
+		  memset(&this->overlapped_, 0, sizeof(this->overlapped_));
+		  this->wsa_buf_.len = sizeof(this->buffer_);
+		  this->wsa_buf_.buf = (CHAR *)this->buffer_;
+		  this->pthis_ = this->shared_from_this();
+
+		  DWORD flags = 0;
+		  DWORD numberOfBytesRecvd;
+		  if (NOERROR != WSARecv(
+			  handle,
+			  &this->wsa_buf_,
+			  1,
+			  &numberOfBytesRecvd,
+			  &flags,
+			  &this->overlapped_,
+			  NULL)) {
+			  auto errorCode = WSAGetLastError();
+			  if (WSA_IO_PENDING != errorCode) {
+				  this->sp_->get<logger>()->trace("TCP", "WSARecv error");
+				  auto pthis = this->pthis_;
+				  this->pthis_.reset();
+
+				  if (WSAESHUTDOWN == errorCode || WSAECONNABORTED == errorCode) {
+					  this->target_->write_async(nullptr, 0).then([pthis](expected<void> &&){
+						  pthis->target_.reset();
+					  });
+				  }
+				  else {
+					  return make_unexpected<std::system_error>(errorCode, std::system_category(), "read from tcp socket");
+				  }
+			  }
+		  }
+
+		  return expected<void>();
+	  }
+
+
+  private:
+	  const service_provider * sp_;
+	  std::shared_ptr<tcp_network_socket> owner_;
+	  std::shared_ptr<stream_output_async<uint8_t>> target_;
+	  std::shared_ptr<_read_socket_stream> pthis_;
+	  uint8_t buffer_[BUFFER_SIZE];
+
+	  void process(DWORD dwBytesTransfered) override
+	  {
+		  auto pthis = std::move(this->pthis_);
+
+		  this->target_->write_async(this->buffer_, dwBytesTransfered)
+			  .then([pthis, dwBytesTransfered](expected<void> &&) {
+			  if (0 != dwBytesTransfered) {
+				  (void)pthis->schedule();
+			  }
+		  });
+	  }
+
+	  void error(DWORD /*error_code*/) override
+	  {
+		  this->process(0);
+	  }
+  };
 
 #else
   class _write_socket_task : public stream_output_async<uint8_t> {

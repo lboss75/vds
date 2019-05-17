@@ -31,50 +31,33 @@ namespace vds {
       };
 
       //To override
-      virtual async_task<expected<void>> on_field( const simple_field_info & field) {
-        co_return expected<void>();
+      virtual async_task<expected<void>> on_field( const simple_field_info & /*field*/) {
+        return expected<void>();
       }
 
-      virtual async_task<vds::expected<void>> on_file( const file_info & file) {
-        co_return expected<void>();
+      virtual vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> on_file( const file_info & /*file*/) {
+        return std::shared_ptr<vds::stream_output_async<uint8_t>>();
       }
 
-      vds::async_task<vds::expected<void>> parse(
-        const http_message & message);
+      vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> parse(
+        const http_message & message,
+        lambda_holder_t<vds::async_task<vds::expected<void>>, std::shared_ptr<form_parser>> final_handler);
+
 
     protected:
       const service_provider * sp_;
 
     private:
-      class _form_parser : public std::enable_shared_from_this<_form_parser> {
-      public:
-        _form_parser(const std::shared_ptr<form_parser> & owner)
-          : owner_(owner) {
-        }
+      vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> read_part(
+        const http_message & part);
 
-        vds::async_task<vds::expected<void>> read_part(
-          
-          const http_message& part);
+      vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> read_form_urlencoded(
+        const http_message & part,
+        lambda_holder_t<vds::async_task<vds::expected<void>>> final_handler);
 
-      private:
-        std::shared_ptr<form_parser> owner_;
-        uint8_t buffer_[1024];
 
-        vds::async_task<vds::expected<void>> read_string_body(
-            
-          const std::shared_ptr<std::string>& buffer,
-          const http_message& part);
-
-        vds::async_task<vds::expected<void>> read_file(
-          
-          const std::shared_ptr<stream_output_async<uint8_t>> & buffer,
-          const http_message& part);
-
-          vds::async_task<vds::expected<void>> skip_part(
-            
-          const vds::http_message& part);
-
-      };
+      static vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> read_string_body(
+        lambda_holder_t<async_task<expected<void>>, std::string &&> handler);
     };
 
   }

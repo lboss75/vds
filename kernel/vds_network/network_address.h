@@ -13,6 +13,7 @@ All rights reserved
 #include <WS2tcpip.h>
 typedef ADDRESS_FAMILY sa_family_t;
 #endif
+#include "expected.h"
 
 namespace vds {
   class network_address {

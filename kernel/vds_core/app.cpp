@@ -180,7 +180,7 @@ TCHAR* vds::app::service_name() const {
   throw vds_exceptions::invalid_operation();
 }
 
-vds::expected<int> vds::app::demonize(const foldername & root_folder) {
+vds::expected<int> vds::app::demonize(const foldername & /*root_folder*/) {
   SERVICE_TABLE_ENTRY DispatchTable[] =
   {
     {this->service_name(), (LPSERVICE_MAIN_FUNCTION)SvcMain},
@@ -198,7 +198,7 @@ vds::expected<int> vds::app::demonize(const foldername & root_folder) {
   return 0;
 }
 
-void vds::app::SvcMain(DWORD dwArgc, LPTSTR* lpszArgv) {
+void vds::app::SvcMain(DWORD /*dwArgc*/, LPTSTR* /*lpszArgv*/) {
   the_app_->service_main();
 }
 

@@ -22,9 +22,6 @@ namespace vds {
     ~http_server();
 
     vds::async_task<vds::expected<void>> start(
-      
-      const std::shared_ptr<continuous_buffer<uint8_t>> & incoming_stream,
-      const std::shared_ptr<continuous_buffer<uint8_t>> & outgoing,
       const handler_type & handler);
 
   private:

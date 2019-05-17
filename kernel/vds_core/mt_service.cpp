@@ -59,20 +59,15 @@ vds::imt_service * vds::imt_service::get_current()
 	return current_instance;
 }
 
-void vds::imt_service::async(const service_provider * sp, const std::function<void(void)>& handler)
-{
-	sp->get<imt_service>()->do_async(handler);
-}
-
 void vds::imt_service::async(const service_provider * sp, std::function<void(void)>&& handler)
 {
 	sp->get<imt_service>()->do_async(std::move(handler));
 }
 
-void vds::imt_service::do_async(const std::function<void(void)>& handler)
-{
-  ((mt_service *)this)->impl_->do_async(handler);
-}
+//void vds::imt_service::do_async(const std::function<void(void)>& handler)
+//{
+//  ((mt_service *)this)->impl_->do_async(handler);
+//}
 
 void vds::imt_service::do_async( std::function<void(void)> && handler)
 {
@@ -112,27 +107,7 @@ vds::async_task<vds::expected<void>> vds::_mt_service::prepare_to_stop() {
   co_return expected<void>();
 }
 
-void vds::_mt_service::do_async( const std::function<void(void)> & handler)
-{
-  std::unique_lock<std::mutex> lock(this->mutex_);
-#if defined(DEBUG)
-  this->queue_.push([sp = this->sp_, handler, thread_id =
-#ifndef _WIN32
-    syscall(SYS_gettid)
-#else
-    GetCurrentThreadId()
-#endif
-  ]() {
-    sp->get<logger>()->trace("Async", "Anync from %d", thread_id);
-    handler();
-  });
-#else//defined(DEBUG)
-  this->queue_.push(handler);
-#endif//defined(DEBUG)
-  this->cond_.notify_all();
-}
-
-void vds::_mt_service::do_async( std::function<void(void)> && handler)
+void vds::_mt_service::do_async(lambda_holder_t<void> && handler)
 {
   std::unique_lock<std::mutex> lock(this->mutex_);
   this->queue_.push(std::move(handler));

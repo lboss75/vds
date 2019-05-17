@@ -12,7 +12,6 @@ namespace vds {
   class filename;
   class user_manager;
   class http_router;
-  class http_request;
 
   class http_route_handler {
   public:
@@ -44,7 +43,7 @@ namespace vds {
     http_route_handler(
       const std::string & url,
       const std::string & method,
-      const std::function<async_task<expected<std::shared_ptr<json_value>>>(const service_provider * , const std::shared_ptr<user_manager> &, const http_request &)> & callback)
+      const std::function<async_task<expected<std::shared_ptr<json_value>>>(const service_provider * , const std::shared_ptr<user_manager> &, const http_message &)> & callback)
       : url_(url), method_(method), handler_(new auth_api_handler(callback)) {
     }
 

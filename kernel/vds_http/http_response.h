@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "http_message.h"
+#include "http_serializer.h"
 
 namespace vds {
   class http_response
@@ -40,28 +41,32 @@ namespace vds {
       return this->comment_;
     }
 
-    static http_message simple_text_response(
+    static async_task<expected<void>> simple_text_response(
+	    const std::shared_ptr<http_async_serializer> & output_stream,
       const std::string & body,
       const std::string & content_type = "text/html; charset=utf-8",
       int result_code = HTTP_OK,
       const std::string & message = "OK");
 
-    static http_message simple_text_response(
-      const std::shared_ptr<stream_input_async<uint8_t>> & body,
+    static async_task<expected<void>>  simple_text_response(
+	  const std::shared_ptr<http_async_serializer> & output_stream,
+	  const std::shared_ptr<stream_input_async<uint8_t>> & body,
       uint64_t body_size,
       const std::string & content_type = "application/octet-stream",
       int result_code = HTTP_OK,
       const std::string & message = "OK");
 
-    static expected<http_message> file_response(
-      const filename & body_file,
+    static async_task<expected<void>>  file_response(
+	  const std::shared_ptr<http_async_serializer> & output_stream,
+	  const filename & body_file,
       const std::string & out_filename,
       const std::string & content_type = "application/octet-stream",
       int result_code = HTTP_OK,
       const std::string & message = "OK");
 
-    static http_message file_response(
-      const std::shared_ptr<stream_input_async<uint8_t>> & body,
+    static async_task<expected<void>>  file_response(
+	  const std::shared_ptr<http_async_serializer> & output_stream,
+	  const std::shared_ptr<stream_input_async<uint8_t>> & body,
       uint64_t body_size,
       const std::string & filename,
       const const_data_buffer & file_hash = const_data_buffer(),
@@ -69,19 +74,22 @@ namespace vds {
       int result_code = HTTP_OK,
       const std::string & message = "OK");
 
-    static http_message file_response(
-      const const_data_buffer & body,
+    static async_task<expected<void>>  file_response(
+		const std::shared_ptr<http_async_serializer> & output_stream,
+		const const_data_buffer & body,
       const std::string & filename,
       const const_data_buffer & file_hash = const_data_buffer(),
       const std::string & content_type = "application/octet-stream",
       int result_code = HTTP_OK,
       const std::string & message = "OK");
 
-    static http_message redirect(
-      const std::string & location);
+    static async_task<expected<void>> redirect(
+		const std::shared_ptr<http_async_serializer> & output_stream,
+		const std::string & location);
 
-    static http_message status_response(
-        int result_code,
+    static async_task<expected<void>> status_response(
+		const std::shared_ptr<http_async_serializer> & output_stream,
+		int result_code,
         const std::string & message);
 
   private:
