@@ -74,12 +74,13 @@ namespace vds {
 
       file_operations();
 
-			vds::async_task<vds::expected<transactions::user_message_transaction::file_info_t>> upload_file(
-        const std::shared_ptr<user_manager> & user_mng,
+			vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> upload_file(
         const std::string & name,
         const std::string & mime_type,
-        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream,
-        const const_data_buffer & file_hash);
+        const const_data_buffer & file_hash,
+        lambda_holder_t<
+          async_task<expected<void>>,
+          transactions::user_message_transaction::file_info_t &&> && final_handler);
 
       vds::async_task<vds::expected<void>> create_message(
         

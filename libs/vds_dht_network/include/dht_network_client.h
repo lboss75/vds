@@ -50,10 +50,12 @@ namespace vds {
           std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const const_data_buffer& value);
 
-        async_task<expected<chunk_info>> start_save(
+        expected<std::shared_ptr<stream_output_async<uint8_t>>> start_save(
+          const service_provider * sp) const;
+
+        async_task<expected<chunk_info>> finish_save(
           const service_provider * sp,
-          const std::function<async_task<expected<void>>(
-            const std::shared_ptr<stream_output_async<uint8_t>> & stream) > & data_writer);
+          std::shared_ptr<stream_output_async<uint8_t>> stream);
 
         async_task<expected<const_data_buffer>> restore(          
           const chunk_info& block_id);

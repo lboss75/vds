@@ -36,7 +36,7 @@ vds::dht::network::_client::_client(
   const service_provider * sp,
   const std::shared_ptr<iudp_transport> & udp_transport,
   const const_data_buffer & this_node_id,
-  const std::shared_ptr<asymmetric_private_key> & node_key)
+  const std::shared_ptr<asymmetric_private_key> & /*node_key*/)
   : sp_(sp),
   route_(sp, this_node_id),
   update_timer_("DHT Network"),
@@ -915,16 +915,31 @@ vds::expected<vds::dht::network::client::chunk_info> vds::dht::network::client::
   };
 }
 
+vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>
+vds::dht::network::client::start_save(
+  const service_provider * sp) const {
 
-vds::async_task<vds::expected<vds::dht::network::client::chunk_info>> vds::dht::network::client::start_save(
+  GET_EXPECTED(original_file, file_stream_output_async::create_tmp(sp));
+  GET_EXPECTED(original_hash, hash_stream_output_async::create(hash::sha256(), original_file));
+
+  return original_hash;
+}
+
+vds::async_task<vds::expected<vds::dht::network::client::chunk_info>>
+vds::dht::network::client::finish_save(
   const service_provider * sp,
-  const std::function<async_task<expected<void>>(const std::shared_ptr<stream_output_async<uint8_t>>& stream)>& data_writer) {
+  const std::shared_ptr<vds::stream_output_async<uint8_t>> stream) {
+  
+  auto original_hash = std::dynamic_pointer_cast<hash_stream_output_async>(stream);
+  if(!original_hash) {
+    co_return make_unexpected<vds::vds_exceptions::invalid_operation>();
+  }
 
-  GET_EXPECTED_ASYNC(original_file, file_stream_output_async::create_tmp(sp));
-  GET_EXPECTED_ASYNC(original_hash, hash_stream_output_async::create(hash::sha256(), original_file));
-
-  CHECK_EXPECTED_ASYNC(co_await data_writer(original_hash));
-
+  auto original_file = std::dynamic_pointer_cast<file_stream_output_async>(original_hash->target());
+  if (!original_file) {
+    co_return make_unexpected<vds::vds_exceptions::invalid_operation>();
+  }
+  
   auto key_data = original_hash->signature();
 
   if (key_data.size() != symmetric_crypto::aes_256_cbc().key_size()
@@ -944,11 +959,11 @@ vds::async_task<vds::expected<vds::dht::network::client::chunk_info>> vds::dht::
   CHECK_EXPECTED_ASYNC(original_file->target().seek(0));
 
   uint8_t buffer[16 * 1024];
-  for(;;) {
+  for (;;) {
     GET_EXPECTED_ASYNC(readed, original_file->target().read(buffer, sizeof(buffer)));
     CHECK_EXPECTED_ASYNC(co_await crypto_stream->write_async(buffer, readed));
 
-    if(0 == readed) {
+    if (0 == readed) {
       break;
     }
   }
@@ -985,6 +1000,7 @@ vds::async_task<vds::expected<vds::dht::network::client::chunk_info>> vds::dht::
     info
   };
 }
+
 
 vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::client::restore(
   

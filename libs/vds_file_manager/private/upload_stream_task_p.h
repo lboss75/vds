@@ -19,13 +19,19 @@ namespace vds {
     }
   }
 
-  class _upload_stream_task : public std::enable_shared_from_this<_upload_stream_task> {
+  class _upload_stream_task : public stream_output_async<uint8_t> {
   public:
-    _upload_stream_task();
+    _upload_stream_task(
+      const service_provider * sp,
+      lambda_holder_t<
+        async_task<expected<void>>,
+        const const_data_buffer & /*result_hash*/,
+        uint64_t /*total_size*/,
+        std::list<transactions::user_message_transaction::file_block_t> &&> result_handler);
 
-    vds::async_task<vds::expected<std::list<transactions::user_message_transaction::file_block_t>>> start(
-        const service_provider * sp,
-        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream);
+    async_task<expected<void>> write_async(
+      const uint8_t *data,
+      size_t len) override;
 
     uint64_t total_size() const {
       return this->total_size_;
@@ -40,13 +46,21 @@ namespace vds {
     }
 
   private:
+    const service_provider * sp_;
     uint64_t total_size_;
     hash total_hash_;
+    size_t readed_;
+
+    std::shared_ptr<stream_output_async<uint8_t>> current_target_;
     
     const_data_buffer target_file_hash_;
-
-    uint64_t readed_;
-    uint8_t buffer_[1024];
+ 
+    std::list<transactions::user_message_transaction::file_block_t> result_;
+    lambda_holder_t<
+      async_task<expected<void>>,
+      const const_data_buffer & /*result_hash*/,
+      uint64_t /*total_size*/,
+      std::list<transactions::user_message_transaction::file_block_t> &&> result_handler_;
   };
 }
 

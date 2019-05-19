@@ -18,12 +18,15 @@ namespace vds {
   namespace file_manager_private {
     class _file_operations : public std::enable_shared_from_this<_file_operations> {
     public:
-			vds::async_task<vds::expected<transactions::user_message_transaction::file_info_t>> upload_file(
-          const std::shared_ptr<user_manager> & user_mng,
-          const std::string & name,
-          const std::string & mime_type,
-					const std::shared_ptr<stream_input_async<uint8_t>> & input_stream,
-          const const_data_buffer & file_hash);
+
+      vds::expected<std::shared_ptr<stream_output_async<uint8_t>>> upload_file(
+        const std::string & name,
+        const std::string & mime_type,
+        const const_data_buffer & file_hash,
+        lambda_holder_t<
+          async_task<expected<void>>,
+          transactions::user_message_transaction::file_info_t &&> && final_handler);
+
 
 	    async_task<expected<file_manager::file_operations::download_result_t>> download_file(
           const std::shared_ptr<user_manager> & user_mng,
@@ -64,10 +67,6 @@ namespace vds {
         uint64_t total_size;
         std::list<transactions::user_message_transaction::file_block_t> file_blocks;
       };
-
-      vds::async_task<vds::expected<pack_file_result>> pack_file(
-        const std::shared_ptr<stream_input_async<uint8_t>> & input_stream,
-        const const_data_buffer & file_hash) const;
 
 //			void restore_chunk(
 //					

@@ -35,10 +35,8 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>>
 vds::api_controller::get_channels(
   const vds::service_provider * /*sp*/,
   const std::shared_ptr<user_manager> & user_mng,
-  const http_request & request) {
+  const http_message & request) {
   
-  CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
-
   auto result = std::make_shared<json_array>();
   for(auto & channel : user_mng->get_channels()) {
     result->add(channel_serialize(*channel.second));
@@ -47,12 +45,17 @@ vds::api_controller::get_channels(
   co_return std::static_pointer_cast<json_value>(result);
 }
 
-vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::api_controller::create_message(const vds::service_provider* sp,
-  const std::shared_ptr<user_manager>& user_mng, const http_request& request) {
+vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>>
+vds::api_controller::create_message(
+  const vds::service_provider* sp,
+  const std::shared_ptr<user_manager>& user_mng,
+  const http_message & request) {
 
   auto parser = std::make_shared<create_message_form>(sp, user_mng);
 
-  CHECK_EXPECTED_ASYNC(co_await parser->parse(request.get_message()));
+  CHECK_EXPECTED_ASYNC(co_await parser->parse(request, [](std::shared_ptr<http::form_parser> parser) {
+    
+  }));
   CHECK_EXPECTED_ASYNC(co_await parser->complete());
 
   auto item = std::make_shared<json_object>();

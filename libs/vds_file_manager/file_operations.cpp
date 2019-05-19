@@ -63,14 +63,15 @@ vds::async_task<vds::expected<void>> vds::file_manager::file_operations::downloa
 }
 
 
-vds::async_task<vds::expected<vds::transactions::user_message_transaction::file_info_t>>
+vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>>
 vds::file_manager::file_operations::upload_file(
-  const std::shared_ptr<user_manager>& user_mng,
   const std::string & name,
   const std::string & mime_type,
-  const std::shared_ptr<stream_input_async<uint8_t>>& input_stream,
-  const const_data_buffer & file_hash) {
-  return this->impl_->upload_file(user_mng, name, mime_type, input_stream, file_hash);
+  const const_data_buffer & file_hash,
+  lambda_holder_t<
+    async_task<expected<void>>,
+    transactions::user_message_transaction::file_info_t &&> && final_handler) {
+  return this->impl_->upload_file(name, mime_type, file_hash, std::move(final_handler));
 }
 
 vds::async_task<vds::expected<void>> vds::file_manager::file_operations::create_message(
@@ -83,22 +84,31 @@ vds::async_task<vds::expected<void>> vds::file_manager::file_operations::create_
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-vds::async_task<vds::expected<vds::transactions::user_message_transaction::file_info_t>> vds::file_manager_private::_file_operations::upload_file(
-  const std::shared_ptr<user_manager>& user_mng,
+vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>
+vds::file_manager_private::_file_operations::upload_file(
   const std::string & name,
   const std::string & mime_type,
-  const std::shared_ptr<stream_input_async<uint8_t>>& input_stream,
-  const const_data_buffer & file_hash) {
+  const const_data_buffer & file_hash,
+  lambda_holder_t<
+  async_task<expected<void>>,
+  transactions::user_message_transaction::file_info_t &&> && final_handler) {
 
-  pack_file_result file_info;
-  GET_EXPECTED_VALUE_ASYNC(file_info, co_await this->pack_file(input_stream, file_hash));
+  auto task = std::make_shared<_upload_stream_task>(
+    this->sp_,
+    [name, mime_type, h = std::move(final_handler)](
+      const const_data_buffer & result_hash,
+      uint64_t total_size,
+      std::list<transactions::user_message_transaction::file_block_t> && file_blocks) {
+        return h(transactions::user_message_transaction::file_info_t{
+          name,
+          mime_type,
+          total_size,
+          result_hash,
+          std::move(file_blocks) });
+      });
 
-  co_return transactions::user_message_transaction::file_info_t{
-        name,
-        mime_type,
-        file_info.total_size,
-        file_info.total_hash,
-        file_info.file_blocks };
+  task->set_file_hash(file_hash);
+  return task;
 }
 
 vds::async_task<vds::expected<vds::file_manager::file_operations::download_result_t>>
@@ -269,18 +279,6 @@ void vds::file_manager_private::_file_operations::stop() {
 
 vds::async_task<vds::expected<void>> vds::file_manager_private::_file_operations::prepare_to_stop() {
   co_return expected<void>();
-}
-
-vds::async_task<vds::expected<vds::file_manager_private::_file_operations::pack_file_result>>
-vds::file_manager_private::_file_operations::pack_file(
-  const std::shared_ptr<stream_input_async<uint8_t>>& input_stream,
-  const const_data_buffer & file_hash) const {
-  auto task = std::make_shared<_upload_stream_task>();
-  task->set_file_hash(file_hash);
-  std::list<vds::transactions::user_message_transaction::file_block_t> file_blocks;
-  GET_EXPECTED_VALUE_ASYNC(file_blocks, co_await task->start(this->sp_, input_stream));
-  
-  co_return pack_file_result { task->result_hash(), task->total_size(), file_blocks };
 }
 
 vds::async_task<vds::expected<void>> vds::file_manager_private::_file_operations::download_stream(

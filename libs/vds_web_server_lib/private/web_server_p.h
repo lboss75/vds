@@ -35,10 +35,11 @@ namespace vds {
       
       const std::string & session_id) const;
 
-    void kill_session(
-      
-      const std::string& session_id);
-    async_task<expected<http_message>> not_found_handler(const http_request& request);
+    void kill_session(const std::string& session_id);
+
+    async_task<expected<bool>> not_found_handler(
+      const std::shared_ptr<http_async_serializer> & output_stream,
+      const http_message& request);
 
   private:
     const service_provider * sp_;

@@ -36,7 +36,7 @@ TEST(test_vds, test_initial)
 
     mock.allow_write_channel(3, channel.id());
 
-    auto sp = mock.get_sp(3);
+    mock.get_sp(3);
 
     std::cout << "Upload local file...\n";
     auto file_hash = mock.upload_file(

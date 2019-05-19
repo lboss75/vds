@@ -20,21 +20,21 @@ namespace vds {
     static async_task<expected<std::shared_ptr<json_value>>> get_channels(        
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> & user_mng,
-      const http_request & message);
+      const http_message & message);
 
     static async_task<expected<std::shared_ptr<json_value>>> get_login_state(
       const vds::service_provider * sp,
       const std::string & login,
       const std::string & password,
       const std::shared_ptr<_web_server>& owner,
-      const http_request& request);
+      const http_message& request);
 
     static async_task<expected<std::shared_ptr<json_value>>> login(
       const vds::service_provider * sp,
       const std::string & login,
       const std::string & password,
       const std::shared_ptr<_web_server>& owner,
-      const http_request& request);
+      const http_message& request);
 
     static vds::async_task<vds::expected<http_message>> create_channel(
       const std::shared_ptr<user_manager> & user_mng,
@@ -79,7 +79,7 @@ namespace vds {
     static vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>>
     get_statistics(
       const vds::service_provider * sp,
-      const http_request& message);
+      const http_message& message);
 
     static std::shared_ptr<json_value>
     get_invite(
@@ -93,7 +93,7 @@ namespace vds {
     static vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> create_message(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> &user_mng,
-      const http_request & request);
+      const http_message & request);
 
   private:
     static std::shared_ptr<json_object> channel_serialize(const vds::user_channel & channel);
