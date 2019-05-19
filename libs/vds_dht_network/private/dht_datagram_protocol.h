@@ -121,7 +121,7 @@ namespace vds {
           }
           if (protocol_message_type_t::MTUTestPassed == static_cast<protocol_message_type_t>(*datagram.data())) {
             if(this->mtu_ < datagram.size()) {
-              this->mtu_ = datagram.size();
+              this->mtu_ = safe_cast<decltype(this->mtu_)>(datagram.size());
               this->check_mtu_ = 0;
               logger::get(this->sp_)->trace("dht_session", "Change MTU size to %d", this->mtu_);
             }

@@ -36,8 +36,9 @@ namespace vds {
       const std::shared_ptr<_web_server>& owner,
       const http_message& request);
 
-    static vds::async_task<vds::expected<http_message>> create_channel(
+    static vds::async_task<vds::expected<void>> create_channel(
       const std::shared_ptr<user_manager> & user_mng,
+      const std::shared_ptr<http_async_serializer> & output_stream,
       const std::string & channel_type,
       const std::string & name);
 
@@ -52,7 +53,8 @@ namespace vds {
       const std::shared_ptr<user_manager> & user_mng,
       const const_data_buffer& channel_id,
       const std::string& file_name,
-      const const_data_buffer& file_hash, const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
+      const const_data_buffer& file_hash,
+      const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
     static vds::async_task<vds::expected<std::shared_ptr<json_value>>>
       prepare_download_file(
@@ -90,8 +92,9 @@ namespace vds {
     static async_task<expected<std::shared_ptr<json_value>>> get_session(
       const std::shared_ptr<auth_session> & session);
 
-    static vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> create_message(
+    static async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> create_message(
       const vds::service_provider * sp,
+      const std::shared_ptr<http_async_serializer> & output_stream,
       const std::shared_ptr<user_manager> &user_mng,
       const http_message & request);
 

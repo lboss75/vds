@@ -45,24 +45,27 @@ vds::api_controller::get_channels(
   co_return std::static_pointer_cast<json_value>(result);
 }
 
-vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>>
+vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>>
 vds::api_controller::create_message(
   const vds::service_provider* sp,
+  const std::shared_ptr<http_async_serializer> & output_stream,
   const std::shared_ptr<user_manager>& user_mng,
   const http_message & request) {
 
   auto parser = std::make_shared<create_message_form>(sp, user_mng);
 
-  CHECK_EXPECTED_ASYNC(co_await parser->parse(request, [](std::shared_ptr<http::form_parser> parser) {
-    
-  }));
-  CHECK_EXPECTED_ASYNC(co_await parser->complete());
+  return parser->parse(request, [output_stream, parser]() -> async_task<expected<void>> {
+    CHECK_EXPECTED_ASYNC(co_await parser->complete());
 
-  auto item = std::make_shared<json_object>();
+    auto item = std::make_shared<json_object>();
 
-  item->add_property("state", "successful");
+    item->add_property("state", "successful");
 
-  co_return item;
+    GET_EXPECTED_ASYNC(result_str, item->json_value::str());
+
+    CHECK_EXPECTED_ASYNC(co_await http_response::simple_text_response(output_stream, result_str, "application/json; charset=utf-8"));
+    co_return expected<void>();
+  });
 }
 
 vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::api_controller::get_login_state(
@@ -70,10 +73,10 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::api_contro
   const std::string & login,
   const std::string & password,
   const std::shared_ptr<_web_server>& owner_param,
-  const http_request& request_param) {
+  const http_message & request_param) {
 
   std::shared_ptr<_web_server> owner = owner_param;
-  http_request request = request_param;
+  http_message request = request_param;
   auto session_id = std::to_string(std::rand()) + "." + std::to_string(std::rand()) + "." + std::to_string(std::rand());
   auto session = std::make_shared<auth_session>(sp, session_id, login, password);
   CHECK_EXPECTED_ASYNC(co_await session->load(sp));
@@ -109,10 +112,10 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::api_contro
   const std::string & login,
   const std::string & password,
   const std::shared_ptr<_web_server>& owner_param,
-  const http_request& request_param) {
+  const http_message & request_param) {
 
   std::shared_ptr<_web_server> owner = owner_param;
-  http_request request = request_param;
+  http_message request = request_param;
   auto session_id = std::to_string(std::rand()) + "." + std::to_string(std::rand()) + "." + std::to_string(std::rand());
   auto session = std::make_shared<auth_session>(sp, session_id, login, password);
   CHECK_EXPECTED_ASYNC(co_await session->load(sp));
@@ -154,9 +157,10 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::api_contro
   co_return item;
 }
 
-vds::async_task<vds::expected<vds::http_message>>
+vds::async_task<vds::expected<void>>
 vds::api_controller::create_channel(
   const std::shared_ptr<user_manager> & user_mng,
+  const std::shared_ptr<http_async_serializer> & output_stream,
   const std::string & channel_type,
   const std::string & name) {
 
@@ -164,9 +168,12 @@ vds::api_controller::create_channel(
   GET_EXPECTED_VALUE_ASYNC(channel, co_await user_mng->create_channel(channel_type, name));
   GET_EXPECTED_ASYNC(body, channel_serialize(channel)->json_value::str());
 
-  co_return http_response::simple_text_response(
+  CHECK_EXPECTED_ASYNC(co_await http_response::simple_text_response(
+    output_stream,
     body,
-    "application/json; charset=utf-8");
+    "application/json; charset=utf-8"));
+
+  co_return expected<void>();
 }
 
 vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::api_controller::channel_feed(
@@ -267,15 +274,17 @@ vds::api_controller::offer_device(
 
 vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::api_controller::get_statistics(
   const vds::service_provider * sp,
-  const http_request& /*message*/) {
+  const http_message & /*message*/) {
 
   auto statistic = co_await sp->get<server>()->get_statistic();
   CHECK_EXPECTED_ERROR_ASYNC(statistic);
   co_return statistic.value().serialize();
 }
 
-std::shared_ptr<vds::json_value> vds::api_controller::get_invite( user_manager& user_mng,
-  const std::shared_ptr<_web_server>& owner, const http_message& message) {
+std::shared_ptr<vds::json_value> vds::api_controller::get_invite(
+  user_manager& /*user_mng*/,
+  const std::shared_ptr<_web_server>& /*owner*/,
+  const http_message& /*message*/) {
 
   auto result = std::make_shared<json_object>();
   result->add_property("code", "test");
@@ -286,7 +295,7 @@ vds::async_task<vds::expected<void>>
 vds::api_controller::lock_device(
   const vds::service_provider * sp,
   const std::shared_ptr<vds::user_manager> &user_mng,
-  const std::shared_ptr<vds::_web_server> &owner,
+  const std::shared_ptr<vds::_web_server> &/*owner*/,
   const std::string &device_name,
   const std::string &local_path,
   uint64_t reserved_size) {

@@ -15,5 +15,4 @@ else(ANDROID_PLATFORM)
 	add_subdirectory(tests)
 endif(ANDROID_PLATFORM)
 
-add_subdirectory(api)
 

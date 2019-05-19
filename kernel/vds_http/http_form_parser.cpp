@@ -9,7 +9,7 @@ All rights reserved
 
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::http::form_parser::parse(
   const http_message& message,
-  lambda_holder_t<vds::async_task<vds::expected<void>>, std::shared_ptr<form_parser>> handler) {
+  lambda_holder_t<vds::async_task<vds::expected<void>>> handler) {
   std::string content_type;
   if (message.get_header("Content-Type", content_type)) {
     static const char multipart_form_data[] = "multipart/form-data;";
@@ -26,8 +26,8 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
           [pthis = this->shared_from_this()](http_message && part) -> vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> {
             return pthis->read_part(part);
           },
-          [h = std::move(handler), pthis = this->shared_from_this()]() {
-            return h(pthis);
+          [h = std::move(handler)]() {
+            return h();
           });
       }
       else {
@@ -39,8 +39,8 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
       if (form_urlencoded == content_type.substr(0, sizeof(form_urlencoded) - 1)) {
         return this->read_form_urlencoded(
           message,
-          [h = std::move(handler), pthis = this->shared_from_this()]() {
-          return h(pthis);
+          [h = std::move(handler)]() {
+          return h();
         });
       }
       else {

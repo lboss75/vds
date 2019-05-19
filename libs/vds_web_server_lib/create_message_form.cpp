@@ -40,7 +40,6 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
   }
     
   return this->sp_->get<vds::file_manager::file_operations>()->upload_file(
-    this->user_mng_,
     file.file_name,
     file.mimetype,
     file_hash,

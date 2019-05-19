@@ -40,7 +40,7 @@ namespace vds {
 
       vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> parse(
         const http_message & message,
-        lambda_holder_t<vds::async_task<vds::expected<void>>, std::shared_ptr<form_parser>> final_handler);
+        lambda_holder_t<vds::async_task<vds::expected<void>>> final_handler);
 
 
     protected:

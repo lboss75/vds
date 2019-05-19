@@ -19,86 +19,57 @@ namespace vds {
 
 	class websocket : public std::enable_shared_from_this<websocket> {
 	public:
-		enum class message_type {
-			close,
-			text,
-			binary
-		};
-
-		struct message {
-			message_type type;
-			std::shared_ptr<stream_input_async<uint8_t>> body;
-		};
-
-		websocket(
-			const service_provider * sp,
-			const std::function<async_task<expected<void>> (message msg, std::shared_ptr<websocket_output> & out)> & handler);
-
-		static vds::async_task<vds::expected<http_message>> open_connection(
+		static vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> open_connection(
 			const vds::service_provider * sp,
-			const http_request & message);
+      const std::shared_ptr<http_async_serializer> & output_stream,
+			const http_message & msg,
+      lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> && handler);
 
 	private:
-		std::shared_ptr<stream_input_async<uint8_t>> start(const http_request & request);
 
-		async_task<expected<void>> start_read();
+    class websocket_handler : public stream_output_async<uint8_t>
+    {
+    public:
+      websocket_handler(std::shared_ptr<stream_output_async<uint8_t>> target);
 
-		const service_provider * sp_;
-		vds::async_task<vds::expected<void>> task_;
-		std::function<async_task<expected<void>>(message msg, std::shared_ptr<websocket_output> & out)> handler_;
+      async_task<expected<void>> write_async(
+        const uint8_t *data,
+        size_t len) override;
 
-		//Read state
-		enum class read_state_t {
-			BOF,
-			TEXT,
-			BINARY,
-			CLOSED
-		};
+    private:
+      const service_provider * sp_;
+      lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> handler_;
 
-		read_state_t read_state_ = read_state_t::BOF;
+      //Read state
+      enum class read_state_t {
+        HEADER,
+        TEXT,
+        BINARY,
+        CLOSED
+      };
 
-		uint8_t buffer_[1024];
-		size_t readed_ = 0;
+      read_state_t read_state_ = read_state_t::HEADER;
 
-		bool fin_;
-		bool RSV1_;
-		bool RSV2_;
-		bool RSV3_;
-		unsigned int Opcode_;
+      uint8_t buffer_[1024];
+      uint8_t readed_ = 0;
 
-		bool has_mask_;
-		uint64_t payloadLength_;
-		size_t offset_;
+      bool fin_;
+      bool RSV1_;
+      bool RSV2_;
+      bool RSV3_;
+      unsigned int Opcode_;
 
-		uint8_t mask_[4];
-		int mask_index_;
+      bool has_mask_;
+      uint64_t payloadLength_;
 
-		std::shared_ptr<stream_input_async<uint8_t>> input_stream_;
+      uint8_t mask_[4];
+      int mask_index_;
 
-		async_task<expected<message_type>> next_message();
-		async_task<expected<bool>> read_minimal(size_t min_size);
-		async_task<expected<size_t>> read(uint8_t * buffer, size_t buffer_size);
+      std::shared_ptr<stream_output_async<uint8_t>> current_stream_;
 
-
-		class websocket_stream : public stream_input_async<uint8_t>
-		{
-		public:
-			websocket_stream(std::shared_ptr<websocket> owner)
-				: owner_(owner) {
-			}
-
-			async_task<expected<size_t>> read_async(
-				uint8_t * buffer,
-				size_t len) override {
-				return this->owner_->read(buffer, len);
-			}
-
-		private:
-			std::shared_ptr<websocket> owner_;
-		};
-
+      bool read_minimal(uint8_t min_size, const uint8_t * & data, size_t & len);
+    };
 	};
-
 }//vds
 
 #endif //__VDS_WEB_SERVER_LIB_WEBSOCKET_API_H_
