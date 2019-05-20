@@ -5,12 +5,10 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include "stdafx.h"
-#include <list>
-#include <list>
 
 namespace vds {
   class http_message;
+  class http_client;
 
   class vds_cmd_app : public console_app
   {
@@ -54,17 +52,26 @@ namespace vds {
     mt_service mt_service_;
     network_service network_service_;
 
-    vds::expected<void> invoke_server(
+    vds::expected<std::shared_ptr<http_client>> connect(
+      const service_provider * sp);
+
+    expected<std::string> login(
       const service_provider * sp,
-      vds::http_message request,
-      const std::function<vds::async_task<vds::expected<void>>(vds::http_message response)> & response_handler);
+      const std::shared_ptr<http_client> & client);
 
-    expected<std::string> login(const service_provider * sp);
-    expected<void> logout(const service_provider * sp, const std::string & session);
+    expected<void> logout(
+      const service_provider * sp,
+      const std::shared_ptr<http_client> & client,
+      const std::string & session);
 
-    expected<void> upload_file(const service_provider * sp, const std::string & session);
     expected<void> upload_file(
       const service_provider * sp,
+      const std::shared_ptr<http_client> & client,
+      const std::string & session);
+
+    expected<void> upload_file(
+      const service_provider * sp,
+      const std::shared_ptr<http_client> & client,
       const std::string & session,
       const filename & fn,
       const std::string & name,
@@ -72,20 +79,34 @@ namespace vds {
     
     expected<void> download_file(
       const service_provider * sp,
-      const std::string & session);    
+      const std::shared_ptr<http_client> & client,
+      const std::string & session);
+    
     expected<void> download_file(
       const service_provider * sp,
+      const std::shared_ptr<http_client> & client,
       const std::string & session,
       const filename & fn,
       const std::string & file_name,
       const const_data_buffer & file_id);
 
-    expected<void> sync_files(const service_provider * sp, const std::string & session);
+    expected<void> sync_files(
+      const service_provider * sp,
+      const std::shared_ptr<http_client> & client,
+      const std::string & session);
 
-    expected<void> channel_list(const service_provider * sp, const std::string & session);
-    expected<void> channel_create(const service_provider * sp, const std::string & session);
+    expected<void> channel_list(
+      const service_provider * sp,
+      const std::shared_ptr<http_client> & client,
+      const std::string & session);
 
-    async_task<expected<void>> channel_list_out(http_message response);
+    expected<void> channel_create(
+      const service_provider * sp,
+      const std::shared_ptr<http_client> & client, 
+      const std::string & session);
+
+    expected<void> channel_list_out(
+      const const_data_buffer & response);
 
 
     struct sync_file_info {
@@ -97,6 +118,7 @@ namespace vds {
 
     expected<void> sync_file(
       const service_provider* sp,
+      const std::shared_ptr<http_client> & client,
       const std::string & session,
       const filename& exists_files,
       const std::string & rel_name,

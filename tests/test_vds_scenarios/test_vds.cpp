@@ -44,7 +44,7 @@ TEST(test_vds, test_initial)
       channel.id(),
       "test data",
       "application/octet-stream",
-      std::make_shared<vds::buffer_stream_input_async>(buffer));
+      std::make_shared<vds::buffer_stream_input_async>(vds::const_data_buffer(buffer.get(), len)));
 
     std::cout << "Download local file...\n";
 

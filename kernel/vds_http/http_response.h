@@ -21,7 +21,7 @@ namespace vds {
     static constexpr int HTTP_Not_Found = 404;
 
     http_response(
-      const http_message & comment);
+      http_message comment);
 
     http_response(
       int code,

@@ -20,48 +20,37 @@ vds::async_task<vds::expected<void>> vds::http_client::start(
 	sp,
     [pthis = this->shared_from_this(), eof](http_message && message) -> async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
 
-    if (!message) {
-      vds_assert(!pthis->result_);
-      eof->set_value(expected<void>());
-    }
-    else {
-      vds_assert(pthis->result_);
-      decltype(pthis->response_handler_) f;
-      pthis->response_handler_.swap(f);
+    decltype(pthis->response_handler_) f;
+    pthis->response_handler_.swap(f);
 
-      auto callback_result = co_await f(message);
-
-      if (callback_result.has_error()) {
-        auto result = std::move(pthis->result_);
-        result->set_value(unexpected(std::move(callback_result.error())));
-      }
-      else {
-        auto result = std::move(pthis->result_);
-        result->set_value(expected<void>());
-      }
-    }
-    co_return expected<std::shared_ptr<stream_output_async<uint8_t>>>();
+    return f(std::move(message));
   });
 
   co_return expected<void>();
 }
 
-
-
 vds::async_task<vds::expected<void>> vds::http_client::send(
-  const vds::http_message message,
-  const std::function<vds::async_task<vds::expected<void>>(vds::http_message response)> & response_handler)
+  vds::http_message && message,
+  lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message && > && response_handler)
 {
-  vds_assert(!this->result_);
-  auto r = std::make_shared<async_result<vds::expected<void>>>();
-  this->result_ = r;
-  this->response_handler_ = response_handler;
-
-  GET_EXPECTED_ASYNC(stream, co_await this->output_->start_message(message.headers()));
-
-  CHECK_EXPECTED_ASYNC(co_await r->get_future());
-
+  GET_EXPECTED_ASYNC(stream, co_await this->send_headers(std::move(message), std::move(response_handler)));
+  CHECK_EXPECTED_ASYNC(co_await stream->write_async(nullptr, 0));
   co_return expected<void>();
+}
+
+vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::http_client::send_headers(
+  vds::http_message && message,
+  lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message && > && response_handler)
+{
+  vds_assert(!this->response_handler_);
+  this->response_handler_ = std::move(response_handler);
+
+  return this->output_->start_message(message.headers());
+}
+
+
+vds::async_task<vds::expected<void>> vds::http_client::close() {
+  return this->output_->stop();
 }
 
 vds::http_client::client_pipeline::client_pipeline(

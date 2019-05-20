@@ -10,33 +10,38 @@ All rights reserved
 
 
 namespace vds {
+  class http_async_serializer;
   class _web_server;
   class user_manager;
   class http_message;
-  class http_request;
 
   class index_page
   {
   public:
-    static vds::async_task<vds::expected<http_message>> create_channel(
-      const vds::service_provider * sp,
+    static async_task<expected<http_message>> create_channel(
+      const service_provider * sp,
       const std::shared_ptr<user_manager> & user_mng,
-      const http_request & request);
+      const std::shared_ptr<http_async_serializer> & output_stream,
 
-    static vds::async_task<vds::expected<http_message>> create_message(
-      const vds::service_provider * sp,
+      const http_message & request);
+
+    static async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> create_message(
+      const service_provider * sp,
       const std::shared_ptr<user_manager> &user_mng,
-      const http_request & request);
+      const std::shared_ptr<http_async_serializer> & output_stream,
+      const http_message & request);
 
-    static vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> parse_join_request(
-        const vds::service_provider * sp,
+    static async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> parse_join_request(
+        const service_provider * sp,
         const std::shared_ptr<user_manager>& user_mng,
-        const http_request & request);
+        const std::shared_ptr<http_async_serializer> & output_stream,
+        const http_message & request);
 
-    static vds::async_task<vds::expected<vds::http_message>> approve_join_request(
-      const vds::service_provider * sp,
+    static async_task<expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> approve_join_request(
+      const service_provider * sp,
       const std::shared_ptr<user_manager>& user_mng,
-      const http_request & request);
+      const std::shared_ptr<http_async_serializer> & output_stream,
+      const http_message & request);
   };
 }
 

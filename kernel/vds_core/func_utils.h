@@ -259,6 +259,17 @@ namespace vds {
 		  return this->holder_.get() != nullptr;
 	  }
 
+    lambda_holder_t & operator = (lambda_holder_t && original){
+      this->holder_ = std::move(original.holder_);
+      return *this;
+    }
+
+    void swap (lambda_holder_t & original) {
+      auto tmp = std::move(original.holder_);
+      original.holder_ = std::move(this->holder_);
+      this->holder_ = std::move(tmp);
+    }
+
   private:
 	  class holder_base {
 	  public:

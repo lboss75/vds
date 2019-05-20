@@ -7,7 +7,7 @@ All rights reserved
 #include "http_response.h"
 
 vds::http_response::http_response(
-  const http_message & message)
+  http_message message)
 {
   auto p = message.headers().begin();
   auto items = split_string(*p++, ' ', true, true);

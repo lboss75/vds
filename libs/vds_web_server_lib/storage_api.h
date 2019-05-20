@@ -9,8 +9,6 @@ All rights reserved
 #include "user_manager.h"
 
 namespace vds {
-  class http_request;
-
   class storage_api {
   public:
 
@@ -18,7 +16,7 @@ namespace vds {
     device_storages(
         const vds::service_provider * sp,
       const std::shared_ptr<user_manager> & user_mng,
-        const http_request & request);
+        const http_message & request);
 
     static expected<std::shared_ptr<vds::json_value>>
     device_storage_label(

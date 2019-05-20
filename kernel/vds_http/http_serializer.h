@@ -27,27 +27,13 @@ namespace vds {
     }
 
     vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> start_message(
-		const std::list<std::string> & headers)
-    {
-		vds_assert(!this->write_body_);
+      const std::list<std::string>& headers);
 
-      std::stringstream stream;
-      for (auto & header : headers) {
-        stream << header << "\r\n";
-      }
-      stream << "\r\n";
-
-      auto data = stream.str();
-      CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(reinterpret_cast<const uint8_t *>(data.c_str()), data.length()));
-
-	  this->write_body_ = true;
-	  
-      co_return std::make_shared<out_stream>(this->shared_from_this());
-    }
+    async_task<expected<void>> stop();
 
   private:
     std::shared_ptr<stream_output_async<uint8_t>> target_;
-	bool write_body_;
+	  bool write_body_;
 
 	class out_stream : public stream_output_async<uint8_t>
 	{
@@ -56,26 +42,15 @@ namespace vds {
 		: target_(target) {
 		}
 
-		async_task<expected<void>> write_async(
-			const uint8_t *data,
-			size_t len) override {
-
-			if (0 != len) {
-				co_await this->target_->target_->write_async(data, len);
-			}
-			else {
-				this->target_->write_body_ = false;
-			}
-
-			co_return expected<void>();
-		}
+	  async_task<expected<void>> write_async(
+	    const uint8_t* data,
+	    size_t len) override;
 
 	private:
 		std::shared_ptr<http_async_serializer> target_;
 	};
 
   };
-
 }
 
 #endif // __VDS_HTTP_HTTP_RESPONSE_SERIALIZER_H_

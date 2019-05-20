@@ -17,28 +17,34 @@ namespace vds {
   class http_client : public std::enable_shared_from_this<http_client>
   {
   public:
-    vds::async_task<vds::expected<void>> start(
-		const service_provider * sp,
-      const std::shared_ptr<vds::stream_input_async<uint8_t>> & input_stream,
-      const std::shared_ptr<vds::stream_output_async<uint8_t>> & output_stream);
+    async_task<expected<void>> start(
+		  const service_provider * sp,
+      const std::shared_ptr<stream_input_async<uint8_t>> & input_stream,
+      const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
 
-    vds::async_task<vds::expected<void>> send(
-      vds::http_message message,
-      const std::function<vds::async_task<vds::expected<void>>(vds::http_message response)> & response_handler);
+    async_task<expected<void>> send(
+      http_message && message,
+      lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message &&> && response_handler);
+
+    async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> send_headers(
+      http_message && message,
+      lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message &&> && response_handler);
+
+    async_task<expected<void>> close();
+
 
   private:
     class client_pipeline : public http_parser {
     public:
       client_pipeline(
 		    const service_provider * sp,
-        lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message && > message_callback);
+        lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message && > message_callback);
 
     };
     std::shared_ptr<http_async_serializer> output_;
     std::shared_ptr<client_pipeline> pipeline_;
 
-    std::shared_ptr<async_result<vds::expected<void>>> result_;
-    std::function<vds::async_task<vds::expected<void>>(vds::http_message response)> response_handler_;
+    lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message && > response_handler_;
   };
 }
 
