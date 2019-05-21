@@ -32,14 +32,17 @@ namespace vds {
           const std::shared_ptr<user_manager> & user_mng,
           const const_data_buffer & channel_id,
           const std::string & file_name,
-          const const_data_buffer & file_hash,
-          const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
+          const const_data_buffer & file_hash);
 
       async_task<expected<file_manager::file_operations::prepare_download_result_t>> prepare_download_file(
         const std::shared_ptr<user_manager> & user_mng,
         const const_data_buffer & channel_id,
         const std::string& file_name,
         const const_data_buffer & target_file);
+
+      expected<std::shared_ptr<stream_input_async<uint8_t>>> download_stream(
+        std::list<transactions::user_message_transaction::file_block_t> && file_blocks);
+
 
       vds::async_task<vds::expected<void>> create_message(
         
@@ -74,15 +77,29 @@ namespace vds {
 //					file_manager::download_file_task::block_info & block,
 //					const std::shared_ptr<file_manager::download_file_task> & result);
 
-      async_task<expected<void>> download_stream(
-          
-          const std::shared_ptr<stream_output_async<uint8_t>> & target_stream,
-          const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);
-
       expected<std::map<vds::const_data_buffer, dht::network::client::block_info_t>> prepare_download_stream(
         database_read_transaction &t,
         std::list<std::function<async_task<expected<void>>()>> & final_tasks,
         const std::list<vds::transactions::user_message_transaction::file_block_t> &file_blocks_param);
+
+      class download_stream_t : public stream_input_async<uint8_t>
+      {
+      public:
+        download_stream_t(
+          const service_provider * sp,
+          std::list<transactions::user_message_transaction::file_block_t> && file_blocks);
+
+        async_task<expected<size_t>> read_async(
+          uint8_t * buffer,
+          size_t len) override;
+
+      private:
+        const service_provider * sp_;
+        std::list<transactions::user_message_transaction::file_block_t> file_blocks_;
+
+        const_data_buffer buffer_;
+        size_t readed_;
+      };
 
 		};
   }

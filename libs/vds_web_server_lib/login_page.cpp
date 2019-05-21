@@ -5,13 +5,13 @@ All rights reserved
 
 #include "stdafx.h"
 #include "private/login_page.h"
-#include "http_simple_form_parser.h"
 #include "http_response.h"
 #include "private/auth_session.h"
 #include "private/web_server_p.h"
 #include "db_model.h"
 #include "register_request.h"
 #include "dht_object_id.h"
+#include "http_simple_form_parser.h"
 
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::login_page::register_request_post(
   const vds::service_provider * sp,
@@ -19,7 +19,9 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
   const std::shared_ptr<_web_server>& /*owner*/,
   const http_message& message) {
 
-	GET_EXPECTED_ASYNC(parser, co_await http::simple_form_parser::parse(sp, message, [sp, output_stream](const std::shared_ptr<http::simple_form_parser> & parser) {
+  auto parser = std::make_shared<http::simple_form_parser>(sp);
+
+	return parser->parse(message, [sp, output_stream, parser]() -> vds::async_task<vds::expected<void>> {
 
 		auto userName = parser->values().find("userName");
 		auto userEmail = parser->values().find("userEmail");
@@ -45,7 +47,5 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
 		}
 
 		co_return expected<void>();
-	}));
-
-	co_return parser;
+	});
 }

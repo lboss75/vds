@@ -523,25 +523,30 @@ vds::const_data_buffer vds_mock::upload_file(
       this->root_password_);
   }).get());
 
-  GET_EXPECTED_THROW(file_info, sp->get<vds::file_manager::file_operations>()->upload_file(
-    user_mng,
+  std::list<vds::transactions::user_message_transaction::file_info_t> files;
+  GET_EXPECTED_THROW(stream, sp->get<vds::file_manager::file_operations>()->upload_file(
     name,
     mimetype,
-    input_stream,
-    vds::const_data_buffer()).get());
+    vds::const_data_buffer(),
+    [&files](vds::transactions::user_message_transaction::file_info_t && file_info) -> vds::async_task<vds::expected<void>> {
+    files.push_back(file_info);
+    return vds::expected<void>();
+  }).get());
+
+  
+  CHECK_EXPECTED_THROW(input_stream->copy_to(stream).get());
 
   auto message = std::make_shared<vds::json_object>();
   message->add_property("$type", "SimpleMessage");
   message->add_property("message", "test message");
 
-  std::list<vds::transactions::user_message_transaction::file_info_t> files{ file_info };
   CHECK_EXPECTED_THROW(sp->get<vds::file_manager::file_operations>()->create_message(
     user_mng,
     channel_id,
     message,
     files).get());
 
-  return file_info.file_id;
+  return files.begin()->file_id;
 }
 
 vds::async_task<vds::expected<vds::file_manager::file_operations::download_result_t>>

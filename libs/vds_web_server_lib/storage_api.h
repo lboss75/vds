@@ -9,13 +9,15 @@ All rights reserved
 #include "user_manager.h"
 
 namespace vds {
+  class http_message;
+
   class storage_api {
   public:
 
     static vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>>
     device_storages(
         const vds::service_provider * sp,
-      const std::shared_ptr<user_manager> & user_mng,
+        const std::shared_ptr<user_manager> & user_mng,
         const http_message & request);
 
     static expected<std::shared_ptr<vds::json_value>>
@@ -29,7 +31,6 @@ namespace vds {
       const std::string &name,
       const std::string &local_path,
       uint64_t reserved_size);
-
   };
 
 }//vds

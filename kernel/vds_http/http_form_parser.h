@@ -17,7 +17,7 @@ namespace vds {
       : sp_(sp) {        
       }
 
-      struct simple_field_info {
+      struct field_info {
         std::string name;
         std::string value;
       };
@@ -30,7 +30,7 @@ namespace vds {
       };
 
       //To override
-      virtual async_task<expected<void>> on_field( const simple_field_info & /*field*/) {
+      virtual async_task<expected<void>> on_field( const field_info & /*field*/) {
         return expected<void>();
       }
 

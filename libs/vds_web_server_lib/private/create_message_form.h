@@ -18,7 +18,7 @@ namespace vds {
       const vds::service_provider* sp,
       const std::shared_ptr<vds::user_manager>& user_mng);
 
-    vds::async_task<vds::expected<void>> on_field(const simple_field_info& field) override;
+    vds::async_task<vds::expected<void>> on_field(const field_info& field) override;
 
     vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> on_file(const file_info& file) override;
 

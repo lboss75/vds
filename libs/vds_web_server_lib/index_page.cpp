@@ -14,9 +14,8 @@ All rights reserved
 #include "http_response.h"
 #include "http_request.h"
 #include "private/create_message_form.h"
-#include "../vds_dht_network/private/dht_datagram_protocol.h"
 
-vds::async_task<vds::expected<vds::http_message>> vds::index_page::create_channel(
+vds::async_task<vds::expected<void>> vds::index_page::create_channel(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager> & user_mng,
   const std::shared_ptr<http_async_serializer> & output_stream,
@@ -55,7 +54,7 @@ public:
       : base_class(sp), successful_(false) {
   }
 
-  vds::async_task<vds::expected<void>> on_field(const simple_field_info & /*field*/) override {
+  vds::async_task<vds::expected<void>> on_field(const field_info & /*field*/) override {
     //Ignore return vds::make_unexpected<std::runtime_error>("Invalid field " + field.name);
     co_return vds::expected<void>();
   }
@@ -94,7 +93,7 @@ private:
 
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::index_page::parse_join_request(
   const vds::service_provider * sp,
-  const std::shared_ptr<user_manager>& user_mng,
+  const std::shared_ptr<user_manager>& /*user_mng*/,
   const std::shared_ptr<http_async_serializer> & output_stream,
   const http_message & message) {
 
@@ -132,7 +131,7 @@ public:
 
   }
 
-  vds::async_task<vds::expected<void>> on_field(const simple_field_info & /*field*/) override {
+  vds::async_task<vds::expected<void>> on_field(const field_info & /*field*/) override {
     co_return vds::expected<void>();
   }
 

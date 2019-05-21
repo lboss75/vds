@@ -10,11 +10,12 @@ All rights reserved
 #include "device_record_dbo.h"
 #include "member_user.h"
 #include "user_storage.h"
+#include "http_message.h"
 
 vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::storage_api::device_storages(
 	const vds::service_provider * sp,
 	const std::shared_ptr<user_manager> & user_mng,
-	const http_request & /*request*/)
+	const http_message & /*request*/)
 {
 	auto result = co_await user_storage::device_storages(sp, user_mng);
 	CHECK_EXPECTED_ASYNC(result);

@@ -215,10 +215,9 @@ vds::api_controller::download_file(
   const std::shared_ptr<user_manager> & user_mng,
   const const_data_buffer& channel_id,
   const std::string & file_name,
-  const const_data_buffer& file_hash,
-  const std::shared_ptr<stream_output_async<uint8_t>> & output_stream) {
+  const const_data_buffer& file_hash) {
 
-  return sp->get<file_manager::file_operations>()->download_file(user_mng, channel_id, file_name, file_hash, output_stream);
+  return sp->get<file_manager::file_operations>()->download_file(user_mng, channel_id, file_name, file_hash);
 }
 
 vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>>

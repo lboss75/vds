@@ -57,11 +57,9 @@ router_({
   { "/api/channels", "POST", &index_page::create_channel },
   { "/api/try_login", "GET", [this](
     const vds::service_provider * sp,
-    const http_request & request) -> async_task<expected<std::shared_ptr<json_value>>> {
+    const http_message & request) -> async_task<expected<std::shared_ptr<json_value>>> {
       const auto login = request.get_parameter("login");
       const auto password = request.get_parameter("password");
-
-    CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
       co_return co_await api_controller::get_login_state(
         sp,
@@ -73,11 +71,9 @@ router_({
     },
   { "/api/login", "GET", [this](
     const vds::service_provider * sp,
-    const http_request & request) -> async_task<expected<std::shared_ptr<json_value>>> {
+    const http_message & request) -> async_task<expected<std::shared_ptr<json_value>>> {
       const auto login = request.get_parameter("login");
       const auto password = request.get_parameter("password");
-
-      CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
       co_return co_await api_controller::login(
         sp,
@@ -89,10 +85,8 @@ router_({
     },
   {"/api/session", "GET", [this](
     const vds::service_provider * sp,
-    const http_request & request) -> async_task<expected<std::shared_ptr<json_value>>> {
+    const http_message & request) -> async_task<expected<std::shared_ptr<json_value>>> {
     const auto session_id = request.get_parameter("session");
-
-    CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
     co_return co_await api_controller::get_session(
       this->get_session(session_id));
@@ -100,23 +94,20 @@ router_({
   },
   {"/api/logout", "POST", [this](
     const vds::service_provider * sp,
-    const http_request & request) -> async_task<expected<http_message>> {
+    const std::shared_ptr<http_async_serializer> & output_stream,
+    const http_message & request) -> async_task<expected<void>> {
     const auto session_id = request.get_parameter("session");
 
-    CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
+    this->kill_session(session_id);
 
-      this->kill_session(session_id);
-
-    co_return http_response::redirect("/");
+    return http_response::redirect(output_stream, "/");
     }
   },
   {"/api/channel_feed", "GET", [](
     const vds::service_provider * sp,
     const std::shared_ptr<user_manager> & user_mng,
-    const http_request & request) -> async_task<expected<std::shared_ptr<json_value>>> {
+    const http_message & request) -> async_task<expected<std::shared_ptr<json_value>>> {
             GET_EXPECTED_ASYNC(channel_id, base64::to_bytes(request.get_parameter("channel_id")));
-
-    CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
     std::shared_ptr<json_value> result;
     GET_EXPECTED_VALUE_ASYNC(result, co_await api_controller::channel_feed(
@@ -129,14 +120,13 @@ router_({
   {"/api/devices", "GET", &storage_api::device_storages },
   {"/api/devices", "POST", [](
     const vds::service_provider * sp,
+    const std::shared_ptr<http_async_serializer> & output_stream,
     const std::shared_ptr<user_manager> & user_mng,
-    const http_request & request) -> async_task<expected<http_message>> {
+    const http_message & request) -> async_task<expected<http_message>> {
             const auto name = request.get_parameter("name");
             const auto reserved_size = safe_cast<uint64_t>(std::atoll(request.get_parameter("size").c_str()));
             const auto local_path = request.get_parameter("path");
       
-            CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
-
             CHECK_EXPECTED_ASYNC(co_await storage_api::add_device_storage(
               sp,
               user_mng,
@@ -145,21 +135,19 @@ router_({
               reserved_size));
 
             co_return http_response::status_response(
-                          http_response::HTTP_OK,
-                          "OK");
+              output_stream,
+              http_response::HTTP_OK,
+              "OK");
           }
   },
   {"/api/download", "GET", [](
     const vds::service_provider * sp,
+    const std::shared_ptr<http_async_serializer> & output_stream,
     const std::shared_ptr<user_manager> & user_mng,
-    const http_request & request) -> async_task<expected<http_message>> {
+    const http_message & request) -> async_task<expected<http_message>> {
                   GET_EXPECTED_ASYNC(channel_id, base64::to_bytes(request.get_parameter("channel_id")));
                   GET_EXPECTED_ASYNC(file_hash, base64::to_bytes(request.get_parameter("object_id")));
                   auto file_name = request.get_parameter("file_name");
-
-                  auto buffer = std::make_shared<continuous_buffer<uint8_t>>(sp);
-
-                  CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
                   file_manager::file_operations::download_result_t result;
                   GET_EXPECTED_VALUE_ASYNC(result, co_await api_controller::download_file(
@@ -167,11 +155,11 @@ router_({
                     user_mng,
                     channel_id,
                     file_name,
-                    file_hash,
-                    std::make_shared<continuous_stream_output_async<uint8_t>>(buffer)));
+                    file_hash));
 
                     co_return http_response::file_response(
-                        std::make_shared<continuous_stream_input_async<uint8_t>>(buffer),
+                        output_stream,
+                        result.body,
                         result.size,
                         result.name,
                         result.file_hash,
@@ -181,12 +169,10 @@ router_({
   {"/api/prepare_download", "GET", [](
     const vds::service_provider * sp,
     const std::shared_ptr<user_manager> & user_mng,
-    const http_request & request) -> async_task<expected<std::shared_ptr<json_value>>> {
+    const http_message & request) -> async_task<expected<std::shared_ptr<json_value>>> {
                   GET_EXPECTED_ASYNC(channel_id, base64::to_bytes(request.get_parameter("channel_id")));
                   GET_EXPECTED_ASYNC(file_hash, base64::to_bytes(request.get_parameter("object_id")));
                   auto file_name = request.get_parameter("file_name");
-
-                  CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
 
                   co_return co_await api_controller::prepare_download_file(
                     sp,
@@ -205,10 +191,10 @@ router_({
   }),
   update_timer_("web session timer")
 {
-  this->router_.auth_callback([this](const http_request & message) {
+  this->router_.auth_callback([this](const http_message & message) {
     return this->get_secured_context(message.get_parameter("session"));
   });
-  this->router_.not_found_handler([this](const http_request & message) -> async_task<expected<http_message>> {
+  this->router_.not_found_handler([this](const http_message & message) -> async_task<expected<http_message>> {
     return this->not_found_handler(message);
   });
 }
@@ -331,7 +317,7 @@ void vds::_web_server::kill_session( const std::string& session_id) {
 }
 
 vds::async_task<vds::expected<vds::http_message>> vds::_web_server::not_found_handler(
-  const http_request& request) {
+  const http_message& request) {
   if (request.method() == "GET") {
     auto buffer = std::make_shared<continuous_buffer<uint8_t>>(this->sp_);
 

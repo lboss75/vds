@@ -148,13 +148,13 @@ vds::async_task<vds::expected<void>> vds::autoupdate::autoupdate_service::check_
   if(update_found) {
     if (!download_tasks.empty()) {
       auto file_mananger = sp->get<file_manager::file_operations>();
-      for(const auto & p : download_tasks) {
+      for(auto & p : download_tasks) {
         file f;
         CHECK_EXPECTED_ASYNC(f.open(filename(update_folder, p.name), file::file_mode::open_or_create));
         auto stream = std::make_shared<file_stream_output_async>(std::move(f));
 
-        CHECK_EXPECTED_ASYNC(await file_mananger->download_stream(stream, p.file_blocks));
-
+        GET_EXPECTED_ASYNC(input, file_mananger->download_stream(std::move(p.file_blocks)));
+        CHECK_EXPECTED_ASYNC(co_await input->copy_to(stream));
       }
     }
 #ifdef _WIN32

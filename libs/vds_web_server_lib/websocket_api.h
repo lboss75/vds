@@ -16,10 +16,10 @@ namespace vds {
 
 		static vds::async_task<vds::expected<http_message>> open_connection(
 			const vds::service_provider * sp,
-			const http_request & /*message*/);
+			const http_message & /*message*/);
 
 	private:
-		std::shared_ptr<stream_input_async<uint8_t>> start(const http_request & request);
+		std::shared_ptr<stream_input_async<uint8_t>> start(const http_message & request);
 
 		async_task<expected<void>> start_parse(
 			std::shared_ptr<json_parser> parser,

@@ -15,7 +15,7 @@ vds::create_message_form::create_message_form(const vds::service_provider* sp,
   this->message_->add_property("$type", "SimpleMessage");
 }
 
-vds::async_task<vds::expected<void>> vds::create_message_form::on_field(const simple_field_info& field) {
+vds::async_task<vds::expected<void>> vds::create_message_form::on_field(const field_info& field) {
   if (field.name == "channel_id") {
     GET_EXPECTED_VALUE_ASYNC(this->channel_id_, vds::base64::to_bytes(field.value));
   }

@@ -18,7 +18,7 @@ namespace vds {
   class index_page
   {
   public:
-    static async_task<expected<http_message>> create_channel(
+    static async_task<expected<void>> create_channel(
       const service_provider * sp,
       const std::shared_ptr<user_manager> & user_mng,
       const std::shared_ptr<http_async_serializer> & output_stream,

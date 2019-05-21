@@ -105,7 +105,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
         if (values.end() == fname) {
           auto buffer = std::make_shared<std::string>();
           return this->read_string_body([name, pthis = this->shared_from_this()](std::string && body) {
-            return pthis->on_field(simple_field_info{ name, url_encode::decode(body) });
+            return pthis->on_field(field_info{ name, url_encode::decode(body) });
           });
         }
 
@@ -146,7 +146,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
             value.erase(value.length() - 1, 1);
           }
 
-          CHECK_EXPECTED_ASYNC(co_await pthis->on_field(simple_field_info{ item.substr(0, p),  url_encode::decode(value) }));
+          CHECK_EXPECTED_ASYNC(co_await pthis->on_field(field_info{ item.substr(0, p),  url_encode::decode(value) }));
         }
       }
 

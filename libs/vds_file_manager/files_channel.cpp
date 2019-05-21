@@ -58,13 +58,11 @@ vds::expected<std::optional<vds::file_manager::file_in_storage>> vds::file_manag
 vds::async_task<vds::expected<vds::file_manager::file_operations::download_result_t>>
 vds::file_manager::files_channel::download_file(
   const filename & file_name,
-  const const_data_buffer & file_hash,
-  const std::shared_ptr<stream_output_async<uint8_t>> & output_stream) {
+  const const_data_buffer & file_hash) {
 
   return this->sp_->get<file_manager::file_operations>()->download_file(
     this->user_manager_,
     this->channel_id_,
     file_name.full_name(),
-    file_hash,
-    output_stream);
+    file_hash);
 }

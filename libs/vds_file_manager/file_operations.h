@@ -27,6 +27,8 @@ namespace vds {
         std::string name;
         std::string mime_type;
         uint64_t size;
+
+        std::shared_ptr<stream_input_async<uint8_t>> body;
       };
 
       struct prepare_download_result_t {
@@ -94,8 +96,7 @@ namespace vds {
 			  const std::shared_ptr<user_manager> & user_mng,
 			  const const_data_buffer & channel_id,
         const std::string & file_name,
-        const const_data_buffer & file_hash,
-        const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
+        const const_data_buffer & file_hash);
 
       void start(const service_provider * sp);
       void stop();
@@ -108,10 +109,9 @@ namespace vds {
         const std::string& file_name,
         const const_data_buffer& file_hash);
 
-      async_task<expected<void>> download_stream(
-        const std::shared_ptr<stream_output_async<uint8_t>> & target_stream,
-        const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);
-
+      expected<std::shared_ptr<stream_input_async<uint8_t>>> download_stream(
+        std::list<transactions::user_message_transaction::file_block_t> && file_blocks);
+      
     protected:
       std::shared_ptr<file_manager_private::_file_operations> impl_;
     };

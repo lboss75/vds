@@ -63,8 +63,7 @@ namespace vds {
 
       async_task<vds::expected<vds::file_manager::file_operations::download_result_t>> download_file(
         const filename & file_name,
-        const const_data_buffer & file_hash,
-        const std::shared_ptr<stream_output_async<uint8_t>> & output_stream);
+        const const_data_buffer & file_hash);
 
 
     private:

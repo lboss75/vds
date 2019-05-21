@@ -184,8 +184,12 @@ namespace vds {
   }
 
 #define GET_EXPECTED(var, v) \
-  typename std::remove_reference<decltype((v).value())>::type var;\
-  GET_EXPECTED_VALUE(var, v);
+  auto __result ## var { std::move(v) };\
+  typename std::remove_reference<decltype(__result ## var.value())>::type var;\
+  if(__result ## var.has_error()){\
+    return vds::unexpected(std::move(__result ## var.error()));\
+  }\
+  var = std::move(__result ## var.value());
 
 #define WHILE_EXPECTED(exp) \
   for(;;) { \
@@ -208,15 +212,19 @@ namespace vds {
 
 #define GET_EXPECTED_VALUE_ASYNC(var, v)  \
   {\
-    auto __result { v };\
+    auto __result { std::move(v) };\
     if(__result.has_error()){\
       co_return vds::unexpected(std::move(__result.error()));\
     }\
     var = std::move(__result.value());\
   }
 #define GET_EXPECTED_ASYNC(var, v) \
-  typename std::remove_reference<decltype((v).value())>::type var; \
-  GET_EXPECTED_VALUE_ASYNC(var, v);
+    auto __result ## var { std::move(v) };\
+    typename std::remove_reference<decltype(__result ## var.value())>::type var; \
+    if(__result  ## var.has_error()){\
+      co_return vds::unexpected(std::move(__result  ## var.error()));\
+    }\
+    var = std::move(__result ## var.value());
 
 #define CHECK_EXPECTED_THROW_ERROR(v)\
   if((v).has_error()) {\
@@ -225,13 +233,13 @@ namespace vds {
 
 #define CHECK_EXPECTED_THROW(v)\
   {\
-    auto __result = (v);\
+    auto __result { std::move(v) };\
     CHECK_EXPECTED_THROW_ERROR(__result);\
   }
 
 #define GET_EXPECTED_VALUE_THROW(var, v) \
   {\
-    auto __result = (v);\
+    auto __result { std::move(v) };\
     if(__result.has_error()) { \
       throw std::runtime_error(__result.error()->what());\
     }\
@@ -239,8 +247,12 @@ namespace vds {
   }
 
 #define GET_EXPECTED_THROW(var, v) \
-  std::remove_reference<decltype((v).value())>::type var;\
-  GET_EXPECTED_VALUE_THROW(var, v);
+  auto __result ## var { std::move(v) };\
+  std::remove_reference<decltype(__result ## var.value())>::type var;\
+  if(__result ## var.has_error()) { \
+    throw std::runtime_error(__result ## var.error()->what());\
+  }\
+  var = std::move(__result ## var.value());
 
 
 
