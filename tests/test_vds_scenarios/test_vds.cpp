@@ -50,9 +50,10 @@ TEST(test_vds, test_initial)
 
     auto result_data = std::make_shared<compare_data_async<uint8_t>>(buffer.get(), len);
 
-    GET_EXPECTED_GTEST(result, mock.download_data(3, channel.id(), "test data", file_hash, result_data).get());
+    GET_EXPECTED_GTEST(result, mock.download_data(3, channel.id(), "test data", file_hash).get());
 
     ASSERT_EQ(len, result.size);
+    CHECK_EXPECTED_GTEST(result.body->copy_to(result_data).get());
 
     mock.allow_read_channel(4, channel.id());
     //Waiting to sync logs
@@ -60,7 +61,8 @@ TEST(test_vds, test_initial)
     std::cout << "Download file...\n";
 
     result_data = std::make_shared<compare_data_async<uint8_t>>(buffer.get(), len);
-    GET_EXPECTED_VALUE_GTEST(result, mock.download_data(4, channel.id(), "test data", file_hash, result_data).get());
+    GET_EXPECTED_VALUE_GTEST(result, mock.download_data(4, channel.id(), "test data", file_hash).get());
+    CHECK_EXPECTED_GTEST(result.body->copy_to(result_data).get());
 
     std::cout << "Done...\n";
     mock.stop();

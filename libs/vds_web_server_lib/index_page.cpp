@@ -24,7 +24,7 @@ vds::async_task<vds::expected<void>> vds::index_page::create_channel(
   const auto type = message.get_parameter("type");
   const auto name = message.get_parameter("name");
 
-  co_return co_await api_controller::create_channel(
+  return api_controller::create_channel(
     user_mng,
     output_stream,
     type,

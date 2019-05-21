@@ -554,8 +554,7 @@ vds_mock::download_data(
   size_t client_index,
   const vds::const_data_buffer &channel_id,
   const std::string &name,
-  const vds::const_data_buffer & file_hash,
-  const std::shared_ptr<vds::stream_output_async<uint8_t>> & output_stream) {
+  const vds::const_data_buffer & file_hash) {
   auto sp = this->servers_[client_index]->get_service_provider();
 
   auto user_mng = std::make_shared<vds::user_manager>(sp);
@@ -569,13 +568,11 @@ vds_mock::download_data(
       this->root_password_);
   }));
 
-
   co_return co_await sp->get<vds::file_manager::file_operations>()->download_file(
     user_mng,
     channel_id,
     name,
-    file_hash,
-    output_stream);
+    file_hash);
 }
 
 vds::user_channel vds_mock::create_channel(int index, const std::string & channel_type, const std::string &name) {

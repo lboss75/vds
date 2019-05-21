@@ -95,8 +95,7 @@ public:
 	  size_t client_index,
 	  const vds::const_data_buffer & channel_id,
 	  const std::string & name,
-	  const vds::const_data_buffer & file_hash,
-    const std::shared_ptr<vds::stream_output_async<uint8_t>> & output_stream);
+	  const vds::const_data_buffer & file_hash);
 
   bool dump_statistic(std::ostream & logfile, std::vector<vds::server_statistic>& statistics);
   void sync_wait();
