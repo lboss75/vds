@@ -20,27 +20,26 @@ namespace vds {
   public:
     static async_task<expected<void>> create_channel(
       const service_provider * sp,
-      const std::shared_ptr<user_manager> & user_mng,
       const std::shared_ptr<http_async_serializer> & output_stream,
+      const std::shared_ptr<user_manager> & user_mng,
 
       const http_message & request);
 
     static async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> create_message(
       const service_provider * sp,
-      const std::shared_ptr<user_manager> &user_mng,
       const std::shared_ptr<http_async_serializer> & output_stream,
+      const std::shared_ptr<user_manager> &user_mng,
       const http_message & request);
 
     static async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> parse_join_request(
         const service_provider * sp,
-        const std::shared_ptr<user_manager>& user_mng,
         const std::shared_ptr<http_async_serializer> & output_stream,
         const http_message & request);
 
     static async_task<expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> approve_join_request(
       const service_provider * sp,
-      const std::shared_ptr<user_manager>& user_mng,
       const std::shared_ptr<http_async_serializer> & output_stream,
+      const std::shared_ptr<user_manager>& user_mng,
       const http_message & request);
   };
 }

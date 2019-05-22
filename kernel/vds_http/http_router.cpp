@@ -55,7 +55,7 @@ vds::async_task<vds::expected<void>> vds::http_route_handler::auth_handler::proc
     request);
 }
 
-vds::async_task<vds::expected<void>> vds::http_router::route(
+vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::http_router::route(
   const service_provider * sp,
   const std::shared_ptr<http_async_serializer> & output_stream,
   const http_message & request) const

@@ -122,7 +122,7 @@ router_({
     const vds::service_provider * sp,
     const std::shared_ptr<http_async_serializer> & output_stream,
     const std::shared_ptr<user_manager> & user_mng,
-    const http_message & request) -> async_task<expected<http_message>> {
+    const http_message & request) -> async_task<expected<void>> {
             const auto name = request.get_parameter("name");
             const auto reserved_size = safe_cast<uint64_t>(std::atoll(request.get_parameter("size").c_str()));
             const auto local_path = request.get_parameter("path");
@@ -144,7 +144,7 @@ router_({
     const vds::service_provider * sp,
     const std::shared_ptr<http_async_serializer> & output_stream,
     const std::shared_ptr<user_manager> & user_mng,
-    const http_message & request) -> async_task<expected<http_message>> {
+    const http_message & request) -> async_task<expected<void>> {
                   GET_EXPECTED_ASYNC(channel_id, base64::to_bytes(request.get_parameter("channel_id")));
                   GET_EXPECTED_ASYNC(file_hash, base64::to_bytes(request.get_parameter("object_id")));
                   auto file_name = request.get_parameter("file_name");
@@ -194,38 +194,38 @@ router_({
   this->router_.auth_callback([this](const http_message & message) {
     return this->get_secured_context(message.get_parameter("session"));
   });
-  this->router_.not_found_handler([this](const http_message & message) -> async_task<expected<http_message>> {
-    return this->not_found_handler(message);
+  this->router_.not_found_handler([this](
+    const std::shared_ptr<http_async_serializer> & output_stream,
+    const http_message & message) -> async_task<expected<bool>> {
+    return this->not_found_handler(output_stream, message);
   });
 }
 
 vds::_web_server::~_web_server() {
 }
 
-vds::async_task<vds::expected<vds::http_message>> vds::_web_server::process_message(
+vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::_web_server::process_message(
+  const std::shared_ptr<http_async_serializer> & output_stream,
   const std::shared_ptr<session_data> & session,
-  const vds::http_message request) {
+  vds::http_message && request) {
   if (request.headers().empty()) {
     this->sp_->get<vds::logger>()->debug(ThisModule, "Route end");
     session->stream_.reset();
     session->handler_.reset();
-    co_return vds::http_message();
+    return std::shared_ptr<vds::stream_output_async<uint8_t>>();
   }
 
   this->sp_->get<vds::logger>()->debug(ThisModule, "Route [%s]", request.headers().front().c_str());
 
   //std::string keep_alive_header;
   //bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
-  vds::http_message response;
-  GET_EXPECTED_VALUE_ASYNC(response, co_await this->router_.route(this->sp_, request));
-  this->sp_->get<logger>()->debug(ThisModule, "Response [%s]", response.headers().front().c_str());
-  co_return response;
+  return this->router_.route(this->sp_, output_stream, request);
 }
 
 vds::async_task<vds::expected<void>> vds::_web_server::start(
     uint16_t port) {
   this->web_task_ = this->server_.start(this->sp_, network_address::any_ip4(port),
-    [sp = this->sp_, pthis = this->shared_from_this()](std::shared_ptr<tcp_network_socket> s) -> vds::async_task<vds::expected<void>>{
+    [sp = this->sp_, pthis = this->shared_from_this()](const std::shared_ptr<tcp_network_socket> & s) -> vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>{
     GET_EXPECTED_ASYNC(streams, s->start(sp));
     auto reader = std::get<0>(streams);
     auto writer = std::get<1>(streams);
@@ -233,15 +233,8 @@ vds::async_task<vds::expected<void>> vds::_web_server::start(
     session->handler_ = std::make_shared<http_pipeline>(
 		sp,
         session->stream_,
-      [sp, pthis, session](const http_message request) -> vds::async_task<vds::expected<http_message>> {
-      auto result = co_await pthis->process_message(session, request);
-      if(result.has_error()) {
-        sp->get<logger>()->error(ThisModule, "%s at processing [%s]", result.error()->what(), request.headers().front().c_str());
-        co_return http_response::status_response(http_response::HTTP_Internal_Server_Error, result.error()->what());
-      }
-      else {
-        co_return std::move(result.value());
-      }
+      [sp, pthis, session](http_message && request) -> vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
+      return pthis->process_message(session, request);
     });
     CHECK_EXPECTED_ASYNC(co_await session->handler_->process(reader));
     co_return expected<void>();

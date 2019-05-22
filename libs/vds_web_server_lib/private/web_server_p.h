@@ -69,9 +69,10 @@ namespace vds {
       }
     };
 
-    async_task<expected<http_message>> process_message(
+    async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> process_message(
+      const std::shared_ptr<http_async_serializer> & output_stream,
       const std::shared_ptr<session_data> & session,
-      const vds::http_message request);
+      vds::http_message && request);
   };
 }
 

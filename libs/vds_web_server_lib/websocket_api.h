@@ -14,8 +14,9 @@ namespace vds {
 	public:
 		websocket_api(const service_provider * sp);
 
-		static vds::async_task<vds::expected<http_message>> open_connection(
+		static vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> open_connection(
 			const vds::service_provider * sp,
+      const std::shared_ptr<http_async_serializer> & output_stream,
 			const http_message & /*message*/);
 
 	private:

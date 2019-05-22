@@ -17,8 +17,8 @@ All rights reserved
 
 vds::async_task<vds::expected<void>> vds::index_page::create_channel(
   const vds::service_provider * sp,
-  const std::shared_ptr<user_manager> & user_mng,
   const std::shared_ptr<http_async_serializer> & output_stream,
+  const std::shared_ptr<user_manager> & user_mng,
   const http_message & message) {
 
   const auto type = message.get_parameter("type");
@@ -34,8 +34,8 @@ vds::async_task<vds::expected<void>> vds::index_page::create_channel(
 
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::index_page::create_message(
   const vds::service_provider * sp,
-  const std::shared_ptr<user_manager>& user_mng,
   const std::shared_ptr<http_async_serializer> & output_stream,
+  const std::shared_ptr<user_manager>& user_mng,
   const http_message & request) {
 
   auto parser = std::make_shared<create_message_form>(sp, user_mng);
@@ -93,7 +93,6 @@ private:
 
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::index_page::parse_join_request(
   const vds::service_provider * sp,
-  const std::shared_ptr<user_manager>& /*user_mng*/,
   const std::shared_ptr<http_async_serializer> & output_stream,
   const http_message & message) {
 
@@ -158,8 +157,8 @@ private:
 
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::index_page::approve_join_request(
   const vds::service_provider * sp,
-  const std::shared_ptr<user_manager>& user_mng,
   const std::shared_ptr<http_async_serializer> & output_stream,
+  const std::shared_ptr<user_manager>& user_mng,
   const http_message & message) {
 
   auto parser = std::make_shared<approve_join_request_form>(sp, user_mng);

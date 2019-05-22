@@ -81,6 +81,27 @@ namespace vds {
       : url_(url), method_(method), handler_(new web_handler(callback)) {
     }
 
+    http_route_handler(
+      const std::string & url,
+      const std::string & method,
+      const std::function<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>(
+        const service_provider *,
+        const std::shared_ptr<http_async_serializer> & output_stream,
+        const http_message &)> & callback)
+      : url_(url), method_(method), handler_(new api_base_handler(callback)) {
+    }
+
+    http_route_handler(
+      const std::string & url,
+      const std::string & method,
+      const std::function<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>(
+        const service_provider *,
+        const std::shared_ptr<http_async_serializer> & output_stream,
+        const std::shared_ptr<user_manager> &,
+        const http_message &)> & callback)
+      : url_(url), method_(method), handler_(new api_auth_base_handler(callback)) {
+    }
+
     const std::string & url() const {
       return this->url_;
     }
@@ -89,7 +110,7 @@ namespace vds {
       return this->method_;
     }
     
-    async_task<expected<void>> process(
+    async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> process(
       const service_provider * sp,
       const std::shared_ptr<http_async_serializer> & output_stream,
       const http_router * router,
@@ -103,7 +124,7 @@ namespace vds {
       virtual ~handler_base() {}
 
       virtual handler_base * clone() = 0;
-      virtual async_task<expected<void>> process(
+      virtual async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> process(
         const service_provider * sp,
         const std::shared_ptr<http_async_serializer> & output_stream,
         const http_router * router,
@@ -120,7 +141,7 @@ namespace vds {
         return new static_handler(this->body_);
       }
 
-      async_task<expected<void>> process(
+      async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> process(
         const service_provider * sp,
         const std::shared_ptr<http_async_serializer> & output_stream,
         const http_router * router,
@@ -140,7 +161,7 @@ namespace vds {
         return new file_handler(this->fn_);
       }
 
-      async_task<expected<void>> process(
+      async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> process(
         const service_provider * sp,
         const std::shared_ptr<http_async_serializer> & output_stream,
         const http_router * router,
@@ -164,7 +185,7 @@ namespace vds {
         return new auth_handler(*this);
       }
 
-      async_task<expected<void>> process(
+      async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> process(
         const service_provider * sp,
         const std::shared_ptr<http_async_serializer> & output_stream,
         const http_router * router,
@@ -204,7 +225,7 @@ namespace vds {
         return new web_handler(*this);
       }
 
-      async_task<expected<void>> process(
+      async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> process(
         const service_provider * sp,
         const std::shared_ptr<http_async_serializer> & output_stream,
         const http_router * router,
@@ -228,6 +249,62 @@ namespace vds {
       }
     };
 
+    class api_base_handler : public handler_base {
+    public:
+      api_base_handler(
+        const std::function<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>(
+          const service_provider *,
+          const std::shared_ptr<http_async_serializer> & output_stream,
+          const http_message &)> & callback)
+        : callback_(callback) {
+      }
+
+      handler_base * clone() override {
+        return new api_base_handler(*this);
+      }
+
+      async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> process(
+        const service_provider * sp,
+        const std::shared_ptr<http_async_serializer> & output_stream,
+        const http_router * router,
+        const http_message & request) const override;
+
+    private:
+      std::function<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>(
+        const service_provider *,
+        const std::shared_ptr<http_async_serializer> &,
+        const http_message &)> callback_;
+    };
+
+    class api_auth_base_handler : public handler_base {
+    public:
+      api_auth_base_handler(
+        const std::function<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>(
+          const service_provider *,
+          const std::shared_ptr<http_async_serializer> & output_stream,
+          const std::shared_ptr<user_manager> &,
+          const http_message &)> & callback)
+        : callback_(callback) {
+      }
+
+      handler_base * clone() override {
+        return new api_auth_base_handler(*this);
+      }
+
+      async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> process(
+        const service_provider * sp,
+        const std::shared_ptr<http_async_serializer> & output_stream,
+        const http_router * router,
+        const http_message & request) const override;
+
+    private:
+      std::function<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>(
+        const service_provider *,
+        const std::shared_ptr<http_async_serializer> &,
+        const std::shared_ptr<user_manager> &,
+        const http_message &)> callback_;
+    };
+
     std::string url_;
     std::string method_;
     std::unique_ptr<handler_base> handler_;
@@ -240,7 +317,7 @@ namespace vds {
     : handlers_(std::move(handlers)){
     }
 
-    vds::async_task<vds::expected<void>> route(
+    vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> route(
       const service_provider * sp,
       const std::shared_ptr<http_async_serializer> & output_stream,
       const http_message & request) const;
