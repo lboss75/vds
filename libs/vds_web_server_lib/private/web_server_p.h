@@ -65,7 +65,7 @@ namespace vds {
 
       session_data(const std::shared_ptr<vds::stream_output_async<uint8_t>> & target)
         : target_(target),
-        stream_(std::make_shared<vds::http_async_serializer>(target)) {
+          stream_(std::make_shared<vds::http_async_serializer>(target)) {
       }
     };
 

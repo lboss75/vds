@@ -226,15 +226,14 @@ vds::async_task<vds::expected<void>> vds::_web_server::start(
     uint16_t port) {
   this->web_task_ = this->server_.start(this->sp_, network_address::any_ip4(port),
     [sp = this->sp_, pthis = this->shared_from_this()](const std::shared_ptr<tcp_network_socket> & s) -> vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>{
-    GET_EXPECTED_ASYNC(streams, s->start(sp));
-    auto reader = std::get<0>(streams);
-    auto writer = std::get<1>(streams);
+    GET_EXPECTED_ASYNC(reader, s->get_input_stream(sp));
+    GET_EXPECTED_ASYNC(writer, s->get_output_stream(sp));
     auto session = std::make_shared<session_data>(writer);
     session->handler_ = std::make_shared<http_pipeline>(
-		sp,
+		    sp,
         session->stream_,
       [sp, pthis, session](http_message && request) -> vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
-      return pthis->process_message(session, request);
+      return pthis->process_message(session->stream_, session, std::move(request));
     });
     CHECK_EXPECTED_ASYNC(co_await session->handler_->process(reader));
     co_return expected<void>();
