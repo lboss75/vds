@@ -14,7 +14,32 @@ namespace vds {
 	class websocket_output : public std::enable_shared_from_this<websocket_output>
 	{
 	public:
-		async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> start(size_t message_size, bool is_binary);
+    websocket_output(std::shared_ptr<stream_output_async<uint8_t>> target)
+      : target_(target){
+    }
+
+		async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> start(uint64_t message_size, bool is_binary);
+
+  private:
+    std::shared_ptr<stream_output_async<uint8_t>> target_;
+
+    class output_stream : public stream_output_async<uint8_t>
+    {
+    public:
+      output_stream(
+        std::shared_ptr<stream_output_async<uint8_t>> target,
+        uint64_t message_size)
+        : target_(target), message_size_(message_size) {
+      }
+
+      async_task<expected<void>> write_async(
+        const uint8_t *data,
+        size_t len) override;
+
+    private:
+      std::shared_ptr<stream_output_async<uint8_t>> target_;
+      uint64_t message_size_;
+    };
 	};
 
 	class websocket : public std::enable_shared_from_this<websocket> {
@@ -30,7 +55,10 @@ namespace vds {
     class websocket_handler : public stream_output_async<uint8_t>
     {
     public:
-      websocket_handler(std::shared_ptr<stream_output_async<uint8_t>> target);
+      websocket_handler(
+        const vds::service_provider * sp,
+        std::shared_ptr<stream_output_async<uint8_t>> target,
+        lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> && handler);
 
       async_task<expected<void>> write_async(
         const uint8_t *data,
@@ -38,6 +66,7 @@ namespace vds {
 
     private:
       const service_provider * sp_;
+      std::shared_ptr<stream_output_async<uint8_t>> target_;
       lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> handler_;
 
       //Read state

@@ -27,12 +27,19 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
 
     GET_EXPECTED_ASYNC(output, co_await output_stream->start_message(headers));
 
-		co_return std::make_shared<websocket_handler>(output);
+		co_return std::make_shared<websocket_handler>(sp, output, std::move(handler));
 	}
 
   CHECK_EXPECTED_ASYNC(co_await http_response::status_response(output_stream, http_response::HTTP_Not_Found, "Invalid protocol"));
 
   co_return std::shared_ptr<vds::stream_output_async<uint8_t>>();
+}
+
+vds::websocket::websocket_handler::websocket_handler(
+  const vds::service_provider * sp,
+  std::shared_ptr<stream_output_async<uint8_t>> target,
+  lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> && handler)
+  : sp_(sp), target_(target), handler_(handler) {
 }
 
 vds::async_task<vds::expected<void>> vds::websocket::websocket_handler::write_async(const uint8_t * data, size_t len)
@@ -132,7 +139,7 @@ vds::async_task<vds::expected<void>> vds::websocket::websocket_handler::write_as
 
         GET_EXPECTED_VALUE_ASYNC(
           this->current_stream_,
-          co_await this->handler_(this->read_state_ == read_state_t::BINARY, std::make_shared<websocket_output>()));
+          co_await this->handler_(this->read_state_ == read_state_t::BINARY, std::make_shared<websocket_output>(this->target_)));
 
         break;
       }
@@ -197,3 +204,47 @@ bool vds::websocket::websocket_handler::read_minimal(uint8_t min_size, const uin
 	return (this->readed_ < min_size);
 }
 
+vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::websocket_output::start(uint64_t message_size, bool is_binary)
+{
+  uint8_t buffer[10];
+
+  buffer[0] = (is_binary ? 0x82 : 0x81);
+
+  uint8_t offset;
+  if (message_size < 126)
+  {
+    buffer[1] = (uint8_t)message_size;
+    offset = 2;
+  }
+  else if (message_size < 0x7FFF)
+  {
+    buffer[1] = 126;
+    buffer[2] = (uint8_t)((message_size >> 8) & 0xFF);
+    buffer[3] = (uint8_t)(message_size & 0xFF);
+    offset = 4;
+  }
+  else
+  {
+    buffer[1] = 127;
+    buffer[2] = (uint8_t)((message_size >> 56) & 0xFF);
+    buffer[3] = (uint8_t)((message_size >> 48) & 0xFF);
+    buffer[4] = (uint8_t)((message_size >> 40) & 0xFF);
+    buffer[5] = (uint8_t)((message_size >> 32) & 0xFF);
+    buffer[6] = (uint8_t)((message_size >> 24) & 0xFF);
+    buffer[7] = (uint8_t)((message_size >> 16) & 0xFF);
+    buffer[8] = (uint8_t)((message_size >> 8) & 0xFF);
+    buffer[9] = (uint8_t)(message_size & 0xFF);
+    offset = 10;
+  }
+
+  CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(buffer, offset));
+
+  co_return std::make_shared<output_stream>(this->target_, message_size);
+}
+
+vds::async_task<vds::expected<void>> vds::websocket_output::output_stream::write_async(const uint8_t * data, size_t len)
+{
+  vds_assert(this->message_size_ >= len);
+  this->message_size_ -= len;
+  return this->target_->write_async(data, len);
+}
