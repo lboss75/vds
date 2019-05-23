@@ -14,13 +14,15 @@ All rights reserved
 #include "vds_debug.h"
 
 namespace vds {
-  class http_multipart_reader : public std::enable_shared_from_this<http_multipart_reader> {
+  class http_multipart_reader : public stream_output_async<uint8_t> {
   public:
     http_multipart_reader(
       const service_provider * sp,
       const std::string & boundary,
-      const std::function<vds::async_task<vds::expected<void>>(const http_message &message)> & message_callback)
-      : sp_(sp), boundary_(boundary), message_callback_(message_callback), readed_(0), is_first_(true), eof_(false) {
+      lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>>, http_message &&> part_handler,
+      lambda_holder_t<vds::async_task<vds::expected<void>>> final_handler)
+      : sp_(sp), boundary_("\r\n--" + boundary + "\r\n"), final_boundary_("\r\n--" + boundary + "--\r\n"), part_handler_(part_handler), final_handler_(final_handler),
+        readed_(0), is_first_(true), eof_(false) {
     }
 
 	static vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> parse(
@@ -28,6 +30,11 @@ namespace vds {
 		const std::string & boundary,
 		lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>>, http_message &&> part_handler,
     lambda_holder_t<vds::async_task<vds::expected<void>>> final_handler);
+
+  async_task<expected<void>> write_async(
+    const uint8_t *data,
+    size_t len) override;
+
 
     //vds::async_task<vds::expected<void>> process(
     //  const std::shared_ptr<stream_input_async<uint8_t>> & input_stream)
@@ -46,7 +53,10 @@ namespace vds {
   private:
     const service_provider * sp_;
     const std::string boundary_;
-    std::function<vds::async_task<vds::expected<void>>(const http_message &message)> message_callback_;
+    const std::string final_boundary_;
+
+    lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>>, http_message &&> part_handler_;
+    lambda_holder_t<vds::async_task<vds::expected<void>>> final_handler_;
 
     uint8_t buffer_[1024];
     size_t readed_;
