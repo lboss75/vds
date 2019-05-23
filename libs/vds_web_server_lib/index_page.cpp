@@ -42,7 +42,8 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
 
   return parser->parse(request, [parser, output_stream]()->vds::async_task<vds::expected<void>> {
     CHECK_EXPECTED_ASYNC(co_await parser->complete());
-    co_return co_await http_response::redirect(output_stream, "/");
+    CHECK_EXPECTED_ASYNC(co_await http_response::redirect(output_stream, "/"));
+    co_return expected<void>();
   });
 }
 
@@ -164,8 +165,9 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
   auto parser = std::make_shared<approve_join_request_form>(sp, user_mng);
 
   return parser->parse(message, [parser, output_stream, message]()->vds::async_task<vds::expected<void>> {
-    return http_response::redirect(
+    CHECK_EXPECTED_ASYNC(co_await http_response::redirect(
       output_stream,
-      parser->successful() ? "/?message=approve_successful" : "/?message=approve_failed");
+      parser->successful() ? "/?message=approve_successful" : "/?message=approve_failed"));
+    co_return expected<void>();
   });
 }

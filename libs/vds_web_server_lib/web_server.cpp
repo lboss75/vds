@@ -93,7 +93,7 @@ router_({
     }
   },
   {"/api/logout", "POST", [this](
-    const vds::service_provider * sp,
+    const vds::service_provider * /*sp*/,
     const std::shared_ptr<http_async_serializer> & output_stream,
     const http_message & request) -> async_task<expected<void>> {
     const auto session_id = request.get_parameter("session");
@@ -134,7 +134,7 @@ router_({
               local_path,
               reserved_size));
 
-            co_return http_response::status_response(
+            co_return co_await http_response::status_response(
               output_stream,
               http_response::HTTP_OK,
               "OK");
@@ -157,7 +157,7 @@ router_({
                     file_name,
                     file_hash));
 
-                    co_return http_response::file_response(
+                    co_return co_await http_response::file_response(
                         output_stream,
                         result.body,
                         result.size,
@@ -196,7 +196,7 @@ router_({
   });
   this->router_.not_found_handler([this](
     const std::shared_ptr<http_async_serializer> & output_stream,
-    const http_message & message) -> async_task<expected<bool>> {
+    const http_message & message) -> async_task<expected<std::tuple<bool, std::shared_ptr<stream_output_async<uint8_t>>>>> {
     return this->not_found_handler(output_stream, message);
   });
 }
@@ -224,9 +224,8 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
 
 vds::async_task<vds::expected<void>> vds::_web_server::start(
     uint16_t port) {
-  this->web_task_ = this->server_.start(this->sp_, network_address::any_ip4(port),
+  CHECK_EXPECTED_ASYNC(co_await this->server_.start(this->sp_, network_address::any_ip4(port),
     [sp = this->sp_, pthis = this->shared_from_this()](const std::shared_ptr<tcp_network_socket> & s) -> vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>{
-    GET_EXPECTED_ASYNC(reader, s->get_input_stream(sp));
     GET_EXPECTED_ASYNC(writer, s->get_output_stream(sp));
     auto session = std::make_shared<session_data>(writer);
     session->handler_ = std::make_shared<http_pipeline>(
@@ -235,9 +234,8 @@ vds::async_task<vds::expected<void>> vds::_web_server::start(
       [sp, pthis, session](http_message && request) -> vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
       return pthis->process_message(session->stream_, session, std::move(request));
     });
-    CHECK_EXPECTED_ASYNC(co_await session->handler_->process(reader));
-    co_return expected<void>();
-  });
+    co_return session->handler_;
+  }));
 
   CHECK_EXPECTED_ASYNC(this->update_timer_.start(
     this->sp_, std::chrono::minutes(1), [pthis = this->shared_from_this()]()->async_task<expected<bool>> {
@@ -272,10 +270,6 @@ vds::async_task<vds::expected<void>> vds::_web_server::start(
 }
 
 vds::async_task<vds::expected<void>> vds::_web_server::prepare_to_stop() {
-	if (this->web_task_.has_state()) {
-		return std::move(this->web_task_);
-	}
-
 	return expected<void>();
 }
 
@@ -308,32 +302,30 @@ void vds::_web_server::kill_session( const std::string& session_id) {
   }
 }
 
-vds::async_task<vds::expected<vds::http_message>> vds::_web_server::not_found_handler(
+vds::async_task<vds::expected<std::tuple<bool, std::shared_ptr<vds::stream_output_async<uint8_t>>>>> vds::_web_server::not_found_handler(
+  const std::shared_ptr<http_async_serializer> & output_stream,
   const http_message& request) {
   if (request.method() == "GET") {
-    auto buffer = std::make_shared<continuous_buffer<uint8_t>>(this->sp_);
-
-    CHECK_EXPECTED_ASYNC(co_await request.get_message().ignore_empty_body());
-
     file_manager::file_operations::download_result_t result;
     GET_EXPECTED_VALUE_ASYNC(result, co_await this->www_channel_->download_file(
       filename(request.url()),
-      const_data_buffer(),
-      std::make_shared<continuous_stream_output_async<uint8_t>>(buffer)));
+      const_data_buffer()));
 
     if (result.file_hash.size() > 0) {
       auto content_type = result.mime_type;
       if (content_type.empty()) {
         content_type = "application/octet-stream";
       }
-      co_return http_response::simple_text_response(
-        std::make_shared<continuous_stream_input_async<uint8_t>>(buffer),
+      CHECK_EXPECTED_ASYNC(co_await http_response::simple_text_response(
+        output_stream,
+        result.body,
         result.size,
-        result.mime_type);
+        result.mime_type));
+      co_return std::make_tuple(true, std::shared_ptr<vds::stream_output_async<uint8_t>>());
     }
   }
 
-  co_return vds::expected<vds::http_message>();
+  co_return std::make_tuple(false, std::shared_ptr<vds::stream_output_async<uint8_t>>());
 }
 
         std::shared_ptr<vds::user_manager> vds::_web_server::get_secured_context(

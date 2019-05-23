@@ -37,7 +37,7 @@ namespace vds {
 
     void kill_session(const std::string& session_id);
 
-    async_task<expected<bool>> not_found_handler(
+    async_task<expected<std::tuple<bool, std::shared_ptr<stream_output_async<uint8_t>>>>> not_found_handler(
       const std::shared_ptr<http_async_serializer> & output_stream,
       const http_message& request);
 
@@ -49,8 +49,6 @@ namespace vds {
     mutable std::shared_mutex auth_session_mutex_;
     std::map<std::string, std::shared_ptr<auth_session>> auth_sessions_;
     timer update_timer_;
-
-    async_task<vds::expected<void>> web_task_;
 
     std::shared_ptr<user_manager> www_user_mng_;
     std::shared_ptr<file_manager::files_channel> www_channel_;

@@ -63,7 +63,6 @@ namespace vds {
   private:
     target_type value_;
   };
-
 }
 
 template<typename interface_type>
