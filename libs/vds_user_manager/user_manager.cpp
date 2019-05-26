@@ -216,7 +216,7 @@ vds::expected<uint64_t> vds::user_manager::get_device_storage_used() {
   return 0;
 }
 
-vds::expected<unsigned long long> vds::user_manager::get_device_storage_size() {
+vds::expected<uint64_t> vds::user_manager::get_device_storage_size() {
   GET_EXPECTED(result, user_storage::device_storages(
     this->sp_,
     this->shared_from_this()).get());
@@ -230,7 +230,7 @@ vds::expected<unsigned long long> vds::user_manager::get_device_storage_size() {
   return 0;
 }
 
-vds::expected<unsigned long long> vds::user_manager::get_user_balance() {
+vds::expected<uint64_t> vds::user_manager::get_user_balance() {
   return 0;
 }
 

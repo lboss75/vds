@@ -82,7 +82,7 @@ vds::expected<std::shared_ptr<vds::stream_input_async<uint8_t>>> vds::tcp_networ
 }
 
 #else//_WIN32
-
+/*
 vds::expected<
 std::tuple<
     std::shared_ptr<vds::stream_input_async<uint8_t>>,
@@ -100,6 +100,18 @@ std::tuple<
 
   return std::make_tuple(reader, writer);
 }
+*/
+
+vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>
+vds::tcp_network_socket::get_output_stream(const service_provider * sp) {
+  auto pthis = this->shared_from_this();
+  auto writer = std::make_shared<_write_socket_task>(pthis);
+
+  (*this)->write_task_ = writer;
+
+  return writer;
+}
+
 
 //: network_service_(sp->get<network_service>()->operator->()),
 //event_masks_(EPOLLET) {

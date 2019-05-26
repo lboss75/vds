@@ -14,6 +14,7 @@ All rights reserved
 #include "shutdown_event.h"
 #include "foldername.h"
 #include "expected.h"
+#include "version.h"
 
 namespace vds {
   class shutdown_event;
@@ -49,8 +50,8 @@ namespace vds {
     const foldername & current_user() const;
     const foldername & local_machine() const;
 
-    static const std::string & system_name();
-    static int system_version();
+    static std::string system_name();
+    static version system_version();
 
   protected:
     service_provider() {}

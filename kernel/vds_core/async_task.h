@@ -282,7 +282,7 @@ namespace vds {
 
     void await_suspend(std::experimental::coroutine_handle<> _ResumeCb)
     {
-      this->then([_ResumeCb]() {
+      this->then([_ResumeCb]() mutable {
         _ResumeCb();
       });
     }
@@ -345,7 +345,7 @@ namespace vds {
 
     void await_suspend(std::experimental::coroutine_handle<> _ResumeCb)
     {
-      this->then([_ResumeCb]() {
+      this->then([_ResumeCb]() mutable {
         _ResumeCb();
       });
     }

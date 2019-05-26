@@ -29,8 +29,8 @@ vds::expected<void> vds::http_client::start(
     return f(std::move(message));
   });
 
-  auto handler = std::make_shared<_read_socket_stream>(sp, s, std::move(reader));
-  return handler->schedule();
+  std::shared_ptr<_read_socket_task>  handler(new _read_socket_task(sp, s, reader));
+  return handler->start();
 }
 
 vds::async_task<vds::expected<void>> vds::http_client::send(

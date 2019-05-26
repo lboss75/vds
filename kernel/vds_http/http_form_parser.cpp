@@ -51,6 +51,8 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
   else {
     co_return vds::make_unexpected<std::runtime_error>("Invalid content type");
   }
+
+  co_return vds::make_unexpected<std::runtime_error>("Invalid program");
 }
 
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::http::form_parser::read_string_body(
@@ -125,7 +127,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
     }
   }
 
-  return std::shared_ptr<vds::stream_output_async<uint8_t>>();
+  return vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>();
 }
 
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::http::form_parser::read_form_urlencoded(

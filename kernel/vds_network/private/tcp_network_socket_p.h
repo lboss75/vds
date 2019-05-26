@@ -568,150 +568,74 @@ namespace vds {
     }
   };
 
-  class _read_socket_task : public stream_input_async<uint8_t>
+  class _read_socket_task : public std::enable_shared_from_this<_read_socket_task>
   {
   public:
     _read_socket_task(
         const service_provider * sp,
-        const std::shared_ptr<socket_base> &owner)
+        std::shared_ptr<socket_base> owner,
+        std::shared_ptr<stream_output_async<uint8_t>> target)
         : sp_(sp),
-          owner_(owner) {
+          owner_(owner),
+          target_(target) {
     }
 
     ~_read_socket_task() {
     }
 
-    expected<void> start(const service_provider * sp){
+    expected<void> start(){
+      CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, EPOLLIN));
       return expected<void>();
-    }
-
-
-    vds::async_task<vds::expected<size_t>> read_async(
-        uint8_t * buffer,
-        size_t buffer_size) override {
-      auto r = std::make_shared<vds::async_result<vds::expected<size_t>>>();
-      if(!(*this->owner())){
-        r->set_value(0);
-        return r->get_future();
-      }
-
-      GET_EXPECTED(handle, (*this->owner())->handle());
-      auto len = read(
-          handle,
-          buffer,
-          buffer_size);
-
-      if (len <= 0) {
-        int error = errno;
-        if (EAGAIN == error) {
-          this->buffer_ = buffer;
-          this->buffer_size_ = buffer_size;
-
-          std::unique_lock<std::mutex> lock(this->result_mutex_);
-          vds_assert(!this->result_);
-          this->result_ = r;
-          lock.unlock();
-
-          CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, EPOLLIN));
-        }
-        else if ((0 == error || EINTR == error || ENOENT == error) && 0 == len) {
-
-          mt_service::async(this->sp_, [r]() {
-          r->set_value(0);
-          });
-        }
-        else {
-          this->sp_->get<logger>()->trace("TCP", "Read error %d", error);
-          r->set_value(make_unexpected<std::system_error>(
-                  error,
-                  std::generic_category(),
-                  "Read"));
-        }
-      }
-      else {
-        this->sp_->get<logger>()->trace("TCP", "Read %d bytes", len);
-
-      mt_service::async(this->sp_, [r,len]() {
-        r->set_value(len);
-      });
-      }
-
-      return r->get_future();
     }
 
     expected<void> process() {
       GET_EXPECTED(handle, (*this->owner())->handle());
 
-      std::unique_lock<std::mutex> lock(this->result_mutex_);
-      auto r = std::move(this->result_);
-      lock.unlock();
-
-      if(!r){
-        return expected<void>();
-      }
-
       auto len = read(
           handle,
           this->buffer_,
-          this->buffer_size_);
+          sizeof(this->buffer_) / sizeof(this->buffer_[0]));
 
       if (len < 0) {
         int error = errno;
         if (EAGAIN == error) {
-          std::unique_lock<std::mutex> lock(this->result_mutex_);
-          vds_assert(!this->result_);
-          this->result_ = std::move(r);
-          lock.unlock();
-
+          CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, EPOLLIN));
           return expected<void>();
         }
 
         CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
-        
-        if ((0 == error || EINTR == error || ENOENT == error) && 0 == len) {
-        mt_service::async(this->sp_, [r]() {
-          r->set_value(0);
-      });
-        }
-        else {
-          r->set_value(make_unexpected<std::system_error>(
-                  error,
-                  std::generic_category(),
-                  "Read"));
-        }
+
+        this->target_->write_async(nullptr, 0).then([pthis = this->shared_from_this()](expected<void>){
+            static_cast<_read_socket_task *>(pthis.get())->target_.reset();
+        });
+
       }
       else {
         CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
-        mt_service::async(this->sp_, [r,len]() {
-        r->set_value(len);
-      });
+        this->target_->write_async(this->buffer_, len).then(
+          [pthis = this->shared_from_this()](expected<void> result){
+          if(!result.has_error()) {
+              (void)static_cast<_read_socket_task *>(pthis.get())->process();
+          }
+        });
       }
 
       return expected<void>();
     }
 
     expected<void> close_read() {
-      (void)(*this->owner())->change_mask(this->owner_, 0, EPOLLIN);
-
-      std::unique_lock<std::mutex> lock(this->result_mutex_);
-      if(this->result_){
-        auto r = std::move(this->result_);
-        lock.unlock();
-
-        r->set_value(0);
-      }
-      return expected<void>();
+        this->target_->write_async(nullptr, 0).then([pthis = this->shared_from_this()](expected<void>){
+            static_cast<_read_socket_task *>(pthis.get())->target_.reset();
+        });
+        return expected<void>();
     }
 
   private:
     const service_provider * sp_;
     std::shared_ptr<socket_base> owner_;
+    std::shared_ptr<stream_output_async<uint8_t>> target_;
 
-    std::mutex result_mutex_;
-    std::shared_ptr<vds::async_result<vds::expected<size_t>>> result_;
-
-    uint8_t * buffer_;
-    size_t buffer_size_;
+    uint8_t buffer_[1024];
 
     tcp_network_socket * owner() const {
       return static_cast<tcp_network_socket *>(this->owner_.get());

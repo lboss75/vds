@@ -129,6 +129,7 @@ vds::async_task<vds::expected<void>> vds::http_multipart_request::send(
       }
 
       CHECK_EXPECTED_ASYNC(co_await stream->write_async(nullptr, 0));
+      co_return expected<void>();
   });
 }
 

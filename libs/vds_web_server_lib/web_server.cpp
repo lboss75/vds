@@ -212,7 +212,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
     this->sp_->get<vds::logger>()->debug(ThisModule, "Route end");
     session->stream_.reset();
     session->handler_.reset();
-    return std::shared_ptr<vds::stream_output_async<uint8_t>>();
+    return expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>();
   }
 
   this->sp_->get<vds::logger>()->debug(ThisModule, "Route [%s]", request.headers().front().c_str());

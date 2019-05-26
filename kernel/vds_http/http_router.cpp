@@ -234,6 +234,8 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
   else {
     co_return std::get<1>(result);
   }
+
+  co_return make_unexpected<std::runtime_error>("Invalid programm");
 }
 
 void vds::http_router::add_static(
