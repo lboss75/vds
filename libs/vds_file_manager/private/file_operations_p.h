@@ -25,7 +25,7 @@ namespace vds {
         const const_data_buffer & file_hash,
         lambda_holder_t<
           async_task<expected<void>>,
-          transactions::user_message_transaction::file_info_t &&> && final_handler);
+          transactions::user_message_transaction::file_info_t> final_handler);
 
 
 	    async_task<expected<file_manager::file_operations::download_result_t>> download_file(
@@ -41,7 +41,7 @@ namespace vds {
         const const_data_buffer & target_file);
 
       expected<std::shared_ptr<stream_input_async<uint8_t>>> download_stream(
-        std::list<transactions::user_message_transaction::file_block_t> && file_blocks);
+        std::list<transactions::user_message_transaction::file_block_t> file_blocks);
 
 
       vds::async_task<vds::expected<void>> create_message(
@@ -87,7 +87,7 @@ namespace vds {
       public:
         download_stream_t(
           const service_provider * sp,
-          std::list<transactions::user_message_transaction::file_block_t> && file_blocks);
+          std::list<transactions::user_message_transaction::file_block_t> file_blocks);
 
         async_task<expected<size_t>> read_async(
           uint8_t * buffer,

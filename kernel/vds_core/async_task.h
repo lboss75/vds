@@ -9,7 +9,6 @@ All rights reserved
 #include <experimental/coroutine>
 #include <future>
 #include <chrono>
-#include <functional>
 #include "vds_debug.h"
 #include "expected.h"
 #include "func_utils.h"
@@ -27,12 +26,11 @@ namespace vds {
   {
   public:
 	  static imt_service * get_current();
-	  static void async(const service_provider * sp, std::function<void(void)> && handler);
+	  static void async(const service_provider * sp, lambda_holder_t<void> handler);
 
-	  void do_async(std::function<void(void)> && handler);
+	  void do_async(lambda_holder_t<void> handler);
   };
-
-
+  
   template <typename result_type>
   class _async_task_value {
   public:
@@ -133,15 +131,15 @@ namespace vds {
       return std::move(this->value_->get());
     }
 
-    void then(const std::function<void(result_type &&)> & f) {
+    void then(lambda_holder_t<void> f) {
       std::unique_lock<std::mutex> lock(this->value_mutex_);
       if (!this->value_) {
-        this->then_function_ = f;
+        this->then_function_ = std::move(f);
       }
       else {
         lock.unlock();
 
-        f(std::move(this->value_->get()));
+        f();
       }
     }
 
@@ -155,14 +153,12 @@ namespace vds {
 
 		  auto mt = imt_service::get_current();
 		  if (nullptr != mt) {
-			  mt->do_async(
-				  make_copyable_function(
-					  [f = std::move(this->then_function_), v = std::move(this->value_)]() mutable {
-						f(std::move(v->get()));
-			  }));
+			  mt->do_async([f = std::move(this->then_function_)]() {
+						f();
+			  });
 		  }
 		  else {
-			  this->then_function_(std::move(this->value_->get()));
+			  this->then_function_();
 		  }
       }
     }
@@ -170,7 +166,7 @@ namespace vds {
     std::mutex value_mutex_;
     std::condition_variable value_cond_;
     std::unique_ptr<_async_task_value<result_type>> value_;
-    std::function<void(result_type &&)> then_function_;
+    lambda_holder_t<void> then_function_;
   };
 
   template <>
@@ -201,10 +197,10 @@ namespace vds {
       this->value_->get();
     }
 
-    void then(const std::function<void(void)> & f) {
+    void then(lambda_holder_t<void> f) {
       std::unique_lock<std::mutex> lock(this->value_mutex_);
       if (!this->value_) {
-        this->then_function_ = f;
+        this->then_function_ = std::move(f);
       }
       else {
         lock.unlock();
@@ -235,7 +231,7 @@ namespace vds {
     std::mutex value_mutex_;
     std::condition_variable value_cond_;
     std::unique_ptr<_async_task_value<void>> value_;
-    std::function<void(void)> then_function_;
+    lambda_holder_t<void> then_function_;
   };
 
   template <typename result_type>
@@ -286,13 +282,19 @@ namespace vds {
 
     void await_suspend(std::experimental::coroutine_handle<> _ResumeCb)
     {
-      this->then([_ResumeCb](result_type &&) mutable {
+      this->then([_ResumeCb]() {
         _ResumeCb();
       });
     }
 
-    void then(const std::function<void(result_type &&)> & f) {
-      this->state_->then(f);
+    void then(lambda_holder_t<void> && f) {
+      this->state_->then(std::move(f));
+    }
+    
+    void then(lambda_holder_t<void, result_type> && f) {
+      this->state_->then([f_ = std::move(f), s = std::move(this->state_)]() {
+        f_(std::move(s->get()));
+      });
     }
 
     //void detach() {
@@ -343,13 +345,13 @@ namespace vds {
 
     void await_suspend(std::experimental::coroutine_handle<> _ResumeCb)
     {
-      this->then([_ResumeCb]() mutable {
+      this->then([_ResumeCb]() {
         _ResumeCb();
       });
     }
 
-    void then(const std::function<void(void)> & f) {
-      this->state_->then(f);
+    void then(lambda_holder_t<void> f) {
+      this->state_->then(std::move(f));
     }
 
   private:

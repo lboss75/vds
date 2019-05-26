@@ -16,12 +16,12 @@ vds::tcp_socket_server::~tcp_socket_server()
 {
 }
 
-vds::async_task<vds::expected<void>> vds::tcp_socket_server::start(
+vds::expected<void> vds::tcp_socket_server::start(
   const service_provider * sp,
   const network_address & address,
-  const std::function<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>(const std::shared_ptr<tcp_network_socket> & s)>& new_connection)
+  lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>, std::shared_ptr<tcp_network_socket>> new_connection)
 {
-  return this->impl_->start(sp, address, new_connection);
+  return this->impl_->start(sp, address, std::move(new_connection));
 }
 
 void vds::tcp_socket_server::stop()

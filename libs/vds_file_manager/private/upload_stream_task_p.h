@@ -27,7 +27,7 @@ namespace vds {
         async_task<expected<void>>,
         const const_data_buffer & /*result_hash*/,
         uint64_t /*total_size*/,
-        std::list<transactions::user_message_transaction::file_block_t> &&> result_handler);
+        std::list<transactions::user_message_transaction::file_block_t>> result_handler);
 
     async_task<expected<void>> write_async(
       const uint8_t *data,
@@ -60,7 +60,7 @@ namespace vds {
       async_task<expected<void>>,
       const const_data_buffer & /*result_hash*/,
       uint64_t /*total_size*/,
-      std::list<transactions::user_message_transaction::file_block_t> &&> result_handler_;
+      std::list<transactions::user_message_transaction::file_block_t>> result_handler_;
   };
 }
 

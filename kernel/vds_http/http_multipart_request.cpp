@@ -67,6 +67,7 @@ vds::expected<void> vds::http_multipart_request::add_file(
   CHECK_EXPECTED(f->open(body_file));
   this->inputs_.push(f);
 
+  this->total_size_ += sizeof(endl) - 1;
   this->inputs_.push(std::make_shared<buffer_stream_input_async>(const_data_buffer(endl, sizeof(endl) - 1)));
 
   return expected<void>();
@@ -103,7 +104,7 @@ vds::async_task<vds::expected<void>> vds::http_multipart_request::send(
 
 vds::async_task<vds::expected<void>> vds::http_multipart_request::send(
   const std::shared_ptr<http_client>& client,
-  lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message && > && response_handler) {
+  lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message> response_handler) {
   const auto tail = "--" + this->boundary_ + "--" + endl;
 
   this->total_size_ += tail.length();
@@ -111,24 +112,57 @@ vds::async_task<vds::expected<void>> vds::http_multipart_request::send(
 
   this->headers_.push_back("Content-Length: " + std::to_string(this->total_size_));
 
-  GET_EXPECTED_ASYNC(stream, co_await client->send_headers(this->headers_, std::move(response_handler)));
+  return client->send_headers(
+    this->headers_,
+    std::move(response_handler),
+    [inputs = std::move(this->inputs_)](std::shared_ptr<stream_output_async<uint8_t>> stream) mutable ->async_task<expected<void>> {
+      uint8_t buffer[1024];
+      while (!inputs.empty()) {
+        size_t readed;
+        GET_EXPECTED_VALUE_ASYNC(readed, co_await inputs.front()->read_async(buffer, sizeof(buffer)));
+        if (0 == readed) {
+          inputs.pop();
+        }
+        else {
+          CHECK_EXPECTED_ASYNC(co_await stream->write_async(buffer, readed));
+        }
+      }
 
-  uint8_t buffer[1024];
-  while (!this->inputs_.empty()) {
-    size_t readed;
-    GET_EXPECTED_VALUE_ASYNC(readed, co_await this->inputs_.front()->read_async(buffer, sizeof(buffer)));
-    if (0 == readed) {
-      this->inputs_.pop();
-    }
-    else {
-      CHECK_EXPECTED_ASYNC(co_await stream->write_async(buffer, readed));
-    }
-  }
-
-  CHECK_EXPECTED_ASYNC(co_await stream->write_async(nullptr, 0));
-
-  co_return expected<void>();
+      CHECK_EXPECTED_ASYNC(co_await stream->write_async(nullptr, 0));
+  });
 }
+
+vds::async_task<vds::expected<vds::const_data_buffer>> vds::http_multipart_request::send(
+  const std::shared_ptr<http_client>& client,
+  lambda_holder_t<async_task<expected<void>>, http_message> response_handler) {
+  const auto tail = "--" + this->boundary_ + "--" + endl;
+
+  this->total_size_ += tail.length();
+  this->inputs_.push(std::make_shared<buffer_stream_input_async>(const_data_buffer(tail.c_str(), tail.length())));
+
+  this->headers_.push_back("Content-Length: " + std::to_string(this->total_size_));
+
+  return client->send_headers(
+    this->headers_,
+    std::move(response_handler),
+    [inputs = std::move(this->inputs_)](std::shared_ptr<stream_output_async<uint8_t>> stream) mutable->async_task<expected<void>> {
+    uint8_t buffer[1024];
+    while (!inputs.empty()) {
+      size_t readed;
+      GET_EXPECTED_VALUE_ASYNC(readed, co_await inputs.front()->read_async(buffer, sizeof(buffer)));
+      if (0 == readed) {
+        inputs.pop();
+      }
+      else {
+        CHECK_EXPECTED_ASYNC(co_await stream->write_async(buffer, readed));
+      }
+    }
+
+    CHECK_EXPECTED_ASYNC(co_await stream->write_async(nullptr, 0));
+    co_return expected<void>();
+  });
+}
+
 
 void vds::http_multipart_request::add_header(const std::string& header) {
   this->headers_.push_back(header);

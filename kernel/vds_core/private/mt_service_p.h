@@ -26,7 +26,7 @@ namespace vds {
     void stop();
     async_task<expected<void>> prepare_to_stop();
 
-    void do_async(lambda_holder_t<void> && handler);
+    void do_async(lambda_holder_t<void> handler);
 
 	static void set_instance(const service_provider * sp);
 

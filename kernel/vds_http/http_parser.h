@@ -20,7 +20,7 @@ namespace vds {
   public:
     http_parser(
 		const service_provider * sp,
-      lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message && > message_callback);
+      lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message> message_callback);
 
     ~http_parser();
 
@@ -40,7 +40,7 @@ namespace vds {
 
   private:
 	const service_provider * sp_;
-  lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message &&> message_callback_;
+  lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message> message_callback_;
 
     bool eof_;
     std::string parse_buffer_;
@@ -60,6 +60,9 @@ namespace vds {
     bool expect_100_;
 
     std::shared_ptr<stream_output_async<uint8_t>> current_message_;
+
+    async_task<expected<void>> finish_body();
+
   };
 }
 

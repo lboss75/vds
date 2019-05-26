@@ -10,7 +10,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
   const vds::service_provider * sp,
   const std::shared_ptr<http_async_serializer> & output_stream,
   const http_message & request,
-  lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> && handler)
+  lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> handler)
 {
 	std::string websocket_key;
 	if (request.get_header("Sec-WebSocket-Key", websocket_key))
@@ -38,8 +38,8 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
 vds::websocket::websocket_handler::websocket_handler(
   const vds::service_provider * sp,
   std::shared_ptr<stream_output_async<uint8_t>> target,
-  lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> && handler)
-  : sp_(sp), target_(target), handler_(handler) {
+  lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> handler)
+  : sp_(sp), target_(target), handler_(std::move(handler)) {
 }
 
 vds::async_task<vds::expected<void>> vds::websocket::websocket_handler::write_async(const uint8_t * data, size_t len)

@@ -36,7 +36,7 @@ vds::expected<void> vds::file::close()
     this->handle_ = 0;
 
     if (error != 0) {
-      return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to close file " + this->filename_.str());
+      return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Unable to close file " + this->filename_.str());
     }
   }
 
@@ -83,14 +83,14 @@ vds::expected<void> vds::file::open(const vds::filename& filename, vds::file::fi
   this->handle_ = ::open(filename.local_name().c_str(), oflags, S_IREAD | S_IWRITE);
   if (0 > this->handle_) {
     auto error = errno;
-    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to open file " + this->filename_.str());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Unable to open file " + this->filename_.str());
   }
 #else
 
   this->handle_ = ::_open(this->filename_.local_name().c_str(), oflags | O_BINARY | O_SEQUENTIAL, _S_IREAD | _S_IWRITE);
   if (0 > this->handle_) {
     auto error = errno;
-    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to open file " + this->filename_.str());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Unable to open file " + this->filename_.str());
   }
 #endif
   return expected<void>();
@@ -105,10 +105,11 @@ vds::expected<size_t> vds::file::read(
   if (0 > readed) {
 #ifdef _WIN32
     auto error = GetLastError();
+    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to read file " + this->filename_.str());
 #else
     auto error = errno;
+    return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Unable to read file " + this->filename_.str());
 #endif
-    return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to read file " + this->filename_.str());
   }
   
   return (size_t)readed;
@@ -123,10 +124,11 @@ vds::expected<void> vds::file::write(
     if (0 > written) {
 #ifdef _WIN32
       auto error = GetLastError();
+      return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to write file " + this->filename_.full_name());
 #else
       auto error = errno;
+      return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Unable to write file " + this->filename_.full_name());
 #endif
-      return vds::make_unexpected<std::system_error>(error, std::system_category(), "Unable to write file " + this->filename_.full_name());
     }
 
     if ((size_t)written == buffer_len) {
@@ -211,7 +213,7 @@ vds::expected<void> vds::file::flush()
   HANDLE h = (HANDLE)_get_osfhandle(this->handle_);
   if (INVALID_HANDLE_VALUE == h) {
     auto err = GetLastError();
-    return vds::make_unexpected<std::system_error>(err, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
+    return vds::make_unexpected<std::system_error>(err, std::system_category(), "Unable to flush file " + this->filename_.full_name());
   }
 
   if (!FlushFileBuffers(h)) {

@@ -25,7 +25,7 @@ vds::websocket_api::open_connection(
       std::shared_ptr<websocket_output> output_stream
       ) -> async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
 
-    return std::make_shared<collect_data>([sp, output_stream](const_data_buffer && data)->async_task<expected<void>> {
+    return std::make_shared<collect_data>([sp, output_stream](const_data_buffer data)->async_task<expected<void>> {
       GET_EXPECTED_ASYNC(message, json_parser::parse("Web Socket API", data));
 
       GET_EXPECTED_ASYNC(result, co_await process_message(sp, message));

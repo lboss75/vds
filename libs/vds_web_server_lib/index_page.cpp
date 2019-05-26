@@ -63,7 +63,7 @@ public:
   vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> on_file(
     const file_info & file) override {
 
-    co_return std::make_shared<vds::collect_data>([pthis_ = this->shared_from_this()](vds::const_data_buffer && body)-> vds::async_task<vds::expected<void>> {
+    co_return std::make_shared<vds::collect_data>([pthis_ = this->shared_from_this()](vds::const_data_buffer body)-> vds::async_task<vds::expected<void>> {
       auto pthis = static_cast<parse_request_form *>(pthis_.get());
       GET_EXPECTED_VALUE(pthis->successful_, vds::user_manager::parse_join_request(
         std::move(body),
@@ -139,7 +139,7 @@ public:
     const file_info & file) override {
 
     co_return std::make_shared<vds::collect_data>(
-      [pthis_ = this->shared_from_this()](vds::const_data_buffer && buffer)->vds::async_task<vds::expected<void>> {
+      [pthis_ = this->shared_from_this()](vds::const_data_buffer buffer)->vds::async_task<vds::expected<void>> {
       auto pthis = static_cast<approve_join_request_form *>(pthis_.get());
       GET_EXPECTED_VALUE_ASYNC(pthis->successful_, co_await pthis->user_mng_->approve_join_request(buffer));
       co_return vds::expected<void>();

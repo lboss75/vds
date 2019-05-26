@@ -56,7 +56,7 @@ namespace vds {
 
 
       static vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> read_string_body(
-        lambda_holder_t<async_task<expected<void>>, std::string &&> handler);
+        lambda_holder_t<async_task<expected<void>>, std::string> handler);
     };
 
   }

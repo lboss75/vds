@@ -48,7 +48,7 @@ namespace vds {
 			const vds::service_provider * sp,
       const std::shared_ptr<http_async_serializer> & output_stream,
 			const http_message & msg,
-      lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> && handler);
+      lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> handler);
 
 	private:
 
@@ -58,7 +58,7 @@ namespace vds {
       websocket_handler(
         const vds::service_provider * sp,
         std::shared_ptr<stream_output_async<uint8_t>> target,
-        lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> && handler);
+        lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> handler);
 
       async_task<expected<void>> write_async(
         const uint8_t *data,

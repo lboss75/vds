@@ -428,6 +428,13 @@ vds::expected<int> vds::app::run_app(int argc, const char** argv) {
 
   CHECK_EXPECTED(root_folder.create());
 
+  foldername tmp_folder(root_folder, "tmp");
+  CHECK_EXPECTED(tmp_folder.files([](const filename & fn)->bool {
+    (void)file::delete_file(fn);
+    return true;
+  }));
+
+
   if (this->need_demonize()) {
     return this->demonize(root_folder);
   }

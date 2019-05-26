@@ -18,8 +18,8 @@ namespace vds {
     http_pipeline(
 	  const service_provider * sp,
       const std::shared_ptr<http_async_serializer> & output_stream,
-      lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message && > message_callback)
-      : http_parser(sp, message_callback), output_stream_(output_stream) {
+      lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message> message_callback)
+      : http_parser(sp, std::move(message_callback)), output_stream_(output_stream) {
     }
 
     vds::async_task<vds::expected<void>> continue_read_data() override;

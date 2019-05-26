@@ -20,10 +20,10 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
       if (boundary_prefix == boundary.substr(0, sizeof(boundary_prefix) - 1)) {
         boundary.erase(0, sizeof(boundary_prefix) - 1);
 
-        return http_multipart_reader::parse(
+        co_return std::make_shared<http_multipart_reader>(
           this->sp_,
-          "--" + boundary,
-          [pthis = this->shared_from_this()](http_message && part) -> vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> {
+          boundary,
+          [pthis = this->shared_from_this()](http_message part) -> vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> {
             return pthis->read_part(part);
           },
           [h = std::move(handler)]() {
@@ -31,32 +31,32 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
           });
       }
       else {
-        return vds::make_unexpected<std::runtime_error>("Invalid content type " + content_type);
+        co_return vds::make_unexpected<std::runtime_error>("Invalid content type " + content_type);
       }
     }
     else {
       static const char form_urlencoded[] = "application/x-www-form-urlencoded;";
       if (form_urlencoded == content_type.substr(0, sizeof(form_urlencoded) - 1)) {
-        return this->read_form_urlencoded(
+        co_return co_await this->read_form_urlencoded(
           message,
           [h = std::move(handler)]() {
           return h();
         });
       }
       else {
-        return vds::make_unexpected<std::runtime_error>("Invalid content type " + content_type);
+        co_return vds::make_unexpected<std::runtime_error>("Invalid content type " + content_type);
       }
     }
   }
   else {
-    return vds::make_unexpected<std::runtime_error>("Invalid content type");
+    co_return vds::make_unexpected<std::runtime_error>("Invalid content type");
   }
 }
 
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::http::form_parser::read_string_body(
-  lambda_holder_t<async_task<expected<void>>, std::string &&> handler) {
+  lambda_holder_t<async_task<expected<void>>, std::string> handler) {
 
-  co_return std::make_shared<collect_data>([h = std::move(handler)](const_data_buffer && data){
+  co_return std::make_shared<collect_data>([h = std::move(handler)](const_data_buffer data){
     return h(std::string((const char *)data.data(), data.size()));
   });
 }
@@ -104,7 +104,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
         auto fname = values.find("filename");
         if (values.end() == fname) {
           auto buffer = std::make_shared<std::string>();
-          return this->read_string_body([name, pthis = this->shared_from_this()](std::string && body) {
+          return this->read_string_body([name, pthis = this->shared_from_this()](std::string body) {
             return pthis->on_field(field_info{ name, url_encode::decode(body) });
           });
         }
@@ -132,7 +132,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
   const http_message & /*part*/,
   lambda_holder_t<vds::async_task<vds::expected<void>>> final_handler)
 {
-    return read_string_body([pthis = this->shared_from_this(), h = std::move(final_handler)](std::string && buffer) -> async_task<expected<void>> {
+    return read_string_body([pthis = this->shared_from_this(), h = std::move(final_handler)](std::string buffer) -> async_task<expected<void>> {
       auto items = split_string(buffer, '&', true);
       std::map<std::string, std::string> values;
       for (const auto & item : items) {

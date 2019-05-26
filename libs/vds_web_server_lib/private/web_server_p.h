@@ -61,16 +61,18 @@ namespace vds {
       std::shared_ptr<vds::http_async_serializer> stream_;
       std::shared_ptr<vds::http_pipeline> handler_;
 
-      session_data(const std::shared_ptr<vds::stream_output_async<uint8_t>> & target)
+      session_data(
+        const service_provider * sp,
+        const std::shared_ptr<vds::stream_output_async<uint8_t>> & target)
         : target_(target),
-          stream_(std::make_shared<vds::http_async_serializer>(target)) {
+          stream_(std::make_shared<vds::http_async_serializer>(sp, target)) {
       }
     };
 
     async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> process_message(
       const std::shared_ptr<http_async_serializer> & output_stream,
       const std::shared_ptr<session_data> & session,
-      vds::http_message && request);
+      vds::http_message request);
   };
 }
 

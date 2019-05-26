@@ -7,6 +7,7 @@ All rights reserved
 */
 #include <functional>
 #include <tuple>
+#include <type_traits>
 
 namespace vds {
   template <typename functor_type, typename functor_signature>
@@ -234,17 +235,13 @@ namespace vds {
 	  lambda_holder_t() {
 	  }
 
-	  template<typename F>
-	  lambda_holder_t(F && f)
-		  : holder_(new holder<F>(std::forward<F>(f))) {
-	  }
+    lambda_holder_t(lambda_holder_t && origin)
+    : holder_(std::move(origin.holder_)){
+    }
 
-	  lambda_holder_t(lambda_holder_t && original)
-			  : holder_(std::move(original.holder_)) {
-	  }
-
-	  result_type operator ()(arg_types... args) {
-		  return (*this->holder_)(std::forward<arg_types>(args)...);
+	  template<typename F, class = typename std::enable_if<std::is_invocable_r_v<result_type, F, arg_types...> && !std::is_same<F, lambda_holder_t>::value>::type>
+	  lambda_holder_t(F f)
+		  : holder_(new holder<F>(std::move(f))) {
 	  }
 
 	  result_type operator ()(arg_types... args) const {
@@ -275,21 +272,16 @@ namespace vds {
 	  public:
 		  virtual ~holder_base() {}
 		  virtual result_type operator ()(arg_types... args) = 0;
-		  virtual result_type operator ()(arg_types... args) const = 0;
 	  };
 
 	  template<typename F>
 	  class holder : public holder_base {
 	  public:
-		  holder(F && f)
-			  : f_(std::forward<F>(f)) {
+		  holder(F f)
+			  : f_(std::move(f)) {
 		  }
 
 		  result_type operator ()(arg_types... args) override {
-			  return this->f_(std::forward<arg_types>(args)...);
-		  }
-
-		  result_type operator ()(arg_types... args) const override {
 			  return this->f_(std::forward<arg_types>(args)...);
 		  }
 

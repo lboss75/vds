@@ -284,14 +284,10 @@ namespace vds {
 
         if(callback_result.has_error()) {
           pthis->sp_->get<logger>()->trace("DB", "%s at read transaction", callback_result.error()->what());
-          mt_service::async(pthis->sp_, [r, error = callback_result.error().release()]() {
-            r->set_value(unexpected(std::unique_ptr<std::exception>(error)));
-          });
+          r->set_value(unexpected(std::move(callback_result.error())));
         }
         else {
-          mt_service::async(pthis->sp_, [r]() {
-            r->set_value(expected<void>());
-          });
+          r->set_value(expected<void>());
         }
         return expected<void>();
       });
@@ -312,21 +308,15 @@ namespace vds {
         if(callback_result.has_error()) {
           CHECK_EXPECTED(pthis->execute("ROLLBACK TRANSACTION"));
           pthis->sp_->get<logger>()->trace("DB", "%s at transaction", callback_result.error()->what());
-          mt_service::async(pthis->sp_, [r, error = callback_result.error().release()]() {
-            r->set_value(unexpected(std::unique_ptr<std::exception>(error)));
-          });
+          r->set_value(unexpected(std::move(callback_result.error())));
         }
         else if(callback_result.value()) {
           CHECK_EXPECTED(pthis->execute("COMMIT TRANSACTION"));
-          mt_service::async(pthis->sp_, [r]() {
-            r->set_value(expected<void>());
-          });
+          r->set_value(expected<void>());
         }
         else {
           CHECK_EXPECTED(pthis->execute("ROLLBACK TRANSACTION"));
-          mt_service::async(pthis->sp_, [r]() {
-            r->set_value(expected<void>());
-          });
+          r->set_value(expected<void>());
         }
 
         return expected<void>();

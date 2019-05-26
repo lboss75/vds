@@ -11,7 +11,7 @@ vds::_upload_stream_task::_upload_stream_task(
   async_task<expected<void>>,
   const const_data_buffer & /*result_hash*/,
   uint64_t /*total_size*/,
-  std::list<transactions::user_message_transaction::file_block_t> &&> result_handler)
+  std::list<transactions::user_message_transaction::file_block_t>> result_handler)
 : sp_(sp), total_size_(0), readed_(0), result_handler_(std::move(result_handler)){
 }
 
@@ -54,6 +54,7 @@ vds::async_task<vds::expected<void>> vds::_upload_stream_task::write_async(const
     co_return expected<void>();
   }
   else {
+    this->sp_->get<logger>()->trace("HASH", "[%s]", std::string((const char *)data, len).c_str());
     CHECK_EXPECTED_ASYNC(this->total_hash_.update(data, len));
     this->total_size_ += len;
   }
@@ -68,9 +69,11 @@ vds::async_task<vds::expected<void>> vds::_upload_stream_task::write_async(const
     }
     CHECK_EXPECTED_ASYNC(co_await this->current_target_->write_async(data, to_write));
     this->readed_ += to_write;
+    data += to_write;
+    len -= to_write;
 
     if (dht::network::service::BLOCK_SIZE == this->readed_) {
-      CHECK_EXPECTED_ASYNC(co_await this->current_target_->write_async(data, to_write));
+      CHECK_EXPECTED_ASYNC(co_await this->current_target_->write_async(nullptr, 0));
       auto block_info = co_await network_client->finish_save(this->sp_, this->current_target_);
       this->current_target_.reset();
 

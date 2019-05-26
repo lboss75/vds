@@ -17,8 +17,9 @@ namespace vds {
   {
   public:
     http_async_serializer(
+      const service_provider * sp,
       const std::shared_ptr<stream_output_async<uint8_t>> & target)
-      : target_(target), write_body_(false)
+      : sp_(sp), target_(target), write_body_(false)
     {
     }
 
@@ -27,11 +28,12 @@ namespace vds {
     }
 
     vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> start_message(
-      const std::list<std::string>& headers);
+      std::list<std::string> headers);
 
     async_task<expected<void>> stop();
 
   private:
+    const service_provider * sp_;
     std::shared_ptr<stream_output_async<uint8_t>> target_;
 	  bool write_body_;
 

@@ -25,7 +25,7 @@ namespace vds {
     http_route_handler(const http_route_handler & origin)
     : url_(origin.url_),
       method_(origin.method_),
-      handler_(handler_) {
+      handler_(origin.handler_) {
 
     }
 

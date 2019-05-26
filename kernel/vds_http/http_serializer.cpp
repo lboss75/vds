@@ -8,7 +8,7 @@ All rights reserved
 
 
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<unsigned char>>>>
-vds::http_async_serializer::start_message(const std::list<std::string>& headers) {
+vds::http_async_serializer::start_message(std::list<std::string> headers) {
   vds_assert(!this->write_body_);
   std::stringstream stream;
   for (auto& header : headers) {
@@ -17,8 +17,10 @@ vds::http_async_serializer::start_message(const std::list<std::string>& headers)
   stream << "\r\n";
 
   auto data = stream.str();
-  CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(reinterpret_cast<const uint8_t *>(data.c_str()), data.length(
-  )));
+
+  this->sp_->get<logger>()->trace("TCPout", "HTTP[%s]", data.c_str());
+
+  CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(reinterpret_cast<const uint8_t *>(data.c_str()), data.length()));
 
   this->write_body_ = true;
 
@@ -33,9 +35,11 @@ vds::async_task<vds::expected<void>> vds::http_async_serializer::out_stream::wri
   const uint8_t* data, size_t len) {
 
   if (0 != len) {
-    co_await this->target_->target_->write_async(data, len);
+    this->target_->sp_->get<logger>()->trace("TCPout", "HTTP[%s]", std::string((const char *)data, len).c_str());
+    CHECK_EXPECTED_ASYNC(co_await this->target_->target_->write_async(data, len));
   }
   else {
+    this->target_->sp_->get<logger>()->trace("TCPout", "HTTP end");
     this->target_->write_body_ = false;
   }
 

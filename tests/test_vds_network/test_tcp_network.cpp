@@ -60,7 +60,7 @@ TEST(network_tests, test_server)
       GET_EXPECTED_ASYNC(writer, s->get_output_stream(sp));
 
       co_return writer;
-  }).get());
+  }));
   
   std::string answer;
   random_buffer data;

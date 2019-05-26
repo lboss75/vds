@@ -181,7 +181,7 @@ namespace vds {
 	  collect_data() {
 	  }
 
-	  collect_data(lambda_holder_t<async_task<expected<void>>, const_data_buffer &&> && handler)
+	  collect_data(lambda_holder_t<async_task<expected<void>>, const_data_buffer> handler)
 	  : handler_(std::move(handler)){
 	  }
 
@@ -206,7 +206,7 @@ namespace vds {
 
     private:
       resizable_data_buffer data_;
-	  lambda_holder_t<async_task<expected<void>>, const_data_buffer &&> handler_;
+	  lambda_holder_t<async_task<expected<void>>, const_data_buffer> handler_;
   };
 }
 

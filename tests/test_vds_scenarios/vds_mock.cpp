@@ -528,7 +528,7 @@ vds::const_data_buffer vds_mock::upload_file(
     name,
     mimetype,
     vds::const_data_buffer(),
-    [&files](vds::transactions::user_message_transaction::file_info_t && file_info) -> vds::async_task<vds::expected<void>> {
+    [&files](vds::transactions::user_message_transaction::file_info_t file_info) -> vds::async_task<vds::expected<void>> {
     files.push_back(file_info);
     return vds::expected<void>();
   }).get());

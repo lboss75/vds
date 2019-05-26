@@ -56,7 +56,7 @@ vds::file_manager::file_operations::prepare_download_file(
 }
 
 vds::expected<std::shared_ptr<vds::stream_input_async<uint8_t>>> vds::file_manager::file_operations::download_stream(
-  std::list<transactions::user_message_transaction::file_block_t>&& file_blocks) {
+  std::list<transactions::user_message_transaction::file_block_t> file_blocks) {
   return this->impl_->download_stream(std::move(file_blocks));
 }
 
@@ -68,7 +68,7 @@ vds::file_manager::file_operations::upload_file(
   const const_data_buffer & file_hash,
   lambda_holder_t<
     async_task<expected<void>>,
-    transactions::user_message_transaction::file_info_t &&> && final_handler) {
+    transactions::user_message_transaction::file_info_t> final_handler) {
   return this->impl_->upload_file(name, mime_type, file_hash, std::move(final_handler));
 }
 
@@ -89,14 +89,14 @@ vds::file_manager_private::_file_operations::upload_file(
   const const_data_buffer & file_hash,
   lambda_holder_t<
   async_task<expected<void>>,
-  transactions::user_message_transaction::file_info_t &&> && final_handler) {
+  transactions::user_message_transaction::file_info_t> final_handler) {
 
   auto task = std::make_shared<_upload_stream_task>(
     this->sp_,
     [name, mime_type, h = std::move(final_handler)](
       const const_data_buffer & result_hash,
       uint64_t total_size,
-      std::list<transactions::user_message_transaction::file_block_t> && file_blocks) {
+      std::list<transactions::user_message_transaction::file_block_t> file_blocks) {
         return h(transactions::user_message_transaction::file_info_t{
           name,
           mime_type,
@@ -148,11 +148,9 @@ vds::file_manager_private::_file_operations::download_file(
         return expected<void>();
   }));
 
-  if (result->mime_type.empty()) {
-    co_return vds::make_unexpected<vds_exceptions::not_found>();
+  if (!result->mime_type.empty()) {
+    GET_EXPECTED_VALUE_ASYNC(result->body, this->download_stream(std::move(download_tasks)));
   }
-
-  GET_EXPECTED_VALUE_ASYNC(result->body, this->download_stream(std::move(download_tasks)));
 
   co_return *result;
 }
@@ -224,7 +222,7 @@ vds::file_manager_private::_file_operations::prepare_download_file(
 
 vds::expected<std::shared_ptr<vds::stream_input_async<uint8_t>>>
 vds::file_manager_private::_file_operations::download_stream(
-  std::list<transactions::user_message_transaction::file_block_t> && file_blocks)
+  std::list<transactions::user_message_transaction::file_block_t> file_blocks)
 {
   return std::make_shared<download_stream_t>(this->sp_, std::move(file_blocks));
 }
@@ -306,7 +304,7 @@ vds::file_manager_private::_file_operations::prepare_download_stream(
 
 vds::file_manager_private::_file_operations::download_stream_t::download_stream_t(
   const service_provider * sp,
-  std::list<transactions::user_message_transaction::file_block_t>&& file_blocks)
+  std::list<transactions::user_message_transaction::file_block_t> file_blocks)
   : sp_(sp), file_blocks_(std::move(file_blocks)), readed_(0) {
 }
 

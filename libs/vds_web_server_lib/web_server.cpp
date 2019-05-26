@@ -207,7 +207,7 @@ vds::_web_server::~_web_server() {
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::_web_server::process_message(
   const std::shared_ptr<http_async_serializer> & output_stream,
   const std::shared_ptr<session_data> & session,
-  vds::http_message && request) {
+  vds::http_message request) {
   if (request.headers().empty()) {
     this->sp_->get<vds::logger>()->debug(ThisModule, "Route end");
     session->stream_.reset();
@@ -224,14 +224,14 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
 
 vds::async_task<vds::expected<void>> vds::_web_server::start(
     uint16_t port) {
-  CHECK_EXPECTED_ASYNC(co_await this->server_.start(this->sp_, network_address::any_ip4(port),
-    [sp = this->sp_, pthis = this->shared_from_this()](const std::shared_ptr<tcp_network_socket> & s) -> vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>{
+  CHECK_EXPECTED_ASYNC(this->server_.start(this->sp_, network_address::any_ip4(port),
+    [sp = this->sp_, pthis = this->shared_from_this()](std::shared_ptr<tcp_network_socket> s) -> vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>{
     GET_EXPECTED_ASYNC(writer, s->get_output_stream(sp));
-    auto session = std::make_shared<session_data>(writer);
+    auto session = std::make_shared<session_data>(sp, writer);
     session->handler_ = std::make_shared<http_pipeline>(
 		    sp,
         session->stream_,
-      [sp, pthis, session](http_message && request) -> vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
+      [sp, pthis, session](http_message request) -> vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
       return pthis->process_message(session->stream_, session, std::move(request));
     });
     co_return session->handler_;

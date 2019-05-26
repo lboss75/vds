@@ -43,7 +43,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
     file.file_name,
     file.mimetype,
     file_hash,
-    [pthis = this->shared_from_this()](vds::transactions::user_message_transaction::file_info_t && file_info) -> async_task<expected<void>> {
+    [pthis = this->shared_from_this()](vds::transactions::user_message_transaction::file_info_t file_info) -> async_task<expected<void>> {
     static_cast<create_message_form *>(pthis.get())->files_.push_back(file_info);
     return expected<void>();
   });

@@ -38,7 +38,11 @@ namespace vds {
 
     async_task<expected<void>> send(
       const std::shared_ptr<http_client> & client,
-      lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message && > && response_handler);
+      lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message> response_handler);
+
+    async_task<expected<const_data_buffer>> send(
+      const std::shared_ptr<http_client> & client,
+      lambda_holder_t<async_task<expected<void>>, http_message> response_handler);
 
     void add_header(const std::string & header);
 

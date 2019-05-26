@@ -55,6 +55,7 @@ vds::async_task<vds::expected<void>> vds::http_response::simple_text_response(
   
   GET_EXPECTED_ASYNC(stream, co_await output_stream->start_message(headers));
   CHECK_EXPECTED_ASYNC(co_await stream->write_async((const uint8_t *)body.c_str(), body.length()));
+  CHECK_EXPECTED_ASYNC(co_await stream->write_async(nullptr, 0));
 
   co_return expected<void>();
 }

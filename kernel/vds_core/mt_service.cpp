@@ -59,7 +59,7 @@ vds::imt_service * vds::imt_service::get_current()
 	return current_instance;
 }
 
-void vds::imt_service::async(const service_provider * sp, std::function<void(void)>&& handler)
+void vds::imt_service::async(const service_provider * sp, lambda_holder_t<void> handler)
 {
 	sp->get<imt_service>()->do_async(std::move(handler));
 }
@@ -69,7 +69,7 @@ void vds::imt_service::async(const service_provider * sp, std::function<void(voi
 //  ((mt_service *)this)->impl_->do_async(handler);
 //}
 
-void vds::imt_service::do_async( std::function<void(void)> && handler)
+void vds::imt_service::do_async(lambda_holder_t<void> handler)
 {
   ((mt_service *)this)->impl_->do_async(std::move(handler));
 }
@@ -107,7 +107,7 @@ vds::async_task<vds::expected<void>> vds::_mt_service::prepare_to_stop() {
   co_return expected<void>();
 }
 
-void vds::_mt_service::do_async(lambda_holder_t<void> && handler)
+void vds::_mt_service::do_async(lambda_holder_t<void> handler)
 {
   std::unique_lock<std::mutex> lock(this->mutex_);
   this->queue_.push(std::move(handler));
@@ -144,7 +144,7 @@ void vds::_mt_service::work_thread()
       }
     }
     
-    auto handler = this->queue_.front();
+    auto handler = std::move(this->queue_.front());
     this->queue_.pop();
 
     lock.unlock();
