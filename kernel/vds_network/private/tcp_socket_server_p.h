@@ -22,7 +22,8 @@ namespace vds {
     vds::expected<void> start(
       const service_provider * sp,
       const network_address & address,
-      lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>, std::shared_ptr<tcp_network_socket>> new_connection);
+      lambda_holder_t<vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>>,
+      std::shared_ptr<tcp_network_socket>> new_connection);
     
     void stop();
     

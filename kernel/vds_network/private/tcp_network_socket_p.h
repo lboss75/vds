@@ -189,108 +189,6 @@ namespace vds {
 
 
 #ifdef _WIN32
-  class _read_socket_task : public _socket_task, public stream_input_async<uint8_t>
-  {
-  public:
-    constexpr static size_t BUFFER_SIZE = 1024;
-
-    _read_socket_task(
-      const service_provider * sp,
-      const std::shared_ptr<tcp_network_socket> & owner)
-      : sp_(sp), owner_(owner) {
-    }
-
-    ~_read_socket_task() {
-    }
-
-
-    vds::async_task<vds::expected<size_t>> read_async(      
-      uint8_t * buffer,
-      size_t len) override {
-
-      vds_assert(!this->result_);
-      auto r = std::make_shared<vds::async_result<vds::expected<size_t>>>();
-      this->result_ = r;
-
-      auto handle = (*this->owner_)->handle();
-      if (handle.has_error()) {
-        auto t = std::move(this->result_);
-        t->set_value(unexpected(std::move(handle.error())));
-        return t->get_future();
-      }
-
-      memset(&this->overlapped_, 0, sizeof(this->overlapped_));
-      this->wsa_buf_.len = len;
-      this->wsa_buf_.buf = (CHAR *)buffer;
-      this->pthis_ = this->shared_from_this();
-
-      DWORD flags = 0;
-      DWORD numberOfBytesRecvd;
-      if (NOERROR != WSARecv(
-        handle.value(),
-        &this->wsa_buf_,
-        1,
-        &numberOfBytesRecvd,
-        &flags,
-        &this->overlapped_,
-        NULL)) {
-        auto errorCode = WSAGetLastError();
-        if (WSA_IO_PENDING != errorCode) {
-          this->sp_->get<logger>()->trace("TCP", "WSARecv error");
-          auto pthis = this->pthis_;
-          this->pthis_.reset();
-
-          if (WSAESHUTDOWN == errorCode || WSAECONNABORTED == errorCode) {
-            auto t = std::move(this->result_);
-            t->set_value(0);
-            return t->get_future();
-          }
-          else {
-            auto t = std::move(this->result_);
-
-            t->set_value(
-              make_unexpected<std::system_error>(errorCode, std::system_category(), "read from tcp socket"));
-            return t->get_future();
-          }
-        }
-      }
-
-      return r->get_future();
-    }
-
-
-  private:
-    const service_provider * sp_;
-    std::shared_ptr<tcp_network_socket> owner_;
-    std::shared_ptr<stream_input_async<uint8_t>> pthis_;
-    std::shared_ptr<vds::async_result<vds::expected<size_t>>> result_;
-
-    void process(DWORD dwBytesTransfered) override
-    {
-      auto r = std::move(this->result_);
-      auto pthis = std::move(this->pthis_);
-
-      if (0 == dwBytesTransfered) {
-        r->set_value(0);
-      }
-      else {
-        r->set_value((size_t)dwBytesTransfered);
-      }
-    }
-
-    void error(DWORD error_code) override
-    {
-      if (ERROR_NETNAME_DELETED == error_code || WSAECONNABORTED == error_code) {
-        this->process(0);
-      }
-      else {
-        auto pthis = std::move(this->pthis_);
-        auto r = std::move(this->result_);
-        r->set_value(make_unexpected<std::system_error>(error_code, std::system_category(), "read failed"));
-      }
-    }
-  };
-   
   class _write_socket_task : public _socket_task, public stream_output_async<uint8_t>
   {
   public:
@@ -369,23 +267,23 @@ namespace vds {
     }
   };
 
-  class _read_socket_stream : public _socket_task, public std::enable_shared_from_this<_read_socket_stream>
+  class _read_socket_task : public _socket_task, public std::enable_shared_from_this<_read_socket_task>
   {
   public:
 	  constexpr static size_t BUFFER_SIZE = 1024;
 
-	  _read_socket_stream(
+	  _read_socket_task(
 		  const service_provider * sp,
 		  const std::shared_ptr<tcp_network_socket> & owner,
 		  const std::shared_ptr<stream_output_async<uint8_t>> & target)
 		  : sp_(sp), owner_(owner), target_(target) {
 	  }
 
-	  ~_read_socket_stream() {
+	  ~_read_socket_task() {
 	  }
 
 
-	  vds::expected<void> schedule() {
+	  vds::expected<void> start() {
 		  GET_EXPECTED(handle, (*this->owner_)->handle());
 
 		  memset(&this->overlapped_, 0, sizeof(this->overlapped_));
@@ -428,7 +326,7 @@ namespace vds {
 	  const service_provider * sp_;
 	  std::shared_ptr<tcp_network_socket> owner_;
 	  std::shared_ptr<stream_output_async<uint8_t>> target_;
-	  std::shared_ptr<_read_socket_stream> pthis_;
+	  std::shared_ptr<_read_socket_task> pthis_;
 	  uint8_t buffer_[BUFFER_SIZE];
 
 	  void process(DWORD dwBytesTransfered) override
@@ -438,7 +336,7 @@ namespace vds {
 		  this->target_->write_async(this->buffer_, dwBytesTransfered)
 			  .then([pthis, dwBytesTransfered](expected<void> &&) {
 			  if (0 != dwBytesTransfered) {
-				  (void)pthis->schedule();
+				  (void)pthis->start();
 			  }
 		  });
 	  }

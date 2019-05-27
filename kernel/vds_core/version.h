@@ -26,6 +26,58 @@ namespace vds {
 
         static version parse(std::string value);
         std::string to_string() const;
+
+        bool operator < (const version & r) const {
+          if(this->major_version != r.major_version) {
+            return (this->major_version < r.major_version);
+          }
+          if (this->minor_version != r.minor_version) {
+            return (this->minor_version < r.minor_version);
+          }
+          if (this->build_version != r.build_version) {
+            return (this->build_version < r.build_version);
+          }
+          return (this->revision_version < r.revision_version);
+        }
+
+        bool operator > (const version & r) const {
+          if (this->major_version != r.major_version) {
+            return (this->major_version > r.major_version);
+          }
+          if (this->minor_version != r.minor_version) {
+            return (this->minor_version > r.minor_version);
+          }
+          if (this->build_version != r.build_version) {
+            return (this->build_version > r.build_version);
+          }
+          return (this->revision_version > r.revision_version);
+        }
+
+        bool operator <= (const version & r) const {
+          if (this->major_version != r.major_version) {
+            return (this->major_version < r.major_version);
+          }
+          if (this->minor_version != r.minor_version) {
+            return (this->minor_version < r.minor_version);
+          }
+          if (this->build_version != r.build_version) {
+            return (this->build_version < r.build_version);
+          }
+          return (this->revision_version <= r.revision_version);
+        }
+
+        bool operator >= (const version & r) const {
+          if (this->major_version != r.major_version) {
+            return (this->major_version > r.major_version);
+          }
+          if (this->minor_version != r.minor_version) {
+            return (this->minor_version > r.minor_version);
+          }
+          if (this->build_version != r.build_version) {
+            return (this->build_version > r.build_version);
+          }
+          return (this->revision_version >= r.revision_version);
+        }
     };
 };
 

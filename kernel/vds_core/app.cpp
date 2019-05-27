@@ -289,6 +289,10 @@ void vds::app::SvcCtrlHandler(DWORD dwCtrl) {
 
 #endif
 
+const vds::version vds::app::product_version() {
+  return version(0, 0, 1);
+}
+
 const char* vds::app::brunch() {
   return "test";
 }
@@ -302,7 +306,7 @@ std::string vds::app::app_description() const {
 }
 
 std::string vds::app::app_version() const {
-  return string_format("%d.%02d", product_version / 100, product_version % 100);
+  return product_version().to_string();
 }
 
 vds::expected<void> vds::app::start_services(service_registrator& registrator, service_provider*) {

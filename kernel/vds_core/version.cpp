@@ -8,26 +8,26 @@ All rights reserved
 
 vds::version vds::version::parse(std::string value) {
     version result = { -1, -1, -1 };
-    sscanf(value,"%d.%d.%d.%d",&result.major,&result.minor,&result.build,&result.revision);
+    sscanf(value.c_str(),"%d.%d.%d.%d",&result.major_version,&result.minor_version,&result.build_version,&result.revision_version);
     return result;
 }
 
-std::string vds::version::to_string() {
-    if(this->major < 0){
+std::string vds::version::to_string() const {
+    if(this->major_version < 0){
         return "0";
     }
 
-    if(this->minor < 0){
-        return string_format("%d", this->major);
+    if(this->minor_version < 0){
+        return string_format("%d", this->major_version);
     }
 
-    if(this->build < 0){
-        return string_format("%d.%d", this->major, this->minor);
+    if(this->build_version < 0){
+        return string_format("%d.%d", this->major_version, this->minor_version);
     }
 
-    if(this->revision < 0){
-        return string_format("%d.%d.%d", this->major, this->minor, this->build);
+    if(this->revision_version < 0){
+        return string_format("%d.%d.%d", this->major_version, this->minor_version, this->build_version);
     }
 
-    return string_format("%d.%d.%d.%d", this->major, this->minor, this->build, this->revision);
+    return string_format("%d.%d.%d.%d", this->major_version, this->minor_version, this->build_version, this->revision_version);
 }

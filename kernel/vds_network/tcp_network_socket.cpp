@@ -75,12 +75,6 @@ vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>> vds::tcp_netwo
   return std::make_shared< _write_socket_task>(sp, pthis);
 }
 
-vds::expected<std::shared_ptr<vds::stream_input_async<uint8_t>>> vds::tcp_network_socket::get_input_stream(
-	const vds::service_provider *sp) {
-	auto pthis = this->shared_from_this();
-	return std::make_shared< _read_socket_task>(sp, pthis);
-}
-
 #else//_WIN32
 /*
 vds::expected<

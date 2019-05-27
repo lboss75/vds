@@ -97,14 +97,14 @@ vds::async_task<vds::expected<void>> vds::autoupdate::autoupdate_service::check_
           return true;
         }
 
-        int version;
+        std::string version;
         GET_EXPECTED_VALUE(has_property, obj->get_property("min_version", version));
-        if (has_property && version > service_provider::system_version()) {
+        if (has_property && vds::version::parse(version) > service_provider::system_version()) {
           return true;
         }
 
         GET_EXPECTED_VALUE(has_property, obj->get_property("max_version", version));
-        if (has_property && version <= service_provider::system_version()) {
+        if (has_property && vds::version::parse(version) <= service_provider::system_version()) {
           return true;
         }
 
@@ -114,17 +114,17 @@ vds::async_task<vds::expected<void>> vds::autoupdate::autoupdate_service::check_
           return true;
         }
         GET_EXPECTED_VALUE(has_property, obj->get_property("product_version", version));
-        if (!has_property || version <= app::product_version) {
+        if (!has_property || vds::version::parse(version) <= app::product_version()) {
           return true;
         }
 
         GET_EXPECTED_VALUE(has_property, obj->get_property("min_product_version", version));
-        if (has_property && version > app::product_version) {
+        if (has_property && vds::version::parse(version) > app::product_version()) {
           return true;
         }
 
         GET_EXPECTED_VALUE(has_property, obj->get_property("max_product_version", version));
-        if (has_property && version < app::product_version) {
+        if (has_property && vds::version::parse(version) < app::product_version()) {
           return true;
         }
 

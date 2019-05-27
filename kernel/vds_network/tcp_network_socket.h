@@ -30,7 +30,6 @@ namespace vds {
       const network_address & address);
 
     expected<std::shared_ptr<vds::stream_output_async<uint8_t>>> get_output_stream(const service_provider * sp);
-	expected<std::shared_ptr<vds::stream_input_async<uint8_t>>> get_input_stream(const service_provider * sp);
 
     expected<void> close();
 

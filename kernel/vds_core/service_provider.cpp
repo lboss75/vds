@@ -14,18 +14,16 @@ std::string vds::service_provider::system_name() {
 #ifdef _WIN32
   std::string result("Win");
 
-  if(!is_inited) {
-    OSVERSIONINFO osvi;
+  OSVERSIONINFO osvi;
 
-    ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
-    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-    GetVersionEx(&osvi);
+  ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+  osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+  GetVersionEx(&osvi);
 
-    switch (osvi.dwPlatformId) {
-    case VER_NT_SERVER:
-      result += "Server";
-      break;
-    }
+  switch (osvi.dwPlatformId) {
+  case VER_NT_SERVER:
+    result += "Server";
+    break;
   }
 
   return result;
