@@ -63,7 +63,7 @@ vds::async_task<vds::expected<void>> vds::autoupdate::autoupdate_service::check_
   });
   bool update_found = false;
   std::list<vds::transactions::user_message_transaction::file_info_t> download_tasks;
-  co_await sp->get<db_model>()->async_read_transaction(
+  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction(
     [sp, this, update_folder, &file_hash, &download_tasks, &update_found](database_read_transaction & t) -> expected<void> {
     if (!this->user_manager_) {
       this->user_manager_ = std::make_shared<user_manager>(sp);
@@ -143,7 +143,7 @@ vds::async_task<vds::expected<void>> vds::autoupdate::autoupdate_service::check_
     }
 
     return expected<void>();
-  });
+  }));
 
   if(update_found) {
     if (!download_tasks.empty()) {
