@@ -266,7 +266,7 @@ vds::expected<void> vds::vds_cmd_app::logout(
       return vds::make_unexpected<std::runtime_error>("Logout failed " + http_response(response).comment());
     }
 
-    return std::shared_ptr<stream_output_async<uint8_t>>();
+    return expected<std::shared_ptr<stream_output_async<uint8_t>>>();
   }).get();
 }
 
@@ -400,7 +400,7 @@ vds::expected<void> vds::vds_cmd_app::download_file(
       return vds::make_unexpected<std::runtime_error>("File download failed: " + http_response(response).comment());
     }
 
-    return h;
+    return expected<std::shared_ptr<stream_output_async<uint8_t>>>(h);
   }).get();
 
   if(result.has_error()) {
@@ -459,23 +459,18 @@ vds::expected<void> vds::vds_cmd_app::sync_files(
     }
   }
 
-  const_data_buffer response_body;
-
-  CHECK_EXPECTED(client->send(
+  GET_EXPECTED(response_body, client->send(
     http_message(
       "GET",
       "/api/channel_feed?session=" + url_encode::encode(session)
       + "&channel_id=" + url_encode::encode(this->channel_id_.value())),
-    [&response_body](http_message response) -> async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
+    [](http_message response) -> async_task<expected<void>> {
 
     if (http_response(response).code() != http_response::HTTP_OK) {
       return vds::make_unexpected<std::runtime_error>("Query channel failed " + http_response(response).comment());
     }
 
-    return std::make_shared<collect_data>([&response_body](const_data_buffer body) -> async_task<expected<void>> {
-      response_body = body;
-      return expected<void>();
-    });
+    return expected<void>();
   }).get());
 
   GET_EXPECTED(body, json_parser::parse(
@@ -677,21 +672,17 @@ vds::expected<void> vds::vds_cmd_app::channel_list(
   const std::shared_ptr<http_client> & client,
   const std::string& session) {
 
-  const_data_buffer response_body;
-  CHECK_EXPECTED(client->send(
+  GET_EXPECTED(response_body, client->send(
     http_message(
       "GET",
       "/api/channels?session=" + url_encode::encode(session)),
-    [&response_body](http_message response) -> async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
+    [](http_message response) -> async_task<expected<void>> {
 
     if (http_response(response).code() != http_response::HTTP_OK) {
       return vds::make_unexpected<std::runtime_error>("Query channels failed " + http_response(response).comment());
     }
 
-    return std::make_shared<collect_data>([&response_body](const_data_buffer body) -> async_task<expected<void>> {
-      response_body = body;
-      return expected<void>();
-    });
+    return expected<void>();
   }).get());
   
   return this->channel_list_out(response_body);
@@ -714,7 +705,7 @@ vds::expected<void> vds::vds_cmd_app::channel_create(
       return vds::make_unexpected<std::runtime_error>("Create channel failed");
     }
 
-    return std::shared_ptr<stream_output_async<uint8_t>>();
+    return expected<std::shared_ptr<stream_output_async<uint8_t>>>();
   }).get();
 }
 
