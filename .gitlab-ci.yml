@@ -47,8 +47,8 @@ build-android:
     script:
         - apt-get -qq update
         - apt-get -qq install -y git cmake clang-6.0 libgtk-3-dev subversion wget unzip
-        - wget -P ~/ndk.zip https://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip 
-        - unzip ~/ndk.zip -d ~/Android/Sdk/
+        - wget -P ~/ https://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip 
+        - unzip ~/android-ndk-r16b-linux-x86_64.zip -d ~/Android/Sdk/
         - ls ~/Android/Sdk/ 
         - ./build_android.sh
     artifacts:
