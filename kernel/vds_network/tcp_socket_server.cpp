@@ -124,7 +124,7 @@ vds::expected<void> vds::_tcp_socket_server::start(
   this->s_ = socket(AF_INET, SOCK_STREAM, 0);
   if (this->s_ < 0) {
     auto error = errno;
-    co_return vds::make_unexpected<std::system_error>(error, std::system_category());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category());
   }
 
   /*************************************************************/
@@ -133,7 +133,7 @@ vds::expected<void> vds::_tcp_socket_server::start(
   int on = 1;
   if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
     auto error = errno;
-    co_return vds::make_unexpected<std::system_error>(error, std::system_category());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category());
   }
 
   /*************************************************************/
@@ -143,19 +143,19 @@ vds::expected<void> vds::_tcp_socket_server::start(
   /*************************************************************/
   if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
     auto error = errno;
-    co_return vds::make_unexpected<std::system_error>(error, std::system_category());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category());
   }
 
   //bind to address
   sp->get<logger>()->trace("UDP", "Starting UDP server on %s", address.to_string().c_str());
   if (0 > ::bind(this->s_, address, address.size())) {
     auto error = errno;
-    co_return vds::make_unexpected<std::system_error>(error, std::system_category());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category());
   }
 
   if (0 > ::listen(this->s_, SOMAXCONN)) {
     auto error = errno;
-    co_return vds::make_unexpected<std::system_error>(error, std::system_category());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category());
   }
 
   /* Set the socket to non-blocking, this is essential in event
@@ -164,19 +164,17 @@ vds::expected<void> vds::_tcp_socket_server::start(
   auto flags = fcntl(this->s_, F_GETFL);
   if (0 > flags) {
     auto error = errno;
-    co_return vds::make_unexpected<std::system_error>(error, std::system_category());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category());
   }
 
   flags |= O_NONBLOCK;
   if (0 > fcntl(this->s_, F_SETFL, flags)) {
     auto error = errno;
-    co_return vds::make_unexpected<std::system_error>(error, std::system_category());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category());
   }
 
-  this->new_connection_ = new_connection;
-
   this->wait_accept_task_ = std::thread(
-    [this, sp]() {
+    [this, sp, ch = std::move(new_connection)]() {
     auto epollfd = epoll_create(1);
     if (0 > epollfd) {
       throw std::runtime_error("epoll_create failed");
@@ -210,7 +208,12 @@ vds::expected<void> vds::_tcp_socket_server::start(
             continue;
           }
 
-          (*sp->get<network_service>())->add_connection(this->new_connection_(s));
+          ch(s).then([sp, s](vds::expected<std::shared_ptr<stream_output_async<uint8_t>>> result) {
+              if (!result.has_value() && result.value()) {
+                auto handler = std::make_shared<_read_socket_task>(sp, s, std::move(result.value()));
+                (void)handler->start();
+              }
+          });
         }
       }
     }
@@ -224,7 +227,7 @@ void vds::_tcp_socket_server::stop()
 }
 
 ////////////////
-
+#ifdef _WIN32
 vds::_tcp_socket_server::windows_wsa_event::windows_wsa_event()
 {
   this->handle_ = WSACreateEvent();
@@ -249,3 +252,4 @@ vds::expected<void> vds::_tcp_socket_server::windows_wsa_event::select(SOCKET s,
   }
   return expected<void>();
 }
+#endif//

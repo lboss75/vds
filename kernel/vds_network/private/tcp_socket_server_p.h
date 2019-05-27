@@ -33,7 +33,6 @@ namespace vds {
     bool is_shuting_down_;
 
 #ifndef _WIN32
-    std::function<vds::async_task<vds::expected<void>>(const std::shared_ptr<tcp_network_socket> & s)> new_connection_;
 #else
     class windows_wsa_event
     {
