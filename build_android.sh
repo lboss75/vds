@@ -23,10 +23,10 @@ export PATH=${DIR}/build-toolchain/bin:$PATH
 ls ${ANDROID_NDK}/bin/
 
 # Tell configure what tools to use.
-export AS=clang
-export CC=clang
-export CXX=clang++
-export LD=clang
+export AS=clang50
+export CC=clang50
+export CXX=clang50++
+export LD=clang50
 
 
 export CFLAGS="-fPIC -I/usr/include/arm-linux-gnueabihf/"
