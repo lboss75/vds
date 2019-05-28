@@ -20,6 +20,8 @@ $NDK/build/tools/make_standalone_toolchain.py \
 export ANDROID_NDK=${DIR}/build-toolchain
 export PATH=${DIR}/build-toolchain/bin:$PATH
 
+ls ${ANDROID_NDK}/bin/
+
 # Tell configure what tools to use.
 export AS=clang
 export CC=clang
@@ -27,8 +29,8 @@ export CXX=clang++
 export LD=clang
 
 
-export CFLAGS="-fPIC -fexceptions -I/usr/include/arm-linux-gnueabihf/"
-export CXXFLAGS="-fcoroutines-ts -std=c++1z -fexceptions -fPIC"
+export CFLAGS="-fPIC -I/usr/include/arm-linux-gnueabihf/"
+export CXXFLAGS="-fcoroutines-ts -std=c++1z -fPIC"
 export LDFLAGS="-lstdc++ -Wl"
 cd ${DIR}/externals
 
@@ -48,7 +50,7 @@ cd build
 cmake -DCMAKE_INSTALL_PREFIX=/usr ..
 make --quiet cxx
 make --quiet install-cxx install-cxxabi
-export CXXFLAGS="-fcoroutines-ts -std=c++1z -fexceptions -stdlib=libc++ -fPIC"
+export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 cd ../..
 
@@ -57,7 +59,7 @@ git clone --depth=1 --single-branch --branch OpenSSL_1_1_1-stable --quiet https:
 rm -rf openssl-out
 set -e
 
-export CXXFLAGS="-fcoroutines-ts -std=c++1z -fexceptions -stdlib=libc++ -fPIC"
+export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 
 cd openssl
