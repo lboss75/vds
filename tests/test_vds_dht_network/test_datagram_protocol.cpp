@@ -110,14 +110,12 @@ TEST(test_vds_dht_network, test_data_exchange) {
 
   GET_EXPECTED_GTEST(node1_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
   GET_EXPECTED_GTEST(node1_certificate, vds::_cert_control::create_cert(
-      "Node1",
       node1_key,
       *cert,
       *key));
 
   GET_EXPECTED_GTEST(node2_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
   GET_EXPECTED_GTEST(node2_certificate, vds::_cert_control::create_cert(
-      "Node2",
       node2_key,
       *cert,
       *key));

@@ -118,27 +118,17 @@ namespace vds {
     const std::shared_ptr<asymmetric_private_key> & get_current_user_private_key() const;
     const std::string & user_name() const;
 
-    static expected<const_data_buffer> create_register_request(
+    static async_task<expected<void>> create_user(
       const service_provider * sp,
       const std::string& userName,
       const std::string& userEmail,
       const std::string& userPassword);
-
-    static expected<bool> parse_join_request(        
-        const const_data_buffer & data,
-        std::string & userName,
-        std::string & userEmail);
-
-    vds::async_task<vds::expected<bool>> approve_join_request(
-      const const_data_buffer & data);
 
     const std::list<std::shared_ptr<user_wallet>> & wallets() const;
 
   private:
     const service_provider * sp_;
     std::shared_ptr<_user_manager> impl_;
-
-    vds::async_task<vds::expected<void>> save_certificate( const std::shared_ptr<certificate> &cert);
   };
 }
 

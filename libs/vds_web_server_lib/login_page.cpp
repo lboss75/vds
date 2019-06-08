@@ -13,7 +13,7 @@ All rights reserved
 #include "dht_object_id.h"
 #include "http_simple_form_parser.h"
 
-vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::login_page::register_request_post(
+vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::login_page::register_user(
   const vds::service_provider * sp,
   const std::shared_ptr<http_async_serializer> & output_stream,
   const std::shared_ptr<_web_server>& /*owner*/,
@@ -34,16 +34,16 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
 			CHECK_EXPECTED_ASYNC(co_await http_response::redirect(output_stream, "/error/?code=InvalidRegister"));
 		}
 		else {
-			GET_EXPECTED_ASYNC(request_body, user_manager::create_register_request(
+			CHECK_EXPECTED_ASYNC(co_await user_manager::create_user(
 				sp,
 				userName->second,
 				userEmail->second,
 				userPassword->second));
 
-			CHECK_EXPECTED_ASYNC(co_await http_response::file_response(
-				output_stream,
-				request_body,
-				"register_request.vds"));
+			//CHECK_EXPECTED_ASYNC(co_await http_response::file_response(
+			//	output_stream,
+			//	request_body,
+			//	"register_request.vds"));
 		}
 
 		co_return expected<void>();

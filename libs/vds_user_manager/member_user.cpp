@@ -11,7 +11,6 @@ All rights reserved
 
 #include "member_user.h"
 #include "database_orm.h"
-#include "user_manager_transactions.h"
 #include "transaction_block_builder.h"
 #include "private/member_user_p.h"
 #include "private/cert_control_p.h"
@@ -88,15 +87,13 @@ vds::_member_user::_member_user(
 
 vds::expected<vds::member_user> vds::_member_user::create_user(
   transactions::transaction_block_builder & log,
+  const std::string & user_name,
   const std::string & user_email,
   const std::string & user_password,
   const std::shared_ptr<asymmetric_private_key> &private_key)
 {
-  GET_EXPECTED(c, _cert_control::create_user_cert(
-    user_email,
-    *private_key,
-    *this->user_cert_,
-    *this->private_key_));
+  GET_EXPECTED(c, _cert_control::create_cert(
+    *private_key));
 
   auto user_cert = std::make_shared<certificate>(std::move(c));
 
@@ -107,8 +104,7 @@ vds::expected<vds::member_user> vds::_member_user::create_user(
       user_id,
       user_cert,
       user_private_key_der,
-      user_email,
-      this->user_cert_->subject())));
+      user_name)));
 
   return member_user(user_cert, private_key);
 }
@@ -128,18 +124,12 @@ vds::expected<vds::user_channel> vds::_member_user::create_channel(
   GET_EXPECTED(read_private_key_der, read_private_key->der(std::string()));
   GET_EXPECTED(channel_id, hash::signature(hash::sha256(), read_private_key_der));
   GET_EXPECTED(read_cert_data, _cert_control::create_cert(
-    base64::from_bytes(channel_id) + "(Read)",
-    *read_private_key,
-    *this->user_cert_,
-    *this->private_key_));
+    *read_private_key));
 
   auto read_cert = std::make_shared<certificate>(std::move(read_cert_data));
 
   GET_EXPECTED(write_cert_data, vds::_cert_control::create_cert(
-    base64::from_bytes(channel_id) + "(Write)",
-    *write_private_key,
-    *this->user_cert_,
-    *this->private_key_));
+    *write_private_key));
   auto write_cert = std::make_shared<certificate>(std::move(write_cert_data));
 
   GET_EXPECTED(pc, (*this).personal_channel());
@@ -161,25 +151,6 @@ vds::expected<vds::user_channel> vds::_member_user::create_channel(
     read_private_key,
     write_cert,
     write_private_key);
-}
-
-vds::expected<vds::member_user> vds::_member_user::create_root_user(
-  transactions::transaction_block_builder& playback,
-  const std::string& root_user_name,
-  const std::string& root_password,
-  const std::shared_ptr<vds::asymmetric_private_key> & root_private_key) {
-
-  const auto root_user_cert = cert_control::get_root_certificate();
-  GET_EXPECTED(der, root_private_key->der(root_password));
-  GET_EXPECTED(credentials_key, dht::dht_object_id::user_credentials_to_key(root_user_name, root_password));
-
-  CHECK_EXPECTED(playback.add(message_create<transactions::root_user_transaction>(
-    credentials_key,
-    root_user_cert,
-    root_user_name,
-    der)));
-
-  return member_user(root_user_cert, root_private_key);
 }
 
 vds::expected<vds::user_channel> vds::_member_user::personal_channel() const {

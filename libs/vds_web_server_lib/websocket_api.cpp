@@ -6,7 +6,6 @@ All rights reserved
 #include "websocket_api.h"
 #include "db_model.h"
 #include "transaction_log_record_dbo.h"
-#include "user_manager_transactions.h"
 #include "transaction_block.h"
 #include "websocket.h"
 
@@ -137,25 +136,6 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::websocket_
 			GET_EXPECTED(block, transactions::transaction_block::create(data));
 
 			CHECK_EXPECTED(block.walk_messages(
-				[username, password_hash, &result](const transactions::root_user_transaction & message)->expected<bool> {
-					if (username == message.user_name) {
-						if(password_hash == message.user_credentials_key) {
-							result = std::make_shared<json_object>();
-							result->add_property("result", "successful");
-							CHECK_EXPECTED(result->add_property("cert", message.user_cert->str()));
-							result->add_property("key", base64::from_bytes(message.user_private_key));
-						}
-						else {
-							result = std::make_shared<json_object>();
-							result->add_property("result", "failed");
-						}
-
-						return false;
-					}
-					else {
-						return true;
-					}
-				},
 				[username, password_hash, &result](const transactions::create_user_transaction & message)->expected<bool> {
 					if (username == message.user_name) {
 						if (password_hash == message.user_credentials_key) {

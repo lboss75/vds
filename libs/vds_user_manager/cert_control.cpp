@@ -2,30 +2,6 @@
 #include "private/cert_control_p.h"
 #include "cert_control.h"
 
-char vds::cert_control::root_certificate_[1821] =
-"MIIFTzCCAzegAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
-"U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xOTA1MjUwODI4NDlaFw0yMDA1MjQwODI4"
-"NDlaMDoxCzAJBgNVBAYTAlJVMRAwDgYDVQQKDAdJVnlTb2Z0MRkwFwYDVQQDDBB2YWRpbUBpdi1zb2Z0"
-"LnJ1MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA8ezdEJNubj4WBRG6uCVlKN9V5ZkU0YWo"
-"LRfcZ3OZJ3V1EcB/SIQEJXBwvKykcMawQigsx8aQW48S6NeUJ2tQpcEZ//LFe3kL7Pz1VNPhJ3ZYjsTZ"
-"Xj0pKn1x0BIeSe5H3+PYT/ZVzSqVSlQ7C4VrUzDZ2wqZxz8xo1BYMTQFs3UdZG10Z98JQwzLMJBRPhnk"
-"jTheeW93ENjWagH8vx3ztF63//sZG0jcl1ejEuueA587/mty6RdP7KDS3WpgaL65SUSs4p3oBKtEuKCB"
-"j6reyFKkpPSLM8AdI/0/KsrPVLxZUU8FSaywVtQcJG0iYMh5hwkVpd7hgILOIm8Bi6bttF0W2P1TCIeB"
-"AX5cHwtwFmVGrLiAqIONS2a5gsRW63686trIyqjTynIfTUMhdUQ8sP1bJ/gKqnuTZqHhAkxXPVaMnhJ0"
-"td7hLmLBiLIJO6BZ4C1lpAvDLug0zI/W3dOle+Sg/NltyZ3ovMNe/1oQTvPr9C7vBpO+H21wvFbyL5uD"
-"yWhnQryGNdZoWPhzQ02ElpoaGKsPTQS6iLAzx7NAJ/oTVlhUSWAtTLp9wutLi0cvljiwhpnMELqIX3cK"
-"NVTp7CsFOv1QF2fasjqVq6YSC7k9NfxPEkYLZh9xE3GfuOaC/S5WzRI9p/DVIH0WZStqcW9h8L6kwydi"
-"87wcH6zyI/UCAwEAAaNgMF4wDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwEQYJYIZIAYb4"
-"QgEBBAQDAgIEMCgGCWCGSAGG+EIBDQQbFhlleGFtcGxlIGNvbW1lbnQgZXh0ZW5zaW9uMA0GCSqGSIb3"
-"DQEBCwUAA4ICAQDbjugnWXhzbVT6XCFkfljzNa1o4nYRudBhynMG4BE+/BpJtEd38ZVOmCAVmsSoZMO0"
-"ns8r7nI68F/O+4sK4scVIrPT8GntJptqlGSe0pm77ymXZrqZVGHmIpVoDAPHbI1KzAjXlV8QgmiFMlgN"
-"n6sR+QQpyi9UAD91Q7EVl/GQzyaoOKMyu123ZsQmpnv0xEkLIZKD3UjPWgAaxSXj34yysTaC08p4Gsef"
-"nEmSHpYgbURTi6f14lkPVQO82tw3UFoILa8MTKHSFo2BRgOW7Q9M3FbYrArayRmraIVVmxqy2LOGr3dn"
-"We7e/KxeBp+GmAimhixmXg3kjrt1Jlg6oOZfG7Sm0CqXkLvK9VLVIDMXGfNJ9pvs7KiIqvEF70Qy6tL2"
-"jOGZ5YW1YAs/Iv46ClQW7zRYj+AOK0MRiUOy5EtbPOa6WSrw3MvcaK/H2FP5vJXjFHbotCea0TzhE3w6"
-"PBexnRHSY8FnXC+RH/QpQC8CwuSlv141PZ7Yo9wcdmudJAVDqI/GaWKK4FrjznHqcnVOA9ds40HWRGcb"
-"owEzLtQWAcqRFGkCPR68G4TCyZ0FxOvF27BYOFt6h8v3PoV08qpGvrbZIsTJQmQ9/kLk0xDWufuhiCV3"
-"aH+74PVVqb0qn+mszoXkiQ5oMI2aqnXoeuyPxGftqBY8tNcb8TiNsolEmA==";
 char vds::cert_control::common_news_channel_id_[65] =
 "64KSJ51wjCBYxlWj1OT1tQA5E8xCPPJh5SlSZdT95TE=";
 char vds::cert_control::common_news_read_certificate_[1821] =
@@ -487,106 +463,37 @@ char vds::cert_control::common_storage_private_key_[3137] =
 //{
 //  return vds::guid::parse(cert.get_extension(cert.extension_by_NID(parent_id_extension_type())).value);
 //}
-vds::expected<vds::certificate> vds::_cert_control::create_root(
-    const std::string &name,
-    const vds::asymmetric_private_key &private_key) {
+
+vds::expected<vds::certificate> vds::_cert_control::create_cert(
+  const vds::asymmetric_private_key & private_key) {
+  
+  GET_EXPECTED(cert_pkey, asymmetric_public_key::create(private_key));
+  GET_EXPECTED(name, cert_pkey.hash(hash::sha1()));
 
   certificate::create_options local_user_options;
   local_user_options.country = "RU";
   local_user_options.organization = "IVySoft";
-  local_user_options.name = name;
+  local_user_options.name = base64::from_bytes(name);
 
-  //local_user_options.extensions.push_back(
-  //    certificate_extension(id_extension_type(), guid::new_guid().str()));
-
-  //local_user_options.extensions.push_back(
-  //    certificate_extension(user_id_extension_type(), user_id.str()));
-
-  GET_EXPECTED(cert_pkey, asymmetric_public_key::create(private_key));
-  return certificate::create_new(cert_pkey, private_key, local_user_options);
-}
-
-vds::expected<vds::certificate> vds::_cert_control::create_user_cert(
-  const std::string & name,
-  const vds::asymmetric_private_key & private_key,
-  const certificate & user_cert,
-  const asymmetric_private_key & user_private_key) {
-  certificate::create_options local_user_options;
-  local_user_options.country = "RU";
-  local_user_options.organization = "IVySoft";
-  local_user_options.name = name;
-  local_user_options.ca_certificate = &user_cert;
-  local_user_options.ca_certificate_private_key = &user_private_key;
-
-  //local_user_options.extensions.push_back(
-  //    certificate_extension(id_extension_type(), object_id.str()));
-
-  //local_user_options.extensions.push_back(
-  //    certificate_extension(user_id_extension_type(), user_id.str()));
-
-  //local_user_options.extensions.push_back(
-  //    certificate_extension(parent_id_extension_type(), cert_control::get_id(user_cert).str()));
-
-  //local_user_options.extensions.push_back(
-	 // certificate_extension(parent_user_id_extension_type(), cert_control::get_user_id(user_cert).str()));
-
-  GET_EXPECTED(cert_pkey, asymmetric_public_key::create(private_key));
   return certificate::create_new(cert_pkey, private_key, local_user_options);
 }
 
 vds::expected<vds::certificate> vds::_cert_control::create_cert(
-	const std::string & name,
 	const vds::asymmetric_private_key & private_key,
 	const certificate & user_cert,
 	const asymmetric_private_key & user_private_key) {
-	certificate::create_options local_user_options;
-	local_user_options.country = "RU";
-	local_user_options.organization = "IVySoft";
-	local_user_options.name = name;
-	local_user_options.ca_certificate = &user_cert;
-	local_user_options.ca_certificate_private_key = &user_private_key;
-
-	//local_user_options.extensions.push_back(
-	//	certificate_extension(id_extension_type(), object_id.str()));
-
-	//local_user_options.extensions.push_back(
-	//	certificate_extension(parent_id_extension_type(), cert_control::get_id(user_cert).str()));
-
-	//local_user_options.extensions.push_back(
-	//	certificate_extension(parent_user_id_extension_type(), cert_control::get_user_id(user_cert).str()));
-
   GET_EXPECTED(cert_pkey, asymmetric_public_key::create(private_key));
-	return certificate::create_new(cert_pkey, private_key, local_user_options);
-}
+  GET_EXPECTED(name, cert_pkey.hash(hash::sha1()));
+  
+  certificate::create_options local_user_options;
+  local_user_options.country = "RU";
+  local_user_options.organization = "IVySoft";
+  local_user_options.name = base64::from_bytes(name);
+  local_user_options.ca_certificate = &user_cert;
+  local_user_options.ca_certificate_private_key = &user_private_key;
 
-//vds::guid vds::cert_control::get_id(const vds::certificate &cert) {
-//  return vds::guid::parse(cert.get_extension(cert.extension_by_NID(id_extension_type())).value);
-//}
-//
-//vds::guid vds::cert_control::get_user_id(const vds::certificate &cert) {
-//  return vds::guid::parse(cert.get_extension(cert.extension_by_NID(user_id_extension_type())).value);
-//}
-//
-//vds::guid vds::cert_control::get_parent_id(const vds::certificate &cert) {
-//  auto parent = cert.get_extension(cert.extension_by_NID(parent_id_extension_type())).value;
-//  if(parent.empty()){
-//    return vds::guid();
-//  }
-//  else {
-//    return vds::guid::parse(parent);
-//  }
-//}
-//
-//vds::guid vds::cert_control::get_parent_user_id(const vds::certificate &cert) {
-//	auto parent = cert.get_extension(cert.extension_by_NID(parent_user_id_extension_type())).value;
-//	if (parent.empty()) {
-//		return vds::guid();
-//	}
-//	else {
-//		return vds::guid::parse(parent);
-//	}
-//}
-//
+  return certificate::create_new(cert_pkey, private_key, local_user_options);
+}
 
 const std::string& vds::cert_control::auto_update_login() {
   static std::string auto_update_login_("auto_update_login");
@@ -610,9 +517,6 @@ const std::string& vds::cert_control::web_password() {
 
 vds::expected<void> vds::cert_control::private_info_t::genereate_all() {
   GET_EXPECTED(key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-  this->root_private_key_ = std::make_shared<asymmetric_private_key>(std::move(key));
-
-  GET_EXPECTED_VALUE(key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   this->common_news_write_private_key_ = std::make_shared<asymmetric_private_key>(std::move(key));
 
   GET_EXPECTED_VALUE(key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
@@ -662,38 +566,21 @@ static void save_private_key(char (&private_key_storage)[3137], const vds::asymm
 }
 
 vds::expected<void> vds::cert_control::genereate_all(
-  const std::string& root_login,
-  const std::string& root_password,
   const private_info_t & private_info) {
-
-  GET_EXPECTED(root_user_cert, _cert_control::create_root(
-    root_login,
-    *private_info.root_private_key_));
-
-  save_certificate(root_certificate_, root_user_cert);
 
   //
   GET_EXPECTED(common_news_read_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   save_private_key(common_news_read_private_key_, common_news_read_private_key);
   GET_EXPECTED(common_news_read_certificate, _cert_control::create_cert(
-    "Common News Read",
-    common_news_read_private_key,
-    root_user_cert,
-    *private_info.root_private_key_));
+    common_news_read_private_key));
   save_certificate(common_news_read_certificate_, common_news_read_certificate);
 
   GET_EXPECTED(common_news_write_certificate, _cert_control::create_cert(
-    "Common News Write",
-    *private_info.common_news_write_private_key_,
-    root_user_cert,
-    *private_info.root_private_key_));
+    *private_info.common_news_write_private_key_));
   save_certificate(common_news_write_certificate_, common_news_write_certificate);
 
   GET_EXPECTED(common_news_admin_certificate, _cert_control::create_cert(
-    "Common News Admin",
-    *private_info.common_news_admin_private_key_,
-    root_user_cert,
-    *private_info.root_private_key_));
+    *private_info.common_news_admin_private_key_));
   save_certificate(common_news_admin_certificate_, common_news_admin_certificate);
   GET_EXPECTED(common_news_channel_id, common_news_admin_certificate.fingerprint(hash::sha256()));
   save_buffer(common_news_channel_id_, common_news_channel_id);
@@ -702,24 +589,15 @@ vds::expected<void> vds::cert_control::genereate_all(
   GET_EXPECTED(autoupdate_read_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   save_private_key(autoupdate_read_private_key_, autoupdate_read_private_key);
   GET_EXPECTED(autoupdate_read_certificate, _cert_control::create_cert(
-    "AutoUpdate Read",
-    autoupdate_read_private_key,
-    root_user_cert,
-    *private_info.root_private_key_));
+    autoupdate_read_private_key));
   save_certificate(autoupdate_read_certificate_, autoupdate_read_certificate);
 
   GET_EXPECTED(autoupdate_write_certificate, _cert_control::create_cert(
-    "AutoUpdate Write",
-    *private_info.autoupdate_write_private_key_,
-    root_user_cert,
-    *private_info.root_private_key_));
+    *private_info.autoupdate_write_private_key_));
   save_certificate(autoupdate_write_certificate_, autoupdate_write_certificate);
 
   GET_EXPECTED(autoupdate_admin_certificate, _cert_control::create_cert(
-    "AutoUpdate Admin",
-    *private_info.autoupdate_admin_private_key_,
-    root_user_cert,
-    *private_info.root_private_key_));
+    *private_info.autoupdate_admin_private_key_));
   save_certificate(autoupdate_admin_certificate_, autoupdate_admin_certificate);
 
   GET_EXPECTED(autoupdate_channel_id, autoupdate_admin_certificate.fingerprint(hash::sha256()));
@@ -729,24 +607,15 @@ vds::expected<void> vds::cert_control::genereate_all(
   GET_EXPECTED(web_read_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   save_private_key(web_read_private_key_, web_read_private_key);
   GET_EXPECTED(web_read_certificate, _cert_control::create_cert(
-    "Web Read",
-    web_read_private_key,
-    root_user_cert,
-    *private_info.root_private_key_));
+    web_read_private_key));
   save_certificate(web_read_certificate_, web_read_certificate);
 
   GET_EXPECTED(web_write_certificate, _cert_control::create_cert(
-    "Web Write",
-    *private_info.web_write_private_key_,
-    root_user_cert,
-    *private_info.root_private_key_));
+    *private_info.web_write_private_key_));
   save_certificate(web_write_certificate_, web_write_certificate);
 
   GET_EXPECTED(web_admin_certificate, _cert_control::create_cert(
-    "Web Admin",
-    *private_info.web_admin_private_key_,
-    root_user_cert,
-    *private_info.root_private_key_));
+    *private_info.web_admin_private_key_));
   save_certificate(web_admin_certificate_, web_admin_certificate);
 
   GET_EXPECTED(web_channel_id, web_admin_certificate.fingerprint(hash::sha256()));
@@ -755,10 +624,7 @@ vds::expected<void> vds::cert_control::genereate_all(
   GET_EXPECTED(common_storage_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   save_private_key(common_storage_private_key_, common_storage_private_key);
   GET_EXPECTED(common_storage_certificate, _cert_control::create_cert(
-    "Common Storage",
-    common_storage_private_key,
-    root_user_cert,
-    *private_info.root_private_key_));
+    common_storage_private_key));
   save_certificate(common_storage_certificate_, common_storage_certificate);
 
   return expected<void>();

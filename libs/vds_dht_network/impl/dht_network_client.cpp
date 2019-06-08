@@ -20,6 +20,7 @@ All rights reserved
 #include "sync_replica_map_dbo.h"
 #include "dht_client_save_stream.h"
 #include "chunk_replica_data_dbo.h"
+#include "transaction_block_builder.h"
 
 vds::expected<std::shared_ptr<vds::dht::network::_client>> vds::dht::network::_client::create(
   const service_provider * sp,
@@ -29,15 +30,18 @@ vds::expected<std::shared_ptr<vds::dht::network::_client>> vds::dht::network::_c
 
   GET_EXPECTED(this_node_id, node_cert->fingerprint(hash::sha256()));
 
-  return std::make_shared<_client>(sp, udp_transport, this_node_id, node_key);
+  return std::make_shared<_client>(sp, udp_transport, this_node_id, node_cert, node_key);
 }
 
 vds::dht::network::_client::_client(
   const service_provider * sp,
   const std::shared_ptr<iudp_transport> & udp_transport,
   const const_data_buffer & this_node_id,
-  const std::shared_ptr<asymmetric_private_key> & /*node_key*/)
+  const std::shared_ptr<certificate> & node_cert,
+  const std::shared_ptr<asymmetric_private_key> & node_key)
   : sp_(sp),
+  node_cert_(node_cert),
+  node_key_(node_key),
   route_(sp, this_node_id),
   update_timer_("DHT Network"),
   update_route_table_counter_(0),
@@ -89,6 +93,11 @@ vds::expected<std::vector<vds::const_data_buffer>> vds::dht::network::_client::s
   }
 
   return result;
+}
+
+vds::expected<vds::const_data_buffer> vds::dht::network::_client::save(const service_provider * sp, transactions::transaction_block_builder & block, database_transaction & t)
+{
+  return block.save(sp, t, this->node_cert_, this->node_key_);
 }
 
 
@@ -913,6 +922,14 @@ vds::expected<vds::dht::network::client::chunk_info> vds::dht::network::client::
     key_data2,
     info
   };
+}
+
+vds::expected<vds::const_data_buffer> vds::dht::network::client::save(
+  const service_provider * sp,
+  transactions::transaction_block_builder & block,
+  database_transaction & t)
+{
+  return this->impl_->save(sp, block, t);
 }
 
 vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>

@@ -255,11 +255,10 @@ vds::async_task<vds::expected<void>> vds::file_manager_private::_file_operations
         message,
         files)));
 
-    CHECK_EXPECTED(log.save(
+    CHECK_EXPECTED(pthis->sp_->get<dht::network::client>()->save(
       pthis->sp_,
-      t,
-      user_mng->get_current_user().user_certificate(),
-      user_mng->get_current_user_private_key()));
+      log,
+      t));
 
     return expected<void>();
   });

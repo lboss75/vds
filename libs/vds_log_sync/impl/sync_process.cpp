@@ -209,19 +209,13 @@ vds::expected<void> vds::transaction_log::sync_process::apply_message(
   }
 
   orm::transaction_log_record_dbo t1;
-  const auto root_cert = cert_control::get_root_certificate();
   std::shared_ptr<certificate> write_cert;
-  if (block.ancestors().empty() || block.write_cert_id() == root_cert->subject()) {
-    write_cert = root_cert;
-  }
-  else {
-    orm::certificate_chain_dbo t2;
-    GET_EXPECTED(st, t.get_reader(t2.select(t2.cert).where(t2.id == block.write_cert_id())));
-    GET_EXPECTED(st_execute, st.execute());
-    if (st_execute) {
-      GET_EXPECTED(write_cert_data, certificate::parse_der(t2.cert.get(st)));
-      write_cert = std::make_shared<certificate>(std::move(write_cert_data));
-    }
+  orm::certificate_chain_dbo t2;
+  GET_EXPECTED(st, t.get_reader(t2.select(t2.cert).where(t2.id == block.write_cert_id())));
+  GET_EXPECTED(st_execute, st.execute());
+  if (st_execute) {
+    GET_EXPECTED(write_cert_data, certificate::parse_der(t2.cert.get(st)));
+    write_cert = std::make_shared<certificate>(std::move(write_cert_data));
   }
 
   if (!write_cert || !block.validate(*write_cert)) {

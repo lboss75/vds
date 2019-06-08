@@ -7,9 +7,11 @@ All rights reserved
 */
 
 #include "const_data_buffer.h"
-#include "user_manager_transactions.h"
 
 namespace vds {
+  class database_read_transaction;
+  class database_transaction;
+
   namespace transactions {
     class transaction_block;
 

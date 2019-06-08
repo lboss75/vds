@@ -15,10 +15,6 @@ namespace vds {
 
   class cert_control {
   public:
-    static std::shared_ptr<certificate> get_root_certificate() {
-      return load_certificate(root_certificate_);
-    }
-
     //common news read certificate
     static const_data_buffer get_common_news_channel_id() {
       GET_EXPECTED_THROW(result, base64::to_bytes(common_news_channel_id_));
@@ -101,7 +97,6 @@ namespace vds {
 
     class private_info_t {
     public:
-      std::shared_ptr<asymmetric_private_key> root_private_key_;
       std::shared_ptr<asymmetric_private_key> common_news_write_private_key_;
       std::shared_ptr<asymmetric_private_key> common_news_admin_private_key_;
       std::shared_ptr<asymmetric_private_key> autoupdate_write_private_key_;
@@ -111,19 +106,14 @@ namespace vds {
 
       expected<void> genereate_all();
     private:
-      friend class get_root_app;
       friend class mock_server;
     };
 
     static expected<void> genereate_all(
-        const std::string& root_login,
-        const std::string& root_password,
-        const private_info_t & private_info);
+      const private_info_t & private_info);
     private:
-    friend class get_root_app;
+      friend class get_root_app;
     friend class mock_server;
-
-    static char root_certificate_[1821];
 
     static char common_news_channel_id_[65];
     static char common_news_read_certificate_[1821];

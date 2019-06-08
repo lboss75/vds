@@ -68,16 +68,7 @@ namespace vds {
       return this->user_private_key_;
     }
 
-    async_task<expected<bool>> approve_join_request(
-      const const_data_buffer& data);
-
     const std::string& user_name() const;
-
-    static expected<bool> parse_join_request(
-        
-        const const_data_buffer & data,
-        std::string & userName,
-        std::string & userEmail);
 
     async_task<expected<user_channel>> create_channel(
       const std::string & channel_type,
@@ -93,9 +84,6 @@ namespace vds {
     std::shared_ptr<asymmetric_private_key> user_private_key_;
     user_manager::login_state_t login_state_;
 
-    std::shared_ptr<certificate> root_user_cert_;
-    std::string root_user_name_;
-
     std::set<const_data_buffer> processed_;
     std::shared_ptr<certificate> user_cert_;
     std::string user_name_;
@@ -104,7 +92,6 @@ namespace vds {
     std::map<std::string, std::shared_ptr<certificate>> certificate_chain_;
     std::list<std::shared_ptr<user_wallet>> wallets_;
 
-    expected<bool> process_root_user_transaction(const transactions::root_user_transaction & message);
     expected<bool> process_create_user_transaction(const transactions::create_user_transaction & message);
     expected<bool> process_channel_message(
       const transactions::channel_message & message,

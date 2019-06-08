@@ -616,7 +616,7 @@ void mock_server::init_root(
   const std::string &root_password) const {
   vds::cert_control::private_info_t private_info;
   CHECK_EXPECTED_THROW(private_info.genereate_all());
-  CHECK_EXPECTED_THROW(vds::cert_control::genereate_all(root_user_name, root_password, private_info));
+  CHECK_EXPECTED_THROW(vds::cert_control::genereate_all(private_info));
 
   const auto sp = this->get_service_provider();
   auto user_mng = std::make_shared<vds::user_manager>(sp);

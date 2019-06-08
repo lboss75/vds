@@ -91,8 +91,8 @@ vds::expected<void> vds::_tcp_socket_server::start(
                 sp->get<logger>()->trace(ThisModule, "Connection error %s", result.error()->what());
               }
               else if (result.value()) {
-                auto handler = std::make_shared<_read_socket_stream>(sp, s, std::move(result.value()));
-                (void)handler->schedule();
+                auto handler = std::make_shared<_read_socket_task>(sp, s, std::move(result.value()));
+                (void)handler->start();
               }
               else {
                 sp->get<logger>()->trace(ThisModule, "Connection has been dropped");

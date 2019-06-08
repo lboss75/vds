@@ -9,7 +9,6 @@ All rights reserved
 #include "channel_add_writer_transaction.h"
 #include "private/member_user_p.h"
 #include "create_user_transaction.h"
-#include "user_manager_transactions.h"
 
 vds::user_channel::user_channel()
 : impl_(nullptr) {

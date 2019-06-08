@@ -69,8 +69,12 @@ private:
   }
 
 #define GET_EXPECTED_GTEST(var, v) \
-  std::remove_reference<decltype((v).value())>::type var;\
-  GET_EXPECTED_VALUE_GTEST(var, v);
+  auto __result ## var { std::move(v) };\
+  std::remove_reference<decltype(__result ## var.value())>::type var;\
+  if(__result ## var.has_error()) { \
+    GTEST_FATAL_FAILURE_(__result ## var.error()->what());\
+  }\
+  var = std::move(__result ## var.value());
 
 
 

@@ -23,7 +23,6 @@ namespace vds {
       std::shared_ptr<certificate> user_cert;
       const_data_buffer user_private_key;
       std::string user_name;
-      std::string parent_cert;
 
       template <typename  visitor_type>
       void visit(visitor_type & v) {
@@ -31,8 +30,7 @@ namespace vds {
           user_credentials_key,
           user_cert,
           user_private_key,
-          user_name,
-          parent_cert
+          user_name
         );
       }
     };

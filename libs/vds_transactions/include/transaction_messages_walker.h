@@ -7,7 +7,6 @@ All rights reserved
 */
 #include "binary_serialize.h"
 #include "payment_transaction.h"
-#include "user_manager_transactions.h"
 #include "channel_message.h"
 #include "create_user_transaction.h"
 
@@ -17,10 +16,6 @@ namespace vds {
     class transaction_messages_walker {
     public:
       virtual expected<bool> visit(const payment_transaction &/*message*/) {
-        return true;
-      }
-
-      virtual expected<bool> visit(const root_user_transaction &/*message*/) {
         return true;
       }
 
@@ -42,14 +37,6 @@ namespace vds {
           switch ((transaction_id) message_id) {
             case transactions::payment_transaction::message_id: {
               GET_EXPECTED(message, message_deserialize<payment_transaction>(s));
-              GET_EXPECTED(result, this->visit(message));
-              if (!result) {
-                return false;
-              }
-              break;
-            }
-            case transactions::root_user_transaction::message_id: {
-              GET_EXPECTED(message, message_deserialize<root_user_transaction>(s));
               GET_EXPECTED(result, this->visit(message));
               if (!result) {
                 return false;

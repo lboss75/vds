@@ -18,6 +18,9 @@ namespace vds {
   class certificate;
   class asymmetric_private_key;
 
+  namespace transactions {
+    class transaction_block_builder;
+  }
 
   namespace dht {
     namespace network {
@@ -49,6 +52,11 @@ namespace vds {
           database_transaction& t,
           std::list<std::function<async_task<expected<void>>()>> & final_tasks,
           const const_data_buffer& value);
+
+        expected<const_data_buffer> save(
+          const service_provider * sp,
+          transactions::transaction_block_builder & block,
+          database_transaction& t);
 
         expected<std::shared_ptr<stream_output_async<uint8_t>>> start_save(
           const service_provider * sp) const;

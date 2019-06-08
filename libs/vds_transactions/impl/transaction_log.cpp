@@ -21,6 +21,7 @@ All rights reserved
 #include "transaction_log_vote_request_dbo.h"
 #include "member_user_dbo.h"
 #include "transaction_log_balance_dbo.h"
+#include "database.h"
 
 vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
 	const service_provider * sp,
@@ -45,14 +46,6 @@ vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
       t1.time_point = block.time_point())));
 
   CHECK_EXPECTED(block.walk_messages(
-  [&t, log_id = block.id()](const root_user_transaction & message)->expected<bool> {
-    orm::member_user_dbo t2;
-    CHECK_EXPECTED(t.execute(
-      t2.insert(
-        t2.id = message.user_cert->subject(),
-        t2.log_id = log_id)));
-    return true;
-  },
   [&t, log_id = block.id()](const create_user_transaction & message)->expected<bool> {
     orm::member_user_dbo t2;
     CHECK_EXPECTED(t.execute(

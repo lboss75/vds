@@ -41,19 +41,15 @@ void out_multiline(const std::string & value, std::size_t width = 80) {
   out_multiline(cert_control::member_name);\
   std::cout << ";\n";
 
-vds::expected<void> vds::get_root_app::main(const service_provider * sp)
+vds::expected<void> vds::get_root_app::main(const service_provider * /*sp*/)
 {
   if (&this->key_generate_command_set_ == this->current_command_set_) {
     cert_control::private_info_t private_info;
     CHECK_EXPECTED(private_info.genereate_all());
 
     CHECK_EXPECTED(cert_control::genereate_all(
-        this->user_login_.value(),
-        this->user_password_.value(),
         private_info));
     
-    write_member(root_certificate_);
-
     write_member(common_news_channel_id_);
     write_member(common_news_read_certificate_);
     write_member(common_news_read_private_key_);
@@ -76,8 +72,6 @@ vds::expected<void> vds::get_root_app::main(const service_provider * sp)
     write_member(common_storage_private_key_);
 
     binary_serializer s;
-    CHECK_EXPECTED(s << private_info.root_private_key_->der(this->user_password_.value()));
-
     CHECK_EXPECTED(s << private_info.common_news_write_private_key_->der(this->user_password_.value()));
     CHECK_EXPECTED(s << private_info.common_news_admin_private_key_->der(this->user_password_.value()));
 

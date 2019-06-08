@@ -9,7 +9,6 @@ namespace vds {
   namespace transactions {
     enum class channel_message_id : uint8_t {
       user_channel_create_transaction = 'u',
-      root_user_transaction = 'R',
       user_message_transaction = 'a',
       //device_user_add_transaction = 'd',
       create_channel_transaction = 'p',

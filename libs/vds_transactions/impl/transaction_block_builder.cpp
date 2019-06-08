@@ -114,22 +114,6 @@ vds::expected<vds::transactions::transaction_block_builder> vds::transactions::t
 }
 
 
-vds::expected<void> vds::transactions::transaction_block_builder::add(expected<root_user_transaction> && item) {
-  if (item.has_error()) {
-    return unexpected(std::move(item.error()));
-  }
-
-  CHECK_EXPECTED(this->data_ << (uint8_t)root_user_transaction::message_id);
-  _serialize_visitor v(this->data_);
-  const_cast<root_user_transaction &>(item.value()).visit(v);
-
-  if (v.error()) {
-    return unexpected(std::move(v.error()));
-  }
-
-  return expected<void>();
-}
-
 vds::expected<void> vds::transactions::transaction_block_builder::add(expected<create_user_transaction> && item) {
   if(item.has_error()) {
     return unexpected(std::move(item.error()));

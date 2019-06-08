@@ -9,7 +9,6 @@ All rights reserved
 #include "private/user_manager_p.h"
 #include "private/member_user_p.h"
 #include "database_orm.h"
-#include "user_manager_transactions.h"
 #include "private/cert_control_p.h"
 #include "vds_exceptions.h"
 #include "channel_create_transaction.h"
@@ -19,7 +18,6 @@ All rights reserved
 #include "certificate_chain_dbo.h"
 #include "dht_object_id.h"
 #include "dht_network_client.h"
-#include "../vds_dht_network/private/dht_network_client_p.h"
 #include "register_request.h"
 #include "create_user_transaction.h"
 #include "private/user_channel_p.h"
@@ -85,11 +83,14 @@ vds::expected<void> vds::user_manager::reset(
     auto playback = transactions::transaction_block_builder::create_root_block(this->sp_);
 
     //Create root user
-    GET_EXPECTED(root_user, _member_user::create_root_user(
+    GET_EXPECTED(root_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+
+    GET_EXPECTED(root_user, _member_user::create_user(
       playback,
+      "root",
       root_user_name,
       root_password,
-      private_info.root_private_key_));
+      std::make_shared<asymmetric_private_key>(std::move(root_private_key))));
 
     //common news
     this->sp_->get<logger>()->info(ThisModule, "Create channel %s(Common News)",
@@ -129,6 +130,7 @@ vds::expected<void> vds::user_manager::reset(
       auto_update_user,
       root_user->create_user(
         playback,
+        "Auto Update",
         cert_control::auto_update_login(),
         cert_control::auto_update_password(),
         std::make_shared<asymmetric_private_key>(std::move(autoupdate_private_key))));
@@ -165,6 +167,7 @@ vds::expected<void> vds::user_manager::reset(
       web_user,
       root_user->create_user(
         playback,
+        "Web",
         cert_control::web_login(),
         cert_control::web_password(),
         std::make_shared<asymmetric_private_key>(std::move(web_private_key))));
@@ -180,11 +183,10 @@ vds::expected<void> vds::user_manager::reset(
         cert_control::get_web_read_private_key(),
         cert_control::get_web_write_certificate())));
 
-    CHECK_EXPECTED(playback.save(
+    CHECK_EXPECTED(this->sp_->get<dht::network::client>()->save(
       this->sp_,
-      t,
-      root_user.user_certificate(),
-      private_info.root_private_key_));
+      playback,
+      t));
 
     return expected<void>();
   }).get();
@@ -280,14 +282,6 @@ vds::expected<void> vds::user_manager::save_certificate(
   return t.execute(t2.delete_if(t2.id == cert.subject()));
 }
 
-vds::async_task<vds::expected<void>> vds::user_manager::save_certificate( const std::shared_ptr<vds::certificate> &cert) {
-  this->impl_->add_certificate(cert);
-
-  return this->sp_->get<db_model>()->async_transaction([cert](database_transaction & t) -> expected<void> {
-    return save_certificate(t, *cert);
-  });
-}
-
 vds::member_user vds::user_manager::get_current_user() const {
   return this->impl_->get_current_user();
 }
@@ -296,39 +290,61 @@ const std::shared_ptr<vds::asymmetric_private_key> & vds::user_manager::get_curr
   return this->impl_->get_current_user_private_key();
 }
 
-vds::expected<vds::const_data_buffer> vds::user_manager::create_register_request(
-  const service_provider * /*sp*/,
+vds::async_task<vds::expected<void>> vds::user_manager::create_user(
+  const service_provider * sp,
   const std::string& userName,
-  const std::string& user_email,
-  const std::string& user_password) {
+  const std::string& userEmail,
+  const std::string& userPassword) {
 
-  GET_EXPECTED(user_private_key, vds::asymmetric_private_key::generate(
-    vds::asymmetric_crypto::rsa4096()));
+  return sp->get<db_model>()->async_transaction(
+    [
+      sp,
+      userName,
+      userEmail,
+      userPassword
+    ](database_transaction & t)->expected<void> {
 
-  GET_EXPECTED(user_public_key, asymmetric_public_key::create(user_private_key));
+    GET_EXPECTED(user_id, dht::dht_object_id::user_credentials_to_key(userEmail, userPassword));
+    GET_EXPECTED(user_private_key, vds::asymmetric_private_key::generate(
+      vds::asymmetric_crypto::rsa4096()));
+    GET_EXPECTED(user_private_key_der, user_private_key.der(userPassword));
 
-  binary_serializer s;
-  CHECK_EXPECTED(s << userName);
-  CHECK_EXPECTED(s << user_email);
-  CHECK_EXPECTED(s << user_public_key.der());
-  CHECK_EXPECTED(s << dht::dht_object_id::user_credentials_to_key(user_email, user_password));
-  CHECK_EXPECTED(s << user_private_key.der(user_password));
+    GET_EXPECTED(user_public_key, asymmetric_public_key::create(user_private_key));
 
-  CHECK_EXPECTED(s << asymmetric_sign::signature(hash::sha256(), user_private_key, s.get_buffer(), s.size()));
+    certificate::create_options local_user_options;
+    local_user_options.country = "RU";
+    local_user_options.organization = "IVySoft";
+    local_user_options.name = userName;
 
-  return s.move_data();
-}
+    GET_EXPECTED(user_cert, certificate::create_new(user_public_key, user_private_key, local_user_options));
 
-vds::expected<bool> vds::user_manager::parse_join_request(
-  const vds::const_data_buffer &data,
-  std::string &userName,
-  std::string &userEmail) {
-  return _user_manager::parse_join_request(data, userName, userEmail);
-}
+    GET_EXPECTED(playback, transactions::transaction_block_builder::create(sp, t));
 
-vds::async_task<vds::expected<bool>> vds::user_manager::approve_join_request(
-  const const_data_buffer& data) {
-  return this->impl_->approve_join_request(data);
+    CHECK_EXPECTED(playback.add(
+      message_create<transactions::create_user_transaction>(
+        user_id,
+        std::make_shared<certificate>(std::move(user_cert)),
+        user_private_key_der,
+        userName)));
+
+    //auto channel_id = dht::dht_object_id::generate_random_id();
+
+    //auto read_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+    //auto write_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+    //auto channel = member_user(pthis->user_cert_, pthis->user_private_key_).create_channel(
+    //  playback,
+    //  userName);
+
+    //channel->add_writer(
+    //  playback,
+    //  pthis->user_name_,
+    //  member_user(user_cert, std::shared_ptr<asymmetric_private_key>()),
+    //  member_user(pthis->user_cert_, pthis->user_private_key_));
+    auto client = sp->get<dht::network::client>();
+    CHECK_EXPECTED(client->save(sp, playback, t));
+
+    return expected<void>();
+  });
 }
 
 const std::list<std::shared_ptr<vds::user_wallet>>& vds::user_manager::wallets() const
@@ -346,34 +362,6 @@ vds::expected<void> vds::_user_manager::create(
   GET_EXPECTED_VALUE(this->user_credentials_key_, dht::dht_object_id::user_credentials_to_key(user_login, user_password));
   this->user_password_ = user_password;
   return expected<void>();
-}
-
-vds::expected<bool> vds::_user_manager::process_root_user_transaction(const transactions::root_user_transaction & message) {
-  this->root_user_cert_ = message.user_cert;
-  this->root_user_name_ = message.user_name;
-
-  if (this->user_credentials_key_ == message.user_credentials_key) {
-    this->user_cert_ = message.user_cert;
-    this->user_name_ = message.user_name;
-    this->login_state_ = user_manager::login_state_t::login_successful;
-
-    GET_EXPECTED(user_private_key, asymmetric_private_key::parse_der(message.user_private_key, this->user_password_));
-    this->user_private_key_ = std::make_shared<asymmetric_private_key>(std::move(user_private_key));
-
-    GET_EXPECTED(cp, _user_channel::import_personal_channel(
-      this->user_cert_,
-      this->user_private_key_));
-
-    this->channels_[cp->id()] = cp;
-
-    GET_EXPECTED_VALUE(cp, _user_channel::import_personal_channel(
-      this->user_cert_,
-      this->user_private_key_));
-
-    this->channels_[cp->id()] = cp;
-  }
-
-  return true;
 }
 
 vds::expected<bool> vds::_user_manager::process_create_user_transaction(
@@ -498,8 +486,6 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
 
 vds::expected<void> vds::_user_manager::update(
   database_read_transaction &t) {
-  const auto log = this->sp_->get<logger>();
-
   std::list<const_data_buffer> new_records;
   orm::transaction_log_record_dbo t1;
   GET_EXPECTED(st, t.get_reader(
@@ -533,12 +519,9 @@ vds::expected<void> vds::_user_manager::update(
     GET_EXPECTED(block, transactions::transaction_block::create(data));
 
     CHECK_EXPECTED(block.walk_messages(
-      [this](const transactions::root_user_transaction & message)->expected<bool> {
-      return this->process_root_user_transaction(message);
-    },
       [this](const transactions::create_user_transaction & message)->expected<bool> {
-      return this->process_create_user_transaction(message);
-    },
+        return this->process_create_user_transaction(message);
+      },
       [this, &new_channels, tp = block.time_point()](const transactions::channel_message  & message)->expected<bool>{
       return this->process_channel_message(message, new_channels, tp);
     }
@@ -556,125 +539,8 @@ vds::member_user vds::_user_manager::get_current_user() const {
   return member_user(this->user_cert_, this->user_private_key_);
 }
 
-vds::async_task<vds::expected<bool>> vds::_user_manager::approve_join_request(const const_data_buffer& data) {
-  const_data_buffer user_public_key_der;
-  std::string user_object_id;
-  const_data_buffer user_private_key_der;
-  std::string userName;
-  std::string userEmail;
-
-  binary_deserializer s(data);
-  CHECK_EXPECTED_ASYNC(s >> userName);
-  CHECK_EXPECTED_ASYNC(s >> userEmail);
-  CHECK_EXPECTED_ASYNC(s >> user_public_key_der);
-  CHECK_EXPECTED_ASYNC(s >> user_object_id);
-  CHECK_EXPECTED_ASYNC(s >> user_private_key_der);
-
-  const auto pos = s.size();
-
-  const_data_buffer signature;
-  CHECK_EXPECTED_ASYNC(s >> signature);
-
-  GET_EXPECTED_ASYNC(user_public_key, asymmetric_public_key::parse_der(user_public_key_der));
-
-  GET_EXPECTED_ASYNC(verify_result, asymmetric_sign_verify::verify(
-    hash::sha256(),
-    user_public_key,
-    signature,
-    data.data(),
-    data.size() - pos));
-
-  if (!verify_result) {
-    co_return make_unexpected<std::runtime_error>("Signature error");
-  }
-
-  CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction(
-    [
-      pthis = this->shared_from_this(),
-      user_public_key_param = std::make_shared<asymmetric_public_key>(std::move(user_public_key)),
-      user_object_id,
-      user_private_key_der,
-      userName,
-      userEmail
-    ](database_transaction & t) -> expected<void> {
-    certificate::create_options local_user_options;
-    local_user_options.country = "RU";
-    local_user_options.organization = "IVySoft";
-    local_user_options.name = userName;
-    local_user_options.ca_certificate = pthis->user_cert_.get();
-    local_user_options.ca_certificate_private_key = pthis->user_private_key_.get();
-
-    GET_EXPECTED(user_cert, certificate::create_new(*user_public_key_param, asymmetric_private_key(), local_user_options));
-
-    GET_EXPECTED(playback, transactions::transaction_block_builder::create(pthis->sp_, t));
-
-    CHECK_EXPECTED(playback.add(
-      message_create<transactions::create_user_transaction>(
-        user_object_id,
-        std::make_shared<certificate>(std::move(user_cert)),
-        user_private_key_der,
-        userEmail,
-        pthis->user_cert_->subject())));
-
-    //auto channel_id = dht::dht_object_id::generate_random_id();
-
-    //auto read_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-    //auto write_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-    //auto channel = member_user(pthis->user_cert_, pthis->user_private_key_).create_channel(
-    //  playback,
-    //  userName);
-
-    //channel->add_writer(
-    //  playback,
-    //  pthis->user_name_,
-    //  member_user(user_cert, std::shared_ptr<asymmetric_private_key>()),
-    //  member_user(pthis->user_cert_, pthis->user_private_key_));
-    CHECK_EXPECTED(playback.save(
-      pthis->sp_,
-      t,
-      pthis->user_cert_,
-      pthis->user_private_key_));
-
-    return expected<void>();
-  }));
-
-  co_return true;
-}
-
 const std::string& vds::_user_manager::user_name() const {
   return this->user_name_;
-}
-
-vds::expected<bool> vds::_user_manager::parse_join_request(
-
-  const vds::const_data_buffer &data,
-  std::string & userName,
-  std::string & userEmail) {
-
-  const_data_buffer user_public_key_der;
-  std::string user_object_id;
-  const_data_buffer user_private_key_der;
-
-  binary_deserializer s(data);
-  CHECK_EXPECTED(s >> userName);
-  CHECK_EXPECTED(s >> userEmail);
-  CHECK_EXPECTED(s >> user_public_key_der);
-  CHECK_EXPECTED(s >> user_object_id);
-  CHECK_EXPECTED(s >> user_private_key_der);
-
-  auto pos = s.size();
-
-  const_data_buffer signature;
-  CHECK_EXPECTED(s >> signature);
-
-  GET_EXPECTED(user_public_key, asymmetric_public_key::parse_der(user_public_key_der));
-
-  return asymmetric_sign_verify::verify(
-    hash::sha256(),
-    user_public_key,
-    signature,
-    data.data(),
-    data.size() - pos);
 }
 
 vds::async_task<vds::expected<vds::user_channel>> vds::_user_manager::create_channel(
@@ -693,11 +559,11 @@ vds::async_task<vds::expected<vds::user_channel>> vds::_user_manager::create_cha
       channel_type,
       name));
 
-    CHECK_EXPECTED(log.save(
-      pthis->sp_,
-      t,
-      pthis->user_cert(),
-      pthis->user_private_key()));
+    CHECK_EXPECTED(
+      pthis->sp_->get<dht::network::client>()->save(
+        pthis->sp_,
+        log,
+        t));
 
     CHECK_EXPECTED(pthis->update(t));
 

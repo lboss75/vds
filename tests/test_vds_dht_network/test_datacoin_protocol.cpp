@@ -10,20 +10,18 @@
 #include "transaction_log_vote_request_dbo.h"
 #include "messages/transaction_log_messages.h"
 #include "transaction_log.h"
+#include "dht_network_client.h"
 
 static vds::async_task<vds::expected<std::shared_ptr<vds::user_manager>>> create_user(
   const vds::service_provider * sp,
-  std::shared_ptr<vds::user_manager> root_user_mng,
   const std::string & user_name,
   const std::string & user_email,
   const std::string & user_password) {
-  GET_EXPECTED_ASYNC(user_request, vds::user_manager::create_register_request(
+  CHECK_EXPECTED_ASYNC(co_await vds::user_manager::create_user(
     sp,
     user_name,
     user_email,
     user_password));
-
-  CHECK_EXPECTED_ASYNC(co_await root_user_mng->approve_join_request(user_request));
 
   auto user_mng = std::make_shared<vds::user_manager>(sp);
   CHECK_EXPECTED_ASYNC(co_await sp->get<vds::db_model>()->async_transaction([user_mng, user_email, user_password](vds::database_transaction & t) -> vds::expected<void> {
@@ -70,7 +68,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
 
   vds::cert_control::private_info_t private_info;
   CHECK_EXPECTED_GTEST(private_info.genereate_all());
-  CHECK_EXPECTED_GTEST(vds::cert_control::genereate_all(root_user_name, root_password, private_info));
+  CHECK_EXPECTED_GTEST(vds::cert_control::genereate_all(private_info));
 
   CHECK_EXPECTED_GTEST(std::make_shared<vds::user_manager>(sp)->reset(root_user_name, root_password, private_info));
   /*      0 - creare root                     root_user MAX
@@ -82,7 +80,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
   }).get());
 
   //Create User 1
-  GET_EXPECTED_GTEST(user1_mng, create_user(sp, root_user_mng, "User1", "user1@domain.ru", "1234567").get());
+  GET_EXPECTED_GTEST(user1_mng, create_user(sp, "User1", "user1@domain.ru", "1234567").get());
   /*      0 - creare root                     root_user MAX
    *      1 - creare user1                    root_user MAX
    */
@@ -97,11 +95,11 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
 
     GET_EXPECTED(transaction_log, vds::transactions::transaction_block_builder::create(sp, t));
     CHECK_EXPECTED(vds::user_wallet::transfer(transaction_log, root_source, user1_mng->get_current_user(), 100));
-    GET_EXPECTED_VALUE(first_source, transaction_log.save(
+
+    GET_EXPECTED_VALUE(first_source, sp->get<vds::dht::network::client>()->save(
       sp,
-      t,
-      root_user_mng->get_current_user().user_certificate(),
-      root_user_mng->get_current_user().private_key()));
+      transaction_log,
+      t));
     return vds::expected<void>();
   }).get());
   /*      0 - (root_source, consensus) creare root              root_user MAX +
@@ -148,7 +146,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     return vds::expected<void>();
   }).get());
   ///////////////////////
-  GET_EXPECTED_GTEST(user2_mng, create_user(sp, root_user_mng, "User2", "user2@domain.ru", "1234567").get());
+  GET_EXPECTED_GTEST(user2_mng, create_user(sp, "User2", "user2@domain.ru", "1234567").get());
   auto user2_account = user2_mng->get_current_user().user_certificate()->subject();
 
   vds::const_data_buffer log12;
@@ -170,7 +168,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
    */
 
 
-  GET_EXPECTED_GTEST(user3_mng, create_user(sp, root_user_mng, "User3", "user3@domain.ru", "1234567").get());
+  GET_EXPECTED_GTEST(user3_mng, create_user(sp, "User3", "user3@domain.ru", "1234567").get());
   auto user3_account = user3_mng->get_current_user().user_certificate()->subject();
 
   vds::const_data_buffer log13;
@@ -194,7 +192,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
    *      | * (log13) user1->user3:50                    root_user MAX-100 -  user1 50 +   user3 50 -
    */
 
-  GET_EXPECTED_GTEST(user4_mng, create_user(sp, root_user_mng, "User4", "user4@domain.ru", "1234567").get());
+  GET_EXPECTED_GTEST(user4_mng, create_user(sp, "User4", "user4@domain.ru", "1234567").get());
   auto user4_account = user4_mng->get_current_user().user_certificate()->subject();
 
   vds::const_data_buffer log14;

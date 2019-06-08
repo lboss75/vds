@@ -84,8 +84,6 @@ vds::expected<void> vds::transactions::transaction_record_state::save(
 vds::expected<void> vds::transactions::transaction_record_state::apply(
   const transaction_block & block) {
 
-#undef  max
-
   CHECK_EXPECTED(block.walk_messages(
     [this, &block](const payment_transaction & t)->expected<bool> {
     auto p = this->account_state_.find(block.write_cert_id());
@@ -106,8 +104,8 @@ vds::expected<void> vds::transactions::transaction_record_state::apply(
     this->account_state_[t.target_user].balance_[block.id()] += t.value;
     return true;
   },
-    [this, &block](const root_user_transaction & t)->expected<bool> {
-    this->account_state_[block.write_cert_id()].balance_[block.id()] = std::numeric_limits<int64_t>::max();
+    [this, &block](const create_user_transaction & t)->expected<bool> {
+    this->account_state_[t.user_cert->subject()].balance_[block.id()] = 0;
     return true;
   }));
 
@@ -123,7 +121,7 @@ vds::expected<void> vds::transactions::transaction_record_state::rollback(
     this->account_state_[t.target_user].balance_[block.id()] -= t.value;
     return true;
   },
-    [this, &block](const root_user_transaction & t)->expected<bool> {
+    [this, &block](const create_user_transaction & t)->expected<bool> {
     return vds::make_unexpected<std::runtime_error>("Invalid operation");
   }));
 

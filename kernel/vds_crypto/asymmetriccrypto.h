@@ -95,6 +95,8 @@ namespace vds {
     static expected<asymmetric_public_key> parse_der(const const_data_buffer & value);
     expected<const_data_buffer> der() const;
 
+    expected<const_data_buffer> hash(const hash_info & h) const;
+
     expected<void> load(const filename & filename);
     expected<void> save(const filename & filename);
 

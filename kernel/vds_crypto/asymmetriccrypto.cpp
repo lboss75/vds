@@ -594,6 +594,10 @@ vds::expected<vds::const_data_buffer> vds::asymmetric_public_key::der() const {
   return this->impl_->der();
 }
 
+vds::expected<vds::const_data_buffer> vds::asymmetric_public_key::hash(const hash_info & h) const {
+  return vds::hash::signature(h, this->impl_->der());
+}
+
 vds::expected<void> vds::asymmetric_public_key::load(const filename & filename)
 {
   return this->impl_->load(filename);

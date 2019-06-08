@@ -13,7 +13,6 @@ All rights reserved
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
 #include "data_coin_balance.h"
-#include "user_manager_transactions.h"
 #include "create_user_transaction.h"
 
 namespace vds {
@@ -45,7 +44,6 @@ namespace vds {
         return transaction_block_builder(sp);
       }
       
-      expected<void> add(expected<root_user_transaction> && item);
       expected<void> add(expected<create_user_transaction> && item);
       expected<void> add(expected<payment_transaction> && item);
       expected<void> add(expected<channel_message> && item);
@@ -61,7 +59,7 @@ namespace vds {
         const std::shared_ptr<certificate> &write_cert,
         const std::shared_ptr<asymmetric_private_key> &write_private_key);
 
-      private:
+    private:
         friend class _user_channel;
 
         const service_provider * sp_;
