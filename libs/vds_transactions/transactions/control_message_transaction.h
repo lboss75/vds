@@ -35,7 +35,7 @@ namespace vds {
 
       static expected<control_message_transaction> create_wallet_message(
         const std::string & name,
-        const certificate & cert,
+        const asymmetric_public_key & cert,
         const asymmetric_private_key & private_key) {
         auto message = std::make_shared<json_object>();
         message->add_property("$type", create_wallet_type);

@@ -41,6 +41,8 @@ namespace vds {
   class asymmetric_private_key
   {
   public:
+    static constexpr size_t base64_size = 3136;
+
     asymmetric_private_key();
     asymmetric_private_key(const asymmetric_private_key & original) = delete;
     asymmetric_private_key(asymmetric_private_key && original) noexcept;
@@ -82,6 +84,8 @@ namespace vds {
   class asymmetric_public_key
   {
   public:
+    static constexpr size_t base64_size = 4096;
+
     asymmetric_public_key();
     asymmetric_public_key(const asymmetric_public_key & original) = delete;
     asymmetric_public_key(asymmetric_public_key && original);
@@ -222,6 +226,9 @@ namespace vds {
   class certificate
   {
   public:
+    static constexpr size_t base64_size = 1852;
+
+
     certificate();
     certificate(const certificate & original) = delete;
     certificate(certificate && original);
@@ -331,6 +338,21 @@ namespace vds {
         GET_EXPECTED(der, vds::certificate::parse_der(cert_data));
         cert = std::make_shared<vds::certificate>(std::move(der));
         return expected<void>();
+    }
+
+    inline vds::expected<void> operator <<(vds::binary_serializer & s, const std::shared_ptr<vds::asymmetric_public_key> & key)
+    {
+      GET_EXPECTED(der, key->der());
+      return (s << der);
+    }
+
+    inline vds::expected<void> operator >>(vds::binary_deserializer & s, std::shared_ptr<vds::asymmetric_public_key> & key)
+    {
+      vds::const_data_buffer key_data;
+      CHECK_EXPECTED(s >> key_data);
+      GET_EXPECTED(der, vds::asymmetric_public_key::parse_der(key_data));
+      key = std::make_shared<vds::asymmetric_public_key>(std::move(der));
+      return expected<void>();
     }
 
     inline vds::expected<void> operator <<(vds::binary_serializer & s, const std::shared_ptr<vds::asymmetric_private_key> & key)

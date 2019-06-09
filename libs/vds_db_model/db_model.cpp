@@ -137,9 +137,9 @@ vds::expected<void> vds::db_model::migrate(
       approved BIT NOT NULL,\
 			CONSTRAINT pk_transaction_log_vote_request PRIMARY KEY(id,owner))",
 
-      "CREATE TABLE member_user(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-      log_id VARCHAR(64) NOT NULL)",
+   //   "CREATE TABLE member_user(\
+			//id VARCHAR(64) PRIMARY KEY NOT NULL,\
+   //   log_id VARCHAR(64) NOT NULL)",
 
       "CREATE TABLE chunk (\
 			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\
@@ -236,6 +236,10 @@ vds::expected<void> vds::db_model::migrate(
 			object_size INTEGER NOT NULL,\
 			state INTEGER NOT NULL,\
 			next_sync INTEGER NOT NULL)",
+
+      "CREATE TABLE node_info_dbo(\
+			node_id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			cert VARCHAR(1853) NOT NULL)",
 
       "INSERT INTO well_known_node(address, last_connect) VALUES(\
 									'udp://localhost:8050',\

@@ -16,16 +16,45 @@ namespace vds {
     public:
       static const transaction_id message_id = transaction_id::payment_transaction;
 
+      const_data_buffer issuer;
+      std::string currency;
+
       const_data_buffer source_transaction;
-      std::string target_user;
+      const_data_buffer source_user;
+      const_data_buffer target_user;
       uint64_t value;
+      const_data_buffer signature;
 
       template <typename visitor_t>
       void visit(visitor_t & v) {
         v(
+          issuer,
+          currency,
           source_transaction,
+          source_user,
           target_user,
-          value);
+          value,
+          signature);
+      }
+
+    };
+
+    class asset_issue_transaction {
+    public:
+      static const transaction_id message_id = transaction_id::asset_issue_transaction;
+
+      const_data_buffer issuer;
+      std::string currency;
+      uint64_t value;
+      const_data_buffer signature;
+
+      template <typename visitor_t>
+      void visit(visitor_t & v) {
+        v(
+          issuer,
+          currency,
+          value,
+          signature);
       }
 
     };

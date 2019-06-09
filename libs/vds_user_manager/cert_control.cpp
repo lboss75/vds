@@ -4,7 +4,7 @@
 
 char vds::cert_control::common_news_channel_id_[65] =
 "64KSJ51wjCBYxlWj1OT1tQA5E8xCPPJh5SlSZdT95TE=";
-char vds::cert_control::common_news_read_certificate_[1821] =
+char vds::cert_control::common_news_read_certificate_[asymmetric_public_key::base64_size + 1] =
 "MIIFTzCCAzegAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
 "U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xOTA1MjUwODI4NDlaFw0yMDA1MjQwODI4"
 "NDlaMDoxCzAJBgNVBAYTAlJVMRAwDgYDVQQKDAdJVnlTb2Z0MRkwFwYDVQQDDBBDb21tb24gTmV3cyBS"
@@ -28,7 +28,7 @@ char vds::cert_control::common_news_read_certificate_[1821] =
 "nlmMmtNWJ4+wHygARumghvc1oMb9tx8g1D//NTbvbv/auuxCE/dQHoMRsi4aSRDSblK5ZzsqEXBAoMXt"
 "9IvJEuV0yCeIQUE69rC5GL+IKsskmOWvw4YF5xoZeT+meiM8YvPZ5uHohxVQK0ReDDq4Y1AQstCRxcja"
 "1n9NyqxiL+sHC07VEQP7fwpAUL7ez1GDps/rZygLdtPMF+BXtxcwtJiBcg==";
-char vds::cert_control::common_news_read_private_key_[3137] =
+char vds::cert_control::common_news_read_private_key_[asymmetric_private_key::base64_size + 1] =
 "MIIJKgIBAAKCAgEA3JcH0QDO0aUEqO9UtmSpUwbZSlavo+6m7asaUU1w3CdYZoMWdm/WKriZvSDpVzuV"
 "IUCwJ7DOWEhP6FebPHTTMEuIMa304M0+QDsXWfAj5G2eVkWMCu/wksJqyr8Ev8BglKnKA+I/FBaPMrD1"
 "tDBq2RC49+uL0aSjQdMR//9iW52F2EtVs+54ZAE2R9te4Mrb9Q3SbZhixr1QLQZiSm9x6Gd78R0O5Scu"
@@ -69,7 +69,7 @@ char vds::cert_control::common_news_read_private_key_[3137] =
 "olOw9xo63QEM5dYvBFyTAovNqdeJi7yeH3PfAlZb5fcD8PCo7uKGYeamoxEqkma7N63UwvMGuPp+9dx7"
 "35p1gj/csBuoo9UyU3T0Hssr+Od10KJfNSkmdA5k85Wgr570azkhQoIdJVFPUAhpCJ5e9xvwq+8J4YK+"
 "S0/BV0lMDMcqjA==";
-char vds::cert_control::common_news_write_certificate_[1821] =
+char vds::cert_control::common_news_write_certificate_[asymmetric_public_key::base64_size + 1] =
 "MIIFUDCCAzigAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
 "U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xOTA1MjUwODI4NTBaFw0yMDA1MjQwODI4"
 "NTBaMDsxCzAJBgNVBAYTAlJVMRAwDgYDVQQKDAdJVnlTb2Z0MRowGAYDVQQDDBFDb21tb24gTmV3cyBX"
@@ -93,7 +93,7 @@ char vds::cert_control::common_news_write_certificate_[1821] =
 "Rp1gyG2HaqaqYICyIcopP/By8JcyrsxdBt9ChXBhUfbIuU/XPCkmJmA9F9WwzKxCaWihUPffCuHzWtNp"
 "QfqFDOT0ao5OgrsAybn6HfssJejXq5QjiuDF3KUEr6/ImmlbNYG9ZrV732rptp0O5iwyrXZiXE6SDf7z"
 "kMIx5MJy6fWtB6qiE298eL+LhhF69Yx5HOpKg2D3wykooTdZ7Z1K//VwO6w=";
-char vds::cert_control::common_news_admin_certificate_[1821] =
+char vds::cert_control::common_news_admin_certificate_[asymmetric_public_key::base64_size + 1] =
 "MIIFUDCCAzigAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
 "U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xOTA1MjUwODI4NTBaFw0yMDA1MjQwODI4"
 "NTBaMDsxCzAJBgNVBAYTAlJVMRAwDgYDVQQKDAdJVnlTb2Z0MRowGAYDVQQDDBFDb21tb24gTmV3cyBB"
@@ -119,7 +119,7 @@ char vds::cert_control::common_news_admin_certificate_[1821] =
 "5wtXzH/FSrrDmQLkSWO7xXq5njpjpu8oaGsVmEnQ9qTj8E2t4xB2+UCVfd0=";
 char vds::cert_control::autoupdate_channel_id_[65] =
 "MdoO4zAP08uRhFvCZrK0gNU/otjuOKed+cEbHBurCn8=";
-char vds::cert_control::autoupdate_read_certificate_[1821] =
+char vds::cert_control::autoupdate_read_certificate_[asymmetric_public_key::base64_size + 1] =
 "MIIFTjCCAzagAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
 "U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xOTA1MjUwODI4NTVaFw0yMDA1MjQwODI4"
 "NTVaMDkxCzAJBgNVBAYTAlJVMRAwDgYDVQQKDAdJVnlTb2Z0MRgwFgYDVQQDDA9BdXRvVXBkYXRlIFJl"
@@ -143,7 +143,7 @@ char vds::cert_control::autoupdate_read_certificate_[1821] =
 "NExaLChrfEygNJqcaVqxbBwSxFiSSvnu4yv8TzGv0ruSFTaIZP2AhCsATcWRIr8c4aDuzmuKGQ3QCVA7"
 "pQOkNlhChHV74nuBNF2bm+Eif89ijuaRGTEL2TC7N6JEsv9qcMYoHo6mrPJ67auoypUbZlMD08xt932b"
 "Ofn/94CWvEkqIa7ot8FbThDTzHx5zoegu5Ypkx6/HE4CeVJzhBymZRbP";
-char vds::cert_control::autoupdate_read_private_key_[3137] =
+char vds::cert_control::autoupdate_read_private_key_[asymmetric_private_key::base64_size + 1] =
 "MIIJKgIBAAKCAgEA1uZqcrrdLea6tKlyQC87BLOnotIt3E4it4i8VgfHYMmUCiqmCvZR112UEYIDyZqu"
 "tplMAV4gWNvAjHnbt+/8dqULOavxEeYl/zEB/uDsnPlE79ygKo1Azdx5XLJIaLYKpttqiDNm01qAEFI7"
 "GXPH8p9sOslHyMOPUGEG997jU62nL66ZLOjo2LjzRCeGjlD+4fZrkgBBn4JUJHqE3fYpU7nFBTCbGXPQ"
@@ -184,7 +184,7 @@ char vds::cert_control::autoupdate_read_private_key_[3137] =
 "h9UsopC1yR6B27HEqXQCGi14hLS02KL/6HbsQtw94SKO3m0HHzRnquqefxbiLrsJ/Ha2d6oEpgwrrqPp"
 "ZjCm3hOKknaO/yrc7mnBtip0JXTR9HsMfHaKxkdE/hyqNqxNYhLPD/U3HIDOz7n772CVhI735kFhOWUz"
 "Idn0pLClvD2Zrw==";
-char vds::cert_control::autoupdate_write_certificate_[1821] =
+char vds::cert_control::autoupdate_write_certificate_[asymmetric_public_key::base64_size + 1] =
 "MIIFTzCCAzegAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
 "U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xOTA1MjUwODI4NTVaFw0yMDA1MjQwODI4"
 "NTVaMDoxCzAJBgNVBAYTAlJVMRAwDgYDVQQKDAdJVnlTb2Z0MRkwFwYDVQQDDBBBdXRvVXBkYXRlIFdy"
@@ -208,7 +208,7 @@ char vds::cert_control::autoupdate_write_certificate_[1821] =
 "FmYGhB1LiIGL84of4Boiy6hNEjRWDOzz8iBrv4MicqtYHFq9LzF2rGHF3SjskAGXmczQMfYMHiR/akUJ"
 "+XP3AQnffTCvsKpBcr8QBOBTY3+Y+WfKA98OdIc2W54sZLe97vjKy7TwZ6qN8kc2Ezsl2GeZksvgRQNI"
 "1QEduL5dMJH6S0mUgqVp9GOfEgf382Int1LGYXvp17naNx9G6evx85zsOg==";
-char vds::cert_control::autoupdate_admin_certificate_[1821] =
+char vds::cert_control::autoupdate_admin_certificate_[asymmetric_public_key::base64_size + 1] =
 "MIIFTzCCAzegAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
 "U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xOTA1MjUwODI4NTVaFw0yMDA1MjQwODI4"
 "NTVaMDoxCzAJBgNVBAYTAlJVMRAwDgYDVQQKDAdJVnlTb2Z0MRkwFwYDVQQDDBBBdXRvVXBkYXRlIEFk"
@@ -234,7 +234,7 @@ char vds::cert_control::autoupdate_admin_certificate_[1821] =
 "eAnEYdDQJqiTgdB4e3lRgzKjl/yaiFshrkespA0EL8d5UngpSPZlOs5+5w==";
 char vds::cert_control::web_channel_id_[65] =
 "svLv2tXOWW39ASSqTkkfCLBjmYRek6djYg/JDyOloII=";
-char vds::cert_control::web_read_certificate_[1821] =
+char vds::cert_control::web_read_certificate_[asymmetric_public_key::base64_size + 1] =
 "MIIFRzCCAy+gAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
 "U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xOTA1MjUwODI4NTdaFw0yMDA1MjQwODI4"
 "NTdaMDIxCzAJBgNVBAYTAlJVMRAwDgYDVQQKDAdJVnlTb2Z0MREwDwYDVQQDDAhXZWIgUmVhZDCCAiIw"
@@ -258,7 +258,7 @@ char vds::cert_control::web_read_certificate_[1821] =
 "M1K7us1HySSuKzJO1/6ah15nZwSfT4u4Z+3G8XCdz8hYd4wupJPveU0drAW4Fut0q2b8aWUCZhc24HTW"
 "NPCJzkPuUCCcVuJA5dWiaWa5fULQk/oxg2emkYIDdUJFFFSDKVfK72mArplQSK6jWtl0sW//m4jWFkzJ"
 "Z7gkvT/etKxLGzJfqES2bmKB9TSVdIx/4pN9xuyWdc1sRx0=";
-char vds::cert_control::web_read_private_key_[3137] =
+char vds::cert_control::web_read_private_key_[asymmetric_private_key::base64_size + 1] =
 "MIIJKAIBAAKCAgEA3rAQLDJh0YEEWejPpVkcFP9xXKCbWrPGqq6SS8I48kVwf05lhjYytSeq3HZs66j0"
 "HUBtFO6w/0/o2j1I0tdLH9l4zsu9nXIz1DJAJaPrPQMF4GImgtzLQwTNJx1+nP/PmnSYi8l4bt9Lymee"
 "L7Aih20zkuMkyY6/N5kpiQ6a8E0og0xK3r7zbzPugWlcK0VUn0qdE/wNZdPCM3/Y7mohwBbfXLNoLXjb"
@@ -299,7 +299,7 @@ char vds::cert_control::web_read_private_key_[3137] =
 "7btf32pCgqhlfxLGlsWNFOKatjbtj9ZgNzG8fDOuChJaWl8b8tVIcwVtzZUGe0Zwbk2gNiitUPpvrsGf"
 "3FhR+E8Ik6KvskNfO1Hy6DhScC2vn7nJ93BD55j2fl9NLkvpWV2Cty6Du/pxhGEYOUxiW5xPrMJoLwEw"
 "y+CfjAZA66I=";
-char vds::cert_control::web_write_certificate_[1821] =
+char vds::cert_control::web_write_certificate_[asymmetric_public_key::base64_size + 1] =
 "MIIFSDCCAzCgAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
 "U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xOTA1MjUwODI4NTdaFw0yMDA1MjQwODI4"
 "NTdaMDMxCzAJBgNVBAYTAlJVMRAwDgYDVQQKDAdJVnlTb2Z0MRIwEAYDVQQDDAlXZWIgV3JpdGUwggIi"
@@ -323,7 +323,7 @@ char vds::cert_control::web_write_certificate_[1821] =
 "6POd5qnxHXW0EpP/+0xsPgCEXgQHVnTR4XLO1WMSpAQgGkvFb3br/ZJwYTZZAzZr15ZNNQ6BFTRBik1a"
 "SAB0KH0rfsU9IMt0ygk3AQiR4+3ZB+024EQXm4TQupghvgcgZomToTPa7fjCl/IiZ41w8QLDHHN4O4N6"
 "9dc6N0zH8s6whKpMGsR6pe16GlXzuY/8hexTTitNkrbxIysd";
-char vds::cert_control::web_admin_certificate_[1821] =
+char vds::cert_control::web_admin_certificate_[asymmetric_public_key::base64_size + 1] =
 "MIIFSDCCAzCgAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
 "U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xOTA1MjUwODI4NTdaFw0yMDA1MjQwODI4"
 "NTdaMDMxCzAJBgNVBAYTAlJVMRAwDgYDVQQKDAdJVnlTb2Z0MRIwEAYDVQQDDAlXZWIgQWRtaW4wggIi"
@@ -347,71 +347,6 @@ char vds::cert_control::web_admin_certificate_[1821] =
 "k4BSjPUSuenN0krApIbUVun0IrukjelRt0nl2B0FdC0/idsBKBFnCVdNLSwcbF3vNnlWnD3dh4W2rscp"
 "hlcIldboxyHPXZKDK09qfJri4KWlQRksM7UZcamC/LAkx9Hf5YxOMV/pEnhJva/g78iQg4U37BnyeqOU"
 "gr5xQBeCzbwBhmfeUk10Q2805NLg0ROwakJdk0rWtYOOFf3P";
-char vds::cert_control::common_storage_certificate_[1821] =
-"MIIFTTCCAzWgAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MQswCQYDVQQGEwJSVTEQMA4GA1UECgwHSVZ5"
-"U29mdDEZMBcGA1UEAwwQdmFkaW1AaXYtc29mdC5ydTAeFw0xOTA1MjUwODI4NThaFw0yMDA1MjQwODI4"
-"NThaMDgxCzAJBgNVBAYTAlJVMRAwDgYDVQQKDAdJVnlTb2Z0MRcwFQYDVQQDDA5Db21tb24gU3RvcmFn"
-"ZTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBANr5Kjqjk7u+RlBq5WzUmWfu8hTPQKQ4sRXf"
-"916A8gi+0CdebjLFGqzZooddLuIKfmzJy9jOGXBeFBxavy7Egt3lU9NtDxR7b4RFltq76y7xfwqsy1+Y"
-"dIKYUBtlWdnEc96kSuZ2BosRKAyVJiq2Qes5AJnHVrJTGDzjjLo+pteFNXLFOnmTT8g0/86NxaTiH8S/"
-"I5BWoupdI3XgjoXuf7cmAKUf/3lSWD+VwpZNSu+C9rISG9S0nuC0OrIeRSsZclJgUAR2mNB7m0oY7IHV"
-"V7oMAJ+WSGW0Uz4EvQ6wJnyZenUw+Uq/idL8firVDhA2ML1l9LKj2TgXNSSC4iVUXfSs7pdI3xuoZGGg"
-"2IvHw0zoPmDEDoHykmF8DVHtMasgv+j2i/cl5iUq8XaTk3P+6MuJb8dsCfkBxS4tyF7op5YWNlQ/6zFs"
-"T5t683jnIuZaa+jAn0sMF4dUUwst4SBR+vB4omY3F7GIDB1LAyTHtcAGHLVb+Pi49TaefNo1MAwx+2t4"
-"WjwqmIK+p9yXUIPRVsqwygIlFMjecnDfSFo54Y409B8Zkh6pzOydXgVmSDdLZFdaXixGbaluoYVMakT7"
-"XIzs6x8Qh9oi7+kIDechkKByMifDtsVOBHwVLv7VsFU6k+uZT/mRXMaLDmMt1vJTtZH9db6a928Ra+0/"
-"vJdr+IQbAgMBAAGjYDBeMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMBEGCWCGSAGG+EIB"
-"AQQEAwICBDAoBglghkgBhvhCAQ0EGxYZZXhhbXBsZSBjb21tZW50IGV4dGVuc2lvbjANBgkqhkiG9w0B"
-"AQsFAAOCAgEAiFhpBrDOi04TyvEh9ymD1rtRwAIvZKJRFb9bKrNJkBuWrU9Nu0AuiSTT/nkDSZv8ojpa"
-"XROJCosfVdJMwi902K9LF1fXvjtLEbdQE5MuwxWpWLwRzP+fYfXuZJ2o1aBpH5p15lsDXKA//2EIaPV8"
-"z7LnwlAOpC2+8KrqnIHueHtWG71jBRn4YUYMf6qgVKUYqgQtaLVacbOtR2rce3JVhpuIWNzX7TOeKHjP"
-"MlOvkrT3P59NDIGoYEf/DFpks/m/0yLdqg0RKBvy/mEXOwuCaK/0KVKkU7xbVEWW5jr0k1vust/QAaS8"
-"o0xPqmdEGguKqegcbbtFJs8HKtq+VUzFq16mILp3/CrcZ+CeZMxLIfxh2OuyeRgOutJv3E5I8/9brEW9"
-"ElEvaLo+Fr0eAjQ1SH1bOg9KYEhLx0x0hJhrM9BXpqmf5tG0N6mlqloCWbElGQ6N7C+AdZHqdXNNEcLK"
-"jDswiEdwfoZvwNypViStp4JENyjNfK1LB+k4U2Q6R/36u/jNL6yGhpihWk1VG4GvcwX7lGNZDaCngsUi"
-"jwlb0DjQt5f5WVlM/YR7ODiiczA8fAgilxKTiyjZ6wonvMay7k/e8AbHWtfprJnDspArrIYak+NatfRs"
-"xY+tEzciantiYxfE/0cGGGWjuKg19PQz8oMJjKBRd/ejjrzAzSSldOI=";
-char vds::cert_control::common_storage_private_key_[3137] =
-"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"
-"DbB00vjW8uM=";
 
 /*
  * User: user_id -> certificate (object_id, user_id, parent_id)
@@ -543,7 +478,7 @@ static void save_buffer(char(&buffer_storage)[65], const vds::const_data_buffer 
   strcpy(buffer_storage, storage_str.c_str());
 }
 
-static void save_certificate(char (&cert_storage)[1821], const vds::certificate & cert) {
+static void save_certificate(char (&cert_storage)[vds::asymmetric_public_key::base64_size + 1], const vds::asymmetric_public_key & cert) {
   auto der = cert.der();
   if(der.has_error()) {
     throw std::runtime_error(der.error()->what());
@@ -554,7 +489,7 @@ static void save_certificate(char (&cert_storage)[1821], const vds::certificate 
   strcpy(cert_storage, cert_storage_str.c_str());
 }
 
-static void save_private_key(char (&private_key_storage)[3137], const vds::asymmetric_private_key & private_key) {
+static void save_private_key(char (&private_key_storage)[vds::asymmetric_private_key::base64_size + 1], const vds::asymmetric_private_key & private_key) {
   auto der = private_key.der(std::string());
   if (der.has_error()) {
     throw std::runtime_error(der.error()->what());
@@ -571,61 +506,49 @@ vds::expected<void> vds::cert_control::genereate_all(
   //
   GET_EXPECTED(common_news_read_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   save_private_key(common_news_read_private_key_, common_news_read_private_key);
-  GET_EXPECTED(common_news_read_certificate, _cert_control::create_cert(
-    common_news_read_private_key));
+  GET_EXPECTED(common_news_read_certificate, asymmetric_public_key::create(common_news_read_private_key));
   save_certificate(common_news_read_certificate_, common_news_read_certificate);
 
-  GET_EXPECTED(common_news_write_certificate, _cert_control::create_cert(
-    *private_info.common_news_write_private_key_));
+  GET_EXPECTED(common_news_write_certificate, asymmetric_public_key::create(*private_info.common_news_write_private_key_));
   save_certificate(common_news_write_certificate_, common_news_write_certificate);
 
-  GET_EXPECTED(common_news_admin_certificate, _cert_control::create_cert(
-    *private_info.common_news_admin_private_key_));
+  GET_EXPECTED(common_news_admin_certificate, asymmetric_public_key::create(*private_info.common_news_admin_private_key_));
   save_certificate(common_news_admin_certificate_, common_news_admin_certificate);
-  GET_EXPECTED(common_news_channel_id, common_news_admin_certificate.fingerprint(hash::sha256()));
+  GET_EXPECTED(common_news_channel_id, common_news_admin_certificate.hash(hash::sha256()));
   save_buffer(common_news_channel_id_, common_news_channel_id);
 
   //Auto update
   GET_EXPECTED(autoupdate_read_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   save_private_key(autoupdate_read_private_key_, autoupdate_read_private_key);
-  GET_EXPECTED(autoupdate_read_certificate, _cert_control::create_cert(
-    autoupdate_read_private_key));
+  GET_EXPECTED(autoupdate_read_certificate, asymmetric_public_key::create(autoupdate_read_private_key));
   save_certificate(autoupdate_read_certificate_, autoupdate_read_certificate);
 
-  GET_EXPECTED(autoupdate_write_certificate, _cert_control::create_cert(
-    *private_info.autoupdate_write_private_key_));
+  GET_EXPECTED(autoupdate_write_certificate, asymmetric_public_key::create(*private_info.autoupdate_write_private_key_));
   save_certificate(autoupdate_write_certificate_, autoupdate_write_certificate);
 
-  GET_EXPECTED(autoupdate_admin_certificate, _cert_control::create_cert(
-    *private_info.autoupdate_admin_private_key_));
+  GET_EXPECTED(autoupdate_admin_certificate, asymmetric_public_key::create(*private_info.autoupdate_admin_private_key_));
   save_certificate(autoupdate_admin_certificate_, autoupdate_admin_certificate);
 
-  GET_EXPECTED(autoupdate_channel_id, autoupdate_admin_certificate.fingerprint(hash::sha256()));
+  GET_EXPECTED(autoupdate_channel_id, autoupdate_admin_certificate.hash(hash::sha256()));
   save_buffer(autoupdate_channel_id_, autoupdate_channel_id);
 
   //Web
   GET_EXPECTED(web_read_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   save_private_key(web_read_private_key_, web_read_private_key);
-  GET_EXPECTED(web_read_certificate, _cert_control::create_cert(
+  GET_EXPECTED(web_read_certificate, asymmetric_public_key::create(
     web_read_private_key));
   save_certificate(web_read_certificate_, web_read_certificate);
 
-  GET_EXPECTED(web_write_certificate, _cert_control::create_cert(
+  GET_EXPECTED(web_write_certificate, asymmetric_public_key::create(
     *private_info.web_write_private_key_));
   save_certificate(web_write_certificate_, web_write_certificate);
 
-  GET_EXPECTED(web_admin_certificate, _cert_control::create_cert(
+  GET_EXPECTED(web_admin_certificate, asymmetric_public_key::create(
     *private_info.web_admin_private_key_));
   save_certificate(web_admin_certificate_, web_admin_certificate);
 
-  GET_EXPECTED(web_channel_id, web_admin_certificate.fingerprint(hash::sha256()));
+  GET_EXPECTED(web_channel_id, web_admin_certificate.hash(hash::sha256()));
   save_buffer(web_channel_id_, web_channel_id);
-  //
-  GET_EXPECTED(common_storage_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-  save_private_key(common_storage_private_key_, common_storage_private_key);
-  GET_EXPECTED(common_storage_certificate, _cert_control::create_cert(
-    common_storage_private_key));
-  save_certificate(common_storage_certificate_, common_storage_certificate);
 
   return expected<void>();
 }

@@ -21,7 +21,7 @@ namespace vds {
       }
 
       database_column<const_data_buffer, std::string> id;
-      database_column<std::string> owner;
+      database_column<const_data_buffer, std::string> owner;
       database_column<bool, int> approved;
     };
   }

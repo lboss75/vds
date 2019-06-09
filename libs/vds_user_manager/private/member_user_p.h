@@ -15,7 +15,7 @@ namespace vds {
   {
   public:
     _member_user(
-      const std::shared_ptr<certificate> & user_cert,
+      const std::shared_ptr<asymmetric_public_key> & user_cert,
       const std::shared_ptr<asymmetric_private_key> &private_key);
 
     static expected<member_user> create_user(
@@ -25,7 +25,7 @@ namespace vds {
       const std::string & user_password,
       const std::shared_ptr<asymmetric_private_key> &private_key);
 
-    const std::shared_ptr<certificate> & user_certificate() const {
+    const std::shared_ptr<asymmetric_public_key> & user_certificate() const {
       return this->user_cert_;
     }
 
@@ -41,7 +41,7 @@ namespace vds {
     expected<user_channel> personal_channel() const;
 
   private:
-    std::shared_ptr<certificate> user_cert_;
+    std::shared_ptr<asymmetric_public_key> user_cert_;
     std::shared_ptr<asymmetric_private_key> private_key_;
   };
 }

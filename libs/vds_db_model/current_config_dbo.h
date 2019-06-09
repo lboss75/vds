@@ -15,13 +15,13 @@ namespace vds {
       current_config_dbo()
           : database_table("current_config"),
             id(this, "object_id"),
-            cert(this, "cert"),
-            cert_key(this, "cert_key") {
+            public_key(this, "public_key"),
+            private_key(this, "cert_key") {
       }
 
       database_column<int> id;
-      database_column<const_data_buffer> cert;
-      database_column<const_data_buffer> cert_key;
+      database_column<const_data_buffer> public_key;
+      database_column<const_data_buffer> private_key;
     };
   }
 }

@@ -23,7 +23,7 @@ namespace vds {
       return this->user_credentials_key_;
     }
 
-    const std::shared_ptr<certificate> &user_cert() const {
+    const std::shared_ptr<asymmetric_public_key> &user_cert() const {
       return this->user_cert_;
     }
 
@@ -52,16 +52,16 @@ namespace vds {
       return this->channels_;
     }
 
-    std::shared_ptr<certificate> get_certificate(const std::string &id) const {
+    std::shared_ptr<asymmetric_public_key> get_certificate(const const_data_buffer &id) const {
       auto p = this->certificate_chain_.find(id);
       if (this->certificate_chain_.end() == p) {
-        return std::shared_ptr<certificate>();
+        return std::shared_ptr<asymmetric_public_key>();
       }
 
       return p->second;
     }
 
-    void add_certificate(const std::shared_ptr<certificate> &cert);
+    expected<void> add_certificate(const std::shared_ptr<asymmetric_public_key> &cert);
     member_user get_current_user() const;
 
     const std::shared_ptr<asymmetric_private_key> & get_current_user_private_key() const {
@@ -85,14 +85,16 @@ namespace vds {
     user_manager::login_state_t login_state_;
 
     std::set<const_data_buffer> processed_;
-    std::shared_ptr<certificate> user_cert_;
+    std::shared_ptr<asymmetric_public_key> user_cert_;
     std::string user_name_;
     std::string user_password_;
     std::map<const_data_buffer, std::shared_ptr<user_channel>> channels_;
-    std::map<std::string, std::shared_ptr<certificate>> certificate_chain_;
+    std::map<const_data_buffer, std::shared_ptr<asymmetric_public_key>> certificate_chain_;
     std::list<std::shared_ptr<user_wallet>> wallets_;
 
-    expected<bool> process_create_user_transaction(const transactions::create_user_transaction & message);
+    expected<bool> process_create_user_transaction(
+      const transactions::create_user_transaction & message);
+
     expected<bool> process_channel_message(
       const transactions::channel_message & message,
       std::set<const_data_buffer> & new_channels,

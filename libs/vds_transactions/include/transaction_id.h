@@ -9,10 +9,10 @@ namespace vds {
   namespace transactions {
     enum class transaction_id : uint8_t {
       payment_transaction = 'p',
+      asset_issue_transaction = 'i',
       channel_message = 'c',
       create_user_transaction = 'u',
-      node_add_transaction = 'm',
-      node_remove_transaction = 'r'
+      node_add_transaction = 'm'
     };
   }
 }

@@ -87,7 +87,8 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
 
   vds::const_data_buffer root_source;
   vds::const_data_buffer first_source;
-  CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_transaction([sp, root_user_mng, user1_mng, &root_source, &first_source](vds::database_transaction & t) -> vds::expected<void> {
+  CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_transaction(
+    [sp, root_user_mng, user1_mng, &root_source, &first_source](vds::database_transaction & t) -> vds::expected<void> {
     GET_EXPECTED(balance, vds::user_wallet::get_balance(t));
     vds_assert(balance.account_state().size() == 1);
     vds_assert(balance.account_state().begin()->second.balance_.size() == 1);

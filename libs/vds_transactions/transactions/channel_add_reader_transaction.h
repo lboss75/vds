@@ -17,9 +17,9 @@ namespace vds {
       const_data_buffer id;
       std::string channel_type;
       std::string name;
-      std::shared_ptr<certificate> read_cert;
+      std::shared_ptr<asymmetric_public_key> read_cert;
       std::shared_ptr<asymmetric_private_key> read_private_key;
-      std::shared_ptr<certificate> write_cert;
+      std::shared_ptr<asymmetric_public_key> write_cert;
 
       template <typename  visitor_type>
       auto & visit(visitor_type & v) {

@@ -20,8 +20,8 @@ namespace vds {
 
       static expected<channel_message> create(
         const const_data_buffer &channel_id,
-        const std::string &channel_read_cert_subject,
-        const std::string &write_cert_subject,
+        const const_data_buffer &channel_read_cert_subject,
+        const const_data_buffer &write_cert_subject,
         const const_data_buffer &crypted_key,
         const const_data_buffer &crypted_data,
         const asymmetric_private_key & write_key) {
@@ -64,11 +64,11 @@ namespace vds {
         return this->channel_id_;
       }
 
-      const std::string & channel_read_cert_subject() const {
+      const const_data_buffer & channel_read_cert_subject() const {
         return this->channel_read_cert_subject_;
       }
 
-      const std::string & write_cert_subject() const {
+      const const_data_buffer & write_cert_subject() const {
         return this->write_cert_subject_;
       }
 
@@ -108,8 +108,8 @@ namespace vds {
 
     private:
       const_data_buffer channel_id_;
-      std::string channel_read_cert_subject_;
-      std::string write_cert_subject_;
+      const_data_buffer channel_read_cert_subject_;
+      const_data_buffer write_cert_subject_;
       const_data_buffer crypted_key_;
       const_data_buffer crypted_data_;
       const_data_buffer signature_;

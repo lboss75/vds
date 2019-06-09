@@ -18,7 +18,7 @@ namespace vds {
       public:
         virtual async_task<expected<void>> start(
           const service_provider * sp,
-          const std::shared_ptr<certificate> & node_cert,
+          const std::shared_ptr<asymmetric_public_key> & node_cert,
           const std::shared_ptr<asymmetric_private_key> & node_key,
           uint16_t port,
           bool dev_network) = 0;

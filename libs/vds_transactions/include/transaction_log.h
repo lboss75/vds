@@ -14,6 +14,10 @@ namespace vds {
 
   namespace transactions {
     class transaction_block;
+    class payment_transaction;
+    class channel_message;
+    class create_user_transaction;
+    class node_add_transaction;
 
     class transaction_log {
     public:
@@ -52,6 +56,64 @@ namespace vds {
         const service_provider * sp,
         class database_transaction &t,
         const const_data_buffer & block_data);
+
+      static expected<bool> process_records(
+        const service_provider * sp,
+        class database_transaction &t,
+        const transaction_block & block);
+
+      ////////////
+      static expected<bool> apply_record(
+        const service_provider * sp,
+        class database_transaction &t,
+        const payment_transaction & message,
+        const const_data_buffer & block_id);
+
+      static expected<void> undo_record(
+        const service_provider * sp,
+        class database_transaction &t,
+        const payment_transaction & message,
+        const const_data_buffer & block_id);
+
+      ////////////
+      static expected<bool> apply_record(
+        const service_provider * sp,
+        class database_transaction &t,
+        const channel_message & message,
+        const const_data_buffer & block_id);
+
+      static expected<void> undo_record(
+        const service_provider * sp,
+        class database_transaction &t,
+        const channel_message & message,
+        const const_data_buffer & block_id);
+
+      ////////////
+      static expected<bool> apply_record(
+        const service_provider * sp,
+        class database_transaction &t,
+        const create_user_transaction & message,
+        const const_data_buffer & block_id);
+
+      static expected<void> undo_record(
+        const service_provider * sp,
+        class database_transaction &t,
+        const create_user_transaction & message,
+        const const_data_buffer & block_id);
+
+      ////////////
+      static expected<bool> apply_record(
+        const service_provider * sp,
+        class database_transaction &t,
+        const node_add_transaction & message,
+        const const_data_buffer & block_id);
+
+      static expected<void> undo_record(
+        const service_provider * sp,
+        class database_transaction &t,
+        const node_add_transaction & message,
+        const const_data_buffer & block_id);
+
     };
   }
 }

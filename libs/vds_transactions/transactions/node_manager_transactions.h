@@ -21,11 +21,11 @@ namespace vds {
     public:
       static const transaction_id message_id = transaction_id::node_add_transaction;
 
-      std::shared_ptr<certificate> node_cert;
+      std::shared_ptr<asymmetric_public_key> node_cert;
 
       template <typename visitor_t>
       void visit(visitor_t & v) {
-        v(user_cert);
+        v(node_cert);
       }
     };
   }

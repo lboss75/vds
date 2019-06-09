@@ -21,19 +21,19 @@ namespace vds {
 
     user_wallet(
       const std::string & name,
-      certificate && cert,
+      asymmetric_public_key && cert,
       asymmetric_private_key && private_key)
     : name_(name),
       cert_(std::move(cert)),
       private_key_(std::move(private_key)) {
     }
 
-    static expected<transactions::transaction_record_state> get_balance(
-      database_read_transaction& t);
+    //static expected<transactions::transaction_record_state> get_balance(
+    //  database_read_transaction& t);
 
-    static expected<transactions::transaction_record_state> safe_get_balance(
-      const service_provider * sp,
-      database_transaction& t);
+    //static expected<transactions::transaction_record_state> safe_get_balance(
+    //  const service_provider * sp,
+    //  database_transaction& t);
 
     static expected<user_wallet> create_wallet(
       transactions::transaction_block_builder & log,
@@ -42,15 +42,18 @@ namespace vds {
 
     static expected<void> transfer(
       transactions::transaction_block_builder& log,
+      const const_data_buffer & issuer,
+      const std::string & currency,
       const const_data_buffer & source_transaction,
-      const member_user & target_user,
-      size_t value);
+      const const_data_buffer & source_user,
+      const member_user& target_user,
+      uint64_t value);
 
     const std::string& name() const {
       return name_;
     }
 
-    const certificate& cert() const {
+    const asymmetric_public_key & cert() const {
       return cert_;
     }
 
@@ -60,7 +63,7 @@ namespace vds {
 
   private:
     std::string name_;
-    certificate cert_;
+    asymmetric_public_key cert_;
     asymmetric_private_key private_key_;
   };
 }

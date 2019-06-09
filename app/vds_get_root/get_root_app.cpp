@@ -68,9 +68,6 @@ vds::expected<void> vds::get_root_app::main(const service_provider * /*sp*/)
     write_member(web_write_certificate_);
     write_member(web_admin_certificate_);
 
-    write_member(common_storage_certificate_);
-    write_member(common_storage_private_key_);
-
     binary_serializer s;
     CHECK_EXPECTED(s << private_info.common_news_write_private_key_->der(this->user_password_.value()));
     CHECK_EXPECTED(s << private_info.common_news_admin_private_key_->der(this->user_password_.value()));

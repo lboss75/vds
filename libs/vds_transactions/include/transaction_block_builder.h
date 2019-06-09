@@ -14,9 +14,16 @@ All rights reserved
 #include "symmetriccrypto.h"
 #include "data_coin_balance.h"
 #include "create_user_transaction.h"
+#include "node_manager_transactions.h"
 
 namespace vds {
   class _user_channel;
+
+  namespace dht {
+    namespace network {
+      class _client;
+    }
+  }
 
   namespace transactions {
     class transaction_block_builder {
@@ -47,20 +54,16 @@ namespace vds {
       expected<void> add(expected<create_user_transaction> && item);
       expected<void> add(expected<payment_transaction> && item);
       expected<void> add(expected<channel_message> && item);
+      expected<void> add(expected<node_add_transaction> && item);
 
       expected<const_data_buffer> sign(
         const service_provider * sp,
-        const std::shared_ptr<certificate> &write_cert,
-        const std::shared_ptr<asymmetric_private_key> &write_private_key);
-
-      expected<const_data_buffer> save(
-        const service_provider * sp,
-        class vds::database_transaction &t,
-        const std::shared_ptr<certificate> &write_cert,
+        const std::shared_ptr<asymmetric_public_key> &write_cert,
         const std::shared_ptr<asymmetric_private_key> &write_private_key);
 
     private:
         friend class _user_channel;
+        friend class dht::network::_client;
 
         const service_provider * sp_;
         std::chrono::system_clock::time_point time_point_;
@@ -69,6 +72,13 @@ namespace vds {
         binary_serializer data_;
 
         transaction_block_builder(const service_provider * sp);
+
+        expected<const_data_buffer> save(
+          const service_provider * sp,
+          class vds::database_transaction &t,
+          const std::shared_ptr<asymmetric_public_key> &write_cert,
+          const std::shared_ptr<asymmetric_private_key> &write_private_key);
+
     };
   }
 }

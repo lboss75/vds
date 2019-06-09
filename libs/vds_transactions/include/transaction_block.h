@@ -25,7 +25,7 @@ namespace vds {
         std::chrono::system_clock::time_point && time_point,
         const_data_buffer && id,
         uint64_t order_no,
-        std::string && write_cert_id,
+        const_data_buffer && write_cert_id,
         std::set<const_data_buffer> && ancestors,
         const_data_buffer && block_messages,
         const_data_buffer && signature)
@@ -65,7 +65,7 @@ namespace vds {
         uint64_t order_no;
         CHECK_EXPECTED(s >> order_no);
 
-        std::string write_cert_id;
+        const_data_buffer write_cert_id;
         CHECK_EXPECTED(s >> write_cert_id);
 
         std::set<const_data_buffer> ancestors;
@@ -105,7 +105,7 @@ namespace vds {
         return this->order_no_;
       }
 
-      const std::string & write_cert_id() const {
+      const const_data_buffer & write_cert_id() const {
         return this->write_cert_id_;
       }
 
@@ -121,7 +121,7 @@ namespace vds {
         return this->signature_;
       }
 
-      expected<bool> validate(const certificate& write_cert);
+      expected<bool> validate(const asymmetric_public_key & write_cert);
       expected<bool> exists(database_transaction& t);
 
       template <typename... handler_types>
@@ -139,7 +139,7 @@ namespace vds {
       std::chrono::system_clock::time_point time_point_;
       const_data_buffer id_;
       uint64_t order_no_;
-      std::string write_cert_id_;
+      const_data_buffer write_cert_id_;
       std::set<const_data_buffer> ancestors_;
       const_data_buffer block_messages_;
       const_data_buffer signature_;

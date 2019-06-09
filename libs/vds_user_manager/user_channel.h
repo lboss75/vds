@@ -47,9 +47,11 @@ namespace vds {
       const const_data_buffer & id,
       const std::string & channel_type,
       const std::string & name,
-      const std::shared_ptr<certificate> & read_cert,
+      const const_data_buffer & read_id,
+      const std::shared_ptr<asymmetric_public_key> & read_cert,
       const std::shared_ptr<asymmetric_private_key> & read_private_key,
-      const std::shared_ptr<certificate> & write_cert,
+      const const_data_buffer & write_id,
+      const std::shared_ptr<asymmetric_public_key> & write_cert,
       const std::shared_ptr<asymmetric_private_key> & write_private_key);
 
     ~user_channel();
@@ -57,8 +59,8 @@ namespace vds {
     const const_data_buffer &id() const;
     const std::string & channel_type() const;
     const std::string & name() const;
-    expected<std::shared_ptr<certificate>> read_cert() const;
-    expected<std::shared_ptr<certificate>> write_cert() const;
+    expected<std::shared_ptr<asymmetric_public_key>> read_cert() const;
+    expected<std::shared_ptr<asymmetric_public_key>> write_cert() const;
 
     expected<void> add_reader(
       transactions::transaction_block_builder& playback,
@@ -76,7 +78,7 @@ namespace vds {
       return this->impl_;
     }
 
-    std::shared_ptr<asymmetric_private_key> read_cert_private_key(const std::string& cert_subject);
+    std::shared_ptr<asymmetric_private_key> read_cert_private_key(const const_data_buffer& cert_subject);
 
     template<typename item_type>
     expected<void> add_log(

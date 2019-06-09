@@ -105,20 +105,11 @@ TEST(test_vds_dht_network, test_data_exchange) {
   GET_EXPECTED_GTEST(sp, registrator.build());
   CHECK_EXPECTED_GTEST(registrator.start());
 
-  auto cert = vds::cert_control::get_storage_certificate();
-  auto key = vds::cert_control::get_common_storage_private_key();
-
   GET_EXPECTED_GTEST(node1_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
-  GET_EXPECTED_GTEST(node1_certificate, vds::_cert_control::create_cert(
-      node1_key,
-      *cert,
-      *key));
+  GET_EXPECTED_GTEST(node1_certificate, vds::_cert_control::create_cert(node1_key));
 
   GET_EXPECTED_GTEST(node2_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
-  GET_EXPECTED_GTEST(node2_certificate, vds::_cert_control::create_cert(
-      node2_key,
-      *cert,
-      *key));
+  GET_EXPECTED_GTEST(node2_certificate, vds::_cert_control::create_cert(node2_key));
 
   GET_EXPECTED_GTEST(node1, node1_certificate.fingerprint(vds::hash::sha256()));
   GET_EXPECTED_GTEST(node2, node2_certificate.fingerprint(vds::hash::sha256()));

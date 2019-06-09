@@ -31,7 +31,7 @@ namespace vds {
 
         async_task<expected<void>> start(
           const service_provider * sp,
-          const std::shared_ptr<certificate> & node_cert,
+          const std::shared_ptr<asymmetric_public_key> & node_cert,
           const std::shared_ptr<asymmetric_private_key> & node_key,
           uint16_t port,
           bool dev_network) override;
@@ -52,7 +52,7 @@ namespace vds {
       private:
         const service_provider * sp_;
         const_data_buffer this_node_id_;
-        std::shared_ptr<certificate> node_cert_;
+        std::shared_ptr<asymmetric_public_key> node_cert_;
         std::shared_ptr<asymmetric_private_key> node_key_;
         udp_server server_;
 

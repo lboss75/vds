@@ -26,7 +26,7 @@ namespace vds {
       database_column<const_data_buffer, std::string> node_id;
       database_column<std::string> local_path;
 
-      database_column<std::string> owner_id;
+      database_column<const_data_buffer, std::string> owner_id;
 
       database_column<std::string> name;
       database_column<int64_t> reserved_size;

@@ -19,7 +19,7 @@ All rights reserved
 vds::expected<vds::const_data_buffer> vds::transactions::transaction_block_builder::save(
   const service_provider * sp,
   class vds::database_transaction &t,
-  const std::shared_ptr<certificate> &write_cert,
+  const std::shared_ptr<asymmetric_public_key> &write_cert,
   const std::shared_ptr<asymmetric_private_key> &write_private_key) {
 
   GET_EXPECTED(data, sign(
@@ -34,14 +34,14 @@ vds::expected<vds::const_data_buffer> vds::transactions::transaction_block_build
 
 vds::expected<vds::const_data_buffer> vds::transactions::transaction_block_builder::sign(
   const service_provider * /*sp*/,
-  const std::shared_ptr<certificate> &write_cert,
+  const std::shared_ptr<asymmetric_public_key> &write_cert,
   const std::shared_ptr<asymmetric_private_key> &write_private_key) {
   vds_assert(0 != this->data_.size());
   binary_serializer block_data;
   CHECK_EXPECTED(block_data << transaction_block::CURRENT_VERSION);
   CHECK_EXPECTED(block_data << static_cast<uint64_t>(std::chrono::system_clock::to_time_t(this->time_point_)));
   CHECK_EXPECTED(block_data << this->order_no_);
-  CHECK_EXPECTED(block_data << write_cert->subject());
+  CHECK_EXPECTED(block_data << write_cert->hash(hash::sha256()));
   CHECK_EXPECTED(block_data << this->ancestors_);
   CHECK_EXPECTED(block_data << this->data_.move_data());
 
@@ -113,6 +113,20 @@ vds::expected<vds::transactions::transaction_block_builder> vds::transactions::t
     order_no);
 }
 
+vds::expected<void> vds::transactions::transaction_block_builder::add(expected<node_add_transaction> && item) {
+  if (item.has_error()) {
+    return unexpected(std::move(item.error()));
+  }
+
+  CHECK_EXPECTED(this->data_ << (uint8_t)node_add_transaction::message_id);
+  _serialize_visitor v(this->data_);
+  const_cast<node_add_transaction &>(item.value()).visit(v);
+  if (v.error()) {
+    return unexpected(std::move(v.error()));
+  }
+
+  return expected<void>();
+}
 
 vds::expected<void> vds::transactions::transaction_block_builder::add(expected<create_user_transaction> && item) {
   if(item.has_error()) {

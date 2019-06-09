@@ -65,7 +65,7 @@ public:
 
   vds::async_task<vds::expected<void>> start(
     const vds::service_provider * sp,
-    const std::shared_ptr<vds::certificate> & node_cert,
+    const std::shared_ptr<vds::asymmetric_public_key> & node_cert,
     const std::shared_ptr<vds::asymmetric_private_key> & node_key,
     uint16_t port, bool dev_network) override;
 

@@ -262,25 +262,24 @@ vds::expected<uint64_t> vds::user_manager::get_user_balance() {
 //  return true;
 //}
 //
-vds::expected<void> vds::user_manager::save_certificate(
-    
-    vds::database_transaction &t,
-    const vds::certificate &cert) {
-
-  orm::certificate_chain_dbo t1;
-  GET_EXPECTED(st, t.get_reader(t1.select(t1.id).where(t1.id == cert.subject())));
-  GET_EXPECTED(st_result, st.execute());
-  if (!st_result) {
-    GET_EXPECTED(der, cert.der());
-    CHECK_EXPECTED(t.execute(t1.insert(
-      t1.id = cert.subject(),
-      t1.cert = der,
-      t1.parent = cert.issuer())));
-  }
-
-  orm::certificate_unknown_dbo t2;
-  return t.execute(t2.delete_if(t2.id == cert.subject()));
-}
+//vds::expected<void> vds::user_manager::save_certificate(
+//    vds::database_transaction &t,
+//    const vds::asymmetric_public_key &cert) {
+//
+//  orm::certificate_chain_dbo t1;
+//  GET_EXPECTED(st, t.get_reader(t1.select(t1.id).where(t1.id == cert.subject())));
+//  GET_EXPECTED(st_result, st.execute());
+//  if (!st_result) {
+//    GET_EXPECTED(der, cert.der());
+//    CHECK_EXPECTED(t.execute(t1.insert(
+//      t1.id = cert.subject(),
+//      t1.cert = der,
+//      t1.parent = cert.issuer())));
+//  }
+//
+//  orm::certificate_unknown_dbo t2;
+//  return t.execute(t2.delete_if(t2.id == cert.subject()));
+//}
 
 vds::member_user vds::user_manager::get_current_user() const {
   return this->impl_->get_current_user();
@@ -311,19 +310,12 @@ vds::async_task<vds::expected<void>> vds::user_manager::create_user(
 
     GET_EXPECTED(user_public_key, asymmetric_public_key::create(user_private_key));
 
-    certificate::create_options local_user_options;
-    local_user_options.country = "RU";
-    local_user_options.organization = "IVySoft";
-    local_user_options.name = userName;
-
-    GET_EXPECTED(user_cert, certificate::create_new(user_public_key, user_private_key, local_user_options));
-
     GET_EXPECTED(playback, transactions::transaction_block_builder::create(sp, t));
 
     CHECK_EXPECTED(playback.add(
       message_create<transactions::create_user_transaction>(
         user_id,
-        std::make_shared<certificate>(std::move(user_cert)),
+        std::make_shared<asymmetric_public_key>(std::move(user_public_key)),
         user_private_key_der,
         userName)));
 
@@ -396,17 +388,21 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
         [this, channel_id = message.channel_id(), log](
           const transactions::channel_add_reader_transaction & message,
           const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
+        GET_EXPECTED(read_id, message.read_cert->hash(hash::sha256()));
+        GET_EXPECTED(write_id, message.write_cert->hash(hash::sha256()));
         auto cp = std::make_shared<user_channel>(
           message.id,
           message.channel_type,
           message.name,
+          read_id,
           message.read_cert,
           message.read_private_key,
+          write_id,
           message.write_cert,
           std::shared_ptr<asymmetric_private_key>());
 
         this->channels_[cp->id()] = cp;
-        log->debug(ThisModule, "Got channel %s reader certificate",
+        log->debug(ThisModule, "Got channel %s reader public key",
           base64::from_bytes(cp->id()).c_str());
 
         return true;
@@ -414,18 +410,22 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
         [this, channel_id = message.channel_id(), log](
           const transactions::channel_add_writer_transaction & message,
           const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
+        GET_EXPECTED(read_id, message.read_cert->hash(hash::sha256()));
+        GET_EXPECTED(write_id, message.write_cert->hash(hash::sha256()));
         auto cp = std::make_shared<user_channel>(
           message.id,
           message.channel_type,
           message.name,
+          read_id,
           message.read_cert,
           message.read_private_key,
+          write_id,
           message.write_cert,
           message.write_private_key);
 
         this->channels_[cp->id()] = cp;
 
-        log->debug(ThisModule, "Got channel %s write certificate",
+        log->debug(ThisModule, "Got channel %s write public key",
           base64::from_bytes(cp->id()).c_str());
 
         return true;
@@ -436,12 +436,16 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
         if (new_channels.end() == new_channels.find(channel_id)) {
           new_channels.emplace(message.channel_id);
         }
+        GET_EXPECTED(read_id, message.read_cert->hash(hash::sha256()));
+        GET_EXPECTED(write_id, message.write_cert->hash(hash::sha256()));
         auto cp = std::make_shared<user_channel>(
           message.channel_id,
           message.channel_type,
           message.name,
+          read_id,
           message.read_cert,
           message.read_private_key,
+          write_id,
           message.write_cert,
           message.write_private_key);
 
@@ -461,7 +465,7 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
               std::string name;
               CHECK_EXPECTED(msg->get_property("name", name));
 
-              GET_EXPECTED(cert, certificate::parse_der(message.attachments.at("cert")));
+              GET_EXPECTED(cert, asymmetric_public_key::parse_der(message.attachments.at("cert")));
               GET_EXPECTED(private_key, asymmetric_private_key::parse_der(message.attachments.at("key"), std::string()));
               auto wallet = std::make_shared<user_wallet>(
                 name,
@@ -470,7 +474,7 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
 
               this->wallets_.push_back(wallet);
 
-              log->debug(ThisModule, "Got wallet %s write certificate",
+              log->debug(ThisModule, "Got wallet %s write public key",
                 name.c_str());
             }
           }
@@ -531,8 +535,10 @@ vds::expected<void> vds::_user_manager::update(
   return expected<void>();
 }
 
-void vds::_user_manager::add_certificate(const std::shared_ptr<vds::certificate> &cert) {
-	this->certificate_chain_[cert->subject()] = cert;
+vds::expected<void> vds::_user_manager::add_certificate(const std::shared_ptr<vds::asymmetric_public_key> &cert) {
+  GET_EXPECTED(id, cert->hash(hash::sha256()));
+	this->certificate_chain_[id] = cert;
+  return expected<void>();
 }
 
 vds::member_user vds::_user_manager::get_current_user() const {

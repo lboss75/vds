@@ -21,14 +21,15 @@ All rights reserved
 #include "dht_client_save_stream.h"
 #include "chunk_replica_data_dbo.h"
 #include "transaction_block_builder.h"
+#include "node_info_dbo.h"
 
 vds::expected<std::shared_ptr<vds::dht::network::_client>> vds::dht::network::_client::create(
   const service_provider * sp,
   const std::shared_ptr<iudp_transport> & udp_transport,
-  const std::shared_ptr<certificate> & node_cert,
+  const std::shared_ptr<asymmetric_public_key> & node_cert,
   const std::shared_ptr<asymmetric_private_key> & node_key) {
 
-  GET_EXPECTED(this_node_id, node_cert->fingerprint(hash::sha256()));
+  GET_EXPECTED(this_node_id, node_cert->hash(hash::sha256()));
 
   return std::make_shared<_client>(sp, udp_transport, this_node_id, node_cert, node_key);
 }
@@ -37,7 +38,7 @@ vds::dht::network::_client::_client(
   const service_provider * sp,
   const std::shared_ptr<iudp_transport> & udp_transport,
   const const_data_buffer & this_node_id,
-  const std::shared_ptr<certificate> & node_cert,
+  const std::shared_ptr<asymmetric_public_key> & node_cert,
   const std::shared_ptr<asymmetric_private_key> & node_key)
   : sp_(sp),
   node_cert_(node_cert),
@@ -47,7 +48,8 @@ vds::dht::network::_client::_client(
   update_route_table_counter_(0),
   udp_transport_(udp_transport),
   sync_process_(sp),
-  update_wellknown_connection_enabled_(true) {
+  update_wellknown_connection_enabled_(true),
+  is_new_node_(true) {
   for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
     this->generators_[replica].reset(new chunk_generator<uint16_t>(service::MIN_HORCRUX, replica));
   }
@@ -97,6 +99,19 @@ vds::expected<std::vector<vds::const_data_buffer>> vds::dht::network::_client::s
 
 vds::expected<vds::const_data_buffer> vds::dht::network::_client::save(const service_provider * sp, transactions::transaction_block_builder & block, database_transaction & t)
 {
+  if (this->is_new_node_) {
+    GET_EXPECTED(node_id, this->node_cert_->hash(hash::sha256()));
+
+    orm::node_info_dbo t1;
+    GET_EXPECTED(st, t.get_reader(t1.select(t1.cert).where(t1.node_id == node_id)));
+    GET_EXPECTED(st_result, st.execute());
+    if (!st_result) {
+      CHECK_EXPECTED(block.add(message_create<transactions::node_add_transaction>(this->node_cert_)));
+    }
+
+    this->is_new_node_ = false;
+  }
+
   return block.save(sp, t, this->node_cert_, this->node_key_);
 }
 
@@ -864,7 +879,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::find_nodes(
 
 vds::expected<void> vds::dht::network::client::start(
   const service_provider * sp,
-  const std::shared_ptr<certificate> & node_cert,
+  const std::shared_ptr<asymmetric_public_key> & node_cert,
   const std::shared_ptr<asymmetric_private_key> & node_key,
   const std::shared_ptr<iudp_transport> & udp_transport) {
   GET_EXPECTED_VALUE(this->impl_, _client::create(sp, udp_transport, node_cert, node_key));

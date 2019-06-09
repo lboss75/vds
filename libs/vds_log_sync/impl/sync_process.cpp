@@ -14,6 +14,7 @@ All rights reserved
 #include "../../vds_dht_network/private/dht_network_client_p.h"
 #include "certificate_chain_dbo.h"
 #include "transaction_block.h"
+#include "node_info_dbo.h"
 
 vds::expected<void> vds::transaction_log::sync_process::do_sync(
   database_transaction& t,
@@ -209,13 +210,26 @@ vds::expected<void> vds::transaction_log::sync_process::apply_message(
   }
 
   orm::transaction_log_record_dbo t1;
-  std::shared_ptr<certificate> write_cert;
-  orm::certificate_chain_dbo t2;
-  GET_EXPECTED(st, t.get_reader(t2.select(t2.cert).where(t2.id == block.write_cert_id())));
+  std::shared_ptr<asymmetric_public_key> write_cert;
+  orm::node_info_dbo t2;
+  GET_EXPECTED(st, t.get_reader(t2.select(t2.cert).where(t2.node_id == block.write_cert_id())));
   GET_EXPECTED(st_execute, st.execute());
   if (st_execute) {
-    GET_EXPECTED(write_cert_data, certificate::parse_der(t2.cert.get(st)));
-    write_cert = std::make_shared<certificate>(std::move(write_cert_data));
+    GET_EXPECTED(write_cert_data, asymmetric_public_key::parse_der(t2.cert.get(st)));
+    write_cert = std::make_shared<asymmetric_public_key>(std::move(write_cert_data));
+  }
+
+  if (!write_cert) {
+    GET_EXPECTED(block, transactions::transaction_block::create(message.data));
+    CHECK_EXPECTED(block.walk_messages([&block, &write_cert](const transactions::node_add_transaction & message)->expected<bool> {
+      GET_EXPECTED(node_id, message.node_cert->hash(hash::sha256()));
+      if (block.write_cert_id() == node_id) {
+        write_cert = message.node_cert;
+        return false;
+      }
+
+      return true;
+    }));
   }
 
   if (!write_cert || !block.validate(*write_cert)) {

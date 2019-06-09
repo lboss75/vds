@@ -112,7 +112,7 @@ namespace vds {
     //    
     //    const std::list<std::shared_ptr<certificate>> &cert_chain);
 
-    static expected<void> save_certificate( database_transaction &t, const certificate &cert);
+    //static expected<void> save_certificate( database_transaction &t, const asymmetric_public_key &cert);
 
     member_user get_current_user() const;
     const std::shared_ptr<asymmetric_private_key> & get_current_user_private_key() const;
