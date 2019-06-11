@@ -25,7 +25,7 @@ namespace vds {
         std::chrono::system_clock::time_point && time_point,
         const_data_buffer && id,
         uint64_t order_no,
-        const_data_buffer && write_cert_id,
+        const_data_buffer && write_public_key_id,
         std::set<const_data_buffer> && ancestors,
         const_data_buffer && block_messages,
         const_data_buffer && signature)
@@ -33,7 +33,7 @@ namespace vds {
         time_point_(std::move(time_point)),
         id_(std::move(id)),
         order_no_(order_no),
-        write_cert_id_(std::move(write_cert_id)),
+        write_public_key_id_(std::move(write_public_key_id)),
         ancestors_(std::move(ancestors)),
         block_messages_(std::move(block_messages)),
         signature_(std::move(signature)){
@@ -65,8 +65,8 @@ namespace vds {
         uint64_t order_no;
         CHECK_EXPECTED(s >> order_no);
 
-        const_data_buffer write_cert_id;
-        CHECK_EXPECTED(s >> write_cert_id);
+        const_data_buffer write_public_key_id;
+        CHECK_EXPECTED(s >> write_public_key_id);
 
         std::set<const_data_buffer> ancestors;
         CHECK_EXPECTED(s >> ancestors);
@@ -82,7 +82,7 @@ namespace vds {
           std::chrono::system_clock::from_time_t(time_point),
           std::move(id),
           order_no,
-          std::move(write_cert_id),
+          std::move(write_public_key_id),
           std::move(ancestors),
           std::move(block_messages),
           std::move(signature));
@@ -105,8 +105,8 @@ namespace vds {
         return this->order_no_;
       }
 
-      const const_data_buffer & write_cert_id() const {
-        return this->write_cert_id_;
+      const const_data_buffer & write_public_key_id() const {
+        return this->write_public_key_id_;
       }
 
       const std::set<const_data_buffer> & ancestors() const {
@@ -121,7 +121,7 @@ namespace vds {
         return this->signature_;
       }
 
-      expected<bool> validate(const asymmetric_public_key & write_cert);
+      expected<bool> validate(const asymmetric_public_key & write_public_key);
       expected<bool> exists(database_transaction& t);
 
       template <typename... handler_types>
@@ -139,7 +139,7 @@ namespace vds {
       std::chrono::system_clock::time_point time_point_;
       const_data_buffer id_;
       uint64_t order_no_;
-      const_data_buffer write_cert_id_;
+      const_data_buffer write_public_key_id_;
       std::set<const_data_buffer> ancestors_;
       const_data_buffer block_messages_;
       const_data_buffer signature_;

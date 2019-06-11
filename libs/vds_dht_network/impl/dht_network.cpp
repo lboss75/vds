@@ -8,7 +8,7 @@ All rights reserved
 #include "private/udp_transport.h"
 #include "db_model.h"
 #include "current_config_dbo.h"
-#include "cert_control.h"
+#include "keys_control.h"
 
 vds::expected<void> vds::dht::network::service::register_services(service_registrator& registrator) {
   registrator.add_service<client>(&this->client_);

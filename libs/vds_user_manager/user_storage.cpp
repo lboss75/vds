@@ -21,7 +21,7 @@ vds::async_task<vds::expected<std::list<vds::user_storage::storage_info_t>>> vds
     auto client = sp->get<dht::network::client>();
     auto current_node = client->current_node_id();
 
-    GET_EXPECTED(owner_id, user_mng->get_current_user().user_certificate()->hash(hash::sha256()));
+    GET_EXPECTED(owner_id, user_mng->get_current_user().user_public_key()->hash(hash::sha256()));
 
     orm::device_config_dbo t1;
     orm::device_record_dbo t2;
@@ -68,7 +68,7 @@ vds::expected<std::shared_ptr<vds::json_value>> vds::user_storage::device_storag
   auto result = std::make_shared<json_object>();
 
   auto user = user_mng->get_current_user();
-  GET_EXPECTED(cert_id, user.user_certificate()->hash(hash::sha256()));
+  GET_EXPECTED(cert_id, user.user_public_key()->hash(hash::sha256()));
   result->add_property("vds", "0.1");
   result->add_property("name", cert_id);
 
@@ -101,7 +101,7 @@ vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const
   }
 
   auto user = user_mng->get_current_user();
-  GET_EXPECTED(cert_id, user.user_certificate()->hash(hash::sha256()));
+  GET_EXPECTED(cert_id, user.user_public_key()->hash(hash::sha256()));
   const_data_buffer value;
   if (!sign_info->get_property("name", value) || value != cert_id) {
     return vds::make_unexpected<std::runtime_error>("Invalid user name");
@@ -132,11 +132,11 @@ vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const
 
     GET_EXPECTED(public_key, asymmetric_public_key::create(*storage_key));
 
-    auto storage_cert = std::make_shared<asymmetric_public_key>(std::move(public_key));
-    GET_EXPECTED(storage_cert_der, storage_cert->der());
+    auto storage_public_key = std::make_shared<asymmetric_public_key>(std::move(public_key));
+    GET_EXPECTED(storage_cert_der, storage_public_key->der());
     GET_EXPECTED(storage_cert_key_der, storage_key->der(std::string()));
 
-    GET_EXPECTED(owner_id, user.user_certificate()->hash(hash::sha256()));
+    GET_EXPECTED(owner_id, user.user_public_key()->hash(hash::sha256()));
 
     orm::device_config_dbo t1;
     return t.execute(
@@ -146,7 +146,7 @@ vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const
         t1.owner_id = owner_id,
         t1.name = name,
         t1.reserved_size = reserved_size,
-        t1.cert = storage_cert_der,
+        t1.public_key = storage_cert_der,
         t1.private_key = storage_cert_key_der));
   });
 }
@@ -162,7 +162,7 @@ vds::async_task<vds::expected<void>> vds::user_storage::set_device_storage(
 		auto client = sp->get<dht::network::client>();
 		auto current_node = client->current_node_id();
 
-    GET_EXPECTED(owner_id, user.user_certificate()->hash(hash::sha256()));
+    GET_EXPECTED(owner_id, user.user_public_key()->hash(hash::sha256()));
 
 		orm::device_config_dbo t1;
 		orm::device_record_dbo t2;
@@ -213,8 +213,8 @@ vds::async_task<vds::expected<void>> vds::user_storage::set_device_storage(
 			auto storage_key = std::make_shared<asymmetric_private_key>(std::move(storage_key_data));
 
 			GET_EXPECTED(public_key, asymmetric_public_key::create(*storage_key));
-			GET_EXPECTED(storage_cert_der, public_key.der());
-			GET_EXPECTED(storage_cert_key_der, storage_key->der(std::string()));
+			GET_EXPECTED(storage_public_key_der, public_key.der());
+			GET_EXPECTED(storage_private_key_der, storage_key->der(std::string()));
 
 			return t.execute(
 				t1.insert(
@@ -223,8 +223,8 @@ vds::async_task<vds::expected<void>> vds::user_storage::set_device_storage(
 					t1.owner_id = owner_id,
 					t1.name = "Storage",
 					t1.reserved_size = reserved_size,
-					t1.cert = storage_cert_der,
-					t1.private_key = storage_cert_key_der));
+					t1.public_key = storage_public_key_der,
+					t1.private_key = storage_private_key_der));
 		}
 
 		return expected<void>();

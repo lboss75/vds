@@ -68,7 +68,7 @@ vds::async_task<vds::expected<void>> vds::autoupdate::autoupdate_service::check_
     if (!this->user_manager_) {
       this->user_manager_ = std::make_shared<user_manager>(sp);
       CHECK_EXPECTED(this->user_manager_->load(
-        t, cert_control::auto_update_login(), cert_control::auto_update_password()));
+        t, keys_control::auto_update_login(), keys_control::auto_update_password()));
 
     }
     else {
@@ -77,7 +77,7 @@ vds::async_task<vds::expected<void>> vds::autoupdate::autoupdate_service::check_
 
     if (this->user_manager_->get_login_state() == user_manager::login_state_t::login_successful) {
       CHECK_EXPECTED(this->user_manager_->walk_messages(
-        cert_control::get_autoupdate_channel_id(),
+        keys_control::get_autoupdate_channel_id(),
         t,
         [this, update_folder, &file_hash, &download_tasks, &update_found](
           const transactions::user_message_transaction &message,

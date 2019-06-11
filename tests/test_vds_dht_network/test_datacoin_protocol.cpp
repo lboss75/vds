@@ -2,7 +2,7 @@
 #include "test_datacoin_protocol.h"
 #include "crypto_service.h"
 #include "server.h"
-#include "cert_control.h"
+#include "keys_control.h"
 #include "user_manager.h"
 #include "db_model.h"
 #include "user_wallet.h"
@@ -66,9 +66,9 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
   std::string root_user_name = "root";
   std::string root_password = "123123";
 
-  vds::cert_control::private_info_t private_info;
+  vds::keys_control::private_info_t private_info;
   CHECK_EXPECTED_GTEST(private_info.genereate_all());
-  CHECK_EXPECTED_GTEST(vds::cert_control::genereate_all(private_info));
+  CHECK_EXPECTED_GTEST(vds::keys_control::genereate_all(private_info));
 
   CHECK_EXPECTED_GTEST(std::make_shared<vds::user_manager>(sp)->reset(root_user_name, root_password, private_info));
   /*      0 - creare root                     root_user MAX
@@ -109,8 +109,8 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
    */
 
 
-  auto root_user_account = root_user_mng->get_current_user().user_certificate()->subject();
-  auto user1_account = user1_mng->get_current_user().user_certificate()->subject();
+  auto root_user_account = root_user_mng->get_current_user().user_public_key()->subject();
+  auto user1_account = user1_mng->get_current_user().user_public_key()->subject();
 
   CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_read_transaction(
     [sp, root_user_mng, root_user_account, user1_mng, root_source, user1_account, first_source](vds::database_read_transaction & t) -> vds::expected<void>{
@@ -148,7 +148,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
   }).get());
   ///////////////////////
   GET_EXPECTED_GTEST(user2_mng, create_user(sp, "User2", "user2@domain.ru", "1234567").get());
-  auto user2_account = user2_mng->get_current_user().user_certificate()->subject();
+  auto user2_account = user2_mng->get_current_user().user_public_key()->subject();
 
   vds::const_data_buffer log12;
   CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_read_transaction([sp, root_user_mng, user1_mng, first_source, user2_mng, &log12](vds::database_read_transaction & t) -> vds::expected<void>{
@@ -156,7 +156,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     CHECK_EXPECTED(vds::user_wallet::transfer(transaction_log, first_source, user2_mng->get_current_user(), 50));
     GET_EXPECTED_VALUE(log12, transaction_log.sign(
       sp,
-      user1_mng->get_current_user().user_certificate(),
+      user1_mng->get_current_user().user_public_key(),
       user1_mng->get_current_user().private_key()));
     return vds::expected<void>();
   }).get());
@@ -170,7 +170,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
 
 
   GET_EXPECTED_GTEST(user3_mng, create_user(sp, "User3", "user3@domain.ru", "1234567").get());
-  auto user3_account = user3_mng->get_current_user().user_certificate()->subject();
+  auto user3_account = user3_mng->get_current_user().user_public_key()->subject();
 
   vds::const_data_buffer log13;
   CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_read_transaction([sp, root_user_mng, user1_mng, first_source, user3_mng, &log13](vds::database_read_transaction & t) -> vds::expected<void>{
@@ -178,7 +178,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     CHECK_EXPECTED(vds::user_wallet::transfer(transaction_log, first_source, user3_mng->get_current_user(), 50));
     GET_EXPECTED_VALUE(log13, transaction_log.sign(
       sp,
-      user1_mng->get_current_user().user_certificate(),
+      user1_mng->get_current_user().user_public_key(),
       user1_mng->get_current_user().private_key()));
     return vds::expected<void>();
   }).get());
@@ -194,7 +194,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
    */
 
   GET_EXPECTED_GTEST(user4_mng, create_user(sp, "User4", "user4@domain.ru", "1234567").get());
-  auto user4_account = user4_mng->get_current_user().user_certificate()->subject();
+  auto user4_account = user4_mng->get_current_user().user_public_key()->subject();
 
   vds::const_data_buffer log14;
   CHECK_EXPECTED_GTEST(sp->get<vds::db_model>()->async_read_transaction([sp, root_user_mng, user1_mng, first_source, user4_mng, &log14](vds::database_read_transaction & t) -> vds::expected<void> {
@@ -202,7 +202,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     CHECK_EXPECTED(vds::user_wallet::transfer(transaction_log, first_source, user4_mng->get_current_user(), 50));
     GET_EXPECTED(log14, transaction_log.sign(
       sp,
-      user1_mng->get_current_user().user_certificate(),
+      user1_mng->get_current_user().user_public_key(),
       user1_mng->get_current_user().private_key()));
     return vds::expected<void>();
   }).get());

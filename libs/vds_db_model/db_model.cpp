@@ -141,8 +141,8 @@ vds::expected<void> vds::db_model::migrate(
 			id INTEGER PRIMARY KEY AUTOINCREMENT,\
       block_id VARCHAR(64) NOT NULL,\
       channel_id VARCHAR(64) NOT NULL,\
-      channel_read_cert_subject VARCHAR(64) NOT NULL,\
-      write_cert_subject VARCHAR(64) NOT NULL,\
+      read_id VARCHAR(64) NOT NULL,\
+      write_id VARCHAR(64) NOT NULL,\
       crypted_key VARCHAR(64) NOT NULL,\
       crypted_data BLOB NOT NULL,\
       signature VARCHAR(64) NOT NULL)",
@@ -170,18 +170,13 @@ vds::expected<void> vds::db_model::migrate(
 			device VARCHAR(64) NOT NULL,\
 			CONSTRAINT pk_chunk_map PRIMARY KEY(id,replica,device))",
 
-      "CREATE TABLE certificate_chain(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			cert BLOB NOT NULL,\
-			parent VARCHAR(64) NOT NULL)",
-
       "CREATE TABLE device_config(\
 			node_id VARCHAR(64) NOT NULL,\
 			local_path VARCHAR(254) NOT NULL,\
 			owner_id VARCHAR(64) NOT NULL,\
 			name VARCHAR(64) NOT NULL,\
 			reserved_size INTEGER NOT NULL,\
-			cert BLOB NOT NULL,\
+			public_key BLOB NOT NULL,\
 			private_key BLOB NOT NULL,\
       CONSTRAINT pk_device_config PRIMARY KEY(node_id,local_path))",
 
@@ -192,9 +187,6 @@ vds::expected<void> vds::db_model::migrate(
 			data_hash VARCHAR(64) NOT NULL,\
 			data_size INTEGER NOT NULL,\
       CONSTRAINT pk_device_record PRIMARY KEY(node_id,storage_path,data_hash))",
-
-      "CREATE TABLE certificate_unknown(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL)",
 
       "CREATE TABLE sync_local_queue(\
 			local_index INTEGER PRIMARY KEY AUTOINCREMENT,\
@@ -245,7 +237,7 @@ vds::expected<void> vds::db_model::migrate(
 
       "CREATE TABLE node_info_dbo(\
 			node_id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			cert VARCHAR(1853) NOT NULL)",
+			public_key VARCHAR(1853) NOT NULL)",
 
       "CREATE TABLE datacoin_balance_dbo(\
 			owner VARCHAR(64) NOT NULL,\

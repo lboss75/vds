@@ -21,10 +21,10 @@ namespace vds {
 
     user_wallet(
       const std::string & name,
-      asymmetric_public_key && cert,
+      asymmetric_public_key && public_key,
       asymmetric_private_key && private_key)
     : name_(name),
-      cert_(std::move(cert)),
+      public_key_(std::move(public_key)),
       private_key_(std::move(private_key)) {
     }
 
@@ -46,8 +46,8 @@ namespace vds {
       return name_;
     }
 
-    const asymmetric_public_key & cert() const {
-      return cert_;
+    const asymmetric_public_key & public_key() const {
+      return public_key_;
     }
 
     const asymmetric_private_key& private_key() const {
@@ -56,7 +56,7 @@ namespace vds {
 
   private:
     std::string name_;
-    asymmetric_public_key cert_;
+    asymmetric_public_key public_key_;
     asymmetric_private_key private_key_;
   };
 }

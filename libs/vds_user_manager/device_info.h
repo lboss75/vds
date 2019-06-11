@@ -12,13 +12,13 @@ namespace vds {
   public:
     device_info(
         const std::string &id,
-        const std::shared_ptr<certificate> &cert,
-        const std::shared_ptr<asymmetric_private_key> &cert_key,
+        const std::shared_ptr<asymmetric_public_key> & public_key,
+        const std::shared_ptr<asymmetric_private_key> & private_key,
         const std::string &name,
         uint64_t reserved_size,
         uint64_t free_size)
-        : id_(id), cert_(cert),
-          cert_key_(cert_key),
+        : id_(id), public_key_(public_key),
+          private_key_(private_key),
           name_(name),
           reserved_size_(reserved_size),
           free_size_(free_size) {}
@@ -27,12 +27,12 @@ namespace vds {
       return id_;
     }
 
-    const std::shared_ptr<certificate> & cert() const {
-      return cert_;
+    const std::shared_ptr<asymmetric_public_key> & public_key() const {
+      return public_key_;
     }
 
-    const std::shared_ptr<asymmetric_private_key> & cert_key() const {
-      return cert_key_;
+    const std::shared_ptr<asymmetric_private_key> & private_key() const {
+      return private_key_;
     }
 
     const std::string & name() const {
@@ -49,8 +49,8 @@ namespace vds {
 
   private:
     std::string id_;
-    std::shared_ptr<certificate> cert_;
-    std::shared_ptr<asymmetric_private_key> cert_key_;
+    std::shared_ptr<asymmetric_public_key> public_key_;
+    std::shared_ptr<asymmetric_private_key> private_key_;
 
     std::string name_;
     uint64_t reserved_size_;

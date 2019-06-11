@@ -7,7 +7,7 @@ All rights reserved
 */
 
 
-#include "cert_control.h"
+#include "keys_control.h"
 #include "types.h"
 #include "asymmetriccrypto.h"
 #include "const_data_buffer.h"
@@ -21,11 +21,11 @@ namespace vds {
     public:
       static const transaction_id message_id = transaction_id::node_add_transaction;
 
-      std::shared_ptr<asymmetric_public_key> node_cert;
+      std::shared_ptr<asymmetric_public_key> node_public_key;
 
       template <typename visitor_t>
       void visit(visitor_t & v) {
-        v(node_cert);
+        v(node_public_key);
       }
     };
   }

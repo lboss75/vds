@@ -49,11 +49,11 @@ const std::string& vds::user_channel::name() const {
   return this->impl_->name();
 }
 
-vds::expected<std::shared_ptr<vds::asymmetric_public_key>> vds::user_channel::read_cert() const {
+vds::expected<std::shared_ptr<vds::asymmetric_public_key>> vds::user_channel::read_public_key() const {
   return this->impl_->read_cert();
 }
 
-vds::expected<std::shared_ptr<vds::asymmetric_public_key>> vds::user_channel::write_cert() const {
+vds::expected<std::shared_ptr<vds::asymmetric_public_key>> vds::user_channel::write_public_key() const {
   return this->impl_->write_cert();
 }
 

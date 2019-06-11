@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "test_datagram_protocol.h"
-#include "cert_control.h"
+#include "keys_control.h"
 #include "private/cert_control_p.h"
 
 static vds::expected<void> send_message_check(

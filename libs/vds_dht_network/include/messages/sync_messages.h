@@ -241,7 +241,7 @@ namespace vds {
 
         struct member_state {
           const_data_buffer voted_for;
-          const_data_buffer cert;
+          const_data_buffer public_key;
           const_data_buffer sign;
         };
 
@@ -351,7 +351,7 @@ namespace vds {
     binary_serializer& s,
     const dht::messages::sync_snapshot_response::member_state & f) {
     CHECK_EXPECTED(s << f.voted_for);
-    CHECK_EXPECTED(s << f.cert);
+    CHECK_EXPECTED(s << f.public_key);
     CHECK_EXPECTED(s << f.sign);
     return expected<void>();
   }
@@ -360,7 +360,7 @@ namespace vds {
     binary_deserializer& s,
     dht::messages::sync_snapshot_response::member_state & f) {
     CHECK_EXPECTED(s >> f.voted_for);
-    CHECK_EXPECTED(s >> f.cert);
+    CHECK_EXPECTED(s >> f.public_key);
     CHECK_EXPECTED(s >> f.sign);
     return expected<void>();
   }

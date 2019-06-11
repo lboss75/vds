@@ -16,11 +16,11 @@ namespace vds {
       node_info_dbo()
           : database_table("node_info_dbo"),
             node_id(this, "node_id"),
-            cert(this, "cert") {
+            public_key(this, "public_key") {
       }
 
       database_column<const_data_buffer, std::string> node_id;
-      database_column<const_data_buffer, std::string> cert;
+      database_column<const_data_buffer, std::string> public_key;
     };
   }
 }

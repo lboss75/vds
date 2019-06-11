@@ -5,7 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "get_root_app.h"
-#include "cert_control.h"
+#include "keys_control.h"
 
 vds::get_root_app::get_root_app()
   : key_generate_command_set_("Generate keys", "Generate keys", "generate", "keys"),
@@ -35,38 +35,38 @@ void out_multiline(const std::string & value, std::size_t width = 80) {
   }
 }
 #define write_member(member_name)\
-  std::cout << "char vds::cert_control::" #member_name "[" \
-  << sizeof(cert_control::member_name) \
+  std::cout << "char vds::keys_control::" #member_name "[" \
+  << sizeof(keys_control::member_name) \
   << "] = \n";\
-  out_multiline(cert_control::member_name);\
+  out_multiline(keys_control::member_name);\
   std::cout << ";\n";
 
 vds::expected<void> vds::get_root_app::main(const service_provider * /*sp*/)
 {
   if (&this->key_generate_command_set_ == this->current_command_set_) {
-    cert_control::private_info_t private_info;
+    keys_control::private_info_t private_info;
     CHECK_EXPECTED(private_info.genereate_all());
 
-    CHECK_EXPECTED(cert_control::genereate_all(
+    CHECK_EXPECTED(keys_control::genereate_all(
         private_info));
     
     write_member(common_news_channel_id_);
-    write_member(common_news_read_certificate_);
+    write_member(common_news_read_public_key_);
     write_member(common_news_read_private_key_);
-    write_member(common_news_write_certificate_);
-    write_member(common_news_admin_certificate_);
+    write_member(common_news_write_public_key_);
+    write_member(common_news_admin_public_key_);
 
     write_member(autoupdate_channel_id_);
-    write_member(autoupdate_read_certificate_);
+    write_member(autoupdate_read_public_key_);
     write_member(autoupdate_read_private_key_);
-    write_member(autoupdate_write_certificate_);
-    write_member(autoupdate_admin_certificate_);
+    write_member(autoupdate_write_public_key_);
+    write_member(autoupdate_admin_public_key_);
 
     write_member(web_channel_id_);
-    write_member(web_read_certificate_);
+    write_member(web_read_public_key_);
     write_member(web_read_private_key_);
-    write_member(web_write_certificate_);
-    write_member(web_admin_certificate_);
+    write_member(web_write_public_key_);
+    write_member(web_admin_public_key_);
 
     binary_serializer s;
     CHECK_EXPECTED(s << private_info.common_news_write_private_key_->der(this->user_password_.value()));

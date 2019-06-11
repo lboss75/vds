@@ -11,6 +11,8 @@ All rights reserved
 #include "db_model.h"
 #include "user_manager.h"
 #include "dht_object_id.h"
+#include "device_config_dbo.h"
+#include "member_user.h"
 
 vds_mock::vds_mock()
 {
@@ -363,7 +365,7 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::const_data_bu
 //			sp->get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
 //				channel_name.c_str(),
 //				channel_id.str().c_str(),
-//				vds::cert_control::get_id(channel_write_cert).str().c_str());
+//				vds::keys_control::get_id(channel_write_cert).str().c_str());
 //
 //            vds::asymmetric_private_key device_private_key;
 //            auto device_user = user_mng->get_current_device(
@@ -456,7 +458,7 @@ void vds_mock::allow_read_channel(size_t client_index, const vds::const_data_buf
 //            sp->get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
 //                                         channel_name.c_str(),
 //                                         channel_id.str().c_str(),
-//                                         vds::cert_control::get_id(channel_write_cert).str().c_str());
+//                                         vds::keys_control::get_id(channel_write_cert).str().c_str());
 //
 //            vds::asymmetric_private_key device_private_key;
 //            auto device_user = user_mng->get_current_device(
@@ -614,9 +616,9 @@ mock_server::mock_server(int index, int udp_port)
 void mock_server::init_root(
   const std::string &root_user_name,
   const std::string &root_password) const {
-  vds::cert_control::private_info_t private_info;
+  vds::keys_control::private_info_t private_info;
   CHECK_EXPECTED_THROW(private_info.genereate_all());
-  CHECK_EXPECTED_THROW(vds::cert_control::genereate_all(private_info));
+  CHECK_EXPECTED_THROW(vds::keys_control::genereate_all(private_info));
 
   const auto sp = this->get_service_provider();
   auto user_mng = std::make_shared<vds::user_manager>(sp);
@@ -629,23 +631,25 @@ void mock_server::allocate_storage(
   const std::string& root_password) {
   this->login(root_login, root_password, [this]( const std::shared_ptr<vds::user_manager> & user_mng) {
     auto sp = this->get_service_provider();
-    return sp->get<vds::db_model>()->async_transaction(sp, [sp, user_mng](vds::database_transaction & t) {
-      auto client = sp->get<dht::network::client>();
+    return sp->get<vds::db_model>()->async_transaction([sp, user_mng](vds::database_transaction & t) -> vds::expected<void>{
+      auto client = sp->get<vds::dht::network::client>();
       auto current_node = client->current_node_id();
-      foldername fl(foldername(persistence::current_user(sp), ".vds"), "storage");
-      fl.create();
+      GET_EXPECTED(current_user, vds::persistence::current_user(sp));
+      vds::foldername fl(vds::foldername(current_user, ".vds"), "storage");
+      CHECK_EXPECTED(fl.create());
 
+      GET_EXPECTED(owner_id, user_mng->get_current_user().user_public_key()->hash(vds::hash::sha256()));
 
       vds::orm::device_config_dbo t1;
-      t.execute(
+      CHECK_EXPECTED(t.execute(
         t1.insert(
           t1.node_id = current_node,
           t1.local_path = fl.full_name(),
-          t1.owner_id = user_mng->get_current_user().user_certificate().subject(),
-          t1.name = device_name,
-          t1.reserved_size = reserved_size * 1024 * 1024 * 1024));
+          t1.owner_id = owner_id,
+          t1.name = "Test",
+          t1.reserved_size = 1024 * 1024 * 1024)));
+      return vds::expected<void>();
     });
-
   });
 }
 

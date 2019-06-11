@@ -14,7 +14,7 @@ All rights reserved
 #include "transaction_block_builder.h"
 #include "private/member_user_p.h"
 #include "private/cert_control_p.h"
-#include "cert_control.h"
+#include "keys_control.h"
 #include "dht_object_id.h"
 #include "private/user_channel_p.h"
 #include "create_user_transaction.h"
@@ -47,7 +47,7 @@ vds::member_user::member_user(const std::shared_ptr<asymmetric_public_key>& user
   : impl_(new _member_user(user_cert, private_key)) {
 }
 
-const std::shared_ptr<vds::asymmetric_public_key> &vds::member_user::user_certificate() const {
+const std::shared_ptr<vds::asymmetric_public_key> &vds::member_user::user_public_key() const {
   return this->impl_->user_certificate();
 }
 

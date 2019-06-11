@@ -15,7 +15,7 @@ namespace vds {
   {
   public:
     _member_user(
-      const std::shared_ptr<asymmetric_public_key> & user_cert,
+      const std::shared_ptr<asymmetric_public_key> & user_public_key,
       const std::shared_ptr<asymmetric_private_key> &private_key);
 
     static expected<member_user> create_user(

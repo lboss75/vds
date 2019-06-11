@@ -58,7 +58,7 @@ namespace vds {
 
       expected<const_data_buffer> sign(
         const service_provider * sp,
-        const std::shared_ptr<asymmetric_public_key> &write_cert,
+        const std::shared_ptr<asymmetric_public_key> &write_public_key,
         const std::shared_ptr<asymmetric_private_key> &write_private_key);
 
     private:
@@ -76,7 +76,7 @@ namespace vds {
         expected<const_data_buffer> save(
           const service_provider * sp,
           class vds::database_transaction &t,
-          const std::shared_ptr<asymmetric_public_key> &write_cert,
+          const std::shared_ptr<asymmetric_public_key> &write_public_key,
           const std::shared_ptr<asymmetric_private_key> &write_private_key);
 
     };

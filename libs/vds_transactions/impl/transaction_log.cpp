@@ -171,7 +171,7 @@ vds::expected<void> vds::transactions::transaction_log::update_consensus(
   
   GET_EXPECTED(block, transaction_block::create(block_data));
 
-  auto leaf_owner = block.write_cert_id();
+  auto leaf_owner = block.write_public_key_id();
 
   std::map<const_data_buffer, const_data_buffer> not_processed;
   std::map<const_data_buffer, const_data_buffer> processed;
@@ -210,7 +210,7 @@ vds::expected<void> vds::transactions::transaction_log::update_consensus(
         consensus_candidate.emplace(ancestor);
       }
 
-      if(block.write_cert_id() != leaf_owner){
+      if(block.write_public_key_id() != leaf_owner){
         not_processed[ancestor] = ancestor_data;
       }
     }
@@ -559,8 +559,8 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
     t1.insert(
       t1.block_id = block_id,
       t1.channel_id = message.channel_id(),
-      t1.channel_read_cert_subject = message.channel_read_cert_subject(),
-      t1.write_cert_subject = message.write_cert_subject(),
+      t1.read_id = message.read_id(),
+      t1.write_id = message.write_id(),
       t1.crypted_key = message.crypted_key(),
       t1.crypted_data = message.crypted_data(),
       t1.signature = message.signature()
@@ -575,8 +575,8 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(const servic
     t1.delete_if(
       t1.block_id == block_id
       && t1.channel_id == message.channel_id()
-      && t1.channel_read_cert_subject == message.channel_read_cert_subject()
-      && t1.write_cert_subject == message.write_cert_subject()
+      && t1.read_id == message.read_id()
+      && t1.write_id == message.write_id()
       && t1.crypted_key == message.crypted_key()
       && t1.signature == message.signature()
     )));

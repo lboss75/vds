@@ -46,7 +46,7 @@ vds::expected<void> vds::user_wallet::transfer(
   const member_user& target_user,
   uint64_t value) {
 
-  GET_EXPECTED(cert_id, target_user.user_certificate()->hash(hash::sha256()));
+  GET_EXPECTED(cert_id, target_user.user_public_key()->hash(hash::sha256()));
 
   binary_serializer s;
   CHECK_EXPECTED(s << (uint8_t)transactions::payment_transaction::message_id);

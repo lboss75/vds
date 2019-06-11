@@ -20,7 +20,7 @@ namespace vds {
       static const transaction_id message_id = transaction_id::create_user_transaction;
 
       std::string user_credentials_key;
-      std::shared_ptr<asymmetric_public_key> user_cert;
+      std::shared_ptr<asymmetric_public_key> user_public_key;
       const_data_buffer user_private_key;
       std::string user_name;
 
@@ -28,7 +28,7 @@ namespace vds {
       void visit(visitor_type & v) {
         v(
           user_credentials_key,
-          user_cert,
+          user_public_key,
           user_private_key,
           user_name
         );

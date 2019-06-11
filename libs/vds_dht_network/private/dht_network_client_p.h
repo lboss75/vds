@@ -48,13 +48,13 @@ namespace vds {
           const service_provider * sp,
           const std::shared_ptr<iudp_transport> & udp_transport,
           const const_data_buffer & this_node_id,
-          const std::shared_ptr<asymmetric_public_key> & node_cert,
+          const std::shared_ptr<asymmetric_public_key> & node_public_key,
           const std::shared_ptr<asymmetric_private_key> & node_key);
 
         static expected<std::shared_ptr<_client>> create(
           const service_provider * sp,
           const std::shared_ptr<iudp_transport> & udp_transport,
-          const std::shared_ptr<asymmetric_public_key> & node_cert,
+          const std::shared_ptr<asymmetric_public_key> & node_public_key,
           const std::shared_ptr<asymmetric_private_key> & node_key);
 
         expected<void> start();
@@ -321,7 +321,7 @@ namespace vds {
         friend class client_save_stream;
 
         const service_provider * sp_;
-        std::shared_ptr<asymmetric_public_key> node_cert_;
+        std::shared_ptr<asymmetric_public_key> node_public_key_;
         std::shared_ptr<asymmetric_private_key> node_key_;
         std::shared_ptr<iudp_transport> udp_transport_;
         dht_route<std::shared_ptr<dht_session>> route_;

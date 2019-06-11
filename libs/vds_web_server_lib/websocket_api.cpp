@@ -141,7 +141,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::websocket_
 						if (password_hash == message.user_credentials_key) {
 							result = std::make_shared<json_object>();
 							result->add_property("result", "successful");
-							CHECK_EXPECTED(result->add_property("cert", message.user_cert->str()));
+							CHECK_EXPECTED(result->add_property("public_key", message.user_public_key->str()));
 							result->add_property("key", base64::from_bytes(message.user_private_key));
 						}
 						else {

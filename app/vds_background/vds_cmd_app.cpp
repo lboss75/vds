@@ -62,7 +62,7 @@ vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
       CHECK_EXPECTED(s >> web_write_private_key);
       CHECK_EXPECTED(s >> web_admin_private_key);
 
-      cert_control::private_info_t private_info;
+      keys_control::private_info_t private_info;
       //Common news
       GET_EXPECTED(common_news_write_private_key_key, 
         asymmetric_private_key::parse_der(common_news_write_private_key, this->user_password_.value()));

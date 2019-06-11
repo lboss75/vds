@@ -258,11 +258,11 @@ vds::async_task<vds::expected<void>> vds::_web_server::start(
 
   this->www_user_mng_ = std::make_shared<user_manager>(this->sp_);
   CHECK_EXPECTED_ASYNC(co_await this->sp_->get<vds::db_model>()->async_read_transaction([this](database_read_transaction & t)->expected<void> {
-    CHECK_EXPECTED(this->www_user_mng_->load(t, cert_control::web_login(), cert_control::web_password()));
+    CHECK_EXPECTED(this->www_user_mng_->load(t, keys_control::web_login(), keys_control::web_password()));
     return expected<void>();
   }));
 
-    this->www_channel_ = std::make_shared<file_manager::files_channel>(this->sp_, this->www_user_mng_, cert_control::get_web_channel_id());
+    this->www_channel_ = std::make_shared<file_manager::files_channel>(this->sp_, this->www_user_mng_, keys_control::get_web_channel_id());
 
   co_return vds::expected<void>();
 }

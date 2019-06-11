@@ -24,10 +24,10 @@ namespace vds {
     ~member_user();
 
     member_user(
-      const std::shared_ptr<asymmetric_public_key> &user_cert,
+      const std::shared_ptr<asymmetric_public_key> &user_public_key,
       const std::shared_ptr<asymmetric_private_key> & private_key);
 
-    const std::shared_ptr<asymmetric_public_key> & user_certificate() const;
+    const std::shared_ptr<asymmetric_public_key> & user_public_key() const;
     const std::shared_ptr<asymmetric_private_key> & private_key() const;
 
     //member_user create_user(

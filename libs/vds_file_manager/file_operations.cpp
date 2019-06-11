@@ -240,10 +240,10 @@ vds::async_task<vds::expected<void>> vds::file_manager_private::_file_operations
     files](database_transaction& t) -> expected<void> {
 
     auto channel = user_mng->get_channel(channel_id);
-    if (!channel->write_cert()) {
+    if (!channel->write_public_key()) {
       pthis->sp_->get<logger>()->error(
         ThisModule,
-        "Channel %s don't have write cert",
+        "Channel %s don't have write key",
         base64::from_bytes(channel_id).c_str());
       return vds::make_unexpected<vds_exceptions::access_denied_error>("User don't have write permission");
     }

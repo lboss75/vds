@@ -10,7 +10,7 @@ All rights reserved
 #include "channel_message_id.h"
 #include "json_object.h"
 #include "json_parser.h"
-#include "cert_control.h"
+#include "keys_control.h"
 
 namespace vds {
 	namespace transactions {
@@ -35,14 +35,14 @@ namespace vds {
 
       static expected<control_message_transaction> create_wallet_message(
         const std::string & name,
-        const asymmetric_public_key & cert,
+        const asymmetric_public_key & public_key,
         const asymmetric_private_key & private_key) {
         auto message = std::make_shared<json_object>();
         message->add_property("$type", create_wallet_type);
         message->add_property("name", name);
 
         std::map<std::string, const_data_buffer> attachments;
-        GET_EXPECTED_VALUE(attachments["cert"], cert.der());
+        GET_EXPECTED_VALUE(attachments["public_key"], public_key.der());
         GET_EXPECTED_VALUE(attachments["key"], private_key.der(std::string()));
 
         return message_create<transactions::control_message_transaction>(

@@ -20,8 +20,8 @@ namespace vds {
 
       static expected<channel_message> create(
         const const_data_buffer &channel_id,
-        const const_data_buffer &channel_read_cert_subject,
-        const const_data_buffer &write_cert_subject,
+        const const_data_buffer &read_id,
+        const const_data_buffer &write_id,
         const const_data_buffer &crypted_key,
         const const_data_buffer &crypted_data,
         const asymmetric_private_key & write_key) {
@@ -29,8 +29,8 @@ namespace vds {
         binary_serializer s;
         CHECK_EXPECTED(s << (uint8_t)message_id);
         CHECK_EXPECTED(s << channel_id);
-        CHECK_EXPECTED(s << channel_read_cert_subject);
-        CHECK_EXPECTED(s << write_cert_subject);
+        CHECK_EXPECTED(s << read_id);
+        CHECK_EXPECTED(s << write_id);
         CHECK_EXPECTED(s << crypted_key);
         CHECK_EXPECTED(s << crypted_data);
 
@@ -42,8 +42,8 @@ namespace vds {
 
         return message_create<channel_message>(
           channel_id,
-          channel_read_cert_subject,
-          write_cert_subject,
+          read_id,
+          write_id,
           crypted_key,
           crypted_data,
           signature);
@@ -53,8 +53,8 @@ namespace vds {
       void visit(visitor_type & v) {
         v(
           this->channel_id_,
-          this->channel_read_cert_subject_,
-          this->write_cert_subject_,
+          this->read_id_,
+          this->write_id_,
           this->crypted_key_,
           this->crypted_data_,
           this->signature_);
@@ -64,12 +64,12 @@ namespace vds {
         return this->channel_id_;
       }
 
-      const const_data_buffer & channel_read_cert_subject() const {
-        return this->channel_read_cert_subject_;
+      const const_data_buffer & read_id() const {
+        return this->read_id_;
       }
 
-      const const_data_buffer & write_cert_subject() const {
-        return this->write_cert_subject_;
+      const const_data_buffer & write_id() const {
+        return this->write_id_;
       }
 
       const const_data_buffer & crypted_key() const {
@@ -108,8 +108,8 @@ namespace vds {
 
     private:
       const_data_buffer channel_id_;
-      const_data_buffer channel_read_cert_subject_;
-      const_data_buffer write_cert_subject_;
+      const_data_buffer read_id_;
+      const_data_buffer write_id_;
       const_data_buffer crypted_key_;
       const_data_buffer crypted_data_;
       const_data_buffer signature_;

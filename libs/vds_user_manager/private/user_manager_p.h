@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "cert_control.h"
+#include "keys_control.h"
 #include "vds_exceptions.h"
 #include "user_manager.h"
 #include "user_wallet.h"
@@ -61,7 +61,7 @@ namespace vds {
       return p->second;
     }
 
-    expected<void> add_certificate(const std::shared_ptr<asymmetric_public_key> &cert);
+    expected<void> add_public_key(const std::shared_ptr<asymmetric_public_key> &public_key);
     member_user get_current_user() const;
 
     const std::shared_ptr<asymmetric_private_key> & get_current_user_private_key() const {
