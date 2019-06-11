@@ -12,7 +12,6 @@ All rights reserved
 #include "db_model.h"
 #include "messages/transaction_log_messages.h"
 #include "../../vds_dht_network/private/dht_network_client_p.h"
-#include "certificate_chain_dbo.h"
 #include "transaction_block.h"
 #include "node_info_dbo.h"
 

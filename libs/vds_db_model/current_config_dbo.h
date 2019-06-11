@@ -16,7 +16,7 @@ namespace vds {
           : database_table("current_config"),
             id(this, "object_id"),
             public_key(this, "public_key"),
-            private_key(this, "cert_key") {
+            private_key(this, "private_key") {
       }
 
       database_column<int> id;

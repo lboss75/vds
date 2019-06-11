@@ -13,7 +13,7 @@ namespace vds {
     class datacoin_balance_dbo : public database_table {
     public:
       datacoin_balance_dbo()
-        : database_table("datacoin_balance"),
+        : database_table("datacoin_balance_dbo"),
           owner(this, "owner"),
           issuer(this, "issuer"),
           currency(this, "currency"),
@@ -25,7 +25,7 @@ namespace vds {
       database_column<const_data_buffer, std::string> owner;
       database_column<const_data_buffer, std::string> issuer;
       database_column<std::string> currency;
-      database_column<const_data_buffer> source_transaction;
+      database_column<const_data_buffer, std::string> source_transaction;
       database_column<int64_t> confirmed_balance;
       database_column<int64_t> proposed_balance;
     };

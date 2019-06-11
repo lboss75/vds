@@ -312,12 +312,14 @@ vds::api_controller::lock_device(
     auto client = sp->get<dht::network::client>();
     auto current_node = client->current_node_id();
 
+    GET_EXPECTED(owner_id, user_mng->get_current_user().user_certificate()->hash(hash::sha256()));
+
     orm::device_config_dbo t1;
     return t.execute(
         t1.insert(
             t1.node_id = current_node,
             t1.local_path = local_path,
-            t1.owner_id = user_mng->get_current_user().user_certificate()->subject(),
+            t1.owner_id = owner_id,
             t1.name = device_name,
             t1.reserved_size = reserved_size * 1024 * 1024 * 1024));
   });

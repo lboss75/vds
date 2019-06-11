@@ -103,8 +103,8 @@ vds::expected<void> vds::db_model::migrate(
 
       "CREATE TABLE current_config (\
 			id INTEGER PRIMARY KEY AUTOINCREMENT,\
-			cert BLOB NOT NULL,\
-      cert_key BLOB NOT NULL)",
+			public_key BLOB NOT NULL,\
+      private_key BLOB NOT NULL)",
 
       "CREATE TABLE channel_local_cache(\
       channel_id VARCHAR(64) PRIMARY KEY NOT NULL,\
@@ -137,9 +137,15 @@ vds::expected<void> vds::db_model::migrate(
       approved BIT NOT NULL,\
 			CONSTRAINT pk_transaction_log_vote_request PRIMARY KEY(id,owner))",
 
-   //   "CREATE TABLE member_user(\
-			//id VARCHAR(64) PRIMARY KEY NOT NULL,\
-   //   log_id VARCHAR(64) NOT NULL)",
+      "CREATE TABLE channel_message_dbo(\
+			id INTEGER PRIMARY KEY AUTOINCREMENT,\
+      block_id VARCHAR(64) NOT NULL,\
+      channel_id VARCHAR(64) NOT NULL,\
+      channel_read_cert_subject VARCHAR(64) NOT NULL,\
+      write_cert_subject VARCHAR(64) NOT NULL,\
+      crypted_key VARCHAR(64) NOT NULL,\
+      crypted_data BLOB NOT NULL,\
+      signature VARCHAR(64) NOT NULL)",
 
       "CREATE TABLE chunk (\
 			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\
@@ -240,6 +246,16 @@ vds::expected<void> vds::db_model::migrate(
       "CREATE TABLE node_info_dbo(\
 			node_id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			cert VARCHAR(1853) NOT NULL)",
+
+      "CREATE TABLE datacoin_balance_dbo(\
+			owner VARCHAR(64) NOT NULL,\
+			issuer VARCHAR(64) NOT NULL,\
+			currency VARCHAR(64) NOT NULL,\
+			source_transaction VARCHAR(64) NOT NULL,\
+			confirmed_balance INTEGER NOT NULL,\
+			proposed_balance INTEGER NOT NULL,\
+      CONSTRAINT pk_datacoin_balance_dbo PRIMARY KEY(owner,issuer,currency,source_transaction))",
+
 
       "INSERT INTO well_known_node(address, last_connect) VALUES(\
 									'udp://localhost:8050',\

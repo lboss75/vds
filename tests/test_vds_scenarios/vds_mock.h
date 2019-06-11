@@ -26,9 +26,11 @@ public:
   void init_root(
     const std::string &root_user_name,
     const std::string &root_password) const;
-  //void allocate_storage(
-  //  const std::string& root_login,
-  //  const std::string& root_password);
+
+  void allocate_storage(
+    const std::string& root_login,
+    const std::string& root_password);
+
   static void init(
 	  int index, int udp_port, const std::string & user_login, const std::string & user_password);
 

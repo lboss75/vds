@@ -45,7 +45,7 @@ void vds_mock::start(size_t server_count)
         server->init_root(this->root_login_, this->root_password_);
       }
 
-      //server->allocate_storage(this->root_login_, this->root_password_);
+      server->allocate_storage(this->root_login_, this->root_password_);
     }
     catch (...) {
       std::cout << "Error...\n";
@@ -623,35 +623,38 @@ void mock_server::init_root(
   CHECK_EXPECTED_THROW(user_mng->reset(root_user_name, root_password, private_info));
 }
 
-//
-//void mock_server::allocate_storage(const std::string& root_login, const std::string& root_password) {
-//  this->login(root_login, root_password,[]( const std::shared_ptr<vds::user_manager> & user_mng) {
-//    return sp->get<db_model>()->async_transaction(sp, [sp, user_mng](database_transaction & t) {
-//      auto client = sp->get<dht::network::client>();
-//      auto current_node = client->current_node_id();
-//      foldername fl(foldername(persistence::current_user(sp), ".vds"), "storage");
-//      fl.create();
-//
-//
-//      vds::orm::device_config_dbo t1;
-//      t.execute(
-//        t1.insert(
-//          t1.node_id = current_node,
-//          t1.local_path = fl.full_name(),
-//          t1.owner_id = user_mng->get_current_user().user_certificate().subject(),
-//          t1.name = device_name,
-//          t1.reserved_size = reserved_size * 1024 * 1024 * 1024));
-//    });
-//
-//  });
-//}
+
+void mock_server::allocate_storage(
+  const std::string& root_login,
+  const std::string& root_password) {
+  this->login(root_login, root_password, [this]( const std::shared_ptr<vds::user_manager> & user_mng) {
+    auto sp = this->get_service_provider();
+    return sp->get<vds::db_model>()->async_transaction(sp, [sp, user_mng](vds::database_transaction & t) {
+      auto client = sp->get<dht::network::client>();
+      auto current_node = client->current_node_id();
+      foldername fl(foldername(persistence::current_user(sp), ".vds"), "storage");
+      fl.create();
+
+
+      vds::orm::device_config_dbo t1;
+      t.execute(
+        t1.insert(
+          t1.node_id = current_node,
+          t1.local_path = fl.full_name(),
+          t1.owner_id = user_mng->get_current_user().user_certificate().subject(),
+          t1.name = device_name,
+          t1.reserved_size = reserved_size * 1024 * 1024 * 1024));
+    });
+
+  });
+}
 
 void mock_server::login(
   const std::string& root_login,
   const std::string& root_password,
   const std::function<void( const std::shared_ptr<vds::user_manager> & user_mng)> & callback) {
 
-auto sp = this->get_service_provider();
+  auto sp = this->get_service_provider();
 auto user_mng = std::make_shared<vds::user_manager>(sp);
 
   CHECK_EXPECTED_THROW(sp->get<vds::db_model>()->async_transaction(

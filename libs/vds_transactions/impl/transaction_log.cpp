@@ -16,7 +16,7 @@ All rights reserved
 #include "user_manager.h"
 #include "vds_exceptions.h"
 #include "logger.h"
-#include "certificate_chain_dbo.h"
+#include "channel_message_dbo.h"
 #include "include/transaction_state_calculator.h"
 #include "transaction_log_vote_request_dbo.h"
 #include "member_user_dbo.h"
@@ -463,15 +463,26 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
     return false;
   }
 
-  CHECK_EXPECTED(t.execute(
-    t1.update(t1.proposed_balance = message.value - balance)
-    .where(
-      t1.owner == message.source_user
-      && t1.issuer == message.issuer
-      && t1.currency == message.currency
-      && t1.source_transaction == message.source_transaction
-      )));
+  if (balance == message.value) {
+    CHECK_EXPECTED(t.execute(
+      t1.delete_if(
+        t1.owner == message.source_user
+        && t1.issuer == message.issuer
+        && t1.currency == message.currency
+        && t1.source_transaction == message.source_transaction
+        )));
+  }
+  else{
+    CHECK_EXPECTED(t.execute(
+      t1.update(t1.proposed_balance = balance - message.value)
+      .where(
+        t1.owner == message.source_user
+        && t1.issuer == message.issuer
+        && t1.currency == message.currency
+        && t1.source_transaction == message.source_transaction
+        )));
 
+  }
 
   CHECK_EXPECTED(t.execute(
     t1.insert(
@@ -490,6 +501,104 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(
   database_transaction & t,
   const payment_transaction & message,
   const const_data_buffer & block_id)
+{
+  vds::orm::datacoin_balance_dbo t1;
+
+  GET_EXPECTED(st, t.get_reader(
+    t1
+    .select(t1.proposed_balance)
+    .where(
+      t1.owner == message.source_user
+      && t1.issuer == message.issuer
+      && t1.currency == message.currency
+      && t1.source_transaction == message.source_transaction
+      )));
+
+  GET_EXPECTED(st_execute, st.execute());
+  if (st_execute) {
+    auto balance = t1.proposed_balance.get(st);
+    CHECK_EXPECTED(t.execute(
+      t1.update(t1.proposed_balance = balance + message.value)
+      .where(
+        t1.owner == message.source_user
+        && t1.issuer == message.issuer
+        && t1.currency == message.currency
+        && t1.source_transaction == message.source_transaction
+        )));
+  }
+  else {
+    CHECK_EXPECTED(t.execute(
+      t1.insert(
+        t1.proposed_balance = message.value,
+        t1.owner = message.source_user,
+        t1.issuer = message.issuer,
+        t1.currency = message.currency,
+        t1.source_transaction = message.source_transaction
+        )));
+  }
+
+  CHECK_EXPECTED(t.execute(
+    t1.delete_if(
+      t1.owner == message.target_user
+      && t1.issuer == message.issuer
+      && t1.currency == message.currency
+      && t1.source_transaction == block_id
+    )));
+
+  return expected<void>();
+}
+
+vds::expected<bool> vds::transactions::transaction_log::apply_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const channel_message & message,
+  const const_data_buffer & block_id)
+{
+  orm::channel_message_dbo t1;
+  CHECK_EXPECTED(t.execute(
+    t1.insert(
+      t1.block_id = block_id,
+      t1.channel_id = message.channel_id(),
+      t1.channel_read_cert_subject = message.channel_read_cert_subject(),
+      t1.write_cert_subject = message.write_cert_subject(),
+      t1.crypted_key = message.crypted_key(),
+      t1.crypted_data = message.crypted_data(),
+      t1.signature = message.signature()
+    )));
+  return true;
+}
+
+vds::expected<void> vds::transactions::transaction_log::undo_record(const service_provider * sp, database_transaction & t, const channel_message & message, const const_data_buffer & block_id)
+{
+  orm::channel_message_dbo t1;
+  CHECK_EXPECTED(t.execute(
+    t1.delete_if(
+      t1.block_id == block_id
+      && t1.channel_id == message.channel_id()
+      && t1.channel_read_cert_subject == message.channel_read_cert_subject()
+      && t1.write_cert_subject == message.write_cert_subject()
+      && t1.crypted_key == message.crypted_key()
+      && t1.signature == message.signature()
+    )));
+  return expected<void>();
+}
+
+vds::expected<bool> vds::transactions::transaction_log::apply_record(const service_provider * sp, database_transaction & t, const create_user_transaction & message, const const_data_buffer & block_id)
+{
+  return expected<bool>();
+}
+
+vds::expected<void> vds::transactions::transaction_log::undo_record(const service_provider * sp, database_transaction & t, const create_user_transaction & message, const const_data_buffer & block_id)
+{
+  return expected<void>();
+}
+
+vds::expected<bool> vds::transactions::transaction_log::apply_record(const service_provider * sp, database_transaction & t, const node_add_transaction & message, const const_data_buffer & block_id)
+{
+  return expected<bool>();
+}
+
+vds::expected<void> vds::transactions::transaction_log::undo_record(const service_provider * sp, database_transaction & t, const node_add_transaction & message, const const_data_buffer & block_id)
 {
   return expected<void>();
 }

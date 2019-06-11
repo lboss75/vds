@@ -15,7 +15,6 @@ All rights reserved
 #include "channel_add_reader_transaction.h"
 #include "channel_add_writer_transaction.h"
 #include "db_model.h"
-#include "certificate_chain_dbo.h"
 #include "dht_object_id.h"
 #include "dht_network_client.h"
 #include "register_request.h"
