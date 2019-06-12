@@ -29,6 +29,9 @@ namespace vds {
     command_line_set channel_list_cmd_set_;
     command_line_set channel_create_cmd_set_;
 
+    command_line_set storage_list_cmd_set_;
+    command_line_set storage_add_cmd_set_;
+
     command_line_value user_login_;
     command_line_value user_password_;
 
@@ -47,6 +50,12 @@ namespace vds {
 
     command_line_value channel_name_;
     command_line_value channel_type_;
+
+    //Storage
+    command_line_value storage_name_;
+    command_line_value storage_folder_;
+    command_line_value storage_size_;
+
 
     task_manager task_manager_;
     mt_service mt_service_;
@@ -124,6 +133,19 @@ namespace vds {
       const std::string & rel_name,
       const std::list<sync_file_info> & file_history,
       bool enable_upload);
+
+    expected<void> storage_list(
+      const service_provider * sp,
+      const std::shared_ptr<http_client> & client,
+      const std::string & session);
+
+    expected<void> device_list_out(
+      const const_data_buffer & response);
+
+    expected<void> storage_add(
+      const service_provider * sp,
+      const std::shared_ptr<http_client> & client,
+      const std::string & session);
 
   };
 }

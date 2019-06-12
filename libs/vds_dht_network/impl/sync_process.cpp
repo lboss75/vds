@@ -1150,7 +1150,7 @@ vds::expected<void> vds::dht::network::sync_process::apply_message(
               .where(t1.object_id == message.object_id)));
 
   //merge members
-  GET_EXPECTED(members, this->get_members(t, message.object_id, false));
+  GET_EXPECTED(members, this->get_members(t, message.object_id, true));
   for (const auto& member : message.members) {
     auto p = members.find(member.first);
     if (members.end() == p) {

@@ -657,9 +657,9 @@ vds::expected<void> vds::dht::network::_client::apply_message( database_transact
 }
 
 vds::async_task<vds::expected<void>> vds::dht::network::_client::restore(  
-  const std::vector<const_data_buffer>& object_ids,
-  const std::shared_ptr<const_data_buffer>& result,
-  const std::chrono::steady_clock::time_point& start) {
+  std::vector<const_data_buffer> object_ids,
+  std::shared_ptr<const_data_buffer> result,
+  std::chrono::steady_clock::time_point start) {
   for (;;) {
     uint8_t progress;
     GET_EXPECTED_VALUE_ASYNC(progress, co_await this->restore_async(

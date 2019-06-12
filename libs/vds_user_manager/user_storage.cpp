@@ -68,9 +68,9 @@ vds::expected<std::shared_ptr<vds::json_value>> vds::user_storage::device_storag
   auto result = std::make_shared<json_object>();
 
   auto user = user_mng->get_current_user();
-  GET_EXPECTED(cert_id, user.user_public_key()->hash(hash::sha256()));
+  GET_EXPECTED(key_id, user.user_public_key()->hash(hash::sha256()));
   result->add_property("vds", "0.1");
-  result->add_property("name", cert_id);
+  result->add_property("name", key_id);
 
   GET_EXPECTED(body, result->json_value::str());
   GET_EXPECTED(sig, asymmetric_sign::signature(
@@ -89,7 +89,7 @@ vds::expected<std::shared_ptr<vds::json_value>> vds::user_storage::device_storag
 vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const service_provider* sp,
   const std::shared_ptr<user_manager>& user_mng, const std::string& name, const std::string& local_path,
   uint64_t reserved_size) {
-  GET_EXPECTED(json, json_parser::parse("vds_storage.json", file::read_all(filename(foldername(local_path), "vds_storage.json"))));
+  GET_EXPECTED(json, json_parser::parse(".vds_storage.json", file::read_all(filename(foldername(local_path), ".vds_storage.json"))));
   auto sign_info = std::dynamic_pointer_cast<json_object>(json);
   if (!sign_info) {
     return vds::make_unexpected<std::runtime_error>("Invalid format");
@@ -101,15 +101,15 @@ vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const
   }
 
   auto user = user_mng->get_current_user();
-  GET_EXPECTED(cert_id, user.user_public_key()->hash(hash::sha256()));
+  GET_EXPECTED(key_id, user.user_public_key()->hash(hash::sha256()));
   const_data_buffer value;
-  if (!sign_info->get_property("name", value) || value != cert_id) {
+  if (!sign_info->get_property("name", value) || value != key_id) {
     return vds::make_unexpected<std::runtime_error>("Invalid user name");
   }
 
   auto result = std::make_shared<json_object>();
   result->add_property("vds", "0.1");
-  result->add_property("name", cert_id);
+  result->add_property("name", key_id);
 
   GET_EXPECTED(body, result->json_value::str());
   GET_EXPECTED(sig, asymmetric_sign::signature(
@@ -127,15 +127,6 @@ vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const
     auto client = sp->get<dht::network::client>();
     auto current_node = client->current_node_id();
 
-    GET_EXPECTED(storage_key_data, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-    auto storage_key = std::make_shared<asymmetric_private_key>(std::move(storage_key_data));
-
-    GET_EXPECTED(public_key, asymmetric_public_key::create(*storage_key));
-
-    auto storage_public_key = std::make_shared<asymmetric_public_key>(std::move(public_key));
-    GET_EXPECTED(storage_cert_der, storage_public_key->der());
-    GET_EXPECTED(storage_cert_key_der, storage_key->der(std::string()));
-
     GET_EXPECTED(owner_id, user.user_public_key()->hash(hash::sha256()));
 
     orm::device_config_dbo t1;
@@ -145,9 +136,7 @@ vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const
         t1.local_path = local_path,
         t1.owner_id = owner_id,
         t1.name = name,
-        t1.reserved_size = reserved_size,
-        t1.public_key = storage_cert_der,
-        t1.private_key = storage_cert_key_der));
+        t1.reserved_size = reserved_size));
   });
 }
 
@@ -209,22 +198,13 @@ vds::async_task<vds::expected<void>> vds::user_storage::set_device_storage(
 					&& t1.owner_id == owner_id)));
 			}
 
-			GET_EXPECTED(storage_key_data, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-			auto storage_key = std::make_shared<asymmetric_private_key>(std::move(storage_key_data));
-
-			GET_EXPECTED(public_key, asymmetric_public_key::create(*storage_key));
-			GET_EXPECTED(storage_public_key_der, public_key.der());
-			GET_EXPECTED(storage_private_key_der, storage_key->der(std::string()));
-
 			return t.execute(
 				t1.insert(
 					t1.node_id = client->current_node_id(),
 					t1.local_path = local_path,
 					t1.owner_id = owner_id,
 					t1.name = "Storage",
-					t1.reserved_size = reserved_size,
-					t1.public_key = storage_public_key_der,
-					t1.private_key = storage_private_key_der));
+					t1.reserved_size = reserved_size));
 		}
 
 		return expected<void>();

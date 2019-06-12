@@ -503,9 +503,9 @@ vds::expected<void> vds::_user_manager::update(
   new_records.push_back(id);
   WHILE_EXPECTED_END()
 
-    if (new_records.empty() && this->login_state_ == user_manager::login_state_t::waiting) {
-      this->login_state_ = user_manager::login_state_t::login_failed;
-    }
+    //if (new_records.empty() && this->login_state_ == user_manager::login_state_t::waiting) {
+    //  this->login_state_ = user_manager::login_state_t::login_failed;
+    //}
 
   std::set<const_data_buffer> new_channels;
   for (auto & id : new_records) {

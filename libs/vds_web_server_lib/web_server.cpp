@@ -118,6 +118,7 @@ router_({
     }
   },
   {"/api/devices", "GET", &storage_api::device_storages },
+  {"/api/devices/label", "GET", &storage_api::device_storage_label },
   {"/api/devices", "POST", [](
     const vds::service_provider * sp,
     const std::shared_ptr<http_async_serializer> & output_stream,

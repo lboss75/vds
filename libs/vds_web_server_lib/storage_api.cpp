@@ -28,10 +28,12 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::storage_ap
 	co_return result_json;
 }
 
-vds::expected<std::shared_ptr<vds::json_value>> vds::storage_api::device_storage_label(
-  const std::shared_ptr<user_manager>& user_mng)
+vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::storage_api::device_storage_label(
+  const vds::service_provider * sp,
+  const std::shared_ptr<user_manager>& user_mng,
+  const http_message & request)
 {
-  return user_storage::device_storage_label(user_mng);
+  co_return user_storage::device_storage_label(user_mng);
 }
 
 vds::async_task<vds::expected<void>> vds::storage_api::add_device_storage(

@@ -120,32 +120,8 @@ vds::file_manager_private::_file_operations::download_file(
   auto result = std::make_shared<file_manager::file_operations::download_result_t>();
   std::list<transactions::user_message_transaction::file_block_t> download_tasks;
   CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction(
-      [pthis = this->shared_from_this(), user_mng, channel_id, file_name, file_hash, result, &download_tasks](database_transaction &t) -> expected<void> {
-    
-    CHECK_EXPECTED(user_mng->update(t));
-    auto channel = user_mng->get_channel(channel_id);
-
-    CHECK_EXPECTED(user_mng->walk_messages(
-            channel_id,
-            t,
-            [pthis, result, file_name, file_hash, &download_tasks](
-              const transactions::user_message_transaction &message,
-              const transactions::message_environment_t & /*message_environment*/) -> expected<bool> {
-          for (const auto & file : message.files) {
-            if (file.name == file_name && (!file_hash || file_hash == file.file_id)) {
-              result->file_hash = file.file_id;
-              result->name = file.name;
-              result->mime_type = file.mime_type;
-              result->size = file.size;
-
-              download_tasks = std::move(file.file_blocks);
-              return false;
-            }
-          }
-              return true;
-            }));
-
-        return expected<void>();
+      [user_mng, channel_id, file_name, file_hash, result, &download_tasks](database_transaction &t) -> expected<void> {
+    return lookup_file(t, user_mng, channel_id, file_name, file_hash, result, download_tasks);
   }));
 
   if (!result->mime_type.empty()) {
@@ -154,6 +130,42 @@ vds::file_manager_private::_file_operations::download_file(
 
   co_return *result;
 }
+
+vds::expected<void> vds::file_manager_private::_file_operations::lookup_file(
+  database_transaction & t,
+  const std::shared_ptr<user_manager> & user_mng,
+  const const_data_buffer & channel_id,
+  const std::string & file_name,
+  const const_data_buffer & file_hash,
+  std::shared_ptr<file_manager::file_operations::download_result_t> result,
+  std::list<transactions::user_message_transaction::file_block_t> & download_tasks)
+{
+  CHECK_EXPECTED(user_mng->update(t));
+  auto channel = user_mng->get_channel(channel_id);
+
+  CHECK_EXPECTED(user_mng->walk_messages(
+    channel_id,
+    t,
+    [result, file_name, file_hash, &download_tasks](
+      const transactions::user_message_transaction &message,
+      const transactions::message_environment_t & /*message_environment*/) -> expected<bool> {
+    for (const auto & file : message.files) {
+      if (file.name == file_name && (!file_hash || file_hash == file.file_id)) {
+        result->file_hash = file.file_id;
+        result->name = file.name;
+        result->mime_type = file.mime_type;
+        result->size = file.size;
+
+        download_tasks = std::move(file.file_blocks);
+        return false;
+      }
+    }
+    return true;
+  }));
+
+  return expected<void>();
+}
+
 
 vds::async_task<vds::expected<vds::file_manager::file_operations::prepare_download_result_t>>
 vds::file_manager_private::_file_operations::prepare_download_file(

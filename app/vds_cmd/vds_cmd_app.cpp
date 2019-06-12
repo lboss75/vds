@@ -27,6 +27,8 @@ vds::vds_cmd_app::vds_cmd_app()
   file_sync_cmd_set_("Synchronize files", "Synchronize local files with the network", "sync", "file"),
   channel_list_cmd_set_("Channel list", "List user channels", "list", "channel"),
   channel_create_cmd_set_("Channel create", "Create new channel", "create", "channel"),
+  storage_list_cmd_set_("Storage list", "List user storages", "list", "storage"),
+  storage_add_cmd_set_("Storage add", "Add user storage", "add", "storage"),
   user_login_(
     "l",
     "login",
@@ -91,7 +93,22 @@ vds::vds_cmd_app::vds_cmd_app()
     "ct",
     "channel-type",
     "Channel type",
-    "Type of channel") {
+    "Type of channel"),
+  storage_name_(
+    "stn",
+    "storage-name",
+    "Storage name",
+    "Name of the storage"),
+  storage_folder_(
+    "stp",
+    "storage-path",
+    "Storage path",
+    "Path to the storage"),
+  storage_size_(
+    "sts",
+    "storage-size",
+    "Storage size",
+    "Size of the storage") {
 }
 
 vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
@@ -128,6 +145,20 @@ vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
     GET_EXPECTED(client, this->connect(sp));
     GET_EXPECTED(session, this->login(sp, client));
     CHECK_EXPECTED(this->channel_create(sp, client, session));
+    CHECK_EXPECTED(this->logout(sp, client, session));
+    CHECK_EXPECTED(client->close().get());
+  }
+  else if (this->current_command_set_ == &this->storage_list_cmd_set_) {
+    GET_EXPECTED(client, this->connect(sp));
+    GET_EXPECTED(session, this->login(sp, client));
+    CHECK_EXPECTED(this->storage_list(sp, client, session));
+    CHECK_EXPECTED(this->logout(sp, client, session));
+    CHECK_EXPECTED(client->close().get());
+  }
+  else if (this->current_command_set_ == &this->storage_add_cmd_set_) {
+    GET_EXPECTED(client, this->connect(sp));
+    GET_EXPECTED(session, this->login(sp, client));
+    CHECK_EXPECTED(this->storage_add(sp, client, session));
     CHECK_EXPECTED(this->logout(sp, client, session));
     CHECK_EXPECTED(client->close().get());
   }
@@ -185,6 +216,20 @@ void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
   this->channel_create_cmd_set_.optional(this->server_);
   this->channel_create_cmd_set_.optional(this->channel_name_);
   this->channel_create_cmd_set_.optional(this->channel_type_);
+
+  cmd_line.add_command_set(this->storage_list_cmd_set_);
+  this->storage_list_cmd_set_.required(this->user_login_);
+  this->storage_list_cmd_set_.required(this->user_password_);
+  this->storage_list_cmd_set_.optional(this->server_);
+  this->storage_list_cmd_set_.optional(this->output_format_);
+
+  cmd_line.add_command_set(this->storage_add_cmd_set_);
+  this->storage_add_cmd_set_.required(this->user_login_);
+  this->storage_add_cmd_set_.required(this->user_password_);
+  this->storage_add_cmd_set_.optional(this->server_);
+  this->storage_add_cmd_set_.required(this->storage_name_);
+  this->storage_add_cmd_set_.required(this->storage_folder_);
+  this->storage_add_cmd_set_.optional(this->storage_size_);
 
   //cmd_line.add_command_set(this->server_init_command_set_);
   //this->server_init_command_set_.required(this->user_login_);
@@ -789,4 +834,114 @@ vds::expected<void> vds::vds_cmd_app::sync_file(
   }
 
   return expected<void>();
+}
+
+vds::expected<void> vds::vds_cmd_app::storage_list(
+  const service_provider * sp,
+  const std::shared_ptr<http_client>& client,
+  const std::string & session)
+{
+  GET_EXPECTED(response_body, client->send(
+    http_message(
+      "GET",
+      "/api/devices?session=" + url_encode::encode(session)),
+    [](http_message response) -> async_task<expected<void>> {
+
+    if (http_response(response).code() != http_response::HTTP_OK) {
+      return vds::make_unexpected<std::runtime_error>("Query devices failed " + http_response(response).comment());
+    }
+
+    return expected<void>();
+  }).get());
+
+  return this->device_list_out(response_body);
+}
+
+vds::expected<void> vds::vds_cmd_app::device_list_out(const const_data_buffer & response_body) {
+  if (this->output_format_.value() == "json") {
+    std::cout << std::string((const char *)response_body.data(), response_body.size()) << std::endl;
+  }
+  else {
+    GET_EXPECTED(body, json_parser::parse(
+      "/api/devices",
+      response_body));
+
+    std::cout 
+      << std::setw(44) << std::left << "Node" << "|"
+      << std::setw(15) << std::left << "Name" << "|"
+      << "Path" << "|"
+      << "Reserved" << "|"
+      << "Used" << "|"
+      << "Free" << "|"
+      << "Current"
+      << std::endl;
+
+    auto body_array = dynamic_cast<const json_array *>(body.get());
+    for (size_t i = 0; i < body_array->size(); ++i) {
+      auto item = dynamic_cast<const json_object *>(body_array->get(i).get());
+
+      std::string value;
+      CHECK_EXPECTED(item->get_property("node", value));
+      std::cout << std::setw(44) << value << "|";
+
+      CHECK_EXPECTED(item->get_property("name", value));
+      std::cout << std::setw(15) << std::left << value << "|";
+
+      CHECK_EXPECTED(item->get_property("local_path", value));
+      std::cout << value << "|"; 
+
+      CHECK_EXPECTED(item->get_property("reserved_size", value));
+      std::cout << value << "|";
+
+      CHECK_EXPECTED(item->get_property("used_size", value));
+      std::cout << value << "|";
+
+      CHECK_EXPECTED(item->get_property("free_size", value));
+      std::cout << value << "|";
+
+      CHECK_EXPECTED(item->get_property("current", value));
+      std::cout << value << std::endl;
+    }
+  }
+
+  return expected<void>();
+}
+
+
+vds::expected<void> vds::vds_cmd_app::storage_add(const service_provider * sp, const std::shared_ptr<http_client>& client, const std::string & session)
+{
+  filename fn(foldername(this->storage_folder_.value()), ".vds_storage.json");
+  GET_EXPECTED(f, file_stream_output_async::create(fn, file::file_mode::open_or_create));
+  CHECK_EXPECTED(client->send(
+    http_message(
+      "GET",
+      "/api/devices/label?session=" + url_encode::encode(session)),
+    [f](http_message response) -> async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
+
+    http_response label_response(std::move(response));
+
+    if (label_response.code() != http_response::HTTP_OK) {
+      return vds::make_unexpected<std::runtime_error>("Get label failed");
+    }
+
+    return expected<std::shared_ptr<stream_output_async<uint8_t>>>(f);
+  }).get());
+
+  return client->send(
+    http_message(
+      "POST",
+      "/api/devices?session=" + url_encode::encode(session)
+      + "&name=" + url_encode::encode(this->storage_name_.value())
+      + "&size=" + url_encode::encode(this->storage_size_.value())
+      + "&path=" + url_encode::encode(this->storage_folder_.value())
+    ),
+    [](http_message response) -> async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
+
+    if (http_response(response).code() != http_response::HTTP_OK) {
+      return vds::make_unexpected<std::runtime_error>("Allocate storage failed");
+    }
+
+    return expected<std::shared_ptr<stream_output_async<uint8_t>>>();
+  }).get();
+
 }

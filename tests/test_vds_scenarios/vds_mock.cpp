@@ -46,8 +46,6 @@ void vds_mock::start(size_t server_count)
         std::cout << "Initing root\n";
         server->init_root(this->root_login_, this->root_password_);
       }
-
-      server->allocate_storage(this->root_login_, this->root_password_);
     }
     catch (...) {
       std::cout << "Error...\n";
@@ -61,6 +59,10 @@ void vds_mock::start(size_t server_count)
     }
 
     this->servers_.push_back(std::move(server));
+  }
+
+  for (auto & p : this->servers_) {
+    p->allocate_storage(this->root_login_, this->root_password_);
   }
 }
 
@@ -668,12 +670,21 @@ auto user_mng = std::make_shared<vds::user_manager>(sp);
       t,
       root_login,
       root_password);
-
   }).get());
 
-  callback(
-    user_mng);
+  while (vds::user_manager::login_state_t::waiting == user_mng->get_login_state()) {
+    CHECK_EXPECTED_THROW(sp->get<vds::db_model>()->async_transaction(
+      [user_mng, root_login, root_password](vds::database_transaction &t) -> vds::expected<void> {
 
+      return user_mng->update(t);
+    }).get());
+  }
+
+  if (vds::user_manager::login_state_t::login_successful != user_mng->get_login_state()) {
+    throw std::runtime_error("Login failed");
+  }
+
+  callback(user_mng);
 }
 
 void mock_server::start()

@@ -81,15 +81,16 @@ vds::async_task<vds::expected<void>> vds::http_parser::write_async(
         if (http_message::get_header(this->headers_, "Content-Length", content_length_header)) {
           this->content_length_ = std::stoul(content_length_header);
         }
-        else if ("GET" != message.method()) {
-          this->content_length_ = (size_t)-1;
-        }
         else {
-          this->content_length_ = 0;
+          this->content_length_ = (size_t)-1;
         }
 
         GET_EXPECTED_VALUE_ASYNC(this->current_message_, co_await this->message_callback_(std::move(message)));
         this->headers_.clear();
+        if (!this->current_message_) {
+          vds_assert(this->content_length_ == (size_t)-1);
+          this->content_length_ = 0;
+        }
 
         if (0 == this->content_length_) {
           CHECK_EXPECTED_ASYNC(co_await this->finish_body());

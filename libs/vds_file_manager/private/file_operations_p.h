@@ -101,6 +101,15 @@ namespace vds {
         size_t readed_;
       };
 
+      static expected<void> lookup_file(
+        database_transaction & t,
+        const std::shared_ptr<user_manager> & user_mng,
+        const const_data_buffer & channel_id,
+        const std::string & file_name,
+        const const_data_buffer & file_hash,
+        std::shared_ptr<file_manager::file_operations::download_result_t> result,
+        std::list<transactions::user_message_transaction::file_block_t> & download_tasks);
+
 		};
   }
 }

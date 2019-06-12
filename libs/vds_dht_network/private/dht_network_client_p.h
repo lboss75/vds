@@ -275,9 +275,9 @@ namespace vds {
           uint8_t hops);
 
         async_task<expected<void>> restore(          
-          const std::vector<const_data_buffer>& object_ids,
-          const std::shared_ptr<const_data_buffer>& result,
-          const std::chrono::steady_clock::time_point& start);
+          std::vector<const_data_buffer> object_ids,
+          std::shared_ptr<const_data_buffer> result,
+          std::chrono::steady_clock::time_point start);
 
         expected<client::block_info_t> prepare_restore(
           database_read_transaction & t,

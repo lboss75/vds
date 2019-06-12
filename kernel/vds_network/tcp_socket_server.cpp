@@ -110,9 +110,13 @@ vds::expected<void> vds::_tcp_socket_server::start(
           if (!(*sp->get<network_service>())->associate(socket).has_error()) {
             auto s = _tcp_network_socket::from_handle(socket);
             c(s).then([sp, s](vds::expected<std::shared_ptr<stream_output_async<uint8_t>>> result) {
-              if (!result.has_value() && result.value()) {
+              if (result.has_value() && result.value()) {
                 auto handler = std::make_shared<_read_socket_task>(sp, s, std::move(result.value()));
                 (void)handler->start();
+              }
+              else
+              {
+                (void)s->close();
               }
             });
           }

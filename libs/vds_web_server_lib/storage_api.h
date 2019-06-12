@@ -20,11 +20,13 @@ namespace vds {
         const std::shared_ptr<user_manager> & user_mng,
         const http_message & request);
 
-    static expected<std::shared_ptr<vds::json_value>>
+    static async_task<expected<std::shared_ptr<vds::json_value>>>
     device_storage_label(
-        const std::shared_ptr<user_manager> &user_mng);
+      const vds::service_provider * sp,
+      const std::shared_ptr<user_manager> &user_mng,
+      const http_message & request);
 
-    static vds::async_task<vds::expected<void>>
+    static async_task<vds::expected<void>>
     add_device_storage(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> & user_mng,
