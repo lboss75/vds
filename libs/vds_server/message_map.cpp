@@ -11,10 +11,10 @@
 
 #define route_client(message_type)\
   case dht::network::message_type_t::message_type: {\
-    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this(), &final_tasks](database_transaction & t) -> expected<void> {\
+    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this(), &final_tasks, &result](database_transaction & t) -> expected<void> {\
         binary_deserializer s(message_info.message_data());\
         GET_EXPECTED(message, message_deserialize<dht::messages::message_type>(s));\
-        CHECK_EXPECTED((*pthis->sp_->get<dht::network::client>())->apply_message(\
+        GET_EXPECTED_VALUE(result, (*pthis->sp_->get<dht::network::client>())->apply_message(\
          t,\
          final_tasks,\
          message,\
@@ -24,19 +24,20 @@
       break;\
     }
 
-vds::async_task<vds::expected<void>> vds::_server::process_message(
+vds::async_task<vds::expected<bool>> vds::_server::process_message(
   message_info_t message_info) {
 
   if(this->sp_->get_shutdown_event().is_shuting_down()) {
-    co_return expected<void>();
+    co_return false;
   }
+  bool result = false;
   std::list<std::function<async_task<expected<void>>()>> final_tasks;
   switch(message_info.message_type()){
   case dht::network::message_type_t::transaction_log_state: {
-    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this(), &final_tasks](database_transaction & t) -> expected<void> {
+    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this(), &final_tasks, &result](database_transaction & t) -> expected<void> {
       binary_deserializer s(message_info.message_data());
       GET_EXPECTED(message, message_deserialize<dht::messages::transaction_log_state>(s));
-      CHECK_EXPECTED((*pthis->sp_->get<server>())->apply_message(
+      GET_EXPECTED_VALUE(result, (*pthis->sp_->get<server>())->apply_message(
           t,
           final_tasks,
           message,
@@ -48,10 +49,10 @@ vds::async_task<vds::expected<void>> vds::_server::process_message(
   }
   case dht::network::message_type_t::transaction_log_request: {
     CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction(
-        [message_info, pthis = this->shared_from_this(), &final_tasks](database_transaction & t) -> expected<void> {
+        [message_info, pthis = this->shared_from_this(), &final_tasks, &result](database_transaction & t) -> expected<void> {
       binary_deserializer s(message_info.message_data());
       GET_EXPECTED(message, message_deserialize<dht::messages::transaction_log_request>(s));
-      CHECK_EXPECTED((*pthis->sp_->get<server>())->apply_message(
+      GET_EXPECTED_VALUE(result, (*pthis->sp_->get<server>())->apply_message(
           t,
           final_tasks,
           message,
@@ -62,10 +63,10 @@ vds::async_task<vds::expected<void>> vds::_server::process_message(
     break;
   }
   case dht::network::message_type_t::transaction_log_record: {
-    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this(), &final_tasks](database_transaction & t) -> expected<void> {
+    CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction([message_info, pthis = this->shared_from_this(), &final_tasks, &result](database_transaction & t) -> expected<void> {
       binary_deserializer s(message_info.message_data());
       GET_EXPECTED(message, message_deserialize<dht::messages::transaction_log_record>(s));
-      CHECK_EXPECTED((*pthis->sp_->get<server>())->apply_message(
+      GET_EXPECTED_VALUE(result, (*pthis->sp_->get<server>())->apply_message(
           t,
           final_tasks,
           message,
@@ -78,7 +79,7 @@ vds::async_task<vds::expected<void>> vds::_server::process_message(
     case dht::network::message_type_t::dht_find_node: {
       binary_deserializer s(message_info.message_data());
       GET_EXPECTED_ASYNC(message, message_deserialize<dht::messages::dht_find_node>(s));
-      CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<dht::network::client>())->apply_message(
+      GET_EXPECTED_VALUE_ASYNC(result, co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
           message_info));
       break;
@@ -87,7 +88,7 @@ vds::async_task<vds::expected<void>> vds::_server::process_message(
     case dht::network::message_type_t::dht_find_node_response: {
       binary_deserializer s(message_info.message_data());
       GET_EXPECTED_ASYNC(message, message_deserialize<dht::messages::dht_find_node_response>(s));
-      CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<dht::network::client>())->apply_message(
+      GET_EXPECTED_VALUE_ASYNC(result, co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
           message_info));
       break;
@@ -96,7 +97,7 @@ vds::async_task<vds::expected<void>> vds::_server::process_message(
     case dht::network::message_type_t::dht_ping: {
       binary_deserializer s(message_info.message_data());
       GET_EXPECTED_ASYNC(message, message_deserialize<dht::messages::dht_ping>(s));
-      CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<dht::network::client>())->apply_message(
+      GET_EXPECTED_VALUE_ASYNC(result, co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
           message_info));
       break;
@@ -105,7 +106,7 @@ vds::async_task<vds::expected<void>> vds::_server::process_message(
     case dht::network::message_type_t::dht_pong: {
       binary_deserializer s(message_info.message_data());
       GET_EXPECTED_ASYNC(message, message_deserialize<dht::messages::dht_pong>(s));
-      CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<dht::network::client>())->apply_message(
+      GET_EXPECTED_VALUE_ASYNC(result, co_await (*this->sp_->get<dht::network::client>())->apply_message(
           message,
           message_info));
       break;
@@ -193,7 +194,7 @@ vds::async_task<vds::expected<void>> vds::_server::process_message(
     final_tasks.pop_front();
   }
 
-  co_return expected<void>();
+  co_return result;
 }
 
 

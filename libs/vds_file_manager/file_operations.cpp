@@ -252,6 +252,13 @@ vds::async_task<vds::expected<void>> vds::file_manager_private::_file_operations
     files](database_transaction& t) -> expected<void> {
 
     auto channel = user_mng->get_channel(channel_id);
+    if (!channel) {
+      pthis->sp_->get<logger>()->error(
+        ThisModule,
+        "Channel %s not found",
+        base64::from_bytes(channel_id).c_str());
+      return vds::make_unexpected<vds_exceptions::access_denied_error>("Channel not found");
+    }
     if (!channel->write_public_key()) {
       pthis->sp_->get<logger>()->error(
         ThisModule,

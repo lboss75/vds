@@ -37,6 +37,10 @@ vds::async_task<vds::expected<void>> vds::database::async_read_transaction(
 }
 
 vds::async_task<vds::expected<void>> vds::database::prepare_to_stop() {
+  if (nullptr == this->impl_) {
+    return vds::async_task<vds::expected<void>>(vds::expected<void>());
+  }
+
   return this->impl_->prepare_to_stop();
 }
 

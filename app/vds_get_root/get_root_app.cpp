@@ -50,6 +50,8 @@ vds::expected<void> vds::get_root_app::main(const service_provider * /*sp*/)
     CHECK_EXPECTED(keys_control::genereate_all(
         private_info));
     
+    write_member(root_id_);
+
     write_member(common_news_channel_id_);
     write_member(common_news_read_public_key_);
     write_member(common_news_read_private_key_);
@@ -69,6 +71,7 @@ vds::expected<void> vds::get_root_app::main(const service_provider * /*sp*/)
     write_member(web_admin_public_key_);
 
     binary_serializer s;
+    CHECK_EXPECTED(s << private_info.root_private_key_->der(this->user_password_.value()));
     CHECK_EXPECTED(s << private_info.common_news_write_private_key_->der(this->user_password_.value()));
     CHECK_EXPECTED(s << private_info.common_news_admin_private_key_->der(this->user_password_.value()));
 

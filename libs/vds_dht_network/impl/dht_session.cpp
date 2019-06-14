@@ -39,15 +39,17 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_session::ping_node(
 }
 
 vds::session_statistic::session_info vds::dht::network::dht_session::get_statistic() const {
+  std::unique_lock<std::mutex> send_lock(const_cast<dht_session *>(this)->traffic_mutex_);
+
   return session_statistic::session_info{
     this->address().to_string(),
     false,
-    false
+    false,
+    this->traffic_
   };
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::dht_session::process_message(
-  
+vds::async_task<vds::expected<bool>> vds::dht::network::dht_session::process_message(
   const std::shared_ptr<iudp_transport>& transport,
   uint8_t message_type,
   const const_data_buffer & target_node,
@@ -76,7 +78,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_session::process_mes
 
   if (target_node != this->this_node_id()) {
     if (hops == std::numeric_limits<uint16_t>::max()) {
-      return expected<void>();
+      co_return false;
     }
 
     this->sp_->get<logger>()->trace(
@@ -86,15 +88,16 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_session::process_mes
       base64::from_bytes(source_node).c_str(),
       base64::from_bytes(target_node).c_str());
 
-    return (*this->sp_->get<client>())->proxy_message(
+    CHECK_EXPECTED(co_await (*this->sp_->get<client>())->proxy_message(
       target_node,
       (message_type_t)message_type,
       message,
       source_node,
-      hops + 1);
+      hops + 1));
+    co_return true;
   }
   else {
-    return this->sp_->get<imessage_map>()->process_message(
+    co_return co_await this->sp_->get<imessage_map>()->process_message(
       imessage_map::message_info_t{
         this->shared_from_this(),
         static_cast<message_type_t>(message_type),

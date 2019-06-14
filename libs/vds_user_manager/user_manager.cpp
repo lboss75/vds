@@ -82,14 +82,12 @@ vds::expected<void> vds::user_manager::reset(
     auto playback = transactions::transaction_block_builder::create_root_block(this->sp_);
 
     //Create root user
-    GET_EXPECTED(root_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-
     GET_EXPECTED(root_user, _member_user::create_user(
       playback,
       "root",
       root_user_name,
       root_password,
-      std::make_shared<asymmetric_private_key>(std::move(root_private_key))));
+      private_info.root_private_key_));
 
     //common news
     this->sp_->get<logger>()->info(ThisModule, "Create channel %s(Common News)",

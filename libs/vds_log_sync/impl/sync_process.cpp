@@ -18,7 +18,6 @@ All rights reserved
 vds::expected<void> vds::transaction_log::sync_process::do_sync(
   database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks) {
-  CHECK_EXPECTED(this->sync_local_channels(t, final_tasks, const_data_buffer()));
   CHECK_EXPECTED(this->query_unknown_records(t, final_tasks));
   return expected<void>();
 }
@@ -91,7 +90,7 @@ vds::expected<void> vds::transaction_log::sync_process::query_unknown_records(
 }
 
 
-vds::expected<void> vds::transaction_log::sync_process::apply_message(
+vds::expected<bool> vds::transaction_log::sync_process::apply_message(
   database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const dht::messages::transaction_log_state& message,
@@ -147,8 +146,9 @@ vds::expected<void> vds::transaction_log::sync_process::apply_message(
 
     if (!current_state.empty()) {
       auto & client = *this->sp_->get<vds::dht::network::client>();
-      final_tasks.push_back([client, current_state]()->async_task<expected<void>> {
-        return client->send_neighbors(
+      final_tasks.push_back([client, source_node = message.source_node, current_state]()->async_task<expected<void>> {
+        return client->send(
+          source_node,
           message_create<dht::messages::transaction_log_state>(
             current_state,
             client->current_node_id()));
@@ -156,10 +156,10 @@ vds::expected<void> vds::transaction_log::sync_process::apply_message(
     }
   }
 
-  return expected<void>();
+  return true;
 }
 
-vds::expected<void> vds::transaction_log::sync_process::apply_message(
+vds::expected<bool> vds::transaction_log::sync_process::apply_message(
   database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const dht::messages::transaction_log_request& message,
@@ -171,27 +171,28 @@ vds::expected<void> vds::transaction_log::sync_process::apply_message(
     t1.select(t1.data)
     .where(t1.id == message.transaction_id)));
   GET_EXPECTED(st_execute, st.execute());
-  if (st_execute) {
-
-    this->sp_->get<logger>()->trace(
-      ThisModule,
-      "Provide log record %s",
-      base64::from_bytes(message.transaction_id).c_str());
-
-    auto client = this->sp_->get<vds::dht::network::client>();
-    final_tasks.push_back([client, data = t1.data.get(st), source_node = message.source_node, transaction_id = message.transaction_id]()->async_task<expected<void>> {
-      return (*client)->send(
-        source_node,
-        message_create<dht::messages::transaction_log_record>(
-          transaction_id,
-          data));
-    });
-
+  if (!st_execute) {
+    return false;
   }
-  return expected<void>();
+
+  this->sp_->get<logger>()->trace(
+    ThisModule,
+    "Provide log record %s",
+    base64::from_bytes(message.transaction_id).c_str());
+
+  auto client = this->sp_->get<vds::dht::network::client>();
+  final_tasks.push_back([client, data = t1.data.get(st), source_node = message.source_node, transaction_id = message.transaction_id]()->async_task<expected<void>> {
+    return (*client)->send(
+      source_node,
+      message_create<dht::messages::transaction_log_record>(
+        transaction_id,
+        data));
+  });
+
+  return true;
 }
 
-vds::expected<void> vds::transaction_log::sync_process::apply_message(
+vds::expected<bool> vds::transaction_log::sync_process::apply_message(
     database_transaction& t,
     std::list<std::function<async_task<expected<void>>()>> & final_tasks,
     const dht::messages::transaction_log_record& message,
@@ -205,7 +206,7 @@ vds::expected<void> vds::transaction_log::sync_process::apply_message(
   GET_EXPECTED(block, transactions::transaction_block::create(message.data));
   GET_EXPECTED(block_exists, block.exists(t));
   if (block_exists) {
-    return expected<void>();
+    return false;
   }
 
   orm::transaction_log_record_dbo t1;
@@ -239,7 +240,7 @@ vds::expected<void> vds::transaction_log::sync_process::apply_message(
       GET_EXPECTED(st, t.get_reader(t1.select(t1.state).where(t1.id == ancestor)));
       GET_EXPECTED(st_execute, st.execute());
       if (!st_execute) {
-        final_tasks.push_back([client, target  = ancestor, source_node = message_info.source_node()]() {
+        final_tasks.push_back([client, target = ancestor, source_node = message_info.source_node()]() {
           return (*client)->send(
             source_node,
             message_create<dht::messages::transaction_log_request>(
@@ -249,7 +250,7 @@ vds::expected<void> vds::transaction_log::sync_process::apply_message(
       }
     }
 
-    return expected<void>();
+    return false;
   }
 
   CHECK_EXPECTED(transactions::transaction_log::save(
@@ -257,7 +258,7 @@ vds::expected<void> vds::transaction_log::sync_process::apply_message(
     t,
     message.data));
 
-  return expected<void>();
+  return true;
 }
 
 vds::expected<void> vds::transaction_log::sync_process::on_new_session(
@@ -301,23 +302,13 @@ vds::expected<void> vds::transaction_log::sync_process::sync_local_channels(
     log_message.c_str());
 
   this->sp_->get<logger>()->trace(ThisModule, "Send transaction_log_state");
-  if (!partner_id) {
-    final_tasks.push_back([client, leafs]() {
-      return (*client)->send_neighbors(
-        message_create<dht::messages::transaction_log_state>(
-          leafs,
-          client->current_node_id()));
-    });
-  }
-  else {
-    final_tasks.push_back([client, leafs, partner_id]() {
-      return (*client)->send(
-        partner_id,
-        message_create<dht::messages::transaction_log_state>(
-          leafs,
-          client->current_node_id()));
-    });
-  }
+  final_tasks.push_back([client, leafs, partner_id]() {
+    return (*client)->send(
+      partner_id,
+      message_create<dht::messages::transaction_log_state>(
+        leafs,
+        client->current_node_id()));
+  });
 
   return expected<void>();
 }

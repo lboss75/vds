@@ -32,19 +32,19 @@ namespace vds {
         database_transaction & t,
         std::list<std::function<async_task<expected<void>>()>> & final_tasks);
 
-      expected<void> apply_message(
+      expected<bool> apply_message(
         database_transaction & t,
         std::list<std::function<async_task<expected<void>>()>> & final_tasks,
         const dht::messages::transaction_log_state & message,
         const dht::network::imessage_map::message_info_t & message_info);
 
-      expected<void> apply_message(
+      expected<bool> apply_message(
         database_transaction& t,
         std::list<std::function<async_task<expected<void>>()>> & final_tasks,
         const dht::messages::transaction_log_request& message,
         const dht::network::imessage_map::message_info_t & message_info);
 
-      expected<void> apply_message(
+      expected<bool> apply_message(
         database_transaction& t,
         std::list<std::function<async_task<expected<void>>()>> & final_tasks,
         const dht::messages::transaction_log_record & message,

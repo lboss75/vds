@@ -23,6 +23,7 @@ All rights reserved
 #include "transaction_log_balance_dbo.h"
 #include "database.h"
 #include "datacoin_balance_dbo.h"
+#include "node_info_dbo.h"
 
 vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
 	const service_provider * sp,
@@ -583,23 +584,56 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(const servic
   return expected<void>();
 }
 
-vds::expected<bool> vds::transactions::transaction_log::apply_record(const service_provider * sp, database_transaction & t, const create_user_transaction & message, const const_data_buffer & block_id)
+vds::expected<bool> vds::transactions::transaction_log::apply_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const create_user_transaction & message,
+  const const_data_buffer & block_id)
 {
-  return expected<bool>();
+  return true;
 }
 
-vds::expected<void> vds::transactions::transaction_log::undo_record(const service_provider * sp, database_transaction & t, const create_user_transaction & message, const const_data_buffer & block_id)
+vds::expected<void> vds::transactions::transaction_log::undo_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const create_user_transaction & message,
+  const const_data_buffer & block_id)
 {
   return expected<void>();
 }
 
-vds::expected<bool> vds::transactions::transaction_log::apply_record(const service_provider * sp, database_transaction & t, const node_add_transaction & message, const const_data_buffer & block_id)
+vds::expected<bool> vds::transactions::transaction_log::apply_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const node_add_transaction & message,
+  const const_data_buffer & block_id)
 {
-  return expected<bool>();
+  GET_EXPECTED(node_id, message.node_public_key->hash(hash::sha256()));
+  GET_EXPECTED(public_key, message.node_public_key->der());
+
+  orm::node_info_dbo t1;
+  CHECK_EXPECTED(t.execute(
+    t1.insert(
+      t1.node_id = node_id,
+      t1.public_key = public_key
+    )));
+
+  return true;
 }
 
-vds::expected<void> vds::transactions::transaction_log::undo_record(const service_provider * sp, database_transaction & t, const node_add_transaction & message, const const_data_buffer & block_id)
+vds::expected<void> vds::transactions::transaction_log::undo_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const node_add_transaction & message,
+  const const_data_buffer & block_id)
 {
+  GET_EXPECTED(node_id, message.node_public_key->hash(hash::sha256()));
+
+  orm::node_info_dbo t1;
+  CHECK_EXPECTED(t.execute(
+    t1.delete_if(
+      t1.node_id == node_id)));
+
   return expected<void>();
 }
 

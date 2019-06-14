@@ -30,7 +30,7 @@ public:
     : base_class(sp, address, this_node_id, partner_node_id, session_key) {
   }
 
-  vds::async_task<vds::expected<void>> process_message(
+  vds::async_task<vds::expected<bool>> process_message(
       
       const std::shared_ptr<mock_dg_transport>& transport,
       uint8_t message_type,
@@ -45,7 +45,7 @@ public:
     this->source_node_ = source_node;
     this->hops_ = hops;
 
-    co_return vds::expected<void>();
+    co_return true;
   }
 
 

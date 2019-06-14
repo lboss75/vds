@@ -48,13 +48,15 @@ vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
 
     if (&this->server_root_cmd_set_ == this->current_command_set_) {
       GET_EXPECTED(data, file::read_all(filename("keys")));
-      const_data_buffer common_news_write_private_key,
+      const_data_buffer root_private_key,
+                        common_news_write_private_key,
                         common_news_admin_private_key,
                         autoupdate_write_private_key,
                         autoupdate_admin_private_key,
                         web_write_private_key,
                         web_admin_private_key;
       binary_deserializer s(data);
+      CHECK_EXPECTED(s >> root_private_key);
       CHECK_EXPECTED(s >> common_news_write_private_key);
       CHECK_EXPECTED(s >> common_news_admin_private_key);
       CHECK_EXPECTED(s >> autoupdate_write_private_key);
@@ -63,6 +65,12 @@ vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
       CHECK_EXPECTED(s >> web_admin_private_key);
 
       keys_control::private_info_t private_info;
+
+      GET_EXPECTED(root_private_key_key,
+        asymmetric_private_key::parse_der(root_private_key, this->user_password_.value()));
+
+      private_info.root_private_key_ = std::make_shared<asymmetric_private_key>(std::move(root_private_key_key));
+
       //Common news
       GET_EXPECTED(common_news_write_private_key_key, 
         asymmetric_private_key::parse_der(common_news_write_private_key, this->user_password_.value()));

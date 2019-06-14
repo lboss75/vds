@@ -78,6 +78,10 @@ vds::expected<vds::transactions::transaction_block_builder> vds::transactions::t
     }
   WHILE_EXPECTED_END()
 
+    if (ancestors.empty()) {
+      return make_unexpected<std::runtime_error>("transaction logs are empty");
+    }
+
   ++order_no;
   return expected<transaction_block_builder>(
     sp,
@@ -104,6 +108,10 @@ vds::expected<vds::transactions::transaction_block_builder> vds::transactions::t
         order_no = order;
       }
     WHILE_EXPECTED_END()
+  }
+
+  if (ancestors.empty()) {
+    return make_unexpected<std::runtime_error>("transaction logs are empty");
   }
 
   ++order_no;

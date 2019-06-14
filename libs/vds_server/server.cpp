@@ -151,7 +151,12 @@ vds::async_task<vds::expected<vds::server_statistic>> vds::_server::get_statisti
     WHILE_EXPECTED_END()
 
     orm::transaction_log_hierarchy_dbo t3;
-    GET_EXPECTED_VALUE(st, t.get_reader(t3.select(t3.id)));
+    orm::transaction_log_hierarchy_dbo t10;
+    orm::transaction_log_record_dbo t11;
+    GET_EXPECTED_VALUE(st, t.get_reader(
+      t3.select(
+        t3.id)
+      .where(db_not_in(t3.id, t10.select(t10.follower_id)) && db_not_in(t3.id, t11.select(t11.id)))));
 
     WHILE_EXPECTED(st.execute()) {
       auto id = t3.id.get(st);
@@ -277,7 +282,7 @@ vds::async_task<vds::expected<vds::server_statistic>> vds::_server::get_statisti
   co_return *result;
 }
 
-vds::expected<void> vds::_server::apply_message(
+vds::expected<bool> vds::_server::apply_message(
   database_transaction & t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const dht::messages::transaction_log_state & message,
@@ -285,7 +290,7 @@ vds::expected<void> vds::_server::apply_message(
   return this->transaction_log_sync_process_->apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::_server::apply_message(
+vds::expected<bool> vds::_server::apply_message(
   database_transaction & t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const dht::messages::transaction_log_request & message,
@@ -293,7 +298,7 @@ vds::expected<void> vds::_server::apply_message(
   return this->transaction_log_sync_process_->apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::_server::apply_message(
+vds::expected<bool> vds::_server::apply_message(
   database_transaction & t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const dht::messages::transaction_log_record & message,

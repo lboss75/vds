@@ -57,7 +57,7 @@ namespace vds {
           uint16_t hops_;
         };
 
-        virtual vds::async_task<vds::expected<void>> process_message(
+        virtual vds::async_task<vds::expected<bool>> process_message(
           message_info_t message_info) = 0;
 
         virtual vds::async_task<vds::expected<void>> on_new_session(

@@ -52,25 +52,25 @@ namespace vds {
 
     vds::async_task<vds::expected<server_statistic>> get_statistic();
 
-    vds::async_task<vds::expected<void>> process_message(
+    vds::async_task<vds::expected<bool>> process_message(
         message_info_t message_info) override;
 
     vds::async_task<vds::expected<void>> on_new_session(
       const_data_buffer partner_id) override;
 
-      expected<void> apply_message(
+      expected<bool> apply_message(
       database_transaction & t,
         std::list<std::function<async_task<expected<void>>()>> & final_tasks,
       const dht::messages::transaction_log_state & message,
       const message_info_t & message_info);
 
-      expected<void> apply_message(
+      expected<bool> apply_message(
       database_transaction& t,
         std::list<std::function<async_task<expected<void>>()>> & final_tasks,
       const dht::messages::transaction_log_request& message,
       const message_info_t & message_info);
 
-      expected<void> apply_message(
+      expected<bool> apply_message(
       database_transaction& t,
         std::list<std::function<async_task<expected<void>>()>> & final_tasks,
       const dht::messages::transaction_log_record & message,

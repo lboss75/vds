@@ -15,6 +15,10 @@ namespace vds {
 
   class keys_control {
   public:
+    static const_data_buffer root_id() {
+      GET_EXPECTED_THROW(result, base64::to_bytes(root_id_));
+      return result;
+    }
     //common news read keys
     static const_data_buffer get_common_news_channel_id() {
       GET_EXPECTED_THROW(result, base64::to_bytes(common_news_channel_id_));
@@ -95,6 +99,7 @@ namespace vds {
       std::shared_ptr<asymmetric_private_key> autoupdate_admin_private_key_;
       std::shared_ptr<asymmetric_private_key> web_write_private_key_;
       std::shared_ptr<asymmetric_private_key> web_admin_private_key_;
+      std::shared_ptr<asymmetric_private_key> root_private_key_;
 
       expected<void> genereate_all();
     private:
@@ -107,6 +112,7 @@ namespace vds {
       friend class get_root_app;
     friend class mock_server;
 
+    static char root_id_[65];
     static char common_news_channel_id_[65];
     static char common_news_read_public_key_[asymmetric_public_key::base64_size + 1];
     static char common_news_read_private_key_[asymmetric_private_key::base64_size + 1];

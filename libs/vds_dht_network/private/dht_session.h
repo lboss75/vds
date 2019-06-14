@@ -32,7 +32,7 @@ namespace vds {
           const const_data_buffer& node_id,
           const std::shared_ptr<iudp_transport>& transport);
 
-        vds::async_task<vds::expected<void>> process_message(
+        vds::async_task<vds::expected<bool>> process_message(
           
           const std::shared_ptr<iudp_transport>& transport,
           uint8_t message_type,

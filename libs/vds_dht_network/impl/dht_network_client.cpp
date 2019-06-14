@@ -121,13 +121,13 @@ vds::expected<std::shared_ptr<vds::dht::network::client_save_stream>> vds::dht::
   return std::make_shared<client_save_stream>(std::move(result));
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::_client::apply_message(
+vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(
   const messages::dht_find_node& message,
   const imessage_map::message_info_t& message_info) {
   std::map<const_data_buffer /*distance*/,
   std::map<const_data_buffer, std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>> result_nodes;
 
-  CHECK_EXPECTED(this->route_.search_nodes(message.target_id, 70, result_nodes));
+  CHECK_EXPECTED_ASYNC(this->route_.search_nodes(message.target_id, 70, result_nodes));
 
   std::list<messages::dht_find_node_response::target_node> result;
   for (auto& presult : result_nodes) {
@@ -139,14 +139,19 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::apply_message(
     }
   }
 
-  this->sp_->get<logger>()->trace(ThisModule, "Send dht_find_node_response");
-  return this->send(
-    message_info.source_node(),
-    message_create<messages::dht_find_node_response>(result));
+  if (!result.empty()) {
+    this->sp_->get<logger>()->trace(ThisModule, "Send dht_find_node_response");
+    CHECK_EXPECTED_ASYNC(co_await this->send(
+      message_info.source_node(),
+      message_create<messages::dht_find_node_response>(result)));
+    co_return true;
+  }
+  else {
+    co_return false;
+  }
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::_client::apply_message(
-  
+vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(
   const messages::dht_find_node_response& message,
   const imessage_map::message_info_t& message_info) {
   for (auto& p : message.nodes) {
@@ -161,30 +166,30 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::apply_message(
     }
   }
 
-  co_return expected<void>();
+  co_return true;
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::_client::apply_message(
-  
+vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(
   const messages::dht_ping& message,
   const imessage_map::message_info_t& message_info) {
 
   this->sp_->get<logger>()->trace(ThisModule, "Send dht_pong");
-  return message_info.session()->send_message(
+  CHECK_EXPECTED_ASYNC(co_await message_info.session()->send_message(
     this->udp_transport_,
     (uint8_t)messages::dht_pong::message_id,
     message_info.source_node(),
-    message_serialize(messages::dht_pong()));
+    message_serialize(messages::dht_pong())));
+
+  co_return true;
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::_client::apply_message(
-  
+vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(
   const messages::dht_pong& message,
   const imessage_map::message_info_t& message_info) {
   this->route_.mark_pinged(
     message_info.source_node(),
     message_info.session()->address());
-  co_return expected<void>();
+  co_return true;
 }
 
 vds::async_task<vds::expected<void>> vds::dht::network::_client::add_session(
@@ -542,7 +547,7 @@ void vds::dht::network::_client::get_session_statistics(session_statistic& sessi
   static_cast<udp_transport *>(this->udp_transport_.get())->get_session_statistics(session_statistic);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message(
+vds::expected<bool> vds::dht::network::_client::apply_message(
   database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_new_election_request& message,
@@ -550,7 +555,7 @@ vds::expected<void> vds::dht::network::_client::apply_message(
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message(
+vds::expected<bool> vds::dht::network::_client::apply_message(
   database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_new_election_response& message,
@@ -558,91 +563,91 @@ vds::expected<void> vds::dht::network::_client::apply_message(
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_add_message_request& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_leader_broadcast_request& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_leader_broadcast_response& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_replica_operations_request& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_replica_operations_response& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_looking_storage_request& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_looking_storage_response& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_snapshot_request& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_snapshot_response& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_offer_send_replica_operation_request& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_offer_remove_replica_operation_request& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
                                                const messages::sync_replica_request& message,
                                                const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message(
+vds::expected<bool> vds::dht::network::_client::apply_message(
    database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_replica_data& message,
@@ -650,7 +655,7 @@ vds::expected<void> vds::dht::network::_client::apply_message(
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::expected<void> vds::dht::network::_client::apply_message( database_transaction& t,
+vds::expected<bool> vds::dht::network::_client::apply_message( database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
   const messages::sync_replica_query_operations_request& message, const imessage_map::message_info_t& message_info) {
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);

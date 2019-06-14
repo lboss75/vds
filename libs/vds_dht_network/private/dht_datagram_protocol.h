@@ -18,7 +18,7 @@ All rights reserved
 #include "debug_mutex.h"
 #include "vds_exceptions.h"
 #include "hash.h"
-
+#include "session_statistic.h"
 
 namespace vds {
   namespace dht {
@@ -72,6 +72,11 @@ namespace vds {
             base64::from_bytes(this->this_node_id_).c_str(),
             base64::from_bytes(target_node).c_str());
 
+          std::unique_lock<std::mutex> lock(this->traffic_mutex_);
+          this->traffic_[base64::from_bytes(this->this_node_id_)][base64::from_bytes(target_node)][message_type].sent_count_++;
+          this->traffic_[base64::from_bytes(this->this_node_id_)][base64::from_bytes(target_node)][message_type].sent_ += message.size();
+          lock.unlock();
+
           return this->send_message_async(
             s,
             message_type,
@@ -99,6 +104,11 @@ namespace vds {
             message_type,
             base64::from_bytes(source_node).c_str(),
             base64::from_bytes(target_node).c_str());
+
+          std::unique_lock<std::mutex> lock(this->traffic_mutex_);
+          this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].sent_count_++;
+          this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].sent_ += message.size();
+          lock.unlock();
 
           return this->send_message_async(
             s,
@@ -184,15 +194,27 @@ namespace vds {
               break;
             }
             }
-
-
-            CHECK_EXPECTED_ASYNC(co_await static_cast<implementation_class *>(this)->process_message(
+            
+            const auto message_size = message.size();
+            GET_EXPECTED_ASYNC(is_good, co_await static_cast<implementation_class *>(this)->process_message(
               s,
               message_type,
               target_node,
               source_node,
               hops,
               message));
+
+            std::unique_lock<std::mutex> lock(this->traffic_mutex_);
+            if (is_good) {
+              this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
+              this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
+            }
+            else {
+              this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
+              this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
+            }
+            lock.unlock();
+
             co_return expected<void>();
           }
 
@@ -277,6 +299,9 @@ namespace vds {
 
       protected:
         const service_provider * sp_;
+
+        std::mutex traffic_mutex_;
+        std::map<std::string /*from*/, std::map<std::string /*to*/, std::map<uint8_t /*message_type*/, session_statistic::traffic_info /*size*/>>> traffic_;
 
       private:
         static constexpr uint8_t INDEX_SIZE = 4;
@@ -568,14 +593,26 @@ namespace vds {
               if (0 == size) {
                 this->last_input_message_id_.clear();
                 this->input_messages_.clear();
-
-				CHECK_EXPECTED_ASYNC(co_await static_cast<implementation_class *>(this)->process_message(
+                
+                const auto message_size = message.size();
+				        GET_EXPECTED_ASYNC(is_good, co_await static_cast<implementation_class *>(this)->process_message(
                   s,
                   message_type,
                   target_node,
                   source_node,
                   hops,
                   message.move_data()));
+
+                std::unique_lock<std::mutex> lock(this->traffic_mutex_);
+                if (is_good) {
+                  this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
+                  this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
+                }
+                else {
+                  this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
+                  this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
+                }
+                lock.unlock();
 
                 co_return expected<void>();
               }
