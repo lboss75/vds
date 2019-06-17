@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(test_vds_scenarios)
+project(test_vds_servers)
 
 find_package (OpenSSL REQUIRED)
 
@@ -7,16 +7,12 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
 
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_FILES *.cpp)
-if(UNIX)
-else(UNIX)
-	FILE(GLOB GLOBAL_RES ${CMAKE_SOURCE_DIR}/resources/*.rc ${CMAKE_SOURCE_DIR}/resources/*.h)
-endif(UNIX)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_FILES)
 
-add_executable(test_vds_scenarios ${SOURCE_FILES} ${HEADER_FILES} ${GLOBAL_RES})
+add_library(test_vds_servers STATIC ${SOURCE_FILES} ${HEADER_FILES} ${GLOBAL_RES})
 
-target_include_directories(test_vds_scenarios
+target_include_directories(test_vds_servers
         PRIVATE
           ${vds_core_INCLUDE_DIRS}
           ${vds_network_INCLUDE_DIRS}
@@ -29,13 +25,14 @@ target_include_directories(test_vds_scenarios
           ${vds_user_manager_INCLUDE_DIRS}
           ${vds_transactions_INCLUDE_DIRS}
           ${test_libs_INCLUDE_DIRS}
-          ${test_vds_servers_INCLUDE_DIRS}
-          ${OPENSSL_INCLUDE_DIR})
+          ${OPENSSL_INCLUDE_DIR}
+        PUBLIC
+          ${CMAKE_CURRENT_SOURCE_DIR})
 
 enable_testing()
 
 target_link_libraries(
-  test_vds_scenarios
+  test_vds_servers
   vds_core
   vds_data
   vds_database
@@ -48,13 +45,7 @@ target_link_libraries(
   vds_dht_network
   vds_transactions
   test_libs
-  test_vds_servers
   ${OPENSSL_LIBRARIES}
   ${GTEST_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${EVENT_LIBRARY})
+  ${CMAKE_THREAD_LIBS_INIT})
 
-add_test(
-    NAME runUnitTests
-    COMMAND test_vds_scenarios
-)

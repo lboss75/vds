@@ -22,7 +22,8 @@ target_include_directories(test_vds_dht_network
           ${vds_dht_network_INCLUDE_DIRS}
           ${vds_user_manager_INCLUDE_DIRS}
           ${vds_transactions_INCLUDE_DIRS}
-          ${test_libs_INCLUDE_DIRS})
+          ${test_libs_INCLUDE_DIRS}
+          ${test_vds_servers_INCLUDE_DIRS})
 
 enable_testing()
 
@@ -40,6 +41,7 @@ target_link_libraries(
   vds_dht_network
   vds_transactions
   test_libs
+  test_vds_servers
   ${GTEST_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${EVENT_LIBRARY})

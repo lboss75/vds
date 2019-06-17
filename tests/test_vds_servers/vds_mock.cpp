@@ -23,7 +23,7 @@ vds_mock::~vds_mock()
   this->stop();
 }
 
-void vds_mock::start(size_t server_count)
+void vds_mock::start(size_t server_count, bool allow_network)
 {
   GET_EXPECTED_THROW(current_process, vds::filename::current_process());
   const auto contains_folder = current_process.contains_folder();
@@ -38,12 +38,12 @@ void vds_mock::start(size_t server_count)
   const auto first_port = 8050;
 
   for (size_t i = 0; i < server_count; ++i) {
-    std::unique_ptr<mock_server> server(new mock_server(i, first_port + i));
+    std::unique_ptr<mock_server> server(new mock_server(i, first_port + i, allow_network));
     try {
       std::cout << "Starring server " << i << "\n";
       server->start();
       if (5 == i) {
-        std::cout << "Initing root\n";
+        std::cout << "Initiating root\n";
         server->init_root(this->root_login_, this->root_password_);
       }
     }
@@ -604,14 +604,15 @@ const vds::service_provider * vds_mock::get_sp(int client_index) {
   return this->servers_[client_index]->get_service_provider();
 }
 
-mock_server::mock_server(int index, int udp_port)
+mock_server::mock_server(int index, int udp_port, bool allow_network)
   : index_(index),
   tcp_port_(udp_port),
   udp_port_(udp_port),
   sp_(nullptr),
   logger_(
     test_config::instance().log_level(),
-    test_config::instance().modules())
+    test_config::instance().modules()),
+  allow_network_(allow_network)
 {
 }
 
@@ -699,7 +700,9 @@ void mock_server::start()
   this->registrator_.add(this->mt_service_);
   this->registrator_.add(this->logger_);
   this->registrator_.add(this->task_manager_);
-  this->registrator_.add(this->network_service_);
+  if (this->allow_network_) {
+    this->registrator_.add(this->network_service_);
+  }
   this->registrator_.add(this->crypto_service_);
   this->registrator_.add(this->server_);
 
@@ -710,8 +713,10 @@ void mock_server::start()
   GET_EXPECTED_VALUE_THROW(this->sp_, this->registrator_.build());
   CHECK_EXPECTED_THROW(this->registrator_.start());
 
-  CHECK_EXPECTED_THROW(this->server_.start_network(this->udp_port_, true).get());
-  this->sp_->get<vds::dht::network::client>()->update_wellknown_connection_enabled(false);
+  if (this->allow_network_) {
+    CHECK_EXPECTED_THROW(this->server_.start_network(this->udp_port_, true).get());
+    this->sp_->get<vds::dht::network::client>()->update_wellknown_connection_enabled(false);
+  }
 }
 
 void mock_server::stop()
@@ -746,7 +751,7 @@ void mock_server::init(
   registrator.add(logger);
   registrator.add(task_manager);
   registrator.add(crypto_service);
-  registrator.add(network_service);
+  //registrator.add(network_service);  
   registrator.add(server);
 
   registrator.current_user(folder);

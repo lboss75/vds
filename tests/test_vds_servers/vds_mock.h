@@ -2,8 +2,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#ifndef __TEST_VDS_SCENARIOS_VDS_MOCK_H_
-#define __TEST_VDS_SCENARIOS_VDS_MOCK_H_
+#ifndef __TEST_VDS_SERVERS_VDS_MOCK_H_
+#define __TEST_VDS_SERVERS_VDS_MOCK_H_
 
 #include "network_service.h"
 #include "dht_network.h"
@@ -18,7 +18,7 @@ namespace vds {
 class mock_server
 {
 public:
-  mock_server(int index, int udp_port);
+  mock_server(int index, int udp_port, bool allow_network);
 
   void start();
   void stop();
@@ -60,6 +60,7 @@ private:
   vds::task_manager task_manager_;
   vds::crypto_service crypto_service_;
   vds::server server_;
+  bool allow_network_;
 
   void login(
     const std::string& root_login,
@@ -74,7 +75,7 @@ public:
   vds_mock();
   ~vds_mock();
 
-  void start(size_t server_count);
+  void start(size_t server_count, bool allow_network);
   void stop();
 
   void allow_write_channel(
@@ -115,4 +116,4 @@ private:
   static std::string generate_password(size_t min_len = 4, size_t max_len = 20);
 };
 
-#endif//__TEST_VDS_SCENARIOS_VDS_MOCK_H_
+#endif//__TEST_VDS_SERVERS_VDS_MOCK_H_
