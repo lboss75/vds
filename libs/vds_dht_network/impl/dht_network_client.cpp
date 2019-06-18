@@ -22,34 +22,29 @@ All rights reserved
 #include "chunk_replica_data_dbo.h"
 #include "transaction_block_builder.h"
 #include "node_info_dbo.h"
+#include "current_config_dbo.h"
 
 vds::expected<std::shared_ptr<vds::dht::network::_client>> vds::dht::network::_client::create(
   const service_provider * sp,
   const std::shared_ptr<iudp_transport> & udp_transport,
-  const std::shared_ptr<asymmetric_public_key> & node_public_key,
-  const std::shared_ptr<asymmetric_private_key> & node_key) {
+  const std::shared_ptr<asymmetric_public_key> & node_public_key) {
 
   GET_EXPECTED(this_node_id, node_public_key->hash(hash::sha256()));
 
-  return std::make_shared<_client>(sp, udp_transport, this_node_id, node_public_key, node_key);
+  return std::make_shared<_client>(sp, udp_transport, this_node_id);
 }
 
 vds::dht::network::_client::_client(
   const service_provider * sp,
   const std::shared_ptr<iudp_transport> & udp_transport,
-  const const_data_buffer & this_node_id,
-  const std::shared_ptr<asymmetric_public_key> & node_public_key,
-  const std::shared_ptr<asymmetric_private_key> & node_key)
+  const const_data_buffer & this_node_id)
   : sp_(sp),
-  node_public_key_(node_public_key),
-  node_key_(node_key),
   route_(sp, this_node_id),
   update_timer_("DHT Network"),
   update_route_table_counter_(0),
   udp_transport_(udp_transport),
   sync_process_(sp),
-  update_wellknown_connection_enabled_(true),
-  is_new_node_(true) {
+  update_wellknown_connection_enabled_(true) {
   for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
     this->generators_[replica].reset(new chunk_generator<uint16_t>(service::MIN_HORCRUX, replica));
   }
@@ -95,24 +90,6 @@ vds::expected<std::vector<vds::const_data_buffer>> vds::dht::network::_client::s
   }
 
   return result;
-}
-
-vds::expected<vds::const_data_buffer> vds::dht::network::_client::save(const service_provider * sp, transactions::transaction_block_builder & block, database_transaction & t)
-{
-  if (this->is_new_node_) {
-    GET_EXPECTED(node_id, this->node_public_key_->hash(hash::sha256()));
-
-    orm::node_info_dbo t1;
-    GET_EXPECTED(st, t.get_reader(t1.select(t1.public_key).where(t1.node_id == node_id)));
-    GET_EXPECTED(st_result, st.execute());
-    if (!st_result) {
-      CHECK_EXPECTED(block.add(message_create<transactions::node_add_transaction>(this->node_public_key_)));
-    }
-
-    this->is_new_node_ = false;
-  }
-
-  return block.save(sp, t, this->node_public_key_, this->node_key_);
 }
 
 
@@ -884,16 +861,59 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::find_nodes(
 
 vds::expected<void> vds::dht::network::client::start(
   const service_provider * sp,
-  const std::shared_ptr<asymmetric_public_key> & node_public_key,
-  const std::shared_ptr<asymmetric_private_key> & node_key,
-  const std::shared_ptr<iudp_transport> & udp_transport) {
-  GET_EXPECTED_VALUE(this->impl_, _client::create(sp, udp_transport, node_public_key, node_key));
+  const std::shared_ptr<iudp_transport> & udp_transport,
+  uint16_t port,
+  bool dev_network) {
+
+  this->udp_transport_task_ = std::make_unique<async_task<expected<void>>>(udp_transport->start(
+    sp,
+    this->node_public_key_,
+    this->node_key_,
+    port,
+    dev_network));
+  
+  GET_EXPECTED_VALUE(this->impl_, _client::create(sp, udp_transport, this->node_public_key_));
   return this->impl_->start();
+}
+
+vds::expected<void> vds::dht::network::client::load_keys(database_transaction & t)
+{
+  orm::current_config_dbo t1;
+  GET_EXPECTED(st, t.get_reader(t1.select(t1.public_key, t1.private_key)));
+  GET_EXPECTED(st_execute, st.execute());
+  if (st_execute) {
+    GET_EXPECTED(node_public_key_data, asymmetric_public_key::parse_der(t1.public_key.get(st)));
+    this->node_public_key_ = std::make_shared<asymmetric_public_key>(std::move(node_public_key_data));
+
+    GET_EXPECTED(node_key_data, asymmetric_private_key::parse_der(t1.private_key.get(st), std::string()));
+    this->node_key_ = std::make_shared<asymmetric_private_key>(std::move(node_key_data));
+  }
+  else {
+    GET_EXPECTED(node_key_data, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+    this->node_key_ = std::make_shared<asymmetric_private_key>(std::move(node_key_data));
+
+    GET_EXPECTED(public_key, asymmetric_public_key::create(*this->node_key_));
+    GET_EXPECTED(key_id, public_key.hash(hash::sha256()));
+
+    this->node_public_key_ = std::make_shared<asymmetric_public_key>(std::move(public_key));
+    GET_EXPECTED(node_public_key_data, this->node_public_key_->der());
+    GET_EXPECTED(node_key_der, this->node_key_->der(std::string()));
+    CHECK_EXPECTED(t.execute(t1.insert(
+      t1.public_key = node_public_key_data,
+      t1.private_key = node_key_der)));
+  }
+
+  return expected<void>();
 }
 
 vds::expected<void> vds::dht::network::client::stop() {
   if (this->impl_) {
     this->impl_->stop();
+  }
+
+  if (this->udp_transport_task_) {
+    CHECK_EXPECTED(this->udp_transport_task_->get());
+    this->udp_transport_task_.reset();
   }
 
   return expected<void>();
@@ -949,7 +969,24 @@ vds::expected<vds::const_data_buffer> vds::dht::network::client::save(
   transactions::transaction_block_builder & block,
   database_transaction & t)
 {
-  return this->impl_->save(sp, block, t);
+  if (!this->node_public_key_) {
+    CHECK_EXPECTED(this->load_keys(t));
+  }
+
+  if (this->is_new_node_) {
+    GET_EXPECTED(node_id, this->node_public_key_->hash(hash::sha256()));
+
+    orm::node_info_dbo t1;
+    GET_EXPECTED(st, t.get_reader(t1.select(t1.public_key).where(t1.node_id == node_id)));
+    GET_EXPECTED(st_result, st.execute());
+    if (!st_result) {
+      CHECK_EXPECTED(block.add(message_create<transactions::node_add_transaction>(this->node_public_key_)));
+    }
+
+    this->is_new_node_ = false;
+  }
+
+  return block.save(sp, t, this->node_public_key_, this->node_key_);
 }
 
 vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>

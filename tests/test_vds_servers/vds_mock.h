@@ -18,7 +18,7 @@ namespace vds {
 class mock_server
 {
 public:
-  mock_server(int index, int udp_port, bool allow_network);
+  mock_server(int index, int udp_port, bool allow_network, bool disable_timers);
 
   void start();
   void stop();
@@ -61,6 +61,7 @@ private:
   vds::crypto_service crypto_service_;
   vds::server server_;
   bool allow_network_;
+  bool disable_timers_;
 
   void login(
     const std::string& root_login,
@@ -107,11 +108,19 @@ public:
 
   const vds::service_provider * get_sp(int client_index);
 
+  void init_root(size_t index);
+  void disable_timers() {
+    this->disable_timers_ = true;
+  }
+
+  void allocate_storage();
+
 private:
   std::vector<std::unique_ptr<mock_server>> servers_;
 
   std::string root_login_;
   std::string root_password_;
+  bool disable_timers_ = false;
 
   static std::string generate_password(size_t min_len = 4, size_t max_len = 20);
 };

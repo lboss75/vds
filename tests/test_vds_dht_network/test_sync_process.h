@@ -118,7 +118,7 @@ public:
     const vds::const_data_buffer& object_data);
 
 
-  vds::async_task<vds::expected<void>> process_message(message_info_t message_info) override;
+  vds::async_task<vds::expected<bool>> process_message(message_info_t message_info) override;
   vds::async_task<vds::expected<void>> on_new_session(vds::const_data_buffer partner_id) override;
 private:
   const vds::service_provider * sp_;

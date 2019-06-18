@@ -15,6 +15,10 @@ TEST(test_vds, test_initial)
 
     mock.start(16, true);
 
+    std::cout << "Initiating root\n";
+    mock.init_root(5);
+    mock.allocate_storage();
+
     //Waiting to sync logs
     mock.sync_wait();
 

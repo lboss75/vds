@@ -313,7 +313,7 @@ vds::expected<vds::dht::network::sync_process::base_message_type> vds::dht::netw
   uint64_t last_applied,
   bool allow_snapshot_request) {
 
-  auto& client = *this->sp_->get<network::client>();
+  auto client = this->sp_->get<network::client>();
 
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
@@ -396,7 +396,7 @@ vds::expected<vds::dht::network::sync_process::base_message_type> vds::dht::netw
                 commit_index,
               last_applied = db_last_applied + 1
           ]() {
-            return client->send(
+            return (*client)->send(
               leader_node,
               message_create<messages::sync_replica_query_operations_request>(
                 object_id,
@@ -1033,7 +1033,7 @@ vds::expected<bool> vds::dht::network::sync_process::apply_message(
   const messages::sync_snapshot_request& message,
   const imessage_map::message_info_t& message_info) {
 
-  auto& client = *this->sp_->get<network::client>();
+  auto client = this->sp_->get<network::client>();
   GET_EXPECTED(leader, this->get_leader(t, message.object_id));
   if (!leader) {
     return false;
@@ -1041,7 +1041,7 @@ vds::expected<bool> vds::dht::network::sync_process::apply_message(
 
   if (client->current_node_id() != leader) {
     final_tasks.push_back([client, leader, message]() {
-      return client->send(
+      return (*client)->send(
         leader,
         expected<messages::sync_snapshot_request>(message));
     });

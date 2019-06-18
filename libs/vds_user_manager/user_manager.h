@@ -47,8 +47,7 @@ namespace vds {
       const std::string & channel_type,
       const std::string &name) const;
 
-    expected<void> reset(
-        
+    expected<void> reset(        
         const std::string &root_user_name,
         const std::string &root_password,
         const keys_control::private_info_t & private_info);

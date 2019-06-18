@@ -30,11 +30,15 @@ namespace vds {
 
       class client {
       public:
+
+        expected<void> load_keys(
+          database_transaction & t);
+
         expected<void> start(
           const service_provider * sp,
-          const std::shared_ptr<asymmetric_public_key> & node_public_key,
-          const std::shared_ptr<asymmetric_private_key> & node_key,
-          const std::shared_ptr<iudp_transport> & udp_transport);
+          const std::shared_ptr<iudp_transport> & udp_transport,
+          uint16_t port,
+          bool dev_network);
 
         expected<void> stop();
 
@@ -86,6 +90,10 @@ namespace vds {
 
       private:
         std::shared_ptr<_client> impl_;
+        std::shared_ptr<asymmetric_public_key> node_public_key_;
+        std::shared_ptr<asymmetric_private_key> node_key_;
+        bool is_new_node_;
+        std::unique_ptr<async_task<expected<void>>> udp_transport_task_;
       };
     }
   }

@@ -320,31 +320,32 @@ const vds::network_address& mock_server::address() const {
 
 #define route_client(message_type)\
   case vds::dht::network::message_type_t::message_type: {\
-      CHECK_EXPECTED_ASYNC(co_await this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, message_info, &final_tasks](vds::database_transaction & t) -> vds::expected<void> {\
-        vds::binary_deserializer s(message_info.message_data());\
-        GET_EXPECTED(message, vds::message_deserialize<vds::dht::messages::message_type>(s));\
-        return (*sp->get<vds::dht::network::client>())->apply_message(\
-         t,\
-         final_tasks, \
-         message,\
-         message_info);\
+      bool result;\
+      CHECK_EXPECTED_ASYNC(co_await this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, message_info, &final_tasks, &result](vds::database_transaction & t)->vds::expected<void> {\
+        vds::binary_deserializer s(message_info.message_data()); \
+        GET_EXPECTED(message, vds::message_deserialize<vds::dht::messages::message_type>(s)); \
+        GET_EXPECTED_VALUE(result, (*sp->get<vds::dht::network::client>())->apply_message(\
+          t, \
+          final_tasks, \
+          message, \
+          message_info)); \
+        return vds::expected<void>();\
       }));\
-      co_return vds::expected<void>();\
-      break;\
+      co_return vds::expected<bool>(result);\
     }
 
 #define route_client_wait(message_type)\
   case vds::dht::network::message_type_t::message_type: {\
       vds::binary_deserializer s(message_info.message_data());\
       GET_EXPECTED_ASYNC(message, vds::message_deserialize<vds::dht::messages::message_type>(s));\
-      CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<vds::dht::network::client>())->apply_message(\
+      GET_EXPECTED_ASYNC(result, co_await (*this->sp_->get<vds::dht::network::client>())->apply_message(\
         message,\
         message_info));\
-      co_return vds::expected<void>();\
+      co_return vds::expected<bool>(result);\
       break;\
     }
 
-vds::async_task<vds::expected<void>> mock_server::process_message(
+vds::async_task<vds::expected<bool>> mock_server::process_message(
   message_info_t message_info) {
 
   static_cast<mock_transport *>(this->transport_.get())->hab()->register_message(
@@ -393,7 +394,7 @@ vds::async_task<vds::expected<void>> mock_server::process_message(
     final_tasks.pop_front();
   }
 
-  co_return vds::expected<void>();
+  co_return vds::expected<bool>(false);
 
 }
 

@@ -21,7 +21,7 @@ namespace vds {
 
   namespace dht {
     namespace network {
-      class _client;
+      class client;
     }
   }
 
@@ -63,7 +63,7 @@ namespace vds {
 
     private:
         friend class _user_channel;
-        friend class dht::network::_client;
+        friend class dht::network::client;
 
         const service_provider * sp_;
         std::chrono::system_clock::time_point time_point_;

@@ -38,14 +38,10 @@ void vds_mock::start(size_t server_count, bool allow_network)
   const auto first_port = 8050;
 
   for (size_t i = 0; i < server_count; ++i) {
-    std::unique_ptr<mock_server> server(new mock_server(i, first_port + i, allow_network));
+    std::unique_ptr<mock_server> server(new mock_server(i, first_port + i, allow_network, this->disable_timers_));
     try {
       std::cout << "Starring server " << i << "\n";
       server->start();
-      if (5 == i) {
-        std::cout << "Initiating root\n";
-        server->init_root(this->root_login_, this->root_password_);
-      }
     }
     catch (...) {
       std::cout << "Error...\n";
@@ -59,10 +55,6 @@ void vds_mock::start(size_t server_count, bool allow_network)
     }
 
     this->servers_.push_back(std::move(server));
-  }
-
-  for (auto & p : this->servers_) {
-    p->allocate_storage(this->root_login_, this->root_password_);
   }
 }
 
@@ -604,7 +596,19 @@ const vds::service_provider * vds_mock::get_sp(int client_index) {
   return this->servers_[client_index]->get_service_provider();
 }
 
-mock_server::mock_server(int index, int udp_port, bool allow_network)
+void vds_mock::init_root(size_t index)
+{
+  this->servers_[index]->init_root(this->root_login_, this->root_password_);
+}
+
+void vds_mock::allocate_storage()
+{
+  for (auto & p : this->servers_) {
+    p->allocate_storage(this->root_login_, this->root_password_);
+  }
+}
+
+mock_server::mock_server(int index, int udp_port, bool allow_network, bool disable_timers)
   : index_(index),
   tcp_port_(udp_port),
   udp_port_(udp_port),
@@ -612,8 +616,8 @@ mock_server::mock_server(int index, int udp_port, bool allow_network)
   logger_(
     test_config::instance().log_level(),
     test_config::instance().modules()),
-  allow_network_(allow_network)
-{
+  allow_network_(allow_network),
+  disable_timers_(disable_timers) {
 }
 
 void mock_server::init_root(
@@ -627,7 +631,6 @@ void mock_server::init_root(
   auto user_mng = std::make_shared<vds::user_manager>(sp);
   CHECK_EXPECTED_THROW(user_mng->reset(root_user_name, root_password, private_info));
 }
-
 
 void mock_server::allocate_storage(
   const std::string& root_login,

@@ -64,7 +64,7 @@ vds::expected<void> vds::transaction_log::sync_process::query_unknown_records(
     }
   }
   else {
-    auto &client = *this->sp_->get<dht::network::client>();
+    auto client = this->sp_->get<dht::network::client>();
     for (const auto & p : record_ids) {
       this->sp_->get<logger>()->trace(
           ThisModule,
@@ -72,11 +72,11 @@ vds::expected<void> vds::transaction_log::sync_process::query_unknown_records(
           base64::from_bytes(p).c_str());
 
       std::list<std::shared_ptr<dht::dht_route<std::shared_ptr<dht::network::dht_session>>::node>> neighbors;
-      client->get_neighbors(neighbors);
+      (*client)->get_neighbors(neighbors);
 
       for (const auto& neighbor : neighbors) {
         final_tasks.push_back([node_id = neighbor->node_id_, record_id = p, client]()->async_task<expected<void>> {
-          return client->send(
+          return (*client)->send(
             node_id,
             message_create<dht::messages::transaction_log_request>(
               record_id,
@@ -145,9 +145,9 @@ vds::expected<bool> vds::transaction_log::sync_process::apply_message(
     WHILE_EXPECTED_END()
 
     if (!current_state.empty()) {
-      auto & client = *this->sp_->get<vds::dht::network::client>();
+      auto client = this->sp_->get<vds::dht::network::client>();
       final_tasks.push_back([client, source_node = message.source_node, current_state]()->async_task<expected<void>> {
-        return client->send(
+        return (*client)->send(
           source_node,
           message_create<dht::messages::transaction_log_state>(
             current_state,
