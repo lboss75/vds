@@ -620,6 +620,10 @@ mock_server::mock_server(int index, int udp_port, bool allow_network, bool disab
   disable_timers_(disable_timers) {
 }
 
+mock_server::~mock_server()
+{
+}
+
 void mock_server::init_root(
   const std::string &root_user_name,
   const std::string &root_password) const {
@@ -698,7 +702,10 @@ void mock_server::start()
     vds::foldername(current_process.contains_folder(), "servers"),
     std::to_string(this->index_));
   CHECK_EXPECTED_THROW(folder.create());
-  
+
+  if (this->disable_timers_) {
+    this->task_manager_.disable_timers();
+  }
  
   this->registrator_.add(this->mt_service_);
   this->registrator_.add(this->logger_);
@@ -777,4 +784,8 @@ void mock_server::init(
 
 
   CHECK_EXPECTED_THROW(registrator.shutdown());
+}
+
+vds::async_task<vds::expected<vds::server_statistic>> mock_server::get_statistic() const {
+  return this->server_.get_statistic();
 }

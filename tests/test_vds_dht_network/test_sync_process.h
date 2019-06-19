@@ -14,7 +14,7 @@ namespace vds {
 
 class test_server;
 class mock_dg_transport;
-class mock_server;
+class mock_sync_server;
 
 class message_log_t {
 public:
@@ -60,7 +60,7 @@ private:
 class mock_transport : public vds::dht::network::iudp_transport {
 public:
   mock_transport(
-    mock_server * owner,
+    mock_sync_server * owner,
     const std::shared_ptr<transport_hab> & hab);
 
   vds::async_task<vds::expected<void>> start(
@@ -88,14 +88,14 @@ public:
   }
 
 private:
-  mock_server * owner_;
+  mock_sync_server * owner_;
   std::shared_ptr<transport_hab> hab_;
   vds::const_data_buffer node_id_;
 };
 
-class mock_server : public vds::iservice_factory, protected vds::dht::network::imessage_map {
+class mock_sync_server : public vds::iservice_factory, protected vds::dht::network::imessage_map {
 public:
-  mock_server(
+  mock_sync_server(
     const vds::network_address & address,
     const std::shared_ptr<transport_hab> & hab);
 
@@ -161,7 +161,7 @@ private:
   vds::file_logger logger_;
   vds::mt_service mt_service_;
   vds::task_manager task_manager_;
-  mock_server server_;
+  mock_sync_server server_;
 
   std::shared_ptr<vds::thread_apartment> process_thread_;
 };

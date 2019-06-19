@@ -18,7 +18,13 @@ namespace vds {
 class mock_server
 {
 public:
-  mock_server(int index, int udp_port, bool allow_network, bool disable_timers);
+  mock_server(
+    int index,
+    int udp_port,
+    bool allow_network,
+    bool disable_timers);
+  
+  ~mock_server();
 
   void start();
   void stop();
@@ -43,9 +49,7 @@ public:
     return this->sp_;
   }
 
-  vds::async_task<vds::expected<vds::server_statistic>> get_statistic() const{
-    return this->server_.get_statistic();
-  }
+  vds::async_task<vds::expected<vds::server_statistic>> get_statistic() const;
   
 private:
   int index_;

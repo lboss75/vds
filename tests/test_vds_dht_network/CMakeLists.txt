@@ -1,14 +1,20 @@
 cmake_minimum_required(VERSION 2.8)
 project(test_vds_dht_network)
 
+find_package (OpenSSL REQUIRED)
+
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
 
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_FILES *.cpp)
+if(UNIX)
+else(UNIX)
+	FILE(GLOB GLOBAL_RES ${CMAKE_SOURCE_DIR}/resources/*.rc ${CMAKE_SOURCE_DIR}/resources/*.h)
+endif(UNIX)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_FILES)
 
-add_executable(test_vds_dht_network ${SOURCE_FILES} ${HEADER_FILES})
+add_executable(test_vds_dht_network ${SOURCE_FILES} ${HEADER_FILES} ${GLOBAL_RES})
 
 target_include_directories(test_vds_dht_network
         PRIVATE
@@ -23,7 +29,8 @@ target_include_directories(test_vds_dht_network
           ${vds_user_manager_INCLUDE_DIRS}
           ${vds_transactions_INCLUDE_DIRS}
           ${test_libs_INCLUDE_DIRS}
-          ${test_vds_servers_INCLUDE_DIRS})
+          ${test_vds_servers_INCLUDE_DIRS}
+          ${OPENSSL_INCLUDE_DIR})
 
 enable_testing()
 
@@ -42,6 +49,7 @@ target_link_libraries(
   vds_transactions
   test_libs
   test_vds_servers
+  ${OPENSSL_LIBRARIES}
   ${GTEST_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${EVENT_LIBRARY})
