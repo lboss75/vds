@@ -24,6 +24,10 @@ All rights reserved
 #include "node_info_dbo.h"
 #include "current_config_dbo.h"
 
+vds::dht::network::client::client()
+: is_new_node_(true) {
+}
+
 vds::expected<std::shared_ptr<vds::dht::network::_client>> vds::dht::network::_client::create(
   const service_provider * sp,
   const std::shared_ptr<iudp_transport> & udp_transport,

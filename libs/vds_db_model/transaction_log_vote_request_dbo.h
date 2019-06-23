@@ -17,12 +17,14 @@ namespace vds {
           : database_table("transaction_log_vote_request"),
             id(this, "id"),
             owner(this, "owner"),
-            approved(this, "approved") {
+            approved(this, "approved"),
+            new_member(this, "new_member") {
       }
 
       database_column<const_data_buffer, std::string> id;
       database_column<const_data_buffer, std::string> owner;
       database_column<bool, int> approved;
+      database_column<bool, int> new_member;
     };
   }
 }

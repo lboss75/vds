@@ -67,12 +67,24 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
   GET_EXPECTED(block, transaction_block::create(block_data));
 
   orm::transaction_log_record_dbo t1;
+  orm::transaction_log_vote_request_dbo t2;
 
   //Check ancestors
   std::set<const_data_buffer> remove_leaf;
   auto state = orm::transaction_log_record_dbo::state_t::leaf;
+  std::set<const_data_buffer> vote_requests;
   for (const auto & ancestor : block.ancestors()) {
-    GET_EXPECTED(st, t.get_reader(t1.select(t1.state,t1.order_no,t1.time_point).where(t1.id == ancestor)));
+    GET_EXPECTED(st, t.get_reader(t2.select(t2.owner).where(t2.id == ancestor)));
+    WHILE_EXPECTED(st.execute())
+    {
+      const auto owner = t2.owner.get(st);
+      if (vote_requests.end() == vote_requests.find(owner)) {
+        vote_requests.emplace(owner);
+      }
+    }
+    WHILE_EXPECTED_END();
+    
+    GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.state,t1.order_no,t1.time_point).where(t1.id == ancestor)));
     GET_EXPECTED(st_execute, st.execute());
     if (!st_execute){
       return expected<void>();
@@ -112,6 +124,35 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
     }
   }
 
+  GET_EXPECTED(st, t.get_reader(t2.select(t2.owner).where(t2.id == block.id())));
+  WHILE_EXPECTED(st.execute())
+  {
+    const auto owner = t2.owner.get(st);
+    auto p = vote_requests.find(owner);
+    if (vote_requests.end() != p) {
+      vote_requests.erase(p);
+    }
+  }
+  WHILE_EXPECTED_END();
+
+  for (const auto owner : vote_requests) {
+    CHECK_EXPECTED(
+      t.execute(
+        t2.insert(
+          t2.id = block.id(),
+          t2.owner = owner,
+          t2.approved = (owner == block.write_public_key_id()),
+          t2.new_member = false)));
+  }
+  
+  if (orm::transaction_log_record_dbo::state_t::leaf == state
+    || orm::transaction_log_record_dbo::state_t::processed == state) {
+    GET_EXPECTED(is_processed, process_records(sp, t, block));
+    if (!is_processed) {
+      state = orm::transaction_log_record_dbo::state_t::invalid;
+    }
+  }
+
   CHECK_EXPECTED(t.execute(t1.update(t1.state = state).where(t1.id == block.id())));
 
   if (orm::transaction_log_record_dbo::state_t::leaf == state) {
@@ -121,11 +162,6 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
           t1.state = orm::transaction_log_record_dbo::state_t::processed)
         .where(t1.id == p)));
     }
-  }
-
-  if (orm::transaction_log_record_dbo::state_t::leaf == state
-    || orm::transaction_log_record_dbo::state_t::processed == state) {
-    CHECK_EXPECTED(process_records(sp, t, block));
   }
 
   CHECK_EXPECTED(update_consensus(sp, t, block_data));
@@ -140,7 +176,7 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
   //process followers
   std::set<const_data_buffer> followers;
   orm::transaction_log_hierarchy_dbo t4;
-  GET_EXPECTED(st, t.get_reader(t4.select(t4.follower_id).where(t4.id == block.id())));
+  GET_EXPECTED_VALUE(st, t.get_reader(t4.select(t4.follower_id).where(t4.id == block.id())));
   WHILE_EXPECTED (st.execute()) {
     const auto follower_id = t4.follower_id.get(st);
     if (follower_id) {
@@ -462,27 +498,31 @@ vds::expected<bool> vds::transactions::transaction_log::check_consensus(
 
   orm::transaction_log_vote_request_dbo t2;
 
-  db_value<int> appoved_count;
+  db_value<int> total_count;
   GET_EXPECTED(st, t.get_reader(
-    t2.select(db_count(t2.owner).as(appoved_count))
-    .where(t2.id == log_id && t2.approved == true)));
+    t2.select(db_count(t2.owner).as(total_count))
+    .where(t2.id == log_id && t2.new_member == false)));
   GET_EXPECTED(st_execute, st.execute());
   if (!st_execute) {
     return vds::make_unexpected<std::runtime_error>("Invalid data");
   }
 
-  auto ac = appoved_count.get(st);
+  const auto tc = total_count.get(st);
+  if (0 == tc) {
+    return true;
+  }
 
-  db_value<int> total_count;
+  db_value<int> appoved_count;
   GET_EXPECTED_VALUE(st, t.get_reader(
-    t2.select(db_count(t2.owner).as(total_count))
-    .where(t2.id == log_id)));
+    t2.select(db_count(t2.owner).as(appoved_count))
+    .where(t2.id == log_id && t2.approved == true && t2.new_member == false)));
   GET_EXPECTED_VALUE(st_execute, st.execute());
   if (!st_execute) {
     return vds::make_unexpected<std::runtime_error>("Invalid data");
   }
-  const auto tc = total_count.get(st);
 
+  auto ac = appoved_count.get(st);
+  
   return (ac > tc / 2);
 }
 
@@ -539,6 +579,7 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   CHECK_EXPECTED(t.execute(
     t1.insert(
       t1.proposed_balance = message.value,
+      t1.confirmed_balance = 0,
       t1.owner = message.target_wallet,
       t1.issuer = message.issuer,
       t1.currency = message.currency,
@@ -558,9 +599,9 @@ vds::expected<void> vds::transactions::transaction_log::consensus_record(
 
   GET_EXPECTED(st, t.get_reader(
     t1
-    .select(t1.proposed_balance, t1.confirmed_balance)
+    .select(t1.confirmed_balance)
     .where(
-      t1.owner == message.target_wallet
+      t1.owner == message.source_wallet
       && t1.issuer == message.issuer
       && t1.currency == message.currency
       && t1.source_transaction == block_id
@@ -571,15 +612,41 @@ vds::expected<void> vds::transactions::transaction_log::consensus_record(
     return make_unexpected<std::runtime_error>("Database state is corrupted");
   }
 
-  auto balance = t1.proposed_balance.get(st);
-  if (balance < message.value) {
+  auto confirmed_balance = t1.confirmed_balance.get(st);
+  if (confirmed_balance < message.value) {
     return make_unexpected<std::runtime_error>("Database state is corrupted");
   }
 
-  auto confirmed_balance = t1.confirmed_balance.get(st);
   CHECK_EXPECTED(t.execute(
     t1.update(
-      t1.proposed_balance = balance - message.value,
+      t1.confirmed_balance = confirmed_balance - message.value
+    )
+    .where(
+      t1.owner == message.source_wallet
+      && t1.issuer == message.issuer
+      && t1.currency == message.currency
+      && t1.source_transaction == block_id
+      )));
+   
+
+  GET_EXPECTED_VALUE(st, t.get_reader(
+    t1
+    .select(t1.confirmed_balance)
+    .where(
+      t1.owner == message.target_wallet
+      && t1.issuer == message.issuer
+      && t1.currency == message.currency
+      && t1.source_transaction == block_id
+      )));
+
+  GET_EXPECTED_VALUE(st_execute, st.execute());
+  if (!st_execute) {
+    return make_unexpected<std::runtime_error>("Database state is corrupted");
+  }
+
+  confirmed_balance = t1.confirmed_balance.get(st);
+  CHECK_EXPECTED(t.execute(
+    t1.update(
       t1.confirmed_balance = confirmed_balance + message.value
     )
     .where(
@@ -741,8 +808,8 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
     t2.insert(
       t2.id = block_id,
       t2.owner = node_id,
-      t2.approved = false
-    )));
+      t2.approved = false,
+      t2.new_member = true)));
 
   return true;
 }
@@ -866,7 +933,7 @@ vds::expected<void> vds::transactions::transaction_log::consensus_record(
   
   CHECK_EXPECTED(t.execute(
     t1.update(
-      t1.proposed_balance = 0,
+      t1.proposed_balance = message.value,
       t1.confirmed_balance = message.value)
     .where(
       t1.owner == message.wallet_id

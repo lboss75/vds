@@ -120,7 +120,6 @@ vds::expected<void> vds::db_model::migrate(
       data BLOB NOT NULL,\
 			state INTEGER NOT NULL,\
       consensus BIT NOT NULL,\
-      new_member BIT NOT NULL,\
 			order_no INTEGER NOT NULL,\
       time_point INTEGER NOT NULL)",
 
@@ -135,6 +134,7 @@ vds::expected<void> vds::db_model::migrate(
 			id VARCHAR(64) NOT NULL,\
       owner VARCHAR(64) NOT NULL,\
       approved BIT NOT NULL,\
+      new_member BIT NOT NULL,\
 			CONSTRAINT pk_transaction_log_vote_request PRIMARY KEY(id,owner))",
 
       "CREATE TABLE channel_message_dbo(\

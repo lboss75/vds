@@ -31,6 +31,8 @@ namespace vds {
       class client {
       public:
 
+        client();
+
         expected<void> load_keys(
           database_transaction & t);
 

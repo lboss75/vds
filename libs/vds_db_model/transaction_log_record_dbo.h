@@ -50,7 +50,6 @@ namespace vds {
             data(this, "data"),
             state(this, "state"),
             consensus(this, "consensus"),
-            new_member(this, "new_member"),
             order_no(this, "order_no"),
             time_point(this, "time_point"){
       }
@@ -59,7 +58,6 @@ namespace vds {
       database_column<const_data_buffer> data;
       database_column<state_t, int> state;
       database_column<bool, int> consensus;
-      database_column<bool, int> new_member;
       database_column<int64_t> order_no;
       database_column<std::chrono::system_clock::time_point> time_point;
     };
