@@ -33,13 +33,13 @@ namespace vds {
       const member_user & target_user,
       const std::string & name);
 
-    static expected<void> transfer(
+    expected<void> transfer(
       transactions::transaction_block_builder& log,
       const const_data_buffer & issuer,
       const std::string & currency,
       const const_data_buffer & source_transaction,
-      const const_data_buffer & source_user,
-      const member_user& target_user,
+      const const_data_buffer & source_wallet,
+      const const_data_buffer & target_wallet,
       uint64_t value);
 
     expected<void> asset_issue(

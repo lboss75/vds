@@ -24,6 +24,7 @@ All rights reserved
 #include "database.h"
 #include "datacoin_balance_dbo.h"
 #include "node_info_dbo.h"
+#include "wallet_dbo.h"
 
 vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
 	const service_provider * sp,
@@ -42,8 +43,7 @@ vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
       t1.id = block.id(),
       t1.data = block_data,
       t1.state = orm::transaction_log_record_dbo::state_t::validated,
-      t1.new_member = false,
-      t1.consensus = block.ancestors().empty(),
+      t1.consensus = false,
       t1.order_no = block.order_no(),
       t1.time_point = block.time_point())));
 
@@ -112,13 +112,6 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
     }
   }
 
-  GET_EXPECTED(check_consensus_result, check_consensus(t, block.id()));
-  if(check_consensus_result) {
-    CHECK_EXPECTED(t.execute(t1.update(t1.consensus = true).where(t1.id == block.id())));
-  }
-
-
-  CHECK_EXPECTED(update_consensus(sp, t, block_data));
   CHECK_EXPECTED(t.execute(t1.update(t1.state = state).where(t1.id == block.id())));
 
   if (orm::transaction_log_record_dbo::state_t::leaf == state) {
@@ -134,6 +127,15 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
     || orm::transaction_log_record_dbo::state_t::processed == state) {
     CHECK_EXPECTED(process_records(sp, t, block));
   }
+
+  CHECK_EXPECTED(update_consensus(sp, t, block_data));
+
+  GET_EXPECTED(check_consensus_result, check_consensus(t, block.id()));
+  if (check_consensus_result) {
+    CHECK_EXPECTED(t.execute(t1.update(t1.consensus = true).where(t1.id == block.id())));
+    CHECK_EXPECTED(consensus_records(sp, t, block));
+  }
+
 
   //process followers
   std::set<const_data_buffer> followers;
@@ -254,6 +256,20 @@ vds::expected<bool> vds::transactions::transaction_log::process_records(const se
         undo_actions.push([sp, &t, message, id]() {return undo_record(sp, t, message, id); });
       }
       return result;
+    },
+    [sp, &t, &undo_actions, id = block.id()](const create_wallet_transaction & message)->expected<bool> {
+      GET_EXPECTED(result, apply_record(sp, t, message, id));
+      if (result) {
+        undo_actions.push([sp, &t, message, id]() {return undo_record(sp, t, message, id); });
+      }
+      return result;
+    },
+      [sp, &t, &undo_actions, id = block.id()](const asset_issue_transaction & message)->expected<bool> {
+      GET_EXPECTED(result, apply_record(sp, t, message, id));
+      if (result) {
+        undo_actions.push([sp, &t, message, id]() {return undo_record(sp, t, message, id); });
+      }
+      return result;
     }
   ));
 
@@ -265,6 +281,41 @@ vds::expected<bool> vds::transactions::transaction_log::process_records(const se
   }
 
   return completed;
+}
+
+vds::expected<void> vds::transactions::transaction_log::consensus_records(
+  const service_provider * sp,
+  database_transaction & t,
+  const transaction_block & block)
+{
+  CHECK_EXPECTED(block.walk_messages(
+    [sp, &t, id = block.id()](const payment_transaction & message)->expected<bool> {
+      CHECK_EXPECTED(consensus_record(sp, t, message, id));
+      return true;
+    },
+    [sp, &t, id = block.id()](const channel_message & message)->expected<bool> {
+      CHECK_EXPECTED(consensus_record(sp, t, message, id));
+      return true;
+    },
+    [sp, &t, id = block.id()](const create_user_transaction & message)->expected<bool> {
+      CHECK_EXPECTED(consensus_record(sp, t, message, id));
+      return true;
+    },
+    [sp, &t, id = block.id()](const node_add_transaction & message)->expected<bool> {
+      CHECK_EXPECTED(consensus_record(sp, t, message, id));
+      return true;
+    },
+    [sp, &t, id = block.id()](const create_wallet_transaction & message)->expected<bool> {
+      CHECK_EXPECTED(consensus_record(sp, t, message, id));
+      return true;
+    },
+    [sp, &t, id = block.id()](const asset_issue_transaction & message)->expected<bool> {
+      CHECK_EXPECTED(consensus_record(sp, t, message, id));
+      return true;
+    }
+  ));
+
+  return expected<void>();
 }
 
 vds::expected<void> vds::transactions::transaction_log::invalid_block(
@@ -448,7 +499,7 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
     t1
     .select(t1.proposed_balance)
     .where(
-      t1.owner == message.source_user
+      t1.owner == message.source_wallet
       && t1.issuer == message.issuer
       && t1.currency == message.currency
       && t1.source_transaction == message.source_transaction
@@ -467,7 +518,7 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   if (balance == message.value) {
     CHECK_EXPECTED(t.execute(
       t1.delete_if(
-        t1.owner == message.source_user
+        t1.owner == message.source_wallet
         && t1.issuer == message.issuer
         && t1.currency == message.currency
         && t1.source_transaction == message.source_transaction
@@ -477,7 +528,7 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
     CHECK_EXPECTED(t.execute(
       t1.update(t1.proposed_balance = balance - message.value)
       .where(
-        t1.owner == message.source_user
+        t1.owner == message.source_wallet
         && t1.issuer == message.issuer
         && t1.currency == message.currency
         && t1.source_transaction == message.source_transaction
@@ -488,13 +539,57 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   CHECK_EXPECTED(t.execute(
     t1.insert(
       t1.proposed_balance = message.value,
-      t1.owner = message.target_user,
+      t1.owner = message.target_wallet,
       t1.issuer = message.issuer,
       t1.currency = message.currency,
       t1.source_transaction = block_id
       )));
 
   return true;
+}
+
+vds::expected<void> vds::transactions::transaction_log::consensus_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const payment_transaction & message,
+  const const_data_buffer & block_id)
+{
+  vds::orm::datacoin_balance_dbo t1;
+
+  GET_EXPECTED(st, t.get_reader(
+    t1
+    .select(t1.proposed_balance, t1.confirmed_balance)
+    .where(
+      t1.owner == message.target_wallet
+      && t1.issuer == message.issuer
+      && t1.currency == message.currency
+      && t1.source_transaction == block_id
+      )));
+
+  GET_EXPECTED(st_execute, st.execute());
+  if (!st_execute) {
+    return make_unexpected<std::runtime_error>("Database state is corrupted");
+  }
+
+  auto balance = t1.proposed_balance.get(st);
+  if (balance < message.value) {
+    return make_unexpected<std::runtime_error>("Database state is corrupted");
+  }
+
+  auto confirmed_balance = t1.confirmed_balance.get(st);
+  CHECK_EXPECTED(t.execute(
+    t1.update(
+      t1.proposed_balance = balance - message.value,
+      t1.confirmed_balance = confirmed_balance + message.value
+    )
+    .where(
+      t1.owner == message.target_wallet
+      && t1.issuer == message.issuer
+      && t1.currency == message.currency
+      && t1.source_transaction == block_id
+      )));
+
+  return expected<void>();
 }
 
 vds::expected<void> vds::transactions::transaction_log::undo_record(
@@ -509,7 +604,7 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(
     t1
     .select(t1.proposed_balance)
     .where(
-      t1.owner == message.source_user
+      t1.owner == message.source_wallet
       && t1.issuer == message.issuer
       && t1.currency == message.currency
       && t1.source_transaction == message.source_transaction
@@ -521,7 +616,7 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(
     CHECK_EXPECTED(t.execute(
       t1.update(t1.proposed_balance = balance + message.value)
       .where(
-        t1.owner == message.source_user
+        t1.owner == message.source_wallet
         && t1.issuer == message.issuer
         && t1.currency == message.currency
         && t1.source_transaction == message.source_transaction
@@ -531,7 +626,7 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(
     CHECK_EXPECTED(t.execute(
       t1.insert(
         t1.proposed_balance = message.value,
-        t1.owner = message.source_user,
+        t1.owner = message.source_wallet,
         t1.issuer = message.issuer,
         t1.currency = message.currency,
         t1.source_transaction = message.source_transaction
@@ -540,7 +635,7 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(
 
   CHECK_EXPECTED(t.execute(
     t1.delete_if(
-      t1.owner == message.target_user
+      t1.owner == message.target_wallet
       && t1.issuer == message.issuer
       && t1.currency == message.currency
       && t1.source_transaction == block_id
@@ -569,7 +664,20 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   return true;
 }
 
-vds::expected<void> vds::transactions::transaction_log::undo_record(const service_provider * sp, database_transaction & t, const channel_message & message, const const_data_buffer & block_id)
+vds::expected<void> vds::transactions::transaction_log::consensus_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const channel_message & message,
+  const const_data_buffer & block_id)
+{
+  return expected<void>();
+}
+
+vds::expected<void> vds::transactions::transaction_log::undo_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const channel_message & message,
+  const const_data_buffer & block_id)
 {
   orm::channel_message_dbo t1;
   CHECK_EXPECTED(t.execute(
@@ -591,6 +699,15 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   const const_data_buffer & block_id)
 {
   return true;
+}
+
+vds::expected<void> vds::transactions::transaction_log::consensus_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const create_user_transaction & message,
+  const const_data_buffer & block_id)
+{
+  return expected<void>();
 }
 
 vds::expected<void> vds::transactions::transaction_log::undo_record(
@@ -618,7 +735,25 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
       t1.public_key = public_key
     )));
 
+
+  orm::transaction_log_vote_request_dbo t2;
+  CHECK_EXPECTED(t.execute(
+    t2.insert(
+      t2.id = block_id,
+      t2.owner = node_id,
+      t2.approved = false
+    )));
+
   return true;
+}
+
+vds::expected<void> vds::transactions::transaction_log::consensus_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const node_add_transaction & message,
+  const const_data_buffer & block_id)
+{
+  return expected<void>();
 }
 
 vds::expected<void> vds::transactions::transaction_log::undo_record(
@@ -637,3 +772,125 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(
   return expected<void>();
 }
 
+vds::expected<bool> vds::transactions::transaction_log::apply_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const create_wallet_transaction & message,
+  const const_data_buffer & block_id)
+{
+  GET_EXPECTED(public_key, asymmetric_public_key::parse_der(message.public_key));
+  GET_EXPECTED(wallet_id, public_key.hash(hash::sha256()));
+
+  orm::wallet_dbo t1;
+  CHECK_EXPECTED(t.execute(
+    t1.insert(
+      t1.id = wallet_id,
+      t1.public_key = message.public_key
+    )));
+  
+  return true;
+}
+
+vds::expected<void> vds::transactions::transaction_log::consensus_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const create_wallet_transaction & message,
+  const const_data_buffer & block_id)
+{
+  return expected<void>();
+}
+
+vds::expected<void> vds::transactions::transaction_log::undo_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const create_wallet_transaction & message,
+  const const_data_buffer & block_id)
+{
+  GET_EXPECTED(public_key, asymmetric_public_key::parse_der(message.public_key));
+  GET_EXPECTED(wallet_id, public_key.hash(hash::sha256()));
+
+  orm::wallet_dbo t1;
+  CHECK_EXPECTED(t.execute(
+    t1.delete_if(
+      t1.id == wallet_id)));
+
+  return expected<void>();
+}
+
+vds::expected<bool> vds::transactions::transaction_log::apply_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const asset_issue_transaction & message,
+  const const_data_buffer & block_id)
+{
+  vds::orm::datacoin_balance_dbo t1;
+  CHECK_EXPECTED(t.execute(
+    t1.insert(
+      t1.proposed_balance = message.value,
+      t1.confirmed_balance = 0,
+      t1.owner = message.wallet_id,
+      t1.issuer = message.issuer,
+      t1.currency = message.currency,
+      t1.source_transaction = block_id
+    )));
+
+  return true;
+}
+
+vds::expected<void> vds::transactions::transaction_log::consensus_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const asset_issue_transaction & message,
+  const const_data_buffer & block_id)
+{
+  vds::orm::datacoin_balance_dbo t1;
+
+  GET_EXPECTED(st, t.get_reader(
+    t1
+    .select(t1.proposed_balance, t1.confirmed_balance)
+    .where(
+      t1.owner == message.wallet_id
+      && t1.issuer == message.issuer
+      && t1.currency == message.currency
+      && t1.source_transaction == block_id
+      )));
+
+  GET_EXPECTED(st_execute, st.execute());
+  if (!st_execute) {
+    return make_unexpected<std::runtime_error>("Database state is corrupted");
+  }
+
+  if (t1.proposed_balance.get(st) != message.value || t1.confirmed_balance.get(st) != 0) {
+    return make_unexpected<std::runtime_error>("Database state is corrupted");
+  }
+  
+  CHECK_EXPECTED(t.execute(
+    t1.update(
+      t1.proposed_balance = 0,
+      t1.confirmed_balance = message.value)
+    .where(
+      t1.owner == message.wallet_id
+      && t1.issuer == message.issuer
+      && t1.currency == message.currency
+      && t1.source_transaction == block_id
+    )));
+
+  return expected<void>();
+}
+
+vds::expected<void> vds::transactions::transaction_log::undo_record(
+  const service_provider * sp,
+  database_transaction & t,
+  const asset_issue_transaction & message,
+  const const_data_buffer & block_id)
+{
+  vds::orm::datacoin_balance_dbo t1;
+  CHECK_EXPECTED(t.execute(
+    t1.delete_if(
+      t1.owner == message.wallet_id
+      && t1.issuer == message.issuer
+      && t1.currency == message.currency
+      && t1.source_transaction == block_id)));
+
+  return expected<void>();
+}

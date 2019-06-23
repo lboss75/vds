@@ -237,6 +237,10 @@ vds::expected<void> vds::db_model::migrate(
 			node_id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			public_key VARCHAR(1853) NOT NULL)",
 
+      "CREATE TABLE wallet_dbo(\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			public_key VARCHAR(1853) NOT NULL)",
+
       "CREATE TABLE datacoin_balance_dbo(\
 			owner VARCHAR(64) NOT NULL,\
 			issuer VARCHAR(64) NOT NULL,\

@@ -14,25 +14,23 @@
 #include "vds_mock.h"
 #include "imessage_map.h"
 #include "private/server_p.h"
+#include "datacoin_balance_dbo.h"
 
-static vds::async_task<vds::expected<std::shared_ptr<vds::user_manager>>> create_user(
+static vds::expected<vds::const_data_buffer> get_user_id(
   const vds::service_provider * sp,
   const std::string & user_name,
-  const std::string & user_email,
   const std::string & user_password) {
-  CHECK_EXPECTED_ASYNC(co_await vds::user_manager::create_user(
-    sp,
-    user_name,
-    user_email,
-    user_password));
-
-  auto user_mng = std::make_shared<vds::user_manager>(sp);
-  CHECK_EXPECTED_ASYNC(co_await sp->get<vds::db_model>()->async_transaction([user_mng, user_email, user_password](vds::database_transaction & t) -> vds::expected<void> {
-    return user_mng->load(t, user_email, user_password);
-  }));
-
-  co_return user_mng;
+  vds::const_data_buffer result;
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_transaction([sp, &result, user_name, user_password](vds::database_transaction & t) -> vds::expected<void> {
+    auto user_mng = std::make_shared<vds::user_manager>(sp);
+    CHECK_EXPECTED(user_mng->load(t, user_name, user_password));
+    GET_EXPECTED_VALUE(result, user_mng->get_current_user().user_public_key()->hash(vds::hash::sha256()));
+    return vds::expected<void>();
+  }).get());
+  
+  return result;
 }
+
 
 static vds::expected<vds::const_data_buffer> get_new_transaction(
   const vds::service_provider * sp,
@@ -99,6 +97,118 @@ static vds::expected<void> asset_issue(
   return vds::expected<void>();
 }
 
+static vds::expected<void> transfer_asset(
+  const vds::service_provider * sp,
+  const vds::const_data_buffer & issuer,
+  const std::string & currency,
+  uint64_t value,
+  const vds::const_data_buffer & source_transaction,
+  const vds::const_data_buffer & source_wallet,
+  const vds::const_data_buffer & target_wallet,
+  const std::string & user_name,
+  const std::string & user_password)
+{
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_transaction(
+    [sp, issuer, currency, value, user_name, user_password, source_transaction, source_wallet, target_wallet](vds::database_transaction & t) -> vds::expected<void> {
+
+    auto user_mng = std::make_shared<vds::user_manager>(sp);
+    CHECK_EXPECTED(user_mng->load(t, user_name, user_password));
+    const auto & wallets = user_mng->wallets();
+    if (wallets.empty()) {
+      return vds::make_unexpected<std::runtime_error>("No wallets");
+    }
+
+    if (1 < wallets.size()) {
+      return vds::make_unexpected<std::runtime_error>("Too many wallets");
+    }
+
+    GET_EXPECTED(log, vds::transactions::transaction_block_builder::create(sp, t));
+    CHECK_EXPECTED(wallets.front()->transfer(log, issuer, currency, source_transaction, source_wallet, target_wallet, value));
+    CHECK_EXPECTED(sp->get<vds::dht::network::client>()->save(sp, log, t));
+
+    return vds::expected<void>();
+  }).get());
+
+  return vds::expected<void>();
+}
+
+static vds::expected<uint64_t> get_proposed_balance(
+  const vds::service_provider * sp,
+  const vds::const_data_buffer & issuer,
+  const std::string & currency,
+  const std::string & user_name,
+  const std::string & user_password)
+{
+  uint64_t result = 0;
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_read_transaction(
+    [sp, issuer, currency, user_name, user_password, & result](vds::database_read_transaction & t) -> vds::expected<void> {
+
+    auto user_mng = std::make_shared<vds::user_manager>(sp);
+    CHECK_EXPECTED(user_mng->load(t, user_name, user_password));
+
+    for (const auto & wallet : user_mng->wallets()) {
+      GET_EXPECTED(wallet_id, wallet->public_key().hash(vds::hash::sha256()));
+
+      vds::orm::datacoin_balance_dbo t1;
+      GET_EXPECTED(st,
+        t.get_reader(
+          t1.select(t1.proposed_balance)
+          .where(
+            t1.owner == wallet_id
+            && t1.issuer == issuer
+            && t1.currency == currency)));
+
+      WHILE_EXPECTED(st.execute())
+      {
+        result += t1.proposed_balance.get(st);
+      }
+      WHILE_EXPECTED_END()
+    }
+    
+    return vds::expected<void>();
+  }).get());
+
+  return result;
+}
+
+static vds::expected<uint64_t> get_confirmed_balance(
+  const vds::service_provider * sp,
+  const vds::const_data_buffer & issuer,
+  const std::string & currency,
+  const std::string & user_name,
+  const std::string & user_password)
+{
+  uint64_t result = 0;
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_read_transaction(
+    [sp, issuer, currency, user_name, user_password, &result](vds::database_read_transaction & t) -> vds::expected<void> {
+
+    auto user_mng = std::make_shared<vds::user_manager>(sp);
+    CHECK_EXPECTED(user_mng->load(t, user_name, user_password));
+
+    for (const auto & wallet : user_mng->wallets()) {
+      GET_EXPECTED(wallet_id, wallet->public_key().hash(vds::hash::sha256()));
+
+      vds::orm::datacoin_balance_dbo t1;
+      GET_EXPECTED(st,
+        t.get_reader(
+          t1.select(t1.confirmed_balance)
+          .where(
+            t1.owner == wallet_id
+            && t1.issuer == issuer
+            && t1.currency == currency)));
+
+      WHILE_EXPECTED(st.execute())
+      {
+        result += t1.proposed_balance.get(st);
+      }
+      WHILE_EXPECTED_END()
+    }
+
+    return vds::expected<void>();
+  }).get());
+
+  return result;
+}
 
 static vds::expected<vds::const_data_buffer> create_wallet(
   const vds::service_provider * sp,
@@ -159,6 +269,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     mock.start(server_count, false);
     mock.init_root(3);
     
+    std::cout << "Create root...\n";
     std::map<vds::const_data_buffer, vds::const_data_buffer> transactions;
     GET_EXPECTED_GTEST(root_transaction, get_new_transaction(mock.get_sp(3), transactions));
 
@@ -169,12 +280,49 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     CHECK_EXPECTED_GTEST(asset_issue(mock.get_sp(3), currency, 600, mock.root_login(), mock.root_password()));
     GET_EXPECTED_GTEST(asset_issue_transaction, get_new_transaction(mock.get_sp(3), transactions));
 
+    GET_EXPECTED_GTEST(issuer, get_user_id(mock.get_sp(3), mock.root_login(), mock.root_password()));
+
+    GET_EXPECTED_GTEST(balance, get_proposed_balance(mock.get_sp(3), issuer, currency, mock.root_login(), mock.root_password()));
+    GTEST_ASSERT_EQ(0, balance);
+
+    GET_EXPECTED_VALUE_GTEST(balance, get_confirmed_balance(mock.get_sp(3), issuer, currency, mock.root_login(), mock.root_password()));
+    GTEST_ASSERT_EQ(600, balance);
+
+
     for (size_t i = 0; i < server_count; ++i) {
       CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(i), root_transaction));
       CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(i), create_wallet_transaction));
       CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(i), asset_issue_transaction));
     }
 
+    std::cout << "Create user1...\n";
+    CHECK_EXPECTED_GTEST(vds::user_manager::create_user(
+      mock.get_sp(4),
+      "User 1",
+      "test1@test.test",
+      "password").get());
+    GET_EXPECTED_GTEST(create_user1_transaction, get_new_transaction(mock.get_sp(4), transactions));
+
+    GET_EXPECTED_GTEST(wallet1_id, create_wallet(mock.get_sp(4), "test1@test.test", "password"));
+    GET_EXPECTED_GTEST(create_wallet1_transaction, get_new_transaction(mock.get_sp(4), transactions));
+
+    for (size_t i = 0; i < server_count; ++i) {
+      CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(i), create_user1_transaction));
+      CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(i), create_wallet1_transaction));
+    }
+
+    GET_EXPECTED_GTEST(transaction_id, vds::hash::signature(vds::hash::sha256(), asset_issue_transaction));
+
+    std::cout << "Transfer money...\n";
+    CHECK_EXPECTED_GTEST(transfer_asset(mock.get_sp(1), issuer, currency, 200, transaction_id, wallet_id, wallet1_id, mock.root_login(), mock.root_password()));
+    CHECK_EXPECTED_GTEST(transfer_asset(mock.get_sp(2), issuer, currency, 200, transaction_id, wallet_id, wallet1_id, mock.root_login(), mock.root_password()));
+    CHECK_EXPECTED_GTEST(transfer_asset(mock.get_sp(3), issuer, currency, 200, transaction_id, wallet_id, wallet1_id, mock.root_login(), mock.root_password()));
+    CHECK_EXPECTED_GTEST(transfer_asset(mock.get_sp(4), issuer, currency, 200, transaction_id, wallet_id, wallet1_id, mock.root_login(), mock.root_password()));
+
+    GET_EXPECTED_GTEST(transfer1_transaction, get_new_transaction(mock.get_sp(1), transactions));
+    GET_EXPECTED_GTEST(transfer2_transaction, get_new_transaction(mock.get_sp(2), transactions));
+    GET_EXPECTED_GTEST(transfer3_transaction, get_new_transaction(mock.get_sp(3), transactions));
+    GET_EXPECTED_GTEST(transfer4_transaction, get_new_transaction(mock.get_sp(4), transactions));
 
     std::cout << "Done...\n";
     mock.stop();

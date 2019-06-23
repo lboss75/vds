@@ -18,10 +18,9 @@ namespace vds {
 
       const_data_buffer issuer;
       std::string currency;
-
       const_data_buffer source_transaction;
-      const_data_buffer source_user;
-      const_data_buffer target_user;
+      const_data_buffer source_wallet;
+      const_data_buffer target_wallet;
       uint64_t value;
       const_data_buffer signature;
 
@@ -31,8 +30,8 @@ namespace vds {
           issuer,
           currency,
           source_transaction,
-          source_user,
-          target_user,
+          source_wallet,
+          target_wallet,
           value,
           signature);
       }
