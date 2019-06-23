@@ -42,6 +42,13 @@ namespace vds {
       const member_user& target_user,
       uint64_t value);
 
+    expected<void> asset_issue(
+      transactions::transaction_block_builder& log,
+      const std::string & currency,
+      uint64_t value,
+      member_user & issuer);
+
+
     const std::string& name() const {
       return name_;
     }

@@ -19,6 +19,8 @@ namespace vds {
       public:
         class message_info_t {
         public:
+          message_info_t() = default;
+
           message_info_t(
             const std::shared_ptr<dht_session>& session,
             message_type_t message_type,

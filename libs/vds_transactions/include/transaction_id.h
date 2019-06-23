@@ -12,7 +12,8 @@ namespace vds {
       asset_issue_transaction = 'i',
       channel_message = 'c',
       create_user_transaction = 'u',
-      node_add_transaction = 'm'
+      node_add_transaction = 'm',
+      create_wallet_transaction = 'w'
     };
   }
 }

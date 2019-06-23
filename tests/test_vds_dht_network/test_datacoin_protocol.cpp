@@ -12,6 +12,8 @@
 #include "transaction_log.h"
 #include "dht_network_client.h"
 #include "vds_mock.h"
+#include "imessage_map.h"
+#include "private/server_p.h"
 
 static vds::async_task<vds::expected<std::shared_ptr<vds::user_manager>>> create_user(
   const vds::service_provider * sp,
@@ -32,32 +34,147 @@ static vds::async_task<vds::expected<std::shared_ptr<vds::user_manager>>> create
   co_return user_mng;
 }
 
+static vds::expected<vds::const_data_buffer> get_new_transaction(
+  const vds::service_provider * sp,
+  std::map<vds::const_data_buffer, vds::const_data_buffer> & exist_transactions)
+{
+  vds::const_data_buffer new_transaction;
+
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_read_transaction(
+    [&new_transaction, &exist_transactions](vds::database_read_transaction & t) -> vds::expected<void> {
+
+    vds::orm::transaction_log_record_dbo t1;
+    GET_EXPECTED(st, t.get_reader(t1.select(t1.id, t1.data)));
+    WHILE_EXPECTED(st.execute()) {
+      if (exist_transactions.end() == exist_transactions.find(t1.id.get(st))) {
+        if (!new_transaction) {
+          new_transaction = t1.data.get(st);
+          exist_transactions[t1.id.get(st)] = new_transaction;
+        }
+        else {
+          return vds::make_unexpected<std::runtime_error>("Invalid data");
+        }
+      }
+
+    } WHILE_EXPECTED_END();
+
+    return vds::expected<void>();
+  }).get());
+
+  if (!new_transaction) {
+    return vds::make_unexpected<std::runtime_error>("No new transaction");
+  }
+
+  return new_transaction;
+}
+
+static vds::expected<void> asset_issue(
+  const vds::service_provider * sp,
+  const std::string & currency,
+  uint64_t value,
+  const std::string & user_name,
+  const std::string & user_password)
+{
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_transaction(
+    [sp, currency, value, user_name, user_password](vds::database_transaction & t) -> vds::expected<void> {
+
+    auto user_mng = std::make_shared<vds::user_manager>(sp);
+    CHECK_EXPECTED(user_mng->load(t, user_name, user_password));
+    const auto & wallets = user_mng->wallets();
+    if (wallets.empty()) {
+      return vds::make_unexpected<std::runtime_error>("No wallets");
+    }
+
+    if (1 < wallets.size()) {
+      return vds::make_unexpected<std::runtime_error>("Too many wallets");
+    }
+
+    GET_EXPECTED(log, vds::transactions::transaction_block_builder::create(sp, t));
+    CHECK_EXPECTED(wallets.front()->asset_issue(log, currency, value, user_mng->get_current_user()));
+    CHECK_EXPECTED(sp->get<vds::dht::network::client>()->save(sp, log, t));
+
+    return vds::expected<void>();
+  }).get());
+
+  return vds::expected<void>();
+}
+
+
+static vds::expected<vds::const_data_buffer> create_wallet(
+  const vds::service_provider * sp,
+  const std::string & user_name,
+  const std::string & user_password)
+{
+  vds::const_data_buffer wallet_id;
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_transaction(
+    [sp, user_name, user_password, &wallet_id](vds::database_transaction & t) -> vds::expected<void> {
+
+    GET_EXPECTED(log, vds::transactions::transaction_block_builder::create(sp, t));
+    
+    auto user_mng = std::make_shared<vds::user_manager>(sp);
+    CHECK_EXPECTED(user_mng->load(t, user_name, user_password));
+
+    GET_EXPECTED(wallet, vds::user_wallet::create_wallet(log, user_mng->get_current_user(), "default"));
+    GET_EXPECTED_VALUE(wallet_id, wallet.public_key().hash(vds::hash::sha256()));
+
+    CHECK_EXPECTED(sp->get<vds::dht::network::client>()->save(sp, log, t));
+
+    return vds::expected<void>();
+  }).get());
+  
+  return wallet_id;
+}
+
+static vds::expected<void> apply_transaction(
+  const vds::service_provider * sp,
+  const vds::const_data_buffer & transaction)
+{
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_transaction(
+    [sp, transaction](vds::database_transaction & t) -> vds::expected<void> {
+
+    GET_EXPECTED(id, vds::hash::signature(vds::hash::sha256(), transaction));
+
+    std::list<std::function<vds::async_task<vds::expected<void>>()>> final_tasks;
+    CHECK_EXPECTED(static_cast<vds::_server *>(sp->get<vds::dht::network::imessage_map>())->apply_message(
+      t,
+      final_tasks,
+      vds::dht::messages::transaction_log_record {
+          id,
+          transaction
+      },
+      vds::dht::network::imessage_map::message_info_t()
+    ));
+
+    return vds::expected<void>();
+  }).get());
+
+  return vds::expected<void>();
+}
+
 TEST(test_vds_dht_network, test_datacoin_protocol) {
   vds_mock mock;
   try {
+    const size_t server_count = 5;
     mock.disable_timers();
-    mock.start(5, false);
+    mock.start(server_count, false);
     mock.init_root(3);
     
-    vds::const_data_buffer root_transaction;
+    std::map<vds::const_data_buffer, vds::const_data_buffer> transactions;
+    GET_EXPECTED_GTEST(root_transaction, get_new_transaction(mock.get_sp(3), transactions));
 
-    CHECK_EXPECTED_GTEST(mock.get_sp(3)->get<vds::db_model>()->async_read_transaction(
-      [&root_transaction](vds::database_read_transaction & t) -> vds::expected<void> {
+    GET_EXPECTED_GTEST(wallet_id, create_wallet(mock.get_sp(3), mock.root_login(), mock.root_password()));
+    GET_EXPECTED_GTEST(create_wallet_transaction, get_new_transaction(mock.get_sp(3), transactions));
 
-      vds::orm::transaction_log_record_dbo t1;
-      GET_EXPECTED(st, t.get_reader(t1.select(t1.data)));
-      WHILE_EXPECTED(st.execute()) {
-        if (!root_transaction) {
-          root_transaction = t1.data.get(st);
-        }
-        else {
-          throw std::runtime_error("Invalid data");
-        }
+    std::string currency("TEST");
+    CHECK_EXPECTED_GTEST(asset_issue(mock.get_sp(3), currency, 600, mock.root_login(), mock.root_password()));
+    GET_EXPECTED_GTEST(asset_issue_transaction, get_new_transaction(mock.get_sp(3), transactions));
 
-      } WHILE_EXPECTED_END();
+    for (size_t i = 0; i < server_count; ++i) {
+      CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(i), root_transaction));
+      CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(i), create_wallet_transaction));
+      CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(i), asset_issue_transaction));
+    }
 
-      return vds::expected<void>();
-    }).get());
 
     std::cout << "Done...\n";
     mock.stop();

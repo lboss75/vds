@@ -119,6 +119,14 @@ public:
 
   void allocate_storage();
 
+  const std::string & root_login() const {
+    return this->root_login_;
+  }
+
+  const std::string & root_password() const {
+    return this->root_password_;
+  }
+
 private:
   std::vector<std::unique_ptr<mock_server>> servers_;
 

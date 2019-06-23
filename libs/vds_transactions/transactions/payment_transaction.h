@@ -44,6 +44,7 @@ namespace vds {
       static const transaction_id message_id = transaction_id::asset_issue_transaction;
 
       const_data_buffer issuer;
+      const_data_buffer wallet_id;
       std::string currency;
       uint64_t value;
       const_data_buffer signature;
@@ -52,9 +53,25 @@ namespace vds {
       void visit(visitor_t & v) {
         v(
           issuer,
+          wallet_id,
           currency,
           value,
           signature);
+      }
+    };
+
+    class create_wallet_transaction {
+    public:
+      static const transaction_id message_id = transaction_id::create_wallet_transaction;
+
+      const_data_buffer id;
+      const_data_buffer public_key;
+
+      template <typename visitor_t>
+      void visit(visitor_t & v) {
+        v(
+          id,
+          public_key);
       }
 
     };

@@ -21,8 +21,12 @@ vds::expected<vds::user_wallet> vds::user_wallet::create_wallet(
   const member_user & target_user,
   const std::string & name)
 {
-  GET_EXPECTED(cert_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-  GET_EXPECTED(cert_public_key, asymmetric_public_key::create(cert_private_key));
+  GET_EXPECTED(private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
+  GET_EXPECTED(public_key, asymmetric_public_key::create(private_key));
+  GET_EXPECTED(key_id, public_key.hash(hash::sha256()));
+  GET_EXPECTED(key_der, public_key.der());
+
+  CHECK_EXPECTED(log.add(message_create<transactions::create_wallet_transaction>(key_id, key_der)));
 
   auto message = std::make_shared<json_object>();
 
@@ -31,10 +35,10 @@ vds::expected<vds::user_wallet> vds::user_wallet::create_wallet(
     log, 
     transactions::control_message_transaction::create_wallet_message(
       name,
-      cert_public_key,
-      cert_private_key)));
+      public_key,
+      private_key)));
 
-  return user_wallet(name, std::move(cert_public_key), std::move(cert_private_key));
+  return user_wallet(name, std::move(public_key), std::move(private_key));
 }
 
 vds::expected<void> vds::user_wallet::transfer(
@@ -46,7 +50,7 @@ vds::expected<void> vds::user_wallet::transfer(
   const member_user& target_user,
   uint64_t value) {
 
-  GET_EXPECTED(cert_id, target_user.user_public_key()->hash(hash::sha256()));
+  GET_EXPECTED(key_id, target_user.user_public_key()->hash(hash::sha256()));
 
   binary_serializer s;
   CHECK_EXPECTED(s << (uint8_t)transactions::payment_transaction::message_id);
@@ -54,7 +58,7 @@ vds::expected<void> vds::user_wallet::transfer(
   CHECK_EXPECTED(s << currency);
   CHECK_EXPECTED(s << source_transaction);
   CHECK_EXPECTED(s << source_user);
-  CHECK_EXPECTED(s << cert_id);
+  CHECK_EXPECTED(s << key_id);
   CHECK_EXPECTED(s << value);
 
   GET_EXPECTED(signature, asymmetric_sign::signature(hash::sha256(), *target_user.private_key(), s.move_data()));
@@ -64,7 +68,33 @@ vds::expected<void> vds::user_wallet::transfer(
     currency,
     source_transaction,
     source_user,
-    cert_id,
+    key_id,
+    value,
+    signature));
+}
+
+vds::expected<void> vds::user_wallet::asset_issue(
+  transactions::transaction_block_builder & log,
+  const std::string & currency,
+  uint64_t value,
+  member_user & issuer)
+{
+  GET_EXPECTED(issuer_id, issuer.user_public_key()->hash(hash::sha256()));
+  GET_EXPECTED(wallet_id, this->public_key().hash(hash::sha256()));
+
+  binary_serializer s;
+  CHECK_EXPECTED(s << (uint8_t)transactions::asset_issue_transaction::message_id);
+  CHECK_EXPECTED(s << issuer_id);
+  CHECK_EXPECTED(s << wallet_id);
+  CHECK_EXPECTED(s << currency);
+  CHECK_EXPECTED(s << value);
+
+  GET_EXPECTED(signature, asymmetric_sign::signature(hash::sha256(), *issuer.private_key(), s.move_data()));
+
+  return log.add(message_create<transactions::asset_issue_transaction>(
+    issuer_id,
+    wallet_id,
+    currency,
     value,
     signature));
 }

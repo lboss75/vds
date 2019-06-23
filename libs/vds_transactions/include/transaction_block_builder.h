@@ -51,10 +51,26 @@ namespace vds {
         return transaction_block_builder(sp);
       }
       
-      expected<void> add(expected<create_user_transaction> && item);
-      expected<void> add(expected<payment_transaction> && item);
-      expected<void> add(expected<channel_message> && item);
-      expected<void> add(expected<node_add_transaction> && item);
+      expected<void> add(expected<create_user_transaction> && item) {
+        return add_transaction<create_user_transaction>(std::move(item));
+      }
+      expected<void> add(expected<create_wallet_transaction> && item) {
+        return add_transaction<create_wallet_transaction>(std::move(item));
+      }
+
+      expected<void> add(expected<asset_issue_transaction> && item) {
+        return add_transaction<asset_issue_transaction>(std::move(item));
+      }
+
+      expected<void> add(expected<payment_transaction> && item) {
+        return add_transaction<payment_transaction>(std::move(item));
+      }
+      expected<void> add(expected<channel_message> && item) {
+        return add_transaction<channel_message>(std::move(item));
+      }
+      expected<void> add(expected<node_add_transaction> && item) {
+        return add_transaction<node_add_transaction>(std::move(item));
+      }
 
       expected<const_data_buffer> sign(
         const service_provider * sp,
@@ -78,6 +94,24 @@ namespace vds {
           class vds::database_transaction &t,
           const std::shared_ptr<asymmetric_public_key> &write_public_key,
           const std::shared_ptr<asymmetric_private_key> &write_private_key);
+
+        template<typename transaction_type>
+        expected<void> add_transaction(expected<transaction_type> && item) {
+          if (item.has_error()) {
+            return unexpected(std::move(item.error()));
+          }
+
+          CHECK_EXPECTED(this->data_ << (uint8_t)transaction_type::message_id);
+          _serialize_visitor v(this->data_);
+          const_cast<transaction_type &>(item.value()).visit(v);
+
+          if (v.error()) {
+            return unexpected(std::move(v.error()));
+          }
+
+          return expected<void>();
+        }
+
 
     };
   }
