@@ -163,6 +163,10 @@ vds::expected<void> vds::db_model::migrate(
 			create_time VARCHAR(64) NOT NULL,\
       is_new INTEGER NOT NULL)",
 
+      "CREATE TABLE member_user_dbo(\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			public_key VARCHAR(64) NOT NULL)",
+
       "CREATE TABLE chunk_map(\
 			id VARCHAR(64) NOT NULL,\
 			replica INTEGER NOT NULL,\

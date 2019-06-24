@@ -533,9 +533,28 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   const payment_transaction & message,
   const const_data_buffer & block_id)
 {
+  orm::wallet_dbo wt;
+  GET_EXPECTED(st, t.get_reader(
+    wt
+    .select(wt.public_key)
+    .where(
+      wt.id == message.source_wallet)));
+
+  GET_EXPECTED(st_execute, st.execute());
+  if (!st_execute) {
+    return false;
+  }
+
+  GET_EXPECTED(key, asymmetric_public_key::parse_der(wt.public_key.get(st)));
+  GET_EXPECTED(signature_data, message.signature_data());
+  GET_EXPECTED(signature_ok, asymmetric_sign_verify::verify(hash::sha256(), key, message.signature, signature_data));
+  if (!signature_ok) {
+    return false;
+  }
+
   vds::orm::datacoin_balance_dbo t1;
 
-  GET_EXPECTED(st, t.get_reader(
+  GET_EXPECTED_VALUE(st, t.get_reader(
     t1
     .select(t1.proposed_balance)
     .where(
@@ -545,7 +564,7 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
       && t1.source_transaction == message.source_transaction
       )));
   
-  GET_EXPECTED(st_execute, st.execute());
+  GET_EXPECTED_VALUE(st_execute, st.execute());
   if (!st_execute) {
     return false;
   }
@@ -765,6 +784,14 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   const create_user_transaction & message,
   const const_data_buffer & block_id)
 {
+  GET_EXPECTED(id, message.user_public_key->hash(hash::sha256()));
+  GET_EXPECTED(public_key, message.user_public_key->der());
+
+  orm::member_user_dbo t1;
+  CHECK_EXPECTED(t.execute(
+    t1.insert(
+      t1.id = id,
+      t1.public_key = public_key)));
   return true;
 }
 
@@ -890,6 +917,25 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   const asset_issue_transaction & message,
   const const_data_buffer & block_id)
 {
+  orm::member_user_dbo mu;
+  GET_EXPECTED(st, t.get_reader(
+    mu
+    .select(mu.public_key)
+    .where(
+      mu.id == message.issuer)));
+
+  GET_EXPECTED(st_execute, st.execute());
+  if (!st_execute) {
+    return false;
+  }
+
+  GET_EXPECTED(key, asymmetric_public_key::parse_der(mu.public_key.get(st)));
+  GET_EXPECTED(signature_data, message.signature_data());
+  GET_EXPECTED(signature_ok, asymmetric_sign_verify::verify(hash::sha256(), key, message.signature, signature_data));
+  if (!signature_ok) {
+    return false;
+  }
+
   vds::orm::datacoin_balance_dbo t1;
   CHECK_EXPECTED(t.execute(
     t1.insert(

@@ -439,7 +439,8 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
 
     //
     CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(3), transfer4_transaction));
-    CHECK_EXPECTED_GTEST(transfer_asset(mock.get_sp(3), issuer, currency, 200, transaction_id, wallet1_id, wallet_id, mock.root_login(), mock.root_password()));
+    GET_EXPECTED_GTEST(transaction4_id, vds::hash::signature(vds::hash::sha256(), transfer4_transaction));
+    CHECK_EXPECTED_GTEST(transfer_asset(mock.get_sp(3), issuer, currency, 200, transaction4_id, wallet1_id, wallet_id, user_name, user_password));
     GET_EXPECTED_GTEST(transfer43_transaction, get_new_transaction(mock.get_sp(3), transactions));
     GET_EXPECTED_VALUE_GTEST(state, get_transaction_state(mock.get_sp(3), transfer4_transaction));
     GTEST_ASSERT_EQ(vds::orm::transaction_log_record_dbo::state_t::processed, state);

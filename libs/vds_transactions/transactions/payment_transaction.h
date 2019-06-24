@@ -36,6 +36,23 @@ namespace vds {
           signature);
       }
 
+      static expected<const_data_buffer> signature_data(
+        const const_data_buffer & issuer,
+        const std::string & currency,
+        const const_data_buffer & source_transaction,
+        const const_data_buffer & source_wallet,
+        const const_data_buffer & target_wallet,
+        uint64_t value);
+      
+      expected<const_data_buffer> signature_data() const {
+        return signature_data(
+          this->issuer,
+          this->currency,
+          this->source_transaction,
+          this->source_wallet,
+          this->target_wallet,
+          this->value);
+      }
     };
 
     class asset_issue_transaction {
@@ -56,6 +73,19 @@ namespace vds {
           currency,
           value,
           signature);
+      }
+      static expected<const_data_buffer> signature_data(
+        const const_data_buffer & issuer,
+        const const_data_buffer & wallet_id,
+        const std::string & currency,
+        uint64_t value);
+
+      expected<const_data_buffer> signature_data() const {
+        return signature_data(
+          this->issuer,
+          this->wallet_id,
+          this->currency,
+          this->value);
       }
     };
 

@@ -52,16 +52,8 @@ vds::expected<void> vds::user_wallet::transfer(
 
   GET_EXPECTED(wallet_id, this->public_key().hash(hash::sha256()));
 
-  binary_serializer s;
-  CHECK_EXPECTED(s << (uint8_t)transactions::payment_transaction::message_id);
-  CHECK_EXPECTED(s << issuer);
-  CHECK_EXPECTED(s << currency);
-  CHECK_EXPECTED(s << source_transaction);
-  CHECK_EXPECTED(s << source_wallet);
-  CHECK_EXPECTED(s << target_wallet);
-  CHECK_EXPECTED(s << value);
-
-  GET_EXPECTED(signature, asymmetric_sign::signature(hash::sha256(), this->private_key(), s.move_data()));
+  GET_EXPECTED(data, transactions::payment_transaction::signature_data(issuer, currency, source_transaction, source_wallet, target_wallet, value));
+  GET_EXPECTED(signature, asymmetric_sign::signature(hash::sha256(), this->private_key(), data));
   
   return log.add(message_create<transactions::payment_transaction>(
     issuer,
