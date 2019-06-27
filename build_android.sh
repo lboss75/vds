@@ -6,7 +6,7 @@ set -x
 ARCH=x86_64
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-export NDK=~/Android/Sdk/android-ndk-r16b
+export NDK=~/Android/Sdk/android-ndk-r19c
 
 rm -rf ${DIR}/build-toolchain
 $NDK/build/tools/make_standalone_toolchain.py \
