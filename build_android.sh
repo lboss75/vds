@@ -30,7 +30,7 @@ export LD=x86_64-linux-android21-clang
 
 
 export CFLAGS="-fPIC -I/usr/include/arm-linux-gnueabihf/"
-export CXXFLAGS="-fcoroutines-ts -std=c++1z -fPIC -fno-cxx-exceptions -DLIBCXXABI_HAS_NO_EXCEPTIONS"
+export CXXFLAGS="-fcoroutines-ts -std=c++1z -fPIC -fno-cxx-exceptions"
 export LDFLAGS="-lstdc++ -Wl"
 cd ${DIR}/externals
 
@@ -47,10 +47,10 @@ set -e
 
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DLIBCXXABI_ENABLE_EXCEPTIONS=OFF ..
 make --quiet cxx
 make --quiet install-cxx install-cxxabi
-export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions -DLIBCXXABI_HAS_NO_EXCEPTIONS"
+export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 cd ../..
 
@@ -59,7 +59,7 @@ git clone --depth=1 --single-branch --branch OpenSSL_1_1_1-stable --quiet https:
 rm -rf openssl-out
 set -e
 
-export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions -DLIBCXXABI_HAS_NO_EXCEPTIONS"
+export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 
 cd openssl
