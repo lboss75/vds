@@ -17,16 +17,16 @@ rm -rf ${DIR}/build-toolchain
 
 
 # Add the standalone toolchain to the search path.
-export ANDROID_NDK=${DIR}/build-toolchain
-export PATH=${DIR}/build-toolchain/bin:$PATH
+#export ANDROID_NDK=${DIR}/build-toolchain
+export PATH=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
 
-ls ${ANDROID_NDK}/bin/
+#ls ${ANDROID_NDK}/bin/
 
 # Tell configure what tools to use.
-export AS=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang
-export CC=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang
-export CXX=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang++
-export LD=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang
+export AS=x86_64-linux-android21-clang
+export CC=x86_64-linux-android21-clang
+export CXX=x86_64-linux-android21-clang++
+export LD=x86_64-linux-android21-clang
 
 
 export CFLAGS="-fPIC -I/usr/include/arm-linux-gnueabihf/"
