@@ -9,11 +9,11 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export NDK=~/Android/Sdk/android-ndk-r19c
 
 rm -rf ${DIR}/build-toolchain
-$NDK/build/tools/make_standalone_toolchain.py \
-  --arch ${ARCH} \
-  --api 21 \
-  --stl=libc++ \
-  --install-dir=${DIR}/build-toolchain
+#$NDK/build/tools/make_standalone_toolchain.py \
+#  --arch ${ARCH} \
+#  --api 21 \
+#  --stl=libc++ \
+#  --install-dir=${DIR}/build-toolchain
 
 
 # Add the standalone toolchain to the search path.
@@ -23,10 +23,10 @@ export PATH=${DIR}/build-toolchain/bin:$PATH
 ls ${ANDROID_NDK}/bin/
 
 # Tell configure what tools to use.
-export AS=clang50
-export CC=clang50
-export CXX=clang50++
-export LD=clang50
+export AS=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang
+export CC=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang
+export CXX=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang++
+export LD=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang
 
 
 export CFLAGS="-fPIC -I/usr/include/arm-linux-gnueabihf/"
