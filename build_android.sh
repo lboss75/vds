@@ -31,7 +31,7 @@ export LD=x86_64-linux-android21-clang
 
 export CFLAGS="-fPIC -I/usr/include/arm-linux-gnueabihf/"
 export CXXFLAGS="-fcoroutines-ts -std=c++1z -fPIC -fno-cxx-exceptions"
-export LDFLAGS="-lstdc++ -Wl"
+export LDFLAGS="-lstdc++ -Wl -latomic"
 cd ${DIR}/externals
 
 svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
