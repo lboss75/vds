@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "const_data_buffer.h"
+#include "transaction_log_record_dbo.h"
 
 namespace vds {
   class database_read_transaction;
@@ -36,28 +37,42 @@ namespace vds {
       static expected<void> invalid_block(
         const service_provider * sp,
         class database_transaction &t,
-        const const_data_buffer & block_id);
+        const const_data_buffer & block_id,
+        bool value);
 
     private:
-      static expected<void> process_block(
+      static expected<void> process_block_with_followers(
         const service_provider * sp,
         class database_transaction &t,
-        const const_data_buffer & block_data);
+        const const_data_buffer & block_id,
+        const const_data_buffer & block_data,
+        orm::transaction_log_record_dbo::state_t state,
+        bool in_consensus);
 
-      static expected<void> invalid_become_consensus(
+      static expected<orm::transaction_log_record_dbo::state_t> process_block(
+        const service_provider * sp,
+        class database_transaction &t,
+        const transaction_block & block,
+        bool in_consensus);
+
+      static expected<void> process_followers(
+        const service_provider * sp,
+        class database_transaction &t);
+
+      //returns false to stop process block
+      static expected<bool> update_consensus(
+        const service_provider * sp,
+        class database_transaction &t,
+        const transaction_block & block,
+        const const_data_buffer & block_data,
+        orm::transaction_log_record_dbo::state_t state,
+        bool in_consensus);
+
+      static expected<void> rollback_all(
         const service_provider* sp,
-        const database_transaction& t,
-        const const_data_buffer &  log_id);
+        database_transaction& t,
+        uint64_t min_order);
 
-      static expected<void> make_consensus(
-        const service_provider * sp,
-        class database_transaction &t,
-        const const_data_buffer & log_id);
-
-      static expected<void> update_consensus(
-        const service_provider * sp,
-        class database_transaction &t,
-        const const_data_buffer & block_data);
 
       static expected<bool> process_records(
         const service_provider * sp,
@@ -65,6 +80,11 @@ namespace vds {
         const transaction_block & block);
 
       static expected<void> consensus_records(
+        const service_provider * sp,
+        class database_transaction &t,
+        const transaction_block & block);
+
+      static expected<void> undo_records(
         const service_provider * sp,
         class database_transaction &t,
         const transaction_block & block);
@@ -122,7 +142,7 @@ namespace vds {
 
       static expected<void> undo_record(
         const service_provider * sp,
-        class database_transaction &t,
+        database_transaction &t,
         const create_user_transaction & message,
         const const_data_buffer & block_id);
 

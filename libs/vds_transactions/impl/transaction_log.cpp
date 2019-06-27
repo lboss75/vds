@@ -55,16 +55,86 @@ vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
     )));
   }
 
-  CHECK_EXPECTED(process_block(sp, t, block_data));
+  CHECK_EXPECTED(
+    process_block_with_followers(
+      sp,
+      t,
+      block.id(),
+      block_data, orm::transaction_log_record_dbo::state_t::validated,
+      false));
 
   return block.id();
 }
 
-vds::expected<void> vds::transactions::transaction_log::process_block(
+vds::expected<void> vds::transactions::transaction_log::process_block_with_followers(
+  const service_provider * sp,
+  database_transaction & t,
+  const const_data_buffer & block_id,
+  const const_data_buffer & block_data,
+  orm::transaction_log_record_dbo::state_t state,
+  bool in_consensus)
+{
+  std::map<const_data_buffer, std::tuple<const_data_buffer, orm::transaction_log_record_dbo::state_t, bool>> not_processed;
+  std::set<const_data_buffer> processed;
+
+  not_processed[block_id] = std::make_tuple(block_data, state, in_consensus);
+
+  while (!not_processed.empty()) {
+    auto pbegin = not_processed.begin();
+    const auto data = pbegin->second;
+    not_processed.erase(pbegin);
+
+    GET_EXPECTED(current_block, transaction_block::create(std::get<0>(data)));
+    processed.emplace(current_block.id());
+
+    GET_EXPECTED(result, process_block(sp, t, current_block, std::get<2>(data)));
+
+    GET_EXPECTED(update_consensus_result, update_consensus(sp, t, current_block, std::get<0>(data), result, std::get<2>(data)));
+    if (!update_consensus_result) {
+      return expected<void>();
+    }
+
+    //process followers
+    std::set<const_data_buffer> followers;
+    orm::transaction_log_hierarchy_dbo t4;
+    GET_EXPECTED(st, t.get_reader(t4.select(t4.follower_id).where(t4.id == current_block.id())));
+    WHILE_EXPECTED(st.execute()) {
+      const auto follower_id = t4.follower_id.get(st);
+      if (follower_id) {
+        followers.emplace(follower_id);
+      }
+    }
+    WHILE_EXPECTED_END()
+
+    for (const auto &p : followers) {
+      if (processed.end() != processed.find(p) || not_processed.end() != not_processed.find(p)) {
+        continue;
+      }
+
+      orm::transaction_log_record_dbo t1;
+      GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.data, t1.state, t1.consensus).where(t1.id == p)));
+      GET_EXPECTED(st_execute_result, st.execute());
+      if (!st_execute_result) {
+        return vds::make_unexpected<std::runtime_error>("Invalid data");
+      }
+
+      if (result == orm::transaction_log_record_dbo::state_t::leaf) {
+        not_processed[p] = std::make_tuple(t1.data.get(st), t1.state.get(st), t1.consensus.get(st));
+      }
+      else {
+        CHECK_EXPECTED(invalid_block(sp, t, p, true));
+      }
+    }
+  }
+
+  return expected<void>();
+}
+
+vds::expected<vds::orm::transaction_log_record_dbo::state_t> vds::transactions::transaction_log::process_block(
   const service_provider* sp,
   database_transaction& t,
-  const const_data_buffer& block_data) {
-  GET_EXPECTED(block, transaction_block::create(block_data));
+  const transaction_block & block,
+  bool in_consensus) {
 
   orm::transaction_log_record_dbo t1;
   orm::transaction_log_vote_request_dbo t2;
@@ -87,7 +157,7 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
     GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.state,t1.order_no,t1.time_point).where(t1.id == ancestor)));
     GET_EXPECTED(st_execute, st.execute());
     if (!st_execute){
-      return expected<void>();
+      return vds::orm::transaction_log_record_dbo::state_t::validated;
     }
     else {
       if(safe_cast<uint64_t>(t1.order_no.get(st)) >= block.order_no() || t1.time_point.get(st) > block.time_point()) {
@@ -109,12 +179,11 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
             ThisModule,
             "Ancestor %s is not processed. So stop processing this block.",
             base64::from_bytes(ancestor).c_str());
-          return expected<void>();
+          return vds::orm::transaction_log_record_dbo::state_t::validated;
         }
 
         case orm::transaction_log_record_dbo::state_t::invalid:
           state = orm::transaction_log_record_dbo::state_t::invalid;
-          //TODO: And?
           break;
 
         default:
@@ -141,7 +210,7 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
         t2.insert(
           t2.id = block.id(),
           t2.owner = owner,
-          t2.approved = (owner == block.write_public_key_id()),
+          t2.approved = false,
           t2.new_member = false)));
   }
   
@@ -164,98 +233,271 @@ vds::expected<void> vds::transactions::transaction_log::process_block(
     }
   }
 
-  CHECK_EXPECTED(update_consensus(sp, t, block_data));
+  return state;
+}
 
-  GET_EXPECTED(check_consensus_result, check_consensus(t, block.id()));
-  if (check_consensus_result) {
-    CHECK_EXPECTED(t.execute(t1.update(t1.consensus = true).where(t1.id == block.id())));
-    CHECK_EXPECTED(consensus_records(sp, t, block));
-  }
+vds::expected<void> vds::transactions::transaction_log::process_followers(const service_provider * sp, database_transaction & t)
+{
+  std::map<const_data_buffer, std::tuple<const_data_buffer, orm::transaction_log_record_dbo::state_t, bool>> not_processed;
+  std::set<const_data_buffer> processed;
 
-
-  //process followers
-  std::set<const_data_buffer> followers;
-  orm::transaction_log_hierarchy_dbo t4;
-  GET_EXPECTED_VALUE(st, t.get_reader(t4.select(t4.follower_id).where(t4.id == block.id())));
-  WHILE_EXPECTED (st.execute()) {
-    const auto follower_id = t4.follower_id.get(st);
-    if (follower_id) {
-      followers.emplace(follower_id);
-    }
+  orm::transaction_log_record_dbo t1;
+  GET_EXPECTED(st, t.get_reader(t1.select(t1.id, t1.data, t1.consensus).where(t1.state == orm::transaction_log_record_dbo::state_t::leaf)));
+  WHILE_EXPECTED(st.execute()) {
+    not_processed[t1.id.get(st)] = std::make_tuple(t1.data.get(st), orm::transaction_log_record_dbo::state_t::leaf, t1.consensus.get(st));
   }
   WHILE_EXPECTED_END()
 
-  for (const auto &p : followers) {
-    GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.data).where(t1.id == p)));
-    GET_EXPECTED(st_execute_result, st.execute());
-    if (!st_execute_result) {
-      return vds::make_unexpected<std::runtime_error>("Invalid data");
+
+  while (!not_processed.empty()) {
+    auto pbegin = not_processed.begin();
+    const auto data = pbegin->second;
+    not_processed.erase(pbegin);
+
+    GET_EXPECTED(current_block, transaction_block::create(std::get<0>(data)));
+    processed.emplace(current_block.id());
+
+    GET_EXPECTED(result, process_block(sp, t, current_block, std::get<2>(data)));
+
+    GET_EXPECTED(update_consensus_result, update_consensus(sp, t, current_block, std::get<0>(data), std::get<1>(data), std::get<2>(data)));
+    if (!update_consensus_result) {
+      return expected<void>();
     }
 
-    if(state == orm::transaction_log_record_dbo::state_t::leaf) {
-      CHECK_EXPECTED(process_block(sp, t, t1.data.get(st)));
+    //process followers
+    std::set<const_data_buffer> followers;
+    orm::transaction_log_hierarchy_dbo t4;
+    GET_EXPECTED(st, t.get_reader(t4.select(t4.follower_id).where(t4.id == current_block.id())));
+    WHILE_EXPECTED(st.execute()) {
+      const auto follower_id = t4.follower_id.get(st);
+      if (follower_id) {
+        followers.emplace(follower_id);
+      }
     }
-    else {
-      CHECK_EXPECTED(invalid_block(sp, t, p));
+    WHILE_EXPECTED_END()
+
+    for (const auto &p : followers) {
+      if (processed.end() != processed.find(p) || not_processed.end() != not_processed.find(p)) {
+        continue;
+      }
+
+      orm::transaction_log_record_dbo t1;
+      GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.data, t1.state, t1.consensus).where(t1.id == p)));
+      GET_EXPECTED(st_execute_result, st.execute());
+      if (!st_execute_result) {
+        return vds::make_unexpected<std::runtime_error>("Invalid data");
+      }
+
+      if (result == orm::transaction_log_record_dbo::state_t::leaf) {
+        not_processed[p] = std::make_tuple(t1.data.get(st), t1.state.get(st), t1.consensus.get(st));
+      }
+      else {
+        CHECK_EXPECTED(invalid_block(sp, t, p, true));
+      }
     }
   }
 
   return expected<void>();
 }
 
-vds::expected<void> vds::transactions::transaction_log::update_consensus(
+vds::expected<bool> vds::transactions::transaction_log::update_consensus(
   const service_provider* sp,
   database_transaction& t,
-  const const_data_buffer& block_data) {
-  
-  GET_EXPECTED(block, transaction_block::create(block_data));
+  const transaction_block & block,
+  const const_data_buffer& block_data,
+  orm::transaction_log_record_dbo::state_t state,
+  bool in_consensus) {
 
-  auto leaf_owner = block.write_public_key_id();
+  std::map<const_data_buffer, std::tuple<const_data_buffer, orm::transaction_log_record_dbo::state_t, bool>> not_processed;
+  std::set<const_data_buffer> processed;
+  std::list<std::tuple<const_data_buffer, const_data_buffer, orm::transaction_log_record_dbo::state_t, bool>> consensus_candidate;
+  bool have_invalid_consensus = false;
+  uint64_t min_order;
+  orm::transaction_log_record_dbo t1;
 
-  std::map<const_data_buffer, const_data_buffer> not_processed;
-  std::map<const_data_buffer, const_data_buffer> processed;
-  std::set<const_data_buffer> consensus_candidate;
-
-  not_processed[block.id()] = block_data;
+  not_processed[block.id()] = std::make_tuple(block_data, state, in_consensus);
 
   while (!not_processed.empty()) {
     auto pbegin = not_processed.begin();
-    auto data = pbegin->second;
+    const auto data = pbegin->second;
     not_processed.erase(pbegin);
 
-    GET_EXPECTED_VALUE(block, transaction_block::create(data));
+    GET_EXPECTED(current_block, transaction_block::create(std::get<0>(data)));
+    processed.emplace(current_block.id());
 
-    orm::transaction_log_record_dbo t1;
-    for (const auto & ancestor : block.ancestors()) {
-      if(processed.end() != processed.find(ancestor) || not_processed.end() != not_processed.find(ancestor)) {
-        continue;
+    orm::transaction_log_vote_request_dbo t2;
+    GET_EXPECTED(st, t.get_reader(t2.select(t2.approved, t2.new_member).where(t2.id == current_block.id() && t2.owner == block.write_public_key_id())));
+    GET_EXPECTED(st_execute, st.execute());
+    if (!st_execute) {
+      return vds::make_unexpected<std::runtime_error>("Invalid data");
+    }
+    if (t2.approved.get(st)) {
+      continue;
+    }
+    bool is_new = t2.new_member.get(st);
+
+    CHECK_EXPECTED(t.execute(
+      t2.update(t2.approved = true)
+      .where(t2.id == current_block.id() && t2.owner == block.write_public_key_id())));
+
+    GET_EXPECTED(check_consensus_result, check_consensus(t, current_block.id()));
+    if (check_consensus_result && !std::get<2>(data)) {
+      if (consensus_candidate.empty() || min_order > current_block.order_no()) {
+        min_order = current_block.order_no();
       }
 
-      GET_EXPECTED(st, t.get_reader(t1.select(t1.state, t1.data).where(t1.id == ancestor)));
-      GET_EXPECTED(st_execute, st.execute());
-      if (!st_execute) {
-        return vds::make_unexpected<std::runtime_error>("Invalid data");
+      consensus_candidate.push_front(std::make_tuple(current_block.id(), std::get<0>(data), std::get<1>(data), std::get<2>(data)));
+
+      if (!have_invalid_consensus && orm::transaction_log_record_dbo::state_t::invalid == std::get<1>(data)) {
+        have_invalid_consensus = true;
       }
+    }
+    
+    if (current_block.write_public_key_id() != block.write_public_key_id() || current_block.id() == block.id() && !is_new) {
+      for (const auto & ancestor : current_block.ancestors()) {
+        if (processed.end() != processed.find(ancestor) || not_processed.end() != not_processed.find(ancestor)) {
+          continue;
+        }
 
-      const auto ancestor_data = t1.data.get(st);
+        GET_EXPECTED(st, t.get_reader(t1.select(t1.state, t1.data, t1.consensus).where(t1.id == ancestor)));
+        GET_EXPECTED(st_execute, st.execute());
+        if (!st_execute) {
+          return vds::make_unexpected<std::runtime_error>("Invalid data");
+        }
 
-      orm::transaction_log_vote_request_dbo t2;
-      CHECK_EXPECTED(t.execute(
-        t2.update(t2.approved = true)
-        .where(t2.id == ancestor && t2.owner == leaf_owner)));
-
-      GET_EXPECTED(check_consensus_result, check_consensus(t, ancestor));
-      if(check_consensus_result) {
-        consensus_candidate.emplace(ancestor);
-      }
-
-      if(block.write_public_key_id() != leaf_owner){
-        not_processed[ancestor] = ancestor_data;
+        not_processed[ancestor] = std::make_tuple(t1.data.get(st), t1.state.get(st), t1.consensus.get(st));
       }
     }
   }
-  for(auto & candidate : consensus_candidate) {
-    CHECK_EXPECTED(make_consensus(sp, t, candidate));
+  processed.clear();
+
+  if (consensus_candidate.empty()) {
+    return true;
+  }
+
+  for (const auto & p : consensus_candidate) {
+    orm::transaction_log_record_dbo t1;
+    CHECK_EXPECTED(t.execute(
+      t1
+      .update(t1.consensus = true)
+      .where(t1.id == std::get<0>(p))));
+
+    if (orm::transaction_log_record_dbo::state_t::processed == std::get<2>(p)
+        || orm::transaction_log_record_dbo::state_t::leaf == std::get<2>(p)) {
+      GET_EXPECTED(block, transaction_block::create(std::get<1>(p)));
+      CHECK_EXPECTED(consensus_records(sp, t, block));
+    }
+    else if (!have_invalid_consensus) {
+      return vds::make_unexpected<std::runtime_error>("Invalid program");
+    }
+  }
+
+  if (!have_invalid_consensus) {
+    return true;
+  }
+
+  CHECK_EXPECTED(rollback_all(sp, t, min_order));
+
+  for (const auto & p : consensus_candidate) {
+    GET_EXPECTED(block, transaction_block::create(std::get<1>(p)));
+    if (orm::transaction_log_record_dbo::state_t::invalid == std::get<2>(p)) {
+      CHECK_EXPECTED(invalid_block(sp, t, std::get<0>(p), false));
+      GET_EXPECTED(state, process_block(sp, t, block, std::get<3>(p)));
+      if (orm::transaction_log_record_dbo::state_t::leaf != state) {
+        return vds::make_unexpected<std::runtime_error>("Invalid program");
+      }
+
+      CHECK_EXPECTED(consensus_records(sp, t, block));
+    }
+  }
+
+  std::set<const_data_buffer> followers;
+  orm::transaction_log_hierarchy_dbo t4;
+  GET_EXPECTED(st, t.get_reader(
+    t4
+    .select(t4.follower_id)
+    .inner_join(t1, t1.id == t4.id)
+    .where(
+      t1.state == orm::transaction_log_record_dbo::state_t::leaf)));
+  WHILE_EXPECTED(st.execute()) {
+    const auto follower_id = t4.follower_id.get(st);
+    if (follower_id && followers.end() == followers.find(follower_id)) {
+      followers.emplace(follower_id);
+    }
+  }
+  WHILE_EXPECTED_END()
+
+  for (const auto & p : followers) {
+    GET_EXPECTED(st, t.get_reader(t1.select(t1.state, t1.data, t1.consensus).where(t1.id == p)));
+    GET_EXPECTED(st_execute, st.execute());
+    if (!st_execute) {
+      return vds::make_unexpected<std::runtime_error>("Invalid data");
+    }
+    if (orm::transaction_log_record_dbo::state_t::validated != t1.state.get(st)) {
+      continue;
+    }
+    CHECK_EXPECTED(process_block_with_followers(sp, t, p, t1.data.get(st), t1.state.get(st), t1.consensus.get(st)));
+  }
+
+  return false;
+}
+
+vds::expected<void> vds::transactions::transaction_log::rollback_all(const service_provider * sp, database_transaction & t, uint64_t min_order)
+{
+  std::map<const_data_buffer, const_data_buffer> not_processed;
+  std::set<const_data_buffer> processed;
+
+  orm::transaction_log_record_dbo t1;
+  GET_EXPECTED(st,
+    t.get_reader(
+      t1.select(t1.id, t1.data)
+      .where(t1.state == orm::transaction_log_record_dbo::state_t::leaf && t1.order_no >= safe_cast<int64_t>(min_order) && t1.consensus == false)));
+
+  WHILE_EXPECTED(st.execute()) {
+    not_processed[t1.id.get(st)] = t1.data.get(st);
+  }
+  WHILE_EXPECTED_END()
+
+  while (!not_processed.empty()) {
+    auto pbegin = not_processed.begin();
+    GET_EXPECTED(current_block, transaction_block::create(pbegin->second));
+    processed.emplace(current_block.id());
+    not_processed.erase(pbegin);
+
+    CHECK_EXPECTED(undo_records(sp, t, current_block));
+
+    CHECK_EXPECTED(t.execute(
+        t1.update(t1.state = orm::transaction_log_record_dbo::state_t::validated)
+        .where(t1.id == current_block.id())));
+
+    for(const auto & ancestor : current_block.ancestors()){
+      if (processed.end() != processed.find(ancestor) || not_processed.end() != not_processed.find(ancestor)) {
+        continue;
+      }
+
+      GET_EXPECTED(st,
+        t.get_reader(
+          t1.select(t1.data, t1.consensus, t1.state, t1.order_no)
+          .where(t1.id == ancestor)));
+      GET_EXPECTED(st_result, st.execute());
+      if (!st_result) {
+        return vds::make_unexpected<std::runtime_error>("Invalid data");
+      }
+
+      if(orm::transaction_log_record_dbo::state_t::processed != t1.state.get(st)) {
+        return vds::make_unexpected<std::runtime_error>("Invalid data");
+      }
+
+      if (t1.order_no.get(st) < min_order || t1.consensus.get(st)) {
+        CHECK_EXPECTED(t.execute(
+          t1.update(t1.state = orm::transaction_log_record_dbo::state_t::leaf)
+          .where(t1.id == ancestor)));
+        processed.emplace(ancestor);
+        continue;
+      }
+    
+      not_processed[ancestor] = t1.data.get(st);
+    }
   }
 
   return expected<void>();
@@ -354,13 +596,61 @@ vds::expected<void> vds::transactions::transaction_log::consensus_records(
   return expected<void>();
 }
 
+vds::expected<void> vds::transactions::transaction_log::undo_records(
+  const service_provider * sp,
+  database_transaction & t,
+  const transaction_block & block)
+{
+  std::stack<lambda_holder_t<expected<void>, const service_provider *, database_transaction &, const const_data_buffer &>> to_process;
+
+  CHECK_EXPECTED(block.walk_messages(
+    [&to_process](const payment_transaction & message)->expected<bool> {
+      to_process.emplace([message](const service_provider * sp, database_transaction & t, const const_data_buffer & id) { return undo_record(sp, t, message, id); });
+      return true;
+    },
+    [&to_process](const channel_message & message)->expected<bool> {
+      to_process.emplace([message](const service_provider * sp, database_transaction & t, const const_data_buffer & id) { return undo_record(sp, t, message, id); });
+      return true;
+    },
+    [&to_process](const create_user_transaction & message)->expected<bool> {
+      to_process.emplace([message](const service_provider * sp, database_transaction & t, const const_data_buffer & id) { return undo_record(sp, t, message, id); });
+      return true;
+    },
+    [&to_process](const node_add_transaction & message)->expected<bool> {
+      to_process.emplace([message](const service_provider * sp, database_transaction & t, const const_data_buffer & id) { return undo_record(sp, t, message, id); });
+      return true;
+    },
+    [&to_process](const create_wallet_transaction & message)->expected<bool> {
+      to_process.emplace([message](const service_provider * sp, database_transaction & t, const const_data_buffer & id) { return undo_record(sp, t, message, id); });
+      return true;
+    },
+    [&to_process](const asset_issue_transaction & message)->expected<bool> {
+      to_process.emplace([message](const service_provider * sp, database_transaction & t, const const_data_buffer & id) { return undo_record(sp, t, message, id); });
+      return true;
+    }
+  ));
+
+  while (!to_process.empty()) {
+    CHECK_EXPECTED(to_process.top()(sp, t, block.id()));
+    to_process.pop();
+  }
+
+  return expected<void>();
+}
+
+
 vds::expected<void> vds::transactions::transaction_log::invalid_block(
   const service_provider * sp,
   class database_transaction &t,
-  const const_data_buffer & block_id) {
+  const const_data_buffer & block_id,
+  bool value) {
 
   orm::transaction_log_record_dbo t1;
-  CHECK_EXPECTED(t.execute(t1.update(t1.state = orm::transaction_log_record_dbo::state_t::invalid).where(t1.id == block_id)));
+  CHECK_EXPECTED(
+    t.execute(
+      t1
+      .update(t1.state = (value ? orm::transaction_log_record_dbo::state_t::invalid : orm::transaction_log_record_dbo::state_t::validated))
+      .where(t1.id == block_id)));
 
   std::set<const_data_buffer> followers;
   orm::transaction_log_hierarchy_dbo t4;
@@ -375,118 +665,16 @@ vds::expected<void> vds::transactions::transaction_log::invalid_block(
 
   for (const auto &p : followers) {
 
-    GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.data).where(t1.id == p)));
+    GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.state, t1.data, t1.consensus).where(t1.id == p)));
     GET_EXPECTED(st_execute, st.execute());
-    if (!st_execute) {
+    if (!st_execute
+      || t1.state.get(st) == orm::transaction_log_record_dbo::state_t::leaf
+      || t1.state.get(st) == orm::transaction_log_record_dbo::state_t::processed
+      || t1.consensus.get(st)) {
       return vds::make_unexpected<std::runtime_error>("Invalid data");
     }
 
-    CHECK_EXPECTED(invalid_block(sp, t, p));
-  }
-
-  return expected<void>();
-}
-
-vds::expected<void> vds::transactions::transaction_log::invalid_become_consensus(const service_provider* sp,
-  const database_transaction& t, const const_data_buffer& log_id) {
-  return vds::make_unexpected<std::runtime_error>("Not implemented");
-
-  //std::set<const_data_buffer> not_processed;
-  //std::set<const_data_buffer> processed;
-
-  //orm::transaction_log_record_dbo t1;
-  //auto st = t.get_reader(t1.select(t1.order_no, t1.consensus).where(t1.state == orm::transaction_log_record_dbo::state_t::leaf));
-  //while(st.execute()) {
-  //  
-  //}
-}
-
-vds::expected<void> vds::transactions::transaction_log::make_consensus(const service_provider* sp, database_transaction& t,
-  const const_data_buffer& start_log_id) {
-
-  std::set<const_data_buffer> not_processed;
-  std::set<const_data_buffer> processed;
-  not_processed.emplace(start_log_id);
-
-  while (!not_processed.empty()) {
-    auto log_id = *not_processed.begin();
-    not_processed.erase(not_processed.begin());
-    processed.emplace(log_id);
-
-
-    orm::transaction_log_record_dbo t1;
-    GET_EXPECTED(st, t.get_reader(t1.select(t1.state, t1.data, t1.consensus).where(t1.id == log_id)));
-    GET_EXPECTED(st_execute, st.execute());
-    if (!st_execute) {
-      return vds::make_unexpected<std::runtime_error>("Invalid data");
-    }
-
-    if (t1.consensus.get(st)) {
-      continue;
-    }
-
-    const auto state = t1.state.get(st);
-
-    //check all ancestors in consensus
-    auto all_ancestors_in_consensus = true;
-    GET_EXPECTED(block, transaction_block::create(t1.data.get(st)));
-
-    for (const auto & ancestor : block.ancestors()) {
-      GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.consensus).where(t1.id == ancestor)));
-      GET_EXPECTED_VALUE(st_execute, st.execute());
-      if (!st_execute) {
-        return vds::make_unexpected<std::runtime_error>("Invalid data");
-      }
-      if (!t1.consensus.get(st)) {
-        all_ancestors_in_consensus = false;
-        break;
-      }
-    }
-
-    if(!all_ancestors_in_consensus) {
-      continue;
-    }
-
-    CHECK_EXPECTED(t.execute(
-      t1.update(
-        t1.consensus = true)
-      .where(t1.id == log_id)));
-
-    switch (state) {
-    case orm::transaction_log_record_dbo::state_t::invalid:
-      CHECK_EXPECTED(invalid_become_consensus(sp, t, log_id));
-      break;
-
-    case orm::transaction_log_record_dbo::state_t::processed: {
-      std::set<const_data_buffer> followers;
-      orm::transaction_log_hierarchy_dbo t3;
-      GET_EXPECTED_VALUE(st, t.get_reader(t3.select(t3.follower_id).where(t3.id == log_id)));
-      WHILE_EXPECTED(st.execute()) {
-        auto follower_id = t3.follower_id.get(st);
-        if(not_processed.end() == not_processed.find(follower_id)
-          && processed.end() == processed.find(follower_id)) {
-          followers.emplace(follower_id);
-        }
-      }
-      WHILE_EXPECTED_END()
-
-      for(const auto & follower_id : followers) {
-        GET_EXPECTED(check_consensus_result, check_consensus(t, follower_id));
-        if (check_consensus_result) {
-          not_processed.emplace(follower_id);
-        }
-      }
-
-      break;
-    }
-
-    case orm::transaction_log_record_dbo::state_t::leaf: {
-      break;
-    }
-
-    default:
-      return vds::make_unexpected<std::runtime_error>("Invalid program");
-    }
+    CHECK_EXPECTED(invalid_block(sp, t, p, value));
   }
 
   return expected<void>();
@@ -533,6 +721,14 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   const payment_transaction & message,
   const const_data_buffer & block_id)
 {
+  sp->get<logger>()->trace(
+    "DataCoin",
+    "%s, apply payment %s[%s]->%s %d",
+    base64::from_bytes(block_id).c_str(),
+    base64::from_bytes(message.source_wallet).c_str(),
+    base64::from_bytes(message.source_transaction).c_str(),
+    base64::from_bytes(message.target_wallet).c_str(),
+    message.value);
   orm::wallet_dbo wt;
   GET_EXPECTED(st, t.get_reader(
     wt
@@ -556,7 +752,7 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
 
   GET_EXPECTED_VALUE(st, t.get_reader(
     t1
-    .select(t1.proposed_balance)
+    .select(t1.proposed_balance, t1.confirmed_balance)
     .where(
       t1.owner == message.source_wallet
       && t1.issuer == message.issuer
@@ -569,31 +765,19 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
     return false;
   }
 
-  auto balance = t1.proposed_balance.get(st);
+  const auto balance = t1.proposed_balance.get(st);
   if (balance < message.value) {
     return false;
   }
 
-  if (balance == message.value) {
-    CHECK_EXPECTED(t.execute(
-      t1.delete_if(
-        t1.owner == message.source_wallet
-        && t1.issuer == message.issuer
-        && t1.currency == message.currency
-        && t1.source_transaction == message.source_transaction
-        )));
-  }
-  else{
-    CHECK_EXPECTED(t.execute(
-      t1.update(t1.proposed_balance = balance - message.value)
-      .where(
-        t1.owner == message.source_wallet
-        && t1.issuer == message.issuer
-        && t1.currency == message.currency
-        && t1.source_transaction == message.source_transaction
-        )));
-
-  }
+  CHECK_EXPECTED(t.execute(
+    t1.update(t1.proposed_balance = balance - message.value)
+    .where(
+      t1.owner == message.source_wallet
+      && t1.issuer == message.issuer
+      && t1.currency == message.currency
+      && t1.source_transaction == message.source_transaction
+      )));
 
   CHECK_EXPECTED(t.execute(
     t1.insert(
@@ -614,6 +798,15 @@ vds::expected<void> vds::transactions::transaction_log::consensus_record(
   const payment_transaction & message,
   const const_data_buffer & block_id)
 {
+  sp->get<logger>()->trace(
+    "DataCoin",
+    "%s, consensus payment %s[%s]->%s %d",
+    base64::from_bytes(block_id).c_str(),
+    base64::from_bytes(message.source_wallet).c_str(),
+    base64::from_bytes(message.source_transaction).c_str(),
+    base64::from_bytes(message.target_wallet).c_str(),
+    message.value);
+
   vds::orm::datacoin_balance_dbo t1;
 
   GET_EXPECTED(st, t.get_reader(
@@ -623,7 +816,7 @@ vds::expected<void> vds::transactions::transaction_log::consensus_record(
       t1.owner == message.source_wallet
       && t1.issuer == message.issuer
       && t1.currency == message.currency
-      && t1.source_transaction == block_id
+      && t1.source_transaction == message.source_transaction
       )));
 
   GET_EXPECTED(st_execute, st.execute());
@@ -644,7 +837,7 @@ vds::expected<void> vds::transactions::transaction_log::consensus_record(
       t1.owner == message.source_wallet
       && t1.issuer == message.issuer
       && t1.currency == message.currency
-      && t1.source_transaction == block_id
+      && t1.source_transaction == message.source_transaction
       )));
    
 
@@ -684,6 +877,15 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(
   const payment_transaction & message,
   const const_data_buffer & block_id)
 {
+  sp->get<logger>()->trace(
+    "DataCoin",
+    "%s, undo payment %s[%s]->%s %d",
+    base64::from_bytes(block_id).c_str(),
+    base64::from_bytes(message.source_wallet).c_str(),
+    base64::from_bytes(message.source_transaction).c_str(),
+    base64::from_bytes(message.target_wallet).c_str(),
+    message.value);
+
   vds::orm::datacoin_balance_dbo t1;
 
   GET_EXPECTED(st, t.get_reader(

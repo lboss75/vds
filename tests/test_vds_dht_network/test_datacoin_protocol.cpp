@@ -381,6 +381,12 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     CHECK_EXPECTED_GTEST(transfer_asset(mock.get_sp(2), issuer, currency, 200, transaction_id, wallet_id, wallet1_id, mock.root_login(), mock.root_password()));
     CHECK_EXPECTED_GTEST(transfer_asset(mock.get_sp(3), issuer, currency, 200, transaction_id, wallet_id, wallet1_id, mock.root_login(), mock.root_password()));
 
+    GET_EXPECTED_GTEST(consensus_state, transaction_in_consensus(mock.get_sp(3), create_user1_transaction));
+    GTEST_ASSERT_EQ(true, consensus_state);
+
+    GET_EXPECTED_VALUE_GTEST(consensus_state, transaction_in_consensus(mock.get_sp(3), create_wallet1_transaction));
+    GTEST_ASSERT_EQ(true, consensus_state);
+
     GET_EXPECTED_GTEST(transfer1_transaction, get_new_transaction(mock.get_sp(0), transactions));
     GET_EXPECTED_GTEST(transfer2_transaction, get_new_transaction(mock.get_sp(1), transactions));
     GET_EXPECTED_GTEST(transfer3_transaction, get_new_transaction(mock.get_sp(2), transactions));
@@ -429,7 +435,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     GTEST_ASSERT_EQ(0, balance);
 
     GET_EXPECTED_VALUE_GTEST(balance, get_confirmed_balance(mock.get_sp(0), issuer, currency, mock.root_login(), mock.root_password()));
-    GTEST_ASSERT_EQ(0, balance);
+    GTEST_ASSERT_EQ(600, balance);
 
     GET_EXPECTED_VALUE_GTEST(balance, get_proposed_balance(mock.get_sp(0), issuer, currency, user_name, user_password));
     GTEST_ASSERT_EQ(600, balance);
@@ -438,13 +444,25 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     GTEST_ASSERT_EQ(0, balance);
 
     //
-    CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(3), transfer4_transaction));
+    CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(4), transfer4_transaction));
     GET_EXPECTED_GTEST(transaction4_id, vds::hash::signature(vds::hash::sha256(), transfer4_transaction));
-    CHECK_EXPECTED_GTEST(transfer_asset(mock.get_sp(3), issuer, currency, 200, transaction4_id, wallet1_id, wallet_id, user_name, user_password));
-    GET_EXPECTED_GTEST(transfer43_transaction, get_new_transaction(mock.get_sp(3), transactions));
-    GET_EXPECTED_VALUE_GTEST(state, get_transaction_state(mock.get_sp(3), transfer4_transaction));
+    CHECK_EXPECTED_GTEST(transfer_asset(mock.get_sp(4), issuer, currency, 200, transaction4_id, wallet1_id, wallet_id, user_name, user_password));
+    GET_EXPECTED_GTEST(transfer44_transaction, get_new_transaction(mock.get_sp(4), transactions));
+
+    CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(3), transfer44_transaction));
+    GET_EXPECTED_GTEST(transaction44_id, vds::hash::signature(vds::hash::sha256(), transfer44_transaction));
+    CHECK_EXPECTED_GTEST(transfer_asset(mock.get_sp(3), issuer, currency, 200, transaction44_id, wallet_id, wallet1_id, mock.root_login(), mock.root_password()));
+    GET_EXPECTED_GTEST(transfer34_transaction, get_new_transaction(mock.get_sp(3), transactions));
+
+    CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(0), transfer44_transaction));
+    GET_EXPECTED_VALUE_GTEST(consensus_state, transaction_in_consensus(mock.get_sp(0), transfer4_transaction));
+    GTEST_ASSERT_EQ(true, consensus_state);
+
+    CHECK_EXPECTED_GTEST(apply_transaction(mock.get_sp(0), transfer34_transaction));
+
+    GET_EXPECTED_VALUE_GTEST(state, get_transaction_state(mock.get_sp(0), transfer4_transaction));
     GTEST_ASSERT_EQ(vds::orm::transaction_log_record_dbo::state_t::processed, state);
-    GET_EXPECTED_GTEST(consensus_state, transaction_in_consensus(mock.get_sp(3), transfer4_transaction));
+    GET_EXPECTED_VALUE_GTEST(consensus_state, transaction_in_consensus(mock.get_sp(0), transfer4_transaction));
     GTEST_ASSERT_EQ(true, consensus_state);
 
     std::cout << "Done...\n";

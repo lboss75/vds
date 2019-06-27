@@ -38,6 +38,9 @@ namespace vds {
   class _database_expression_less_or_equ_exp;
 
   template<typename left_exp_type, typename right_exp_type>
+  class _database_expression_greater_or_equ_exp;
+
+  template<typename left_exp_type, typename right_exp_type>
   class _database_expression_greater_exp;
 
   template<typename value_type, typename db_value_type>
@@ -156,6 +159,7 @@ namespace vds {
     _database_expression_not_equ_exp<_database_column_exp, _database_column_exp> operator != (const database_column<value_type, db_value_type> & right) const;
 
     _database_expression_less_or_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> operator <= (value_type value) const;
+    _database_expression_greater_or_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> operator >= (value_type value) const;
 
     _database_expression_greater_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> operator > (value_type value) const;
 
@@ -690,6 +694,30 @@ namespace vds {
       return this->left_.visit(builder) + "<=" + this->right_.visit(builder);
     }
   };
+
+  template<typename left_exp_type, typename right_exp_type>
+  class _database_expression_greater_or_equ_exp : public _database_binary_expression<_database_expression_greater_or_equ_exp<left_exp_type, right_exp_type>, left_exp_type, right_exp_type>
+  {
+    using base_class = _database_binary_expression<_database_expression_greater_or_equ_exp<left_exp_type, right_exp_type>, left_exp_type, right_exp_type>;
+  public:
+    _database_expression_greater_or_equ_exp(
+      left_exp_type && left,
+      right_exp_type && right)
+      : base_class(std::move(left), std::move(right))
+    {
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const {
+      this->left_.collect_aliases(aliases);
+      this->right_.collect_aliases(aliases);
+    }
+
+    std::string visit(_database_sql_builder & builder) const
+    {
+      return this->left_.visit(builder) + ">=" + this->right_.visit(builder);
+    }
+  };
+
 
   template<typename left_exp_type, typename right_exp_type>
   class _database_expression_greater_exp : public _database_binary_expression<_database_expression_greater_exp<left_exp_type, right_exp_type>, left_exp_type, right_exp_type>
@@ -1902,6 +1930,14 @@ namespace vds {
       _database_column_exp(this),
       _database_value_exp<value_type, db_value_type>(value));
   }
+
+  template <typename value_type, typename db_value_type>
+  inline _database_expression_greater_or_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> database_column<value_type, db_value_type>::operator >= (value_type value) const {
+    return _database_expression_greater_or_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>>(
+      _database_column_exp(this),
+      _database_value_exp<value_type, db_value_type>(value));
+  }
+
 
   template <typename value_type, typename db_value_type>
   _database_expression_greater_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> database_column<value_type,
