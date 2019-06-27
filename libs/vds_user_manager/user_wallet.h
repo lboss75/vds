@@ -46,7 +46,7 @@ namespace vds {
       transactions::transaction_block_builder& log,
       const std::string & currency,
       uint64_t value,
-      member_user & issuer);
+      const member_user & issuer);
 
 
     const std::string& name() const {

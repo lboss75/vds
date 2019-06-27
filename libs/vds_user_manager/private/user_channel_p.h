@@ -120,7 +120,7 @@ namespace vds {
       GET_EXPECTED(read_id, read_cert->hash(hash::sha256()));
       GET_EXPECTED(key_crypted, read_cert->encrypt(key.serialize()));
       GET_EXPECTED(s_crypted, symmetric_encrypt::encrypt(key, s.get_buffer(), s.size()));
-      GET_EXPECTED(write_id, writter->user_certificate()->hash(hash::sha256()));
+      GET_EXPECTED(write_id, writter.user_public_key()->hash(hash::sha256()));
 
       return log.add(
           transactions::channel_message::create(

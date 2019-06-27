@@ -353,7 +353,7 @@ vds::expected<bool> vds::transactions::transaction_log::update_consensus(
       }
     }
     
-    if (current_block.write_public_key_id() != block.write_public_key_id() || current_block.id() == block.id() && !is_new) {
+    if ((current_block.write_public_key_id() != block.write_public_key_id() || current_block.id() == block.id()) && !is_new) {
       for (const auto & ancestor : current_block.ancestors()) {
         if (processed.end() != processed.find(ancestor) || not_processed.end() != not_processed.find(ancestor)) {
           continue;

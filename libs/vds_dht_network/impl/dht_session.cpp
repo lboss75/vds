@@ -88,7 +88,7 @@ vds::async_task<vds::expected<bool>> vds::dht::network::dht_session::process_mes
       base64::from_bytes(source_node).c_str(),
       base64::from_bytes(target_node).c_str());
 
-    CHECK_EXPECTED(co_await (*this->sp_->get<client>())->proxy_message(
+    CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<client>())->proxy_message(
       target_node,
       (message_type_t)message_type,
       message,

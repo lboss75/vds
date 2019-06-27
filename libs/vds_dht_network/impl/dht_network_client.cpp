@@ -127,9 +127,8 @@ vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(
       message_create<messages::dht_find_node_response>(result)));
     co_return true;
   }
-  else {
-    co_return false;
-  }
+
+  co_return false;
 }
 
 vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(

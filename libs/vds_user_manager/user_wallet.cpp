@@ -69,7 +69,7 @@ vds::expected<void> vds::user_wallet::asset_issue(
   transactions::transaction_block_builder & log,
   const std::string & currency,
   uint64_t value,
-  member_user & issuer)
+  const member_user & issuer)
 {
   GET_EXPECTED(issuer_id, issuer.user_public_key()->hash(hash::sha256()));
   GET_EXPECTED(wallet_id, this->public_key().hash(hash::sha256()));
