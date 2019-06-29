@@ -8,7 +8,7 @@ All rights reserved
 #include "vds_mock.h"
 #include "test_config.h"
 
-TEST(test_vds, test_initial)
+TEST(test_vds, integration_test)
 {
   try{
     vds_mock mock;

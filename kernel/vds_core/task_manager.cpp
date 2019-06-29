@@ -143,6 +143,31 @@ vds::async_task<vds::expected<void>> vds::task_manager::prepare_to_stop() {
   co_return expected<void>();
 }
 
+class barrier_locker
+{
+public:
+  barrier_locker(vds::barrier * b)
+  : b_(b) {
+    ++*this->b_;
+  }
+
+  barrier_locker(barrier_locker && original)
+    : b_(original.b_) {
+    original.b_ = nullptr;
+  }
+
+  barrier_locker(const barrier_locker &) = delete;
+  barrier_locker& operator = (const barrier_locker &) = delete;
+
+  ~barrier_locker() {
+    if (nullptr != this->b_) {
+      --*this->b_;
+    }
+  }
+private:
+  vds::barrier * b_;
+};
+
 void vds::task_manager::work_thread()
 {
   barrier b(0);
@@ -156,17 +181,9 @@ void vds::task_manager::work_thread()
     for(auto task : this->scheduled_){
       if(task->start_time_ <= now){
         this->scheduled_.remove(task);
-        ++b;
         
-        imt_service::async(this->sp_, [task, &b](){
-          try{
-            task->execute();
-            
-            --b;
-          }
-          catch(...){
-            throw;
-          }
+        imt_service::async(this->sp_, [task, l = barrier_locker(&b)](){
+          task->execute();
         });
         break;
       }
