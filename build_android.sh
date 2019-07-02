@@ -52,7 +52,7 @@ make --quiet cxx
 make --quiet install-cxx 
 #install-cxxabi
 export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions"
-export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
+export LDFLAGS="-stdlib=libc++ -lc++ -lm -ldl"
 cd ../..
 
 set +e
@@ -61,7 +61,7 @@ rm -rf openssl-out
 set -e
 
 export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions"
-export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
+export LDFLAGS="-stdlib=libc++ -lc++ -lm -ldl"
 
 cd openssl
 ./Configure linux-armv4 no-tests no-asm --prefix=$PWD/../openssl-out --openssldir=$PWD/../openssl-out
