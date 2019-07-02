@@ -66,8 +66,8 @@ export LDFLAGS="-stdlib=libc++ -lc++ -lm -ldl"
 cd openssl
 ./Configure linux-armv4 no-tests no-asm --quiet --prefix=$PWD/../openssl-out --openssldir=$PWD/../openssl-out
 make clean
-make --quiet
-make --quiet install
+make 
+make install
 cd ..
 
 set +e
@@ -78,8 +78,8 @@ set -e
 mkdir zlib_out
 cd zlib_out
 cmake ../zlib
-make --quiet
-make --quiet install
+make 
+make install
 cd ..
 
 set +e
@@ -90,7 +90,7 @@ set -e
 mkdir gtest_out
 cd gtest_out
 cmake -Dgtest_force_shared_crt=ON ../googletest/googletest
-make --quiet
+make 
 cd ../..
 
 #build VDS
