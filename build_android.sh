@@ -23,22 +23,22 @@ export PATH=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
 ls $NDK/toolchains/llvm/prebuilt/linux-x86_64/bin
 
 # Tell configure what tools to use.
-export AS=x86_64-linux-android21-clang
-export CC=x86_64-linux-android21-clang
-export CXX=x86_64-linux-android21-clang++
-export LD=x86_64-linux-android21-clang
+export AS=clang
+export CC=clang
+export CXX=clang++
+export LD=clang
 
 
 export CFLAGS="-fPIC -I/usr/include/arm-linux-gnueabihf/"
 export CXXFLAGS="-fcoroutines-ts -std=c++1z -fPIC -fno-cxx-exceptions"
-export LDFLAGS="-lstdc++ -Wl -latomic"
+export LDFLAGS="-lstdc++ -Wl -latomic" 
 cd ${DIR}/externals
 
 svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
 
 cd llvm/projects
 svn -q co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
-svn -q co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
+#svn -q co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
 cd ..
 
 set +e
@@ -49,7 +49,8 @@ mkdir build
 cd build
 cmake -DCMAKE_INSTALL_PREFIX=/usr -DLIBCXXABI_ENABLE_EXCEPTIONS=OFF ..
 make --quiet cxx
-make --quiet install-cxx install-cxxabi
+make --quiet install-cxx 
+#install-cxxabi
 export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions"
 export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 cd ../..
