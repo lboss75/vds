@@ -6,7 +6,7 @@ set -x
 ARCH=x86_64
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-export NDK=~/Android/Sdk/android-ndk-r19c
+export NDK=~/Android/Sdk/android-ndk-r20
 
 rm -rf ${DIR}/build-toolchain
 #$NDK/build/tools/make_standalone_toolchain.py \
@@ -20,7 +20,7 @@ rm -rf ${DIR}/build-toolchain
 #export ANDROID_NDK=${DIR}/build-toolchain
 export PATH=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
 
-#ls ${ANDROID_NDK}/bin/
+ls $NDK/toolchains/llvm/prebuilt/linux-x86_64/bin
 
 # Tell configure what tools to use.
 export AS=x86_64-linux-android21-clang
