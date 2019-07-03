@@ -92,7 +92,7 @@ set -e
 
 mkdir gtest_out
 cd gtest_out
-cmake -Dgtest_force_shared_crt=ON -DOPENSSL_ROOT_DIR=${DIR}/externals/openssl-debug ../googletest/googletest
+cmake -Dgtest_force_shared_crt=ON -DOPENSSL_ROOT_DIR=${DIR}/externals/openssl-out ../googletest/googletest
 make 
 cd ../..
 
@@ -103,7 +103,7 @@ mkdir build
 cd build
 
 cmake .. \
-   -DOPENSSL_ROOT_DIR=${DIR}/externals/openssl-debug \
+   -DOPENSSL_ROOT_DIR=${DIR}/externals/openssl-out \
    -DZLIB_INCLUDE_DIR=${DIR}/externals/zlib_debug/include \
    -DZLIB_LIBRARY=${DIR}/externals/zlib_debug/libz.a \
    -DCMAKE_SYSTEM_NAME=Android \
