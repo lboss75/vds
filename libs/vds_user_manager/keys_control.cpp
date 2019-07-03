@@ -357,26 +357,30 @@ static void save_buffer(char(&buffer_storage)[65], const vds::const_data_buffer 
   strcpy(buffer_storage, storage_str.c_str());
 }
 
-static void save_public_key(char (&public_key_storage)[vds::asymmetric_public_key::base64_size + 1], const vds::asymmetric_public_key & public_key) {
+static vds::expected<void> save_public_key(char (&public_key_storage)[vds::asymmetric_public_key::base64_size + 1], const vds::asymmetric_public_key & public_key) {
   auto der = public_key.der();
   if(der.has_error()) {
-    throw std::runtime_error(der.error()->what());
+    return vds::make_unexpected<std::runtime_error>(der.error()->what());
   }
 
   auto cert_storage_str = vds::base64::from_bytes(der.value());
   vds_assert(sizeof(public_key_storage) > cert_storage_str.length());
   strcpy(public_key_storage, cert_storage_str.c_str());
+
+  return vds::expected<void>();
 }
 
-static void save_private_key(char (&private_key_storage)[vds::asymmetric_private_key::base64_size + 1], const vds::asymmetric_private_key & private_key) {
+static vds::expected<void> save_private_key(char (&private_key_storage)[vds::asymmetric_private_key::base64_size + 1], const vds::asymmetric_private_key & private_key) {
   auto der = private_key.der(std::string());
   if (der.has_error()) {
-    throw std::runtime_error(der.error()->what());
+    return vds::make_unexpected<std::runtime_error>(der.error()->what());
   }
 
   const auto private_key_str = vds::base64::from_bytes(der.value());
   vds_assert(sizeof(private_key_storage) > private_key_str.length());
   strcpy(private_key_storage, private_key_str.c_str());
+
+  return vds::expected<void>();
 }
 
 vds::expected<void> vds::keys_control::genereate_all(
@@ -387,47 +391,47 @@ vds::expected<void> vds::keys_control::genereate_all(
 
   //
   GET_EXPECTED(common_news_read_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-  save_private_key(common_news_read_private_key_, common_news_read_private_key);
+  CHECK_EXPECTED(save_private_key(common_news_read_private_key_, common_news_read_private_key));
   GET_EXPECTED(common_news_read_certificate, asymmetric_public_key::create(common_news_read_private_key));
-  save_public_key(common_news_read_public_key_, common_news_read_certificate);
+  CHECK_EXPECTED(save_public_key(common_news_read_public_key_, common_news_read_certificate));
 
   GET_EXPECTED(common_news_write_certificate, asymmetric_public_key::create(*private_info.common_news_write_private_key_));
-  save_public_key(common_news_write_public_key_, common_news_write_certificate);
+  CHECK_EXPECTED(save_public_key(common_news_write_public_key_, common_news_write_certificate));
 
   GET_EXPECTED(common_news_admin_certificate, asymmetric_public_key::create(*private_info.common_news_admin_private_key_));
-  save_public_key(common_news_admin_public_key_, common_news_admin_certificate);
+  CHECK_EXPECTED(save_public_key(common_news_admin_public_key_, common_news_admin_certificate));
   GET_EXPECTED(common_news_channel_id, common_news_admin_certificate.hash(hash::sha256()));
   save_buffer(common_news_channel_id_, common_news_channel_id);
 
   //Auto update
   GET_EXPECTED(autoupdate_read_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-  save_private_key(autoupdate_read_private_key_, autoupdate_read_private_key);
+  CHECK_EXPECTED(save_private_key(autoupdate_read_private_key_, autoupdate_read_private_key));
   GET_EXPECTED(autoupdate_read_certificate, asymmetric_public_key::create(autoupdate_read_private_key));
-  save_public_key(autoupdate_read_public_key_, autoupdate_read_certificate);
+  CHECK_EXPECTED(save_public_key(autoupdate_read_public_key_, autoupdate_read_certificate));
 
   GET_EXPECTED(autoupdate_write_certificate, asymmetric_public_key::create(*private_info.autoupdate_write_private_key_));
-  save_public_key(autoupdate_write_public_key_, autoupdate_write_certificate);
+  CHECK_EXPECTED(save_public_key(autoupdate_write_public_key_, autoupdate_write_certificate));
 
   GET_EXPECTED(autoupdate_admin_certificate, asymmetric_public_key::create(*private_info.autoupdate_admin_private_key_));
-  save_public_key(autoupdate_admin_public_key_, autoupdate_admin_certificate);
+  CHECK_EXPECTED(save_public_key(autoupdate_admin_public_key_, autoupdate_admin_certificate));
 
   GET_EXPECTED(autoupdate_channel_id, autoupdate_admin_certificate.hash(hash::sha256()));
   save_buffer(autoupdate_channel_id_, autoupdate_channel_id);
 
   //Web
   GET_EXPECTED(web_read_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-  save_private_key(web_read_private_key_, web_read_private_key);
+  CHECK_EXPECTED(save_private_key(web_read_private_key_, web_read_private_key));
   GET_EXPECTED(web_read_certificate, asymmetric_public_key::create(
     web_read_private_key));
-  save_public_key(web_read_public_key_, web_read_certificate);
+  CHECK_EXPECTED(save_public_key(web_read_public_key_, web_read_certificate));
 
   GET_EXPECTED(web_write_certificate, asymmetric_public_key::create(
     *private_info.web_write_private_key_));
-  save_public_key(web_write_public_key_, web_write_certificate);
+  CHECK_EXPECTED(save_public_key(web_write_public_key_, web_write_certificate));
 
   GET_EXPECTED(web_admin_certificate, asymmetric_public_key::create(
     *private_info.web_admin_private_key_));
-  save_public_key(web_admin_public_key_, web_admin_certificate);
+  CHECK_EXPECTED(save_public_key(web_admin_public_key_, web_admin_certificate));
 
   GET_EXPECTED(web_channel_id, web_admin_certificate.hash(hash::sha256()));
   save_buffer(web_channel_id_, web_channel_id);

@@ -20,7 +20,7 @@ vds_mock::vds_mock()
 
 vds_mock::~vds_mock()
 {
-  this->stop();
+  (void)this->stop();
 }
 
 vds::expected<void> vds_mock::start(size_t server_count, bool allow_network)
@@ -58,10 +58,9 @@ vds::expected<void> vds_mock::stop()
 }
 
 
-
-bool vds_mock::dump_statistic(std::ostream & logfile, std::vector<vds::server_statistic>& statistics) {
+vds::expected<bool> vds_mock::dump_statistic(std::ostream & logfile, std::vector<vds::server_statistic>& statistics) {
   for (auto & p : this->servers_) {
-    GET_EXPECTED_THROW(statistic, p->get_statistic().get());
+    GET_EXPECTED(statistic, p->get_statistic().get());
     statistics.push_back(statistic);
   }
 
@@ -275,9 +274,10 @@ vds::expected<void> vds_mock::sync_wait()
   for(int i = 0; i < 1000; ++i){
 
     std::vector<vds::server_statistic> statistics;
-    if (this->dump_statistic(logfile, statistics)) {
+    GET_EXPECTED(result, this->dump_statistic(logfile, statistics));
+    if (result) {
       logfile.flush();
-      return;
+      return vds::expected<void>();
     }
 
     /*
@@ -491,7 +491,7 @@ void vds_mock::allow_read_channel(size_t client_index, const vds::const_data_buf
 //  }
 }
 
-vds::const_data_buffer vds_mock::upload_file(
+vds::expected<vds::const_data_buffer> vds_mock::upload_file(
   size_t client_index,
   const vds::const_data_buffer &channel_id,
   const std::string &name,
@@ -502,7 +502,7 @@ vds::const_data_buffer vds_mock::upload_file(
 
   auto user_mng = std::make_shared<vds::user_manager>(sp);
 
-  CHECK_EXPECTED_THROW(sp->get<vds::db_model>()->async_transaction(
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_transaction(
     [this, user_mng](vds::database_transaction & t) -> vds::expected<void> {
 
     return user_mng->load(
@@ -512,7 +512,7 @@ vds::const_data_buffer vds_mock::upload_file(
   }).get());
 
   std::list<vds::transactions::user_message_transaction::file_info_t> files;
-  GET_EXPECTED_THROW(stream, sp->get<vds::file_manager::file_operations>()->upload_file(
+  GET_EXPECTED(stream, sp->get<vds::file_manager::file_operations>()->upload_file(
     name,
     mimetype,
     vds::const_data_buffer(),
@@ -522,13 +522,13 @@ vds::const_data_buffer vds_mock::upload_file(
   }).get());
 
   
-  CHECK_EXPECTED_THROW(input_stream->copy_to(stream).get());
+  CHECK_EXPECTED(input_stream->copy_to(stream).get());
 
   auto message = std::make_shared<vds::json_object>();
   message->add_property("$type", "SimpleMessage");
   message->add_property("message", "test message");
 
-  CHECK_EXPECTED_THROW(sp->get<vds::file_manager::file_operations>()->create_message(
+  CHECK_EXPECTED(sp->get<vds::file_manager::file_operations>()->create_message(
     user_mng,
     channel_id,
     message,
@@ -563,7 +563,7 @@ vds_mock::download_data(
     file_hash);
 }
 
-vds::user_channel vds_mock::create_channel(int index, const std::string & channel_type, const std::string &name) {
+vds::expected<vds::user_channel> vds_mock::create_channel(int index, const std::string & channel_type, const std::string &name) {
 
   vds::user_channel result;
 
@@ -571,7 +571,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string & channe
 
   auto user_mng = std::make_shared<vds::user_manager>(sp);
 
-  CHECK_EXPECTED_THROW(sp->get<vds::db_model>()->async_transaction(
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_transaction(
     [this, user_mng](vds::database_transaction &t) -> vds::expected<void> {
 
     return user_mng->load(
@@ -580,7 +580,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string & channe
       this->root_password_);
   }).get());
 
-  GET_EXPECTED_THROW(result_channel, user_mng->create_channel(channel_type, name).get());
+  GET_EXPECTED(result_channel, user_mng->create_channel(channel_type, name).get());
   return result_channel;
 }
 
@@ -588,16 +588,18 @@ const vds::service_provider * vds_mock::get_sp(int client_index) {
   return this->servers_[client_index]->get_service_provider();
 }
 
-void vds_mock::init_root(size_t index)
+vds::expected<void> vds_mock::init_root(size_t index)
 {
-  this->servers_[index]->init_root(this->root_login_, this->root_password_);
+  return this->servers_[index]->init_root(this->root_login_, this->root_password_);
 }
 
-void vds_mock::allocate_storage()
+vds::expected<void> vds_mock::allocate_storage()
 {
   for (auto & p : this->servers_) {
-    p->allocate_storage(this->root_login_, this->root_password_);
+    CHECK_EXPECTED(p->allocate_storage(this->root_login_, this->root_password_));
   }
+
+  return vds::expected<void>();
 }
 
 mock_server::mock_server(int index, int udp_port, bool allow_network, bool disable_timers)
@@ -616,22 +618,24 @@ mock_server::~mock_server()
 {
 }
 
-void mock_server::init_root(
+vds::expected<void> mock_server::init_root(
   const std::string &root_user_name,
   const std::string &root_password) const {
   vds::keys_control::private_info_t private_info;
-  CHECK_EXPECTED_THROW(private_info.genereate_all());
-  CHECK_EXPECTED_THROW(vds::keys_control::genereate_all(private_info));
+  CHECK_EXPECTED(private_info.genereate_all());
+  CHECK_EXPECTED(vds::keys_control::genereate_all(private_info));
 
   const auto sp = this->get_service_provider();
   auto user_mng = std::make_shared<vds::user_manager>(sp);
-  CHECK_EXPECTED_THROW(user_mng->reset(root_user_name, root_password, private_info));
+  CHECK_EXPECTED(user_mng->reset(root_user_name, root_password, private_info));
+
+  return vds::expected<void>();
 }
 
-void mock_server::allocate_storage(
+vds::expected<void> mock_server::allocate_storage(
   const std::string& root_login,
   const std::string& root_password) {
-  this->login(root_login, root_password, [this]( const std::shared_ptr<vds::user_manager> & user_mng) {
+  return this->login(root_login, root_password, [this]( const std::shared_ptr<vds::user_manager> & user_mng) {
     auto sp = this->get_service_provider();
     return sp->get<vds::db_model>()->async_transaction([sp, user_mng](vds::database_transaction & t) -> vds::expected<void>{
       auto client = sp->get<vds::dht::network::client>();
@@ -718,17 +722,19 @@ vds::expected<void> mock_server::start()
   CHECK_EXPECTED(this->registrator_.start());
 
   if (this->allow_network_) {
-    CHECK_EXPECTED_THROW(this->server_.start_network(this->udp_port_, true).get());
+    CHECK_EXPECTED(this->server_.start_network(this->udp_port_, true).get());
     this->sp_->get<vds::dht::network::client>()->update_wellknown_connection_enabled(false);
   }
+
+  return vds::expected<void>();
 }
 
-void mock_server::stop()
+vds::expected<void> mock_server::stop()
 {
-  CHECK_EXPECTED_THROW(this->registrator_.shutdown());
+  return this->registrator_.shutdown();
 }
 
-void mock_server::init(
+vds::expected<void> mock_server::init(
   int index,
   int udp_port,
   const std::string &user_login,
@@ -744,12 +750,12 @@ void mock_server::init(
   vds::task_manager task_manager;
   vds::server server;
 
-  GET_EXPECTED_THROW(current_process, vds::filename::current_process());
+  GET_EXPECTED(current_process, vds::filename::current_process());
   auto folder = vds::foldername(
     vds::foldername(current_process.contains_folder(), "servers"),
     std::to_string(index));
-  CHECK_EXPECTED_THROW(folder.delete_folder(true));
-  CHECK_EXPECTED_THROW(folder.create());
+  CHECK_EXPECTED(folder.delete_folder(true));
+  CHECK_EXPECTED(folder.create());
 
   registrator.add(mt_service);
   registrator.add(logger);
@@ -761,14 +767,14 @@ void mock_server::init(
   registrator.current_user(folder);
   registrator.local_machine(folder);
 
-  GET_EXPECTED_THROW(sp, registrator.build());
-  CHECK_EXPECTED_THROW(registrator.start());
+  GET_EXPECTED(sp, registrator.build());
+  CHECK_EXPECTED(registrator.start());
 
-  CHECK_EXPECTED_THROW(server.start_network(udp_port, true).get());
+  CHECK_EXPECTED(server.start_network(udp_port, true).get());
 
   auto user_mng = std::make_shared<vds::user_manager>(sp);
 
-  CHECK_EXPECTED_THROW(sp->get<vds::db_model>()->async_transaction([user_mng, user_login, user_password](
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_transaction([user_mng, user_login, user_password](
     vds::database_transaction &t) {
     return user_mng->load(
       t,
@@ -777,7 +783,7 @@ void mock_server::init(
   }).get());
 
 
-  CHECK_EXPECTED_THROW(registrator.shutdown());
+  return registrator.shutdown();
 }
 
 vds::async_task<vds::expected<vds::server_statistic>> mock_server::get_statistic() const {

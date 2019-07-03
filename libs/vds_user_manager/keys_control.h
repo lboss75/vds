@@ -16,13 +16,13 @@ namespace vds {
   class keys_control {
   public:
     static const_data_buffer root_id() {
-      GET_EXPECTED_THROW(result, base64::to_bytes(root_id_));
-      return result;
+      auto result = base64::to_bytes(root_id_);
+      return result.value();
     }
     //common news read keys
     static const_data_buffer get_common_news_channel_id() {
-      GET_EXPECTED_THROW(result, base64::to_bytes(common_news_channel_id_));
-      return result;
+      auto result = base64::to_bytes(common_news_channel_id_);
+      return result.value();
     }
 
     static std::shared_ptr<asymmetric_public_key> get_common_news_read_public_key() {
@@ -43,8 +43,8 @@ namespace vds {
 
     //autoupdate keys
     static const_data_buffer get_autoupdate_channel_id() {
-      GET_EXPECTED_THROW(result, base64::to_bytes(autoupdate_channel_id_));
-      return result;
+      auto result = base64::to_bytes(autoupdate_channel_id_);
+      return result.value();
     }
 
     static std::shared_ptr<asymmetric_public_key> get_autoupdate_read_public_key() {
@@ -65,8 +65,8 @@ namespace vds {
 
     //web keys
     static const_data_buffer get_web_channel_id() {
-      GET_EXPECTED_THROW(result, base64::to_bytes(web_channel_id_));
-      return result;
+      auto result = base64::to_bytes(web_channel_id_);
+      return result.value();
     }
 
     static std::shared_ptr<asymmetric_public_key> get_web_read_public_key() {

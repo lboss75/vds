@@ -13,17 +13,17 @@ TEST(test_vds, integration_test)
   try{
     vds_mock mock;
 
-    mock.start(16, true);
+    CHECK_EXPECTED_GTEST(mock.start(16, true));
 
     std::cout << "Initiating root\n";
-    mock.init_root(5);
-    mock.allocate_storage();
+    CHECK_EXPECTED_GTEST(mock.init_root(5));
+    CHECK_EXPECTED_GTEST(mock.allocate_storage());
 
     //Waiting to sync logs
-    mock.sync_wait();
+    CHECK_EXPECTED_GTEST(mock.sync_wait());
 
     std::cout << "Create channel...\n";
-    auto channel = mock.create_channel(0, "test", "Test file");
+    GET_EXPECTED_GTEST(channel, mock.create_channel(0, "test", "Test file"));
 
     size_t len;
     do
@@ -36,19 +36,19 @@ TEST(test_vds, integration_test)
     vds::crypto_service::rand_bytes(buffer.get(), (int)len);
 
     //Waiting to sync logs
-    mock.sync_wait();
+    CHECK_EXPECTED_GTEST(mock.sync_wait());
 
     mock.allow_write_channel(3, channel.id());
 
     mock.get_sp(3);
 
     std::cout << "Upload local file...\n";
-    auto file_hash = mock.upload_file(
+    GET_EXPECTED_GTEST(file_hash, mock.upload_file(
       3,
       channel.id(),
       "test data",
       "application/octet-stream",
-      std::make_shared<vds::buffer_stream_input_async>(vds::const_data_buffer(buffer.get(), len)));
+      std::make_shared<vds::buffer_stream_input_async>(vds::const_data_buffer(buffer.get(), len))));
 
     std::cout << "Download local file...\n";
 
@@ -61,7 +61,7 @@ TEST(test_vds, integration_test)
 
     mock.allow_read_channel(4, channel.id());
     //Waiting to sync logs
-    mock.sync_wait();
+    CHECK_EXPECTED_GTEST(mock.sync_wait());
     std::cout << "Download file...\n";
 
     result_data = std::make_shared<compare_data_async<uint8_t>>(buffer.get(), len);
@@ -69,7 +69,7 @@ TEST(test_vds, integration_test)
     CHECK_EXPECTED_GTEST(result.body->copy_to(result_data).get());
 
     std::cout << "Done...\n";
-    mock.stop();
+    CHECK_EXPECTED_GTEST(mock.stop());
 
     ASSERT_EQ(len, result.size);
 

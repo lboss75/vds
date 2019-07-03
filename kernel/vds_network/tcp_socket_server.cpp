@@ -181,7 +181,8 @@ vds::expected<void> vds::_tcp_socket_server::start(
     [this, sp, ch = std::move(new_connection)]() {
     auto epollfd = epoll_create(1);
     if (0 > epollfd) {
-      throw std::runtime_error("epoll_create failed");
+      sp->get<logger>()->fatal("UDP", "epoll_create failed");
+      return;
     }
 
     struct epoll_event ev;
@@ -189,7 +190,8 @@ vds::expected<void> vds::_tcp_socket_server::start(
     ev.events = EPOLLIN;
     ev.data.fd = this->s_;
     if (0 > epoll_ctl(epollfd, EPOLL_CTL_ADD, this->s_, &ev)) {
-      throw std::runtime_error("epoll_create failed");
+      sp->get<logger>()->fatal("UDP", "epoll_create failed");
+      return;
     }
 
     while (!this->is_shuting_down_ && !sp->get_shutdown_event().is_shuting_down()) {
@@ -237,7 +239,9 @@ vds::_tcp_socket_server::windows_wsa_event::windows_wsa_event()
   this->handle_ = WSACreateEvent();
   if (WSA_INVALID_EVENT == this->handle_) {
     auto error = WSAGetLastError();
+#if __cpp_exceptions
     throw std::system_error(error, std::system_category(), "WSACreateEvent");
+#endif
   }
 }
 

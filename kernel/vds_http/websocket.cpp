@@ -120,7 +120,7 @@ vds::async_task<vds::expected<void>> vds::websocket::websocket_handler::write_as
           break;
 
         case 0x8: {//connection close
-          throw std::runtime_error("Not implemented");//TODO
+          return make_unexpected<std::runtime_error>("Not implemented");//TODO
           //uint16_t error_code = ((uint16_t)data[0] << 8) | data[1];
           //auto error_message = utf16::from_utf8(std::string((char *)data + 2, this->payloadLength_ - 2));
           //this->read_state_ = read_state_t::CLOSED;
@@ -134,7 +134,7 @@ vds::async_task<vds::expected<void>> vds::websocket::websocket_handler::write_as
 
         default:
           this->read_state_ = read_state_t::CLOSED;
-          throw std::runtime_error("Not implemented");//TODO
+          return make_unexpected<std::runtime_error>("Not implemented");//TODO
         }
 
         GET_EXPECTED_VALUE_ASYNC(
@@ -179,7 +179,7 @@ vds::async_task<vds::expected<void>> vds::websocket::websocket_handler::write_as
       }
 
       default:
-        throw std::runtime_error("Not implemented");//TODO
+        co_return make_unexpected<std::runtime_error>("Not implemented");//TODO
       }
     }
   }

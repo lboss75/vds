@@ -34,7 +34,7 @@ TEST(test_vds_dht_network, test_sync_process) {
     hab->add(server->address(), server.get());
 
     for(int j = 0; j < i; ++j) {
-      hab->attach(servers[j], server);
+      CHECK_EXPECTED_GTEST(hab->attach(servers[j], server));
     }
   }
 
@@ -45,7 +45,7 @@ TEST(test_vds_dht_network, test_sync_process) {
   }
 
   GET_EXPECTED_GTEST(object_id, vds::hash::signature(vds::hash::sha256(), object_data));
-  servers[4]->add_sync_entry(object_data);
+  CHECK_EXPECTED_GTEST(servers[4]->add_sync_entry(object_data));
 
   //All corresponding nodes have to approve data storage
   int stage = 0;
@@ -53,7 +53,7 @@ TEST(test_vds_dht_network, test_sync_process) {
   for(; ; ) {
     replica_count = 0;
     std::map<vds::const_data_buffer/*node*/, std::set<uint16_t /*replicas*/>> members;
-    hab->walk_messages([stage, &object_id, &members, &replica_count](const message_log_t & log_record)->vds::expected<message_log_action>{
+    CHECK_EXPECTED_GTEST(hab->walk_messages([stage, &object_id, &members, &replica_count](const message_log_t & log_record)->vds::expected<message_log_action>{
       switch (log_record.message_info_.message_type()) {
       case vds::dht::network::message_type_t::sync_looking_storage_request: {
         vds::binary_deserializer s(log_record.message_info_.message_data());
@@ -101,7 +101,7 @@ TEST(test_vds_dht_network, test_sync_process) {
       }
 
       return (stage == 0) ? message_log_action::skip : message_log_action::remove;
-    });
+    }));
 
     if(stage == 0) {
       //valudate member count
@@ -116,7 +116,7 @@ TEST(test_vds_dht_network, test_sync_process) {
       }
       std::list<std::tuple<std::string, std::map<std::string, std::string>>> table;
       size_t total_size = 0;
-      hab->walk_messages([stage, &object_id, &table, &server_index, &total_size](const message_log_t & log_record)->message_log_action {
+      CHECK_EXPECTED_GTEST(hab->walk_messages([stage, &object_id, &table, &server_index, &total_size](const message_log_t & log_record)->message_log_action {
         std::map<std::string, std::string> columns;
         columns[server_index[vds::base64::from_bytes(log_record.target_node_id_)]] = "O";
         columns[server_index[vds::base64::from_bytes(log_record.message_info_.source_node())]] = "*";
@@ -130,7 +130,7 @@ TEST(test_vds_dht_network, test_sync_process) {
           columns));
 
         return message_log_action::skip;
-      });
+      }));
 
       std::ofstream logfile("test.log", std::ofstream::out);
       print_table(logfile, table);
@@ -180,7 +180,7 @@ void transport_hab::add(const vds::network_address& address, test_server* server
   this->servers_[address] = server;
 }
 
-void transport_hab::attach(const std::shared_ptr<test_server>& server1, const std::shared_ptr<test_server>& server2) {
+vds::expected<void> transport_hab::attach(const std::shared_ptr<test_server>& server1, const std::shared_ptr<test_server>& server2) {
   vds::const_data_buffer session_key;
   session_key.resize(32);
   vds::crypto_service::rand_bytes(session_key.data(), session_key.size());
@@ -192,7 +192,7 @@ void transport_hab::attach(const std::shared_ptr<test_server>& server1, const st
     server2->node_id(),
     session_key);
 
-  server1->add_session(session);
+  CHECK_EXPECTED(server1->add_session(session));
 
   auto reverce_session = std::make_shared<vds::dht::network::dht_session>(
     server2->sp_,
@@ -201,7 +201,9 @@ void transport_hab::attach(const std::shared_ptr<test_server>& server1, const st
     server1->node_id(),
     session_key);
 
-  server2->add_session(reverce_session);
+  CHECK_EXPECTED(server2->add_session(reverce_session));
+
+  return vds::expected<void>();
 }
 
 void transport_hab::register_message(
@@ -267,8 +269,8 @@ bool test_server::is_ready_to_stop() const {
   return this->process_thread_->is_ready_to_stop();
 }
 
-void test_server::add_sync_entry(const vds::const_data_buffer& object_data) {
-  this->server_.add_sync_entry(object_data);
+vds::expected<void> test_server::add_sync_entry(const vds::const_data_buffer& object_data) {
+  return this->server_.add_sync_entry(object_data);
 }
 
 void test_server::process_datagram(
@@ -292,9 +294,9 @@ const vds::network_address& test_server::address() const {
   return this->server_.address();
 }
 
-void test_server::add_session(
+vds::expected<void> test_server::add_session(
   const std::shared_ptr<vds::dht::network::dht_session>& session) {
-  CHECK_EXPECTED_THROW(this->server_.add_session(session).get());
+  return this->server_.add_session(session).get();
 }
 
 vds::async_task<vds::expected<void>> mock_sync_server::process_datagram(
@@ -405,17 +407,17 @@ vds::async_task<vds::expected<void>> mock_sync_server::on_new_session(vds::const
 }
 
 
-void mock_sync_server::add_sync_entry(
+vds::expected<void> mock_sync_server::add_sync_entry(
   const vds::const_data_buffer& object_data) {
 
   std::list<std::function<vds::async_task<vds::expected<void>>()>> final_tasks;
 
-  CHECK_EXPECTED_THROW(this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, object_data, &final_tasks](vds::database_transaction & t) -> vds::expected<void> {
+  CHECK_EXPECTED(this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, object_data, &final_tasks](vds::database_transaction & t) -> vds::expected<void> {
     auto client = sp->get<vds::dht::network::client>();
-    GET_EXPECTED_THROW(object_id, vds::hash::signature(vds::hash::sha256(), object_data));
-    CHECK_EXPECTED_THROW((*client)->save_data(sp, t, object_id, object_data));
+    GET_EXPECTED(object_id, vds::hash::signature(vds::hash::sha256(), object_data));
+    CHECK_EXPECTED((*client)->save_data(sp, t, object_id, object_data));
     vds::orm::chunk_dbo t1;
-    CHECK_EXPECTED_THROW(t.execute(
+    CHECK_EXPECTED(t.execute(
       t1.insert(
         t1.object_id = object_id,
         t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
@@ -424,10 +426,11 @@ void mock_sync_server::add_sync_entry(
   }).get());
 
   while (!final_tasks.empty()) {
-    CHECK_EXPECTED_THROW(final_tasks.front()().get());
+    CHECK_EXPECTED(final_tasks.front()().get());
     final_tasks.pop_front();
   }
 
+  return vds::expected<void>();
 }
 
 mock_transport::mock_transport(mock_sync_server * owner, const std::shared_ptr<transport_hab>& hab)

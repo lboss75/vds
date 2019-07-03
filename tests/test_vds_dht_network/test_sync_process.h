@@ -41,7 +41,7 @@ public:
     const vds::network_address & source_address);
 
   void add(const vds::network_address & address, test_server * server);
-  void attach(const std::shared_ptr<test_server> & server1, const std::shared_ptr<test_server>& server2);
+  vds::expected<void> attach(const std::shared_ptr<test_server> & server1, const std::shared_ptr<test_server>& server2);
 
   void register_message(
     
@@ -114,7 +114,7 @@ public:
 
   const vds::network_address & address() const;
 
-  void add_sync_entry(
+  vds::expected<void> add_sync_entry(
     const vds::const_data_buffer& object_data);
 
 
@@ -140,7 +140,7 @@ public:
 
   bool is_ready_to_stop() const;
 
-  void add_sync_entry(
+  vds::expected<void> add_sync_entry(
     const vds::const_data_buffer& object_data);
 
   void process_datagram(
@@ -151,7 +151,7 @@ public:
   const vds::const_data_buffer & node_id() const;
   const vds::network_address & address() const;
 
-  void add_session(
+  vds::expected<void> add_session(
     const std::shared_ptr<vds::dht::network::dht_session> & session);
 
   vds::service_provider * sp_;

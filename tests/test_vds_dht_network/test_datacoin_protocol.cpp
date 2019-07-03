@@ -321,11 +321,10 @@ static vds::expected<bool> transaction_in_consensus(
 
 TEST(test_vds_dht_network, test_datacoin_protocol) {
   vds_mock mock;
-  try {
     const size_t server_count = 5;
     mock.disable_timers();
-    mock.start(server_count, false);
-    mock.init_root(3);
+    CHECK_EXPECTED_GTEST(mock.start(server_count, false));
+    CHECK_EXPECTED_GTEST(mock.init_root(3));
     
     std::cout << "Create root...\n";
     std::map<vds::const_data_buffer, vds::const_data_buffer> transactions;
@@ -466,20 +465,7 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
     GTEST_ASSERT_EQ(true, consensus_state);
 
     std::cout << "Done...\n";
-    mock.stop();
-  }
-  catch (const std::exception & ex) {
-    std::cout << "Error...\n";
-    mock.stop();
-
-    GTEST_FAIL() << ex.what();
-  }
-  catch (...) {
-    std::cout << "Error...\n";
-    mock.stop();
-
-    GTEST_FAIL() << "Unexpected error";
-  }
+    CHECK_EXPECTED_GTEST(mock.stop());
 
   //vds::keys_control::private_info_t private_info;
   //CHECK_EXPECTED_GTEST(private_info.genereate_all());

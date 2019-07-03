@@ -29,15 +29,15 @@ public:
   vds::expected<void> start();
   vds::expected<void> stop();
 
-  void init_root(
+  vds::expected<void> init_root(
     const std::string &root_user_name,
     const std::string &root_password) const;
 
-  void allocate_storage(
+  vds::expected<void> allocate_storage(
     const std::string& root_login,
     const std::string& root_password);
 
-  static void init(
+  static vds::expected<void> init(
 	  int index, int udp_port, const std::string & user_login, const std::string & user_password);
 
   template <typename T>
@@ -91,7 +91,7 @@ public:
       size_t client_index,
       const vds::const_data_buffer &channel_id);
 
-  vds::const_data_buffer upload_file(
+  vds::expected<vds::const_data_buffer> upload_file(
       size_t client_index,
       const vds::const_data_buffer &channel_id,
       const std::string &name,
@@ -105,19 +105,19 @@ public:
 	  const std::string & name,
 	  const vds::const_data_buffer & file_hash);
 
-  bool dump_statistic(std::ostream & logfile, std::vector<vds::server_statistic>& statistics);
+  vds::expected<bool> dump_statistic(std::ostream & logfile, std::vector<vds::server_statistic>& statistics);
   vds::expected<void> sync_wait();
 
-  vds::user_channel create_channel(int index, const std::string & channel_type, const std::string &name);
+  vds::expected<vds::user_channel> create_channel(int index, const std::string & channel_type, const std::string &name);
 
   const vds::service_provider * get_sp(int client_index);
 
-  void init_root(size_t index);
+  vds::expected<void> init_root(size_t index);
   void disable_timers() {
     this->disable_timers_ = true;
   }
 
-  void allocate_storage();
+  vds::expected<void> allocate_storage();
 
   const std::string & root_login() const {
     return this->root_login_;
