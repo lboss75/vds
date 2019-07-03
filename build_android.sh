@@ -92,7 +92,7 @@ set -e
 
 mkdir gtest_out
 cd gtest_out
-cmake -Dgtest_force_shared_crt=ON ../googletest/googletest
+cmake -Dgtest_force_shared_crt=ON -DOPENSSL_ROOT_DIR=${DIR}/externals/openssl-debug ../googletest/googletest
 make 
 cd ../..
 
