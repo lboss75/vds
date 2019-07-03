@@ -304,6 +304,8 @@ bool vds::network_address::is_martian() const {
       vds_assert(false);
       break;
   }
+
+  return false;
 }
 
 int vds::network_address::compare(const network_address & other) const {
