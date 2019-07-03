@@ -23,15 +23,15 @@ vds_mock::~vds_mock()
   this->stop();
 }
 
-void vds_mock::start(size_t server_count, bool allow_network)
+vds::expected<void> vds_mock::start(size_t server_count, bool allow_network)
 {
-  GET_EXPECTED_THROW(current_process, vds::filename::current_process());
+  GET_EXPECTED(current_process, vds::filename::current_process());
   const auto contains_folder = current_process.contains_folder();
   const auto servers_folder = vds::foldername(contains_folder, "servers");
-  CHECK_EXPECTED_THROW(servers_folder.delete_folder(true));
+  CHECK_EXPECTED(servers_folder.delete_folder(true));
   
   const auto clients_folder = vds::foldername(contains_folder, "clients");
-  CHECK_EXPECTED_THROW(clients_folder.delete_folder(true));
+  CHECK_EXPECTED(clients_folder.delete_folder(true));
 
   this->root_login_ = "root";
   this->root_password_ = generate_password();
@@ -39,30 +39,22 @@ void vds_mock::start(size_t server_count, bool allow_network)
 
   for (size_t i = 0; i < server_count; ++i) {
     std::unique_ptr<mock_server> server(new mock_server(i, first_port + i, allow_network, this->disable_timers_));
-    try {
-      std::cout << "Starring server " << i << "\n";
-      server->start();
-    }
-    catch (...) {
-      std::cout << "Error...\n";
-      try {
-        server->stop();
-      }
-      catch (...) {
-      }
-
-      throw;
-    }
+    std::cout << "Starring server " << i << "\n";
+    CHECK_EXPECTED(server->start());
 
     this->servers_.push_back(std::move(server));
   }
+
+  return vds::expected<void>();
 }
 
-void vds_mock::stop()
+vds::expected<void> vds_mock::stop()
 {
   for(auto & p : this->servers_) {
-    p->stop();
+    CHECK_EXPECTED(p->stop());
   }
+
+  return vds::expected<void>();
 }
 
 
@@ -275,7 +267,7 @@ bool vds_mock::dump_statistic(std::ostream & logfile, std::vector<vds::server_st
   return is_good;
 }
 
-void vds_mock::sync_wait()
+vds::expected<void> vds_mock::sync_wait()
 {
   std::ofstream logfile("test.log", std::ofstream::app);
 
@@ -302,7 +294,7 @@ void vds_mock::sync_wait()
   }
   
   std::cout << "Synchronize error\n";
-  throw std::runtime_error("Synchronize error");
+  return vds::make_unexpected<std::runtime_error>("Synchronize error");
 }
 
 std::string vds_mock::generate_password(size_t min_len, size_t max_len)
@@ -663,7 +655,7 @@ void mock_server::allocate_storage(
   });
 }
 
-void mock_server::login(
+vds::expected<void> mock_server::login(
   const std::string& root_login,
   const std::string& root_password,
   const std::function<void( const std::shared_ptr<vds::user_manager> & user_mng)> & callback) {
@@ -671,7 +663,7 @@ void mock_server::login(
   auto sp = this->get_service_provider();
 auto user_mng = std::make_shared<vds::user_manager>(sp);
 
-  CHECK_EXPECTED_THROW(sp->get<vds::db_model>()->async_transaction(
+  CHECK_EXPECTED(sp->get<vds::db_model>()->async_transaction(
     [user_mng, root_login, root_password](vds::database_transaction &t) -> vds::expected<void> {
 
     return user_mng->load(
@@ -681,7 +673,7 @@ auto user_mng = std::make_shared<vds::user_manager>(sp);
   }).get());
 
   while (vds::user_manager::login_state_t::waiting == user_mng->get_login_state()) {
-    CHECK_EXPECTED_THROW(sp->get<vds::db_model>()->async_transaction(
+    CHECK_EXPECTED(sp->get<vds::db_model>()->async_transaction(
       [user_mng, root_login, root_password](vds::database_transaction &t) -> vds::expected<void> {
 
       return user_mng->update(t);
@@ -689,19 +681,21 @@ auto user_mng = std::make_shared<vds::user_manager>(sp);
   }
 
   if (vds::user_manager::login_state_t::login_successful != user_mng->get_login_state()) {
-    throw std::runtime_error("Login failed");
+    return vds::make_unexpected<std::runtime_error>("Login failed");
   }
 
   callback(user_mng);
+
+  return vds::expected<void>();
 }
 
-void mock_server::start()
+vds::expected<void> mock_server::start()
 {
-  GET_EXPECTED_THROW(current_process, vds::filename::current_process());
+  GET_EXPECTED(current_process, vds::filename::current_process());
   auto folder = vds::foldername(
     vds::foldername(current_process.contains_folder(), "servers"),
     std::to_string(this->index_));
-  CHECK_EXPECTED_THROW(folder.create());
+  CHECK_EXPECTED(folder.create());
 
   if (this->disable_timers_) {
     this->task_manager_.disable_timers();
@@ -720,8 +714,8 @@ void mock_server::start()
   this->registrator_.current_user(folder);
   this->registrator_.local_machine(folder);
 
-  GET_EXPECTED_VALUE_THROW(this->sp_, this->registrator_.build());
-  CHECK_EXPECTED_THROW(this->registrator_.start());
+  GET_EXPECTED_VALUE(this->sp_, this->registrator_.build());
+  CHECK_EXPECTED(this->registrator_.start());
 
   if (this->allow_network_) {
     CHECK_EXPECTED_THROW(this->server_.start_network(this->udp_port_, true).get());

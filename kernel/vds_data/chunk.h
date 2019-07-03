@@ -333,9 +333,7 @@ vds::chunk_restore<cell_type>::chunk_restore(cell_type k, const cell_type * n)
       cell_type m1 = left[k * i + i];
       for (cell_type c = 0; c < k; ++c) {
         if (c < i) {
-          if (left[k * i + c] != 0) {
-            throw std::runtime_error("Logic error 23");
-          }
+          vds_assert(left[k * i + c] == 0);
         }
         else {
           left[k * i + c] = chunk<cell_type>::math_.div(left[k * i + c], m1);
@@ -366,14 +364,10 @@ vds::chunk_restore<cell_type>::chunk_restore(cell_type k, const cell_type * n)
       for (cell_type c = 0; c < k; ++c) {
         auto value = left[k * i + c];
         if(i == c){
-          if(1 != value) {
-            throw std::runtime_error("Logic error 24");
-          }
+          vds_assert(1 == value);
         }
         else {
-          if(0 != value) {
-            throw std::runtime_error("Logic error 25");
-          }
+          vds_assert(0 == value);
         }
       }
     }

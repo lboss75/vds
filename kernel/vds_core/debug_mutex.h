@@ -33,10 +33,11 @@ namespace std {
     {
 #ifdef _DEBUG
 #pragma warning(disable: 4297)
-
+#if __cpp_exceptions
       if (0 != this->owner_id_) {
         throw std::runtime_error("Multithreading error");
       }
+#endif
 #pragma warning(default: 4297)
 #endif//_DEBUG
     }

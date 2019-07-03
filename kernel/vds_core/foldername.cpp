@@ -64,27 +64,26 @@ vds::expected<bool> vds::foldername::folders(
 #else
   DIR * d = opendir(this->local_name().c_str());
   if (d) {
-    try{
-      struct dirent *dir;
-      struct stat statbuf;
-      while ((dir = readdir(d)) != NULL) {
-        if(nullptr == strstr("..", dir->d_name)) {
-          if (
-              stat(foldername(*this, dir->d_name).local_name().c_str(), &statbuf) != -1
-              && S_ISDIR(statbuf.st_mode)) {
-            if (!callback(foldername(*this, dir->d_name))) {
-              result = false;
-              break;
-            }
+    struct dirent *dir;
+    struct stat statbuf;
+    while ((dir = readdir(d)) != NULL) {
+      if(nullptr == strstr("..", dir->d_name)) {
+        if (
+            stat(foldername(*this, dir->d_name).local_name().c_str(), &statbuf) != -1
+            && S_ISDIR(statbuf.st_mode)) {
+          auto r = callback(foldername(*this, dir->d_name));
+          if(r.has_error()){
+            closedir(d);
+            return unexpected(std::move(r.error()));
+          }
+
+          if (!r.value()) {
+            result = false;
+            break;
           }
         }
       }
     }
-    catch(...) {
-      closedir(d);
-      throw;
-    }
-    
     closedir(d);
   }
 #endif

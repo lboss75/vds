@@ -226,34 +226,4 @@ namespace vds {
     }\
     var = std::move(__result ## var.value());
 
-#define CHECK_EXPECTED_THROW_ERROR(v)\
-  if((v).has_error()) {\
-    throw std::runtime_error((v).error()->what());\
-  }
-
-#define CHECK_EXPECTED_THROW(v)\
-  {\
-    auto __result { std::move(v) };\
-    CHECK_EXPECTED_THROW_ERROR(__result);\
-  }
-
-#define GET_EXPECTED_VALUE_THROW(var, v) \
-  {\
-    auto __result { std::move(v) };\
-    if(__result.has_error()) { \
-      throw std::runtime_error(__result.error()->what());\
-    }\
-    var = std::move(__result.value());\
-  }
-
-#define GET_EXPECTED_THROW(var, v) \
-  auto __result ## var { std::move(v) };\
-  std::remove_reference<decltype(__result ## var.value())>::type var;\
-  if(__result ## var.has_error()) { \
-    throw std::runtime_error(__result ## var.error()->what());\
-  }\
-  var = std::move(__result ## var.value());
-
-
-
 #endif //__VDS_CORE_EXPECTED_H_

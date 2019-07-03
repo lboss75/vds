@@ -48,7 +48,7 @@ public:
     const vds::const_data_buffer& target_node_id,
     const vds::dht::network::imessage_map::message_info_t& message_info);
 
-  void walk_messages(const std::function<message_log_action(const message_log_t &)> & callback);
+  vds::expected<void> walk_messages(const std::function< vds::expected<message_log_action>(const message_log_t &)> & callback);
 
 private:
   std::map<vds::network_address, test_server *> servers_;

@@ -137,7 +137,8 @@ vds::expected<void> vds::_network_service::start(const service_provider * sp)
             continue;
           }
           
-          throw std::system_error(error, std::system_category(), "epoll_wait");
+          //return vds::make_unexpected<std::system_error>(error, std::system_category(), "epoll_wait");
+          return;
         }
         else if(0 < result){
           for(int i = 0; i < result; ++i){

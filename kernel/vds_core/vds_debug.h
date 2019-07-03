@@ -8,7 +8,11 @@ All rights reserved
 
 namespace vds {
 
+#if __cpp_exceptions
 #define vds_assert(exp) if(!(exp)) { throw std::runtime_error("Accert " #exp); }
+#else
+#define vds_assert(exp)
+#endif
 
   class thread_protect {
   public:

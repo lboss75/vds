@@ -133,27 +133,35 @@ namespace vds {
 
     static std::shared_ptr<asymmetric_public_key> load_public_key(const char * data) {
       auto rb = base64::to_bytes(data);
+#if __cpp_exceptions
       if (rb.has_error()) {
         throw std::runtime_error(rb.error()->what());
       }
+#endif
 
       auto rc = asymmetric_public_key::parse_der(rb.value());
+#if __cpp_exceptions
       if (rc.has_error()) {
         throw std::runtime_error(rc.error()->what());
       }
+#endif
 
       return std::make_shared<asymmetric_public_key>(std::move(rc.value()));
     }
     static std::shared_ptr<asymmetric_private_key> load_private_key(const char * data) {
       auto rb = base64::to_bytes(data);
+#if __cpp_exceptions
       if (rb.has_error()) {
         throw std::runtime_error(rb.error()->what());
       }
+#endif
 
       auto rc = asymmetric_private_key::parse_der(rb.value(), std::string());
+#if __cpp_exceptions
       if (rc.has_error()) {
         throw std::runtime_error(rc.error()->what());
       }
+#endif
 
       return std::make_shared<asymmetric_private_key>(std::move(rc.value()));
     }

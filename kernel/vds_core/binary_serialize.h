@@ -82,7 +82,7 @@ namespace vds {
 
   //to avoid convert uint8_t * to std::string
   inline expected<void> operator <<(binary_serializer & , const uint8_t * ) {
-    throw std::runtime_error("Invalid error");
+    return make_unexpected<std::runtime_error>("Invalid error");
   }
 
   inline expected<void> operator <<(binary_serializer & s, const std::string & value) {

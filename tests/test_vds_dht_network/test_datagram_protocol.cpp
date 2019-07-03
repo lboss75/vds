@@ -88,7 +88,7 @@ TEST(test_vds_dht_network, test_data_exchange) {
   WSADATA wsaData;
   if (NO_ERROR != WSAStartup(MAKEWORD(2, 2), &wsaData)) {
     auto error = WSAGetLastError();
-    throw std::system_error(error, std::system_category(), "Initiates Winsock");
+    GTEST_FATAL_FAILURE_(std::system_error(error, std::system_category(), "Initiates Winsock").what());
   }
 #endif
 

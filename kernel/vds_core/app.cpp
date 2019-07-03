@@ -177,7 +177,11 @@ vds::expected<void> vds::app::demonize(const vds::foldername &root_folder, const
 vds::app * vds::app::the_app_ = nullptr;
 
 TCHAR* vds::app::service_name() const {
+#ifdef __cpp_exceptions
   throw vds_exceptions::invalid_operation();
+#else
+  return "Invalid";
+#endif
 }
 
 vds::expected<int> vds::app::demonize(const foldername & /*root_folder*/) {

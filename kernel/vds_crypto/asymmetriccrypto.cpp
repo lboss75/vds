@@ -995,8 +995,6 @@ vds::expected<vds::certificate> vds::_certificate::create_new(
     return vds::make_unexpected<crypto_exception>("X509_new", error);
   }
 
-  try {
-
     //if (!EVP_PKEY_assign_RSA(new_certificate_private_key.key(), x509)) {
     //  auto error = ERR_get_error();
     //  return vds::make_unexpected<crypto_exception>("X509_new", error);
@@ -1053,11 +1051,6 @@ vds::expected<vds::certificate> vds::_certificate::create_new(
     }
 
     return certificate(new _certificate(x509));
-  }
-  catch (...) {
-    X509_free(x509);
-    throw;
-  }
 }
 
 vds::expected<vds::asymmetric_public_key> vds::_certificate::public_key() const

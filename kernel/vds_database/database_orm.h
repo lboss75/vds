@@ -68,10 +68,11 @@ namespace vds {
   public:
     static const_data_buffer from_db_value(const std::string & value) {
       auto result = base64::to_bytes(value);
+#if __cpp_exceptions
       if(result.has_error()) {
         throw std::runtime_error(result.error()->what());
       }
-
+#endif
       return result.value();
     }
 
@@ -1364,8 +1365,10 @@ namespace vds {
         case join_t::outer:
           join_str = " OUTER JOIN ";
           break;
+#if __cpp_exceptions
         default:
           throw std::runtime_error("Invalid data");
+#endif
       }
 
       return _database_source_impl<base_builder>::collect_sources(builder)
@@ -1541,10 +1544,13 @@ namespace vds {
   inline const std::string & _database_sql_builder::get_alias(const database_table * t) const
   {
     auto p = this->aliases_.find(t);
+
+#if __cpp_exceptions
     if(this->aliases_.end() == p){
       throw std::runtime_error("Table " + t->name() + " not found");
     }
-    
+#endif
+
     return p->second;
   }
   

@@ -18,7 +18,7 @@ TEST(test_vds_dht_network, test_sync_process) {
   WSADATA wsaData;
   if (NO_ERROR != WSAStartup(MAKEWORD(2, 2), &wsaData)) {
     auto error = WSAGetLastError();
-    throw std::system_error(error, std::system_category(), "Initiates Winsock");
+    GTEST_FATAL_FAILURE_(std::system_error(error, std::system_category(), "Initiates Winsock").what());
   }
 #endif
 
@@ -53,22 +53,22 @@ TEST(test_vds_dht_network, test_sync_process) {
   for(; ; ) {
     replica_count = 0;
     std::map<vds::const_data_buffer/*node*/, std::set<uint16_t /*replicas*/>> members;
-    hab->walk_messages([stage, &object_id, &members, &replica_count](const message_log_t & log_record)->message_log_action{
+    hab->walk_messages([stage, &object_id, &members, &replica_count](const message_log_t & log_record)->vds::expected<message_log_action>{
       switch (log_record.message_info_.message_type()) {
       case vds::dht::network::message_type_t::sync_looking_storage_request: {
         vds::binary_deserializer s(log_record.message_info_.message_data());
-        GET_EXPECTED_THROW(message, vds::message_deserialize<vds::dht::messages::sync_looking_storage_request>(s));
+        GET_EXPECTED(message, vds::message_deserialize<vds::dht::messages::sync_looking_storage_request>(s));
         if(message.object_id != object_id) {
-          throw std::runtime_error("Invalid data");
+          return vds::make_unexpected<std::runtime_error>("Invalid data");
         }
         members.emplace(log_record.target_node_id_, std::set<uint16_t>());
         break;
       }
       case vds::dht::network::message_type_t::sync_replica_operations_request: {
         vds::binary_deserializer s(log_record.message_info_.message_data());
-        GET_EXPECTED_THROW(message, vds::message_deserialize<vds::dht::messages::sync_replica_operations_request>(s));
+        GET_EXPECTED(message, vds::message_deserialize<vds::dht::messages::sync_replica_operations_request>(s));
         if (message.object_id != object_id) {
-          throw std::runtime_error("Invalid data");
+          return vds::make_unexpected<std::runtime_error>("Invalid data");
         }
         switch (message.message_type) {
         case vds::orm::sync_message_dbo::message_type_t::add_replica: {
@@ -96,7 +96,7 @@ TEST(test_vds_dht_network, test_sync_process) {
         break;
       }
       default: {
-        throw std::runtime_error("Invalid operation");
+        return vds::make_unexpected<std::runtime_error>("Invalid operation");
       }
       }
 
@@ -211,16 +211,18 @@ void transport_hab::register_message(
   this->message_log_.push_back(message_log_t(target_node_id, message_info));
 }
 
-void transport_hab::walk_messages(const std::function<message_log_action(const message_log_t&)>& callback) {
+vds::expected<void> transport_hab::walk_messages(const std::function<vds::expected<message_log_action>(const message_log_t&)>& callback) {
   auto p = this->message_log_.begin();
   while(this->message_log_.end() != p) {
-    if(callback(*p) == message_log_action::remove) {
+    GET_EXPECTED(action, callback(*p));
+    if(message_log_action::remove == action) {
       p = this->message_log_.erase(p);
     }
     else {
       ++p;
     }
   }
+  return vds::expected<void>();
 }
 
 test_server::test_server(const vds::network_address & address, const std::shared_ptr<transport_hab> & hab)

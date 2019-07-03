@@ -26,8 +26,8 @@ public:
   
   ~mock_server();
 
-  void start();
-  void stop();
+  vds::expected<void> start();
+  vds::expected<void> stop();
 
   void init_root(
     const std::string &root_user_name,
@@ -67,7 +67,7 @@ private:
   bool allow_network_;
   bool disable_timers_;
 
-  void login(
+  vds::expected<void> login(
     const std::string& root_login,
     const std::string& root_password,
     const std::function<void( const std::shared_ptr<vds::user_manager> & user_mng)> & callback);
@@ -80,8 +80,8 @@ public:
   vds_mock();
   ~vds_mock();
 
-  void start(size_t server_count, bool allow_network);
-  void stop();
+  vds::expected<void> start(size_t server_count, bool allow_network);
+  vds::expected<void> stop();
 
   void allow_write_channel(
       size_t client_index,
@@ -106,7 +106,7 @@ public:
 	  const vds::const_data_buffer & file_hash);
 
   bool dump_statistic(std::ostream & logfile, std::vector<vds::server_statistic>& statistics);
-  void sync_wait();
+  vds::expected<void> sync_wait();
 
   vds::user_channel create_channel(int index, const std::string & channel_type, const std::string &name);
 
