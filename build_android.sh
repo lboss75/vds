@@ -106,8 +106,8 @@ cmake .. \
    -DOPENSSL_ROOT_DIR=${DIR}/externals/openssl-out \
    -DZLIB_INCLUDE_DIR=${DIR}/externals/zlib_debug/include \
    -DZLIB_LIBRARY=${DIR}/externals/zlib_debug/libz.a \
-   -DGTEST_LIBRARY=${DIR}/externals/gtest_out/lib/libgtest.a
-   -DGTEST_INCLUDE_DIR=${DIR}/externals/googletest/googletest/include
+   -DGTEST_LIBRARY=${DIR}/externals/gtest_out/lib/libgtest.a \
+   -DGTEST_INCLUDE_DIR=${DIR}/externals/googletest/googletest/include \
    -DGTEST_MAIN_LIBRARY=${DIR}/externals/gtest_out/lib/libgtest_main.a
 
 make
