@@ -22,7 +22,7 @@ export PATH=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
 
 ls $NDK/toolchains/llvm/prebuilt/linux-x86_64/bin
 
-find / | grep 'cxxabi.h'
+find / | grep 'coroutine'
 
 # Tell configure what tools to use.
 export AS=clang
@@ -62,7 +62,7 @@ git clone --depth=1 --single-branch --branch OpenSSL_1_1_1-stable --quiet https:
 rm -rf openssl-out
 set -e
 
-export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions"
+export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions -I$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/"
 export LDFLAGS="-stdlib=libc++ -lc++ -lm -ldl"
 
 cd openssl
