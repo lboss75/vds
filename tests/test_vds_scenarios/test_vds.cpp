@@ -10,7 +10,6 @@ All rights reserved
 
 TEST(test_vds, integration_test)
 {
-  try{
     vds_mock mock;
 
     CHECK_EXPECTED_GTEST(mock.start(16, true));
@@ -72,12 +71,4 @@ TEST(test_vds, integration_test)
     CHECK_EXPECTED_GTEST(mock.stop());
 
     ASSERT_EQ(len, result.size);
-
-  }
-  catch (const std::exception & ex) {
-    GTEST_FAIL() << ex.what();
-  }
-  catch(...){
-    GTEST_FAIL() << "Unexpected error";
-  }
 }
