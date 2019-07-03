@@ -64,7 +64,7 @@ export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-except
 export LDFLAGS="-stdlib=libc++ -lc++ -lm -ldl"
 
 cd openssl
-./Configure linux-armv4 no-tests no-asm --quiet --prefix=$PWD/../openssl-out --openssldir=$PWD/../openssl-out
+./Configure linux-armv4 no-tests no-asm --prefix=$PWD/../openssl-out --openssldir=$PWD/../openssl-out
 make clean
 make 
 make install
