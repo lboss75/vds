@@ -181,7 +181,7 @@ vds::expected<void> vds::_tcp_socket_server::start(
     [this, sp, ch = std::move(new_connection)]() {
     auto epollfd = epoll_create(1);
     if (0 > epollfd) {
-      sp->get<logger>()->fatal("UDP", "epoll_create failed");
+      sp->get<logger>()->error("UDP", "epoll_create failed");
       return;
     }
 
@@ -190,7 +190,7 @@ vds::expected<void> vds::_tcp_socket_server::start(
     ev.events = EPOLLIN;
     ev.data.fd = this->s_;
     if (0 > epoll_ctl(epollfd, EPOLL_CTL_ADD, this->s_, &ev)) {
-      sp->get<logger>()->fatal("UDP", "epoll_create failed");
+      sp->get<logger>()->error("UDP", "epoll_create failed");
       return;
     }
 
