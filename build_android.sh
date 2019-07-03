@@ -22,6 +22,8 @@ export PATH=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
 
 ls $NDK/toolchains/llvm/prebuilt/linux-x86_64/bin
 
+find / | grep 'cxxabi.h'
+
 # Tell configure what tools to use.
 export AS=clang
 export CC=clang
