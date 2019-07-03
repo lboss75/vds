@@ -31,37 +31,38 @@ export CXX=clang++
 export LD=clang
 
 
-export CFLAGS="-fPIC -I/usr/include/arm-linux-gnueabihf/"
-export CXXFLAGS="-fcoroutines-ts -std=c++1z -fPIC -fno-cxx-exceptions"
-export LDFLAGS="-lstdc++ -Wl -latomic" 
+#export CFLAGS="-fPIC -I/usr/include/arm-linux-gnueabihf/"
+#export CXXFLAGS="-fcoroutines-ts -std=c++1z -fPIC -fno-cxx-exceptions"
+#export LDFLAGS="-lstdc++ -Wl -latomic" 
 cd ${DIR}/externals
 
-svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
+#svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
 
-cd llvm/projects
-svn -q co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
+#cd llvm/projects
+#svn -q co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
 #svn -q co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
-cd ..
+#cd ..
 
-set +e
-rm -rf build
-set -e
+#set +e
+#rm -rf build
+#set -e
 
-mkdir build
-cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DLIBCXXABI_ENABLE_EXCEPTIONS=OFF ..
-make --quiet cxx
-make --quiet install-cxx 
+#mkdir build
+#cd build
+#cmake -DCMAKE_INSTALL_PREFIX=/usr -DLIBCXXABI_ENABLE_EXCEPTIONS=OFF ..
+#make --quiet cxx
+#make --quiet install-cxx 
 #install-cxxabi
-export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions"
-export LDFLAGS="-stdlib=libc++ -lc++ -lm -ldl"
-cd ../..
+#export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions"
+#export LDFLAGS="-stdlib=libc++ -lc++ -lm -ldl"
+#cd ../..
 
 set +e
 git clone --depth=1 --single-branch --branch OpenSSL_1_1_1-stable --quiet https://github.com/openssl/openssl.git
 rm -rf openssl-out
 set -e
 
+export CFLAGS="-fPIC"
 export CXXFLAGS="-fcoroutines-ts -std=c++1z -stdlib=libc++ -fPIC -fno-cxx-exceptions -I$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/"
 export LDFLAGS="-stdlib=libc++ -lc++ -lm -ldl"
 
