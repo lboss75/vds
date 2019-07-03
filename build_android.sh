@@ -108,6 +108,9 @@ cmake .. \
    -DZLIB_LIBRARY=$DIR/externals/zlib_out/libz.a \
    -DGTEST_LIBRARY=${DIR}/externals/gtest_out/lib/libgtest.a \
    -DGTEST_INCLUDE_DIR=${DIR}/externals/googletest/googletest/include \
-   -DGTEST_MAIN_LIBRARY=${DIR}/externals/gtest_out/lib/libgtest_main.a
+   -DGTEST_MAIN_LIBRARY=${DIR}/externals/gtest_out/lib/libgtest_main.a \
+   -DTARGET_ARCH=ANDROID \
+   -DSTATIC_LINKING=1 \
+   -DANDROID_NATIVE_API_LEVEL=android-21
 
 make
