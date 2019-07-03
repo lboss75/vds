@@ -387,6 +387,8 @@ int vds::network_address::compare(const network_address & other) const {
 
     return this->addr_.ss_family - other.addr_.ss_family;
   }
+
+  return -1;
 }
 
 void vds::network_address::clear() {
