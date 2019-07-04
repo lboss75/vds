@@ -23,7 +23,7 @@ vds::expected<void> vds::app::kill_prev(const vds::foldername &root_folder, cons
     if (result.has_error()) {
         auto ex = dynamic_cast<std::system_error *>(result.error().get());
         if (nullptr == ex
-            || ex->code().category() != std::system_category()
+            || ex->code().category() != std::generic_category()
             || ex->code().value() != ENOENT) {
             return unexpected(std::move(result.error()));
         }
