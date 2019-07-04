@@ -16,7 +16,7 @@ IF(MSVC)
 
 ELSE(MSVC)
 
-	add_subdirectory(vds_linux)
+#	add_subdirectory(vds_linux)
 
 
 ENDIF(MSVC)
