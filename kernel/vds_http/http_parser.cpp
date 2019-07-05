@@ -25,11 +25,21 @@ vds::async_task<vds::expected<void>> vds::http_parser::write_async(
     this->sp_->get<logger>()->trace("HTTPParser", "HTTP %p end", this);
     this->eof_ = true;
 
-    if (StateEnum::STATE_PARSE_BODY == this->state_) {
+    switch(this->state_){
+    case StateEnum::STATE_PARSE_HEADER: {
+      /* Ignore */
+      break;
+    }
+    case StateEnum::STATE_PARSE_SIZE:
+    case StateEnum::STATE_PARSE_FINISH_CHUNK:
+    case StateEnum::STATE_PARSE_FINISH_CHUNK1:
+    case StateEnum::STATE_PARSE_BODY: {
       CHECK_EXPECTED_ASYNC(co_await this->finish_body());
+      break;
+    }
     }
 
-    co_return expected<void>();
+    co_return co_await this->before_close();
   }
   this->sp_->get<logger>()->trace(
     "HTTPParser",

@@ -6,7 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "http_outgoing_stream.h"
 
-vds::http_outgoing_stream::http_outgoing_stream()
-: is_simple_(false)
-{
-}
+//vds::http_outgoing_stream::http_outgoing_stream()
+//: is_simple_(false)
+//{
+//}

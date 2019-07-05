@@ -43,8 +43,8 @@ vds::async_task<vds::expected<void>> vds::http_client::send(
   this->response_handler_ = std::move(response_handler);
 
   async_result<expected<void>> result;
-  this->final_handler_ = [&result]() -> async_task<expected<void>> {
-    result.set_value(expected<void>());
+  this->final_handler_ = [&result](expected<void> r) -> async_task<expected<void>> {
+    result.set_value(std::move(r));
     co_return expected<void>();
   };
 
@@ -72,8 +72,8 @@ vds::async_task<vds::expected<vds::const_data_buffer>> vds::http_client::send(
   };
 
   async_result<expected<void>> completed;
-  this->final_handler_ = [&completed]() -> async_task<expected<void>> {
-    completed.set_value(expected<void>());
+  this->final_handler_ = [&completed](expected<void> r) -> async_task<expected<void>> {
+    completed.set_value(std::move(r));
     co_return expected<void>();
   };
 
@@ -95,8 +95,8 @@ vds::async_task<vds::expected<void>> vds::http_client::send_headers(
   this->response_handler_ = std::move(response_handler);
 
   async_result<expected<void>> result;
-  this->final_handler_ = [&result]() -> async_task<expected<void>> {
-    result.set_value(expected<void>());
+  this->final_handler_ = [&result](expected<void> r) -> async_task<expected<void>> {
+    result.set_value(std::move(r));
     co_return expected<void>();
   };
 
@@ -125,8 +125,8 @@ vds::async_task<vds::expected<vds::const_data_buffer>> vds::http_client::send_he
   };
 
   async_result<expected<void>> completed;
-  this->final_handler_ = [&completed]() -> async_task<expected<void>> {
-    completed.set_value(expected<void>());
+  this->final_handler_ = [&completed](expected<void> r) -> async_task<expected<void>> {
+    completed.set_value(std::move(r));
     return expected<void>();
   };
 
@@ -152,5 +152,17 @@ vds::async_task<vds::expected<void>> vds::http_client::client_pipeline::finish_m
   decltype(this->owner_->final_handler_) f;
   this->owner_->final_handler_.swap(f);
 
-  return f();
+  return f(expected<void>());
+}
+
+vds::async_task<vds::expected<void>> vds::http_client::client_pipeline::before_close()
+{
+  if (!this->owner_->final_handler_) {
+    return vds::expected<void>();
+  }
+
+  decltype(this->owner_->final_handler_) f;
+  this->owner_->final_handler_.swap(f);
+
+  return f(make_unexpected<std::runtime_error>("Network connection has been closed"));
 }

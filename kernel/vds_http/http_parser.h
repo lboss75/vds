@@ -36,7 +36,11 @@ namespace vds {
     virtual async_task<expected<void>> finish_message() {
       co_return expected<void>();
     }
-    
+
+    virtual async_task<expected<void>> before_close() {
+      co_return expected<void>();
+    }
+
 
   private:
 	const service_provider * sp_;

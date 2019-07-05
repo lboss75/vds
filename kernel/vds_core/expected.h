@@ -77,19 +77,23 @@ namespace vds {
         }
 
         const value_type & value() const {
+            vds_assert(this->has_value_);
             return this->value_;
         }
 
         value_type & value() {
+          vds_assert(this->has_value_);
             return this->value_;
         }
 
         const std::unique_ptr<std::exception> & error() const {
-            return this->error_;
+          vds_assert(!this->has_value_);
+          return this->error_;
         }
 
         std::unique_ptr<std::exception> & error() {
-            return this->error_;
+          vds_assert(!this->has_value_);
+          return this->error_;
         }
 
       expected<value_type> & operator = (const expected<value_type> &) = delete;

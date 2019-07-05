@@ -54,6 +54,7 @@ namespace vds {
 
 
       async_task<expected<void>> finish_message() override;
+      async_task<expected<void>> before_close() override;
 
     private:
       std::shared_ptr<http_client> owner_;
@@ -61,7 +62,7 @@ namespace vds {
     std::shared_ptr<http_async_serializer> output_;
 
     lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, http_message> response_handler_;
-    lambda_holder_t<async_task<expected<void>>> final_handler_;
+    lambda_holder_t<async_task<expected<void>>, expected<void>> final_handler_;
   };
 }
 
