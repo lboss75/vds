@@ -383,6 +383,8 @@ vds::app::app(): logger_(log_level::ll_info, std::unordered_set<std::string>()),
 }
 
 int vds::app::run(int argc, const char** argv) {
+  srand((unsigned)time(NULL));
+
   auto result = run_app(argc, argv);
   if (result.has_error()) {
     std::cerr << result.error()->what() << "\n";

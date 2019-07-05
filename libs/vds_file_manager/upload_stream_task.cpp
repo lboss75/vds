@@ -26,14 +26,14 @@ vds::async_task<vds::expected<void>> vds::_upload_stream_task::write_async(const
   if(0 == len) {
     if (this->current_target_) {
       CHECK_EXPECTED_ASYNC(co_await this->current_target_->write_async(nullptr, 0));
-      auto block_info = co_await network_client->finish_save(this->sp_, this->current_target_);
+      GET_EXPECTED_ASYNC(block_info, co_await network_client->finish_save(this->sp_, this->current_target_));
 
       this->current_target_.reset();
 
       this->result_.push_back(transactions::user_message_transaction::file_block_t{
-        /*block_id =*/ block_info.value().id,
-        /*block_key =*/ block_info.value().key,
-        /*object_ids*/block_info.value().object_ids,
+        /*block_id =*/ block_info.id,
+        /*block_key =*/ block_info.key,
+        /*object_ids*/block_info.object_ids,
         /*block_size =*/ this->readed_
        });
     }
@@ -74,13 +74,13 @@ vds::async_task<vds::expected<void>> vds::_upload_stream_task::write_async(const
 
     if (dht::network::service::BLOCK_SIZE == this->readed_) {
       CHECK_EXPECTED_ASYNC(co_await this->current_target_->write_async(nullptr, 0));
-      auto block_info = co_await network_client->finish_save(this->sp_, this->current_target_);
+      GET_EXPECTED_ASYNC(block_info, co_await network_client->finish_save(this->sp_, this->current_target_));
       this->current_target_.reset();
 
       this->result_.push_back(transactions::user_message_transaction::file_block_t{
-        /*block_id =*/ block_info.value().id,
-        /*block_key =*/ block_info.value().key,
-        /*object_ids*/block_info.value().object_ids,
+        /*block_id =*/ block_info.id,
+        /*block_key =*/ block_info.key,
+        /*object_ids*/block_info.object_ids,
         /*block_size =*/ this->readed_
         });
       this->readed_ = 0;
