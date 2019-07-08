@@ -222,7 +222,7 @@ vds::expected<void> vds::db_model::migrate(
 			source_index INTEGER NOT NULL,\
       CONSTRAINT pk_sync_message PRIMARY KEY(object_id,generation,current_term,message_index))",
 
-      "CREATE UNIQUE INDEX fk_sync_message ON sync_message(source_node,source_index)",
+      "CREATE UNIQUE INDEX fk_sync_message ON sync_message(object_id,generation,current_term,source_node,source_index)",
 
       "CREATE TABLE chunk_replica_map(\
 			object_id VARCHAR(64) NOT NULL,\
