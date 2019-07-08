@@ -298,6 +298,10 @@ vds::expected<void> vds::dht::network::sync_process::make_new_election(
     }
   }
   else {
+    auto current_node_id = base64::from_bytes(client->current_node_id());
+    auto object_id_str = base64::from_bytes(object_id);
+
+    this->sp_->get<logger>()->warning(SyncModule, "Not found object %s on node %s", object_id_str.c_str(), current_node_id.c_str());
     return vds::make_unexpected<vds_exceptions::not_found>();
   }
 
@@ -1121,7 +1125,8 @@ vds::expected<bool> vds::dht::network::sync_process::apply_message(
       return false;
     }
   }
-  else if (message.members.end() != message.members.find(client->current_node_id())) {
+
+  if (message.members.end() != message.members.find(client->current_node_id())) {
     GET_EXPECTED_VALUE(st, t.get_reader(t1.select(t1.object_id).where(t1.object_id == message.object_id)));
     GET_EXPECTED(st_execute, st.execute());
     if (st_execute) {

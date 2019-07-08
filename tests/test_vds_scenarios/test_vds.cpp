@@ -2,11 +2,11 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <compare_data.h>
 #include "stdafx.h"
 #include "test_vds.h"
 #include "vds_mock.h"
 #include "test_config.h"
+#include "compare_data.h"
 
 TEST(test_vds, integration_test)
 {
