@@ -48,7 +48,7 @@ namespace vds {
     ~symmetric_key();
     
     symmetric_key & operator = (const symmetric_key & origin) = delete;
-    symmetric_key & operator = (symmetric_key && origin) = default;
+    symmetric_key & operator = (symmetric_key && origin);
     
     static symmetric_key generate(const symmetric_crypto_info & crypto_info);
     static expected<symmetric_key> deserialize(const symmetric_crypto_info & crypto_info, binary_deserializer & s);

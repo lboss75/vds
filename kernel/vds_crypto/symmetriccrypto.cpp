@@ -123,6 +123,14 @@ vds::symmetric_key::symmetric_key(symmetric_key&& origin)
 }
 
 vds::symmetric_key::~symmetric_key() {
+    delete this->impl_;
+}
+
+vds::symmetric_key & vds::symmetric_key::operator = (symmetric_key&& origin){
+    delete this->impl_;
+    this->impl_ = origin.impl_;
+    origin.impl_ = nullptr;
+    return *this;
 }
 
 vds::symmetric_key vds::symmetric_key::create(
@@ -148,8 +156,8 @@ vds::_symmetric_key::_symmetric_key(
 
 vds::_symmetric_key::~_symmetric_key()
 {
-	delete[] this->key_;
-	delete[] this->iv_;
+	delete this->key_;
+	delete this->iv_;
 }
 ///////////////////////////////////////////////////
 vds::symmetric_encrypt::symmetric_encrypt()

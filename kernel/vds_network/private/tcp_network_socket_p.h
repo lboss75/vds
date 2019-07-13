@@ -177,11 +177,13 @@ namespace vds {
     SOCKET_HANDLE s_;
 
 #ifndef _WIN32
+    friend class _read_socket_task;
+
     const service_provider * sp_;
     std::mutex event_masks_mutex_;
     uint32_t event_masks_;
 
-    std::weak_ptr<class _read_socket_task> read_task_;
+    std::shared_ptr<class _read_socket_task> read_task_;
     std::weak_ptr<class _write_socket_task> write_task_;
 
 #endif
@@ -485,6 +487,7 @@ namespace vds {
     }
 
     expected<void> start(){
+      (*this->owner())->read_task_ = this->shared_from_this();
       CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, EPOLLIN));
       return expected<void>();
     }
@@ -514,8 +517,8 @@ namespace vds {
       else {
         CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLIN));
         this->target_->write_async(this->buffer_, len).then(
-          [pthis = this->shared_from_this()](expected<void> result){
-          if(!result.has_error()) {
+          [len, pthis = this->shared_from_this()](expected<void> result){
+          if(0 < len && !result.has_error()) {
               (void)static_cast<_read_socket_task *>(pthis.get())->process();
           }
         });

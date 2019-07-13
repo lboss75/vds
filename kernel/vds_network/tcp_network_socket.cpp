@@ -133,13 +133,13 @@ vds::expected<void> vds::_tcp_network_socket::process(uint32_t events) {
       return vds::make_unexpected<std::runtime_error>("Invalid state");
     }
 
-    CHECK_EXPECTED(this->read_task_.lock()->process());
+    CHECK_EXPECTED(this->read_task_->process());
   }
 
   if(0 != ((EPOLLRDHUP | EPOLLHUP | EPOLLERR) & events)){
-    auto pthis = this->read_task_.lock();
-    if(pthis){
-      CHECK_EXPECTED(pthis->close_read());
+    if(this->read_task_){
+      CHECK_EXPECTED(this->read_task_->close_read());
+      this->read_task_.reset();
     }
   }
 
@@ -158,9 +158,9 @@ vds::expected<void> vds::_tcp_network_socket::close()
   }
 #else
   if (0 <= this->s_) {
-    auto r = this->read_task_.lock();
-    if(r){
-      CHECK_EXPECTED(r->close_read());
+    if(this->read_task_){
+      CHECK_EXPECTED(this->read_task_->close_read());
+        this->read_task_.reset();
     }
 
     auto w = this->write_task_.lock();

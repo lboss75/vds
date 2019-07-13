@@ -13,11 +13,11 @@ export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -fPIC"
 export LDFLAGS="-lstdc++ -Wl"
 cd externals
 
-svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
+svn co http://llvm.org/svn/llvm-project/llvm/trunk llvm
 
 cd llvm/projects
-svn -q co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
-svn -q co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
+svn co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
+svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
 cd ..
 
 set +e

@@ -288,7 +288,9 @@ namespace vds {
     }
 
     void then(lambda_holder_t<void> && f) {
-      this->state_->then(std::move(f));
+      this->state_->then([f_ = std::move(f), s = this->state_]() {
+        f_();
+      });
     }
     
     void then(lambda_holder_t<void, result_type> && f) {

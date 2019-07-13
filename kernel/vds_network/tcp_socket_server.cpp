@@ -215,7 +215,7 @@ vds::expected<void> vds::_tcp_socket_server::start(
           }
 
           ch(s).then([sp, s](vds::expected<std::shared_ptr<stream_output_async<uint8_t>>> result) {
-              if (!result.has_value() && result.value()) {
+              if (result.has_value() && result.value()) {
                 auto handler = std::make_shared<_read_socket_task>(sp, s, std::move(result.value()));
                 (void)handler->start();
               }
