@@ -319,7 +319,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
         session_info.session_ = session;
         session_info.session_mutex_.unlock();
 
-        this->sp_->get<logger>()->debug(ThisModule, "Add session %s", datagram.address().to_string().c_str());
+        const auto from_address = datagram.address().to_string();
+        this->sp_->get<logger>()->debug(ThisModule, "Add session %s", from_address.c_str());
         CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<client>())->add_session(session, 0));
         CHECK_EXPECTED_ASYNC(co_await this->sp_->get<imessage_map>()->on_new_session(partner_id));
       }
