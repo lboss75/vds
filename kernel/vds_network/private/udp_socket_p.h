@@ -67,9 +67,11 @@ namespace vds {
   public:
     _udp_socket(
         const service_provider * sp,
-        SOCKET_HANDLE s)
+        SOCKET_HANDLE s,
+        sa_family_t family)
       : sp_(sp),
-        s_(s)
+        s_(s),
+        family_(family)
 #ifndef _WIN32
         , event_masks_(0)
 #endif//_WIN32
@@ -86,6 +88,9 @@ namespace vds {
       return this->s_;
     }
 
+    sa_family_t family() const {
+      return this->family_;
+    }
 
 #ifndef _WIN32
     std::tuple<
@@ -143,7 +148,7 @@ namespace vds {
   private:
     const service_provider * sp_;
     SOCKET_HANDLE s_;
-
+    sa_family_t family_;
 
 #ifndef _WIN32
     std::mutex event_masks_mutex_;

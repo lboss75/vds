@@ -97,6 +97,11 @@ vds::udp_socket::~udp_socket()
   delete this->impl_;
 }
 
+sa_family_t vds::udp_socket::family() const
+{
+  return this->impl_->family();
+}
+
 #ifdef _WIN32
 
 std::tuple<std::shared_ptr<vds::udp_datagram_reader>, std::shared_ptr<vds::udp_datagram_writer>>
@@ -198,7 +203,7 @@ vds::expected<std::shared_ptr<vds::udp_socket>> vds::udp_socket::create(
   }
 
 #endif
-  return std::shared_ptr<udp_socket>(new udp_socket(new _udp_socket(sp, s)));
+  return std::shared_ptr<udp_socket>(new udp_socket(new _udp_socket(sp, s, af)));
 }
 
 vds::expected<void> vds::udp_socket::join_membership(sa_family_t af, const std::string & group_address)
@@ -241,8 +246,13 @@ vds::expected<void> vds::udp_socket::broadcast(sa_family_t af, const std::string
     address.sin_addr.s_addr  = INADDR_BROADCAST;
          
     if(sendto((*this)->handle(), (const char *)message.data(), message.size(), 0, (sockaddr *)&address, sizeof(address)) < 0) {
-      int error = errno;
+#ifdef _WIN32
+      const auto error = WSAGetLastError();
+      return make_unexpected<std::system_error>(error, std::system_category(), "sendto");
+#else
+      const auto error = errno;
       return make_unexpected<std::system_error>(error, std::generic_category(), "sendto");
+#endif
     }
   }
 

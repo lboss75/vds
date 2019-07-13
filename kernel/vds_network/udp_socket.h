@@ -79,6 +79,8 @@ namespace vds {
 
     ~udp_socket();
 
+    sa_family_t family() const;
+
     udp_socket &operator = (const udp_socket & original) = delete;
     udp_socket & operator = (udp_socket && original);
 

@@ -146,8 +146,7 @@ vds::expected<void> vds::dht::network::udp_transport::broadcast_handshake()
   out_message += bs.move_data();
   
   auto message = out_message.move_data();
-  (void)this->server_.socket()->broadcast(AF_INET, "ff12::8050", 8050, message);
-  (void)this->server_.socket()->broadcast(AF_INET6, "ff12::8050", 8050, message);
+  (void)this->server_.socket()->broadcast(this->server_.socket()->family(), "ff12::8050", 8050, message);
 
   return expected<void>();
 }
