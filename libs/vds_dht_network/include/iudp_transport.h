@@ -27,6 +27,7 @@ namespace vds {
 
         virtual async_task<expected<void>> write_async( const udp_datagram& datagram) = 0;
         virtual async_task<expected<void>> try_handshake( const std::string& address) = 0;
+        virtual expected<void> broadcast_handshake() = 0;
         virtual async_task<expected<void>> on_timer() = 0;
 
       };

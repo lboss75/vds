@@ -201,6 +201,54 @@ vds::expected<std::shared_ptr<vds::udp_socket>> vds::udp_socket::create(
   return std::shared_ptr<udp_socket>(new udp_socket(new _udp_socket(sp, s)));
 }
 
+vds::expected<void> vds::udp_socket::join_membership(sa_family_t af, const std::string & group_address)
+{
+  if (AF_INET6 == af) {
+    struct ipv6_mreq group;
+    group.ipv6mr_interface = 0;
+    inet_pton(AF_INET6, group_address.c_str(), &group.ipv6mr_multiaddr);
+    if (setsockopt((*this)->handle(), IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, (const char *)&group, sizeof group) < 0) {
+      int error = errno;
+      return make_unexpected<std::system_error>(error, std::generic_category(), "set broadcast");
+    }
+  }
+  else {
+    char broadcast = '1';
+    if (setsockopt((*this)->handle(), SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
+      int error = errno;
+      return make_unexpected<std::system_error>(error, std::generic_category(), "set broadcast");
+    }
+  }
+
+  return expected<void>();
+}
+
+vds::expected<void> vds::udp_socket::broadcast(sa_family_t af, const std::string & group_address, u_short port, const const_data_buffer & message)
+{
+  if (AF_INET6 == af) {
+    struct sockaddr_in6 address = { AF_INET6, htons(port) };
+    inet_pton(AF_INET6, group_address.c_str(), &address.sin6_addr);
+
+    if (sendto((*this)->handle(), (const char *)message.data(), message.size(), 0, (struct sockaddr*)&address, sizeof(address)) < 0) {
+      int error = errno;
+      return make_unexpected<std::system_error>(error, std::generic_category(), "sendto");
+    }
+  }
+  else {
+    struct sockaddr_in address;
+    address.sin_family = AF_INET;
+    address.sin_port = htons(port);
+    address.sin_addr.s_addr  = INADDR_BROADCAST;
+         
+    if(sendto((*this)->handle(), (const char *)message.data(), message.size(), 0, (sockaddr *)&address, sizeof(address)) < 0) {
+      int error = errno;
+      return make_unexpected<std::system_error>(error, std::generic_category(), "sendto");
+    }
+  }
+
+  return expected<void>();
+}
+
 #ifndef _WIN32
 vds::expected<void> vds::udp_socket::process(uint32_t events) {
   return this->impl_->process(events);

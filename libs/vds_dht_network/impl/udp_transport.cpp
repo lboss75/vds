@@ -38,6 +38,12 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::start(
     if(result.has_error()) {
       return unexpected(std::move(result.error()));
     }
+    else {
+      (void)this->server_.socket()->join_membership(AF_INET, "ff12::8050");
+    }
+  }
+  else {
+    (void)this->server_.socket()->join_membership(AF_INET6, "ff12::8050");
   }
 
   this->reader_ = std::get<0>(result.value());
@@ -122,6 +128,28 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::try_hands
   co_return co_await this->write_async(udp_datagram(
     address,
     out_message.move_data()));
+}
+
+vds::expected<void> vds::dht::network::udp_transport::broadcast_handshake()
+{
+  resizable_data_buffer out_message;
+  out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
+  out_message.add((uint8_t)(MAGIC_LABEL >> 24));
+  out_message.add((uint8_t)(MAGIC_LABEL >> 16));
+  out_message.add((uint8_t)(MAGIC_LABEL >> 8));
+  out_message.add((uint8_t)(MAGIC_LABEL));
+  out_message.add(PROTOCOL_VERSION);
+
+  binary_serializer bs;
+  CHECK_EXPECTED(bs << this->node_public_key_->der());
+
+  out_message += bs.move_data();
+  
+  auto message = out_message.move_data();
+  (void)this->server_.socket()->broadcast(AF_INET, "ff12::8050", 8050, message);
+  (void)this->server_.socket()->broadcast(AF_INET6, "ff12::8050", 8050, message);
+
+  return expected<void>();
 }
 
 vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::on_timer() {

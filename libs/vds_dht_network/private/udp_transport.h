@@ -40,6 +40,7 @@ namespace vds {
 
         vds::async_task<vds::expected<void>> write_async( const udp_datagram& datagram) override;
         vds::async_task<vds::expected<void>> try_handshake( const std::string& address) override;
+        expected<void> broadcast_handshake() override;
 
         async_task<expected<void>> on_timer() override;
 

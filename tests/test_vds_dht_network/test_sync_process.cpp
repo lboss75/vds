@@ -490,3 +490,8 @@ vds::async_task<vds::expected<void>> mock_transport::try_handshake(
   co_return vds::expected<void>();
 }
 
+vds::expected<void> mock_transport::broadcast_handshake()
+{
+  return vds::expected<void>();
+}
+

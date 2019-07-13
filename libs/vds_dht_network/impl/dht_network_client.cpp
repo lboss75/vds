@@ -824,6 +824,10 @@ vds::expected<void> vds::dht::network::_client::update_wellknown_connection(
     });
   }
 
+  final_tasks.push_back([this]()->async_task<expected<void>> {
+    (void)this->udp_transport_->broadcast_handshake();
+    co_return expected<void>();
+  });
   return expected<void>();
 }
 

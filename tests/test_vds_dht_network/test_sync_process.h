@@ -73,6 +73,7 @@ public:
 
   vds::async_task<vds::expected<void>> write_async(const vds::udp_datagram& datagram) override;
   vds::async_task<vds::expected<void>> try_handshake( const std::string& address) override;
+  vds::expected<void> broadcast_handshake() override;
 
   vds::async_task<vds::expected<void>> on_timer() override {
     co_return vds::expected<void>();

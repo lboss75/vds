@@ -93,6 +93,9 @@ namespace vds {
 
     static expected<std::shared_ptr<udp_socket>> create(const service_provider * sp, sa_family_t af);
 
+    expected<void> join_membership(sa_family_t af, const std::string & group_address);
+    expected<void> broadcast(sa_family_t af, const std::string & group_address, u_short port, const const_data_buffer & message);
+
 #ifndef _WIN32
         expected<void> process(uint32_t events) override;
 #endif
