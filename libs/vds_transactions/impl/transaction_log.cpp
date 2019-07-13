@@ -88,6 +88,9 @@ vds::expected<void> vds::transactions::transaction_log::process_block_with_follo
     processed.emplace(current_block.id());
 
     GET_EXPECTED(result, process_block(sp, t, current_block, std::get<2>(data)));
+    if (vds::orm::transaction_log_record_dbo::state_t::validated == result) {
+      continue;
+    }
 
     GET_EXPECTED(update_consensus_result, update_consensus(sp, t, current_block, std::get<0>(data), result, std::get<2>(data)));
     if (!update_consensus_result) {
