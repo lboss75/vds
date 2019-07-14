@@ -542,9 +542,14 @@ namespace vds {
           const std::shared_ptr<transport_type>& s) {
 
           for (;;) {
-            auto p = this->input_messages_.find(this->last_input_index_);
-            if (p == this->input_messages_.end()) {
+            auto p = this->input_messages_.begin();
+            if (p == this->input_messages_.end() || p->first > this->last_input_index_) {
               co_return expected<void>();
+            }
+
+            if(p->first < this->last_input_index_) {
+              this->input_messages_.erase(p);
+              continue;
             }
 
             switch (static_cast<protocol_message_type_t>((uint8_t)protocol_message_type_t::SpecialCommand & *p->second.data())) {
