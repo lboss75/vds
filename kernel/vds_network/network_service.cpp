@@ -166,7 +166,22 @@ vds::expected<void> vds::_network_service::stop()
   this->sp_->get<logger>()->trace("network", "Stopping network service");
 
 #ifndef _WIN32
-  this->tasks_cond_.notify_one();
+  for(;;) {
+      std::list<std::shared_ptr<socket_base>> tasks;
+      std::unique_lock<std::mutex> lock(this->tasks_mutex_);
+      for (auto &task : this->tasks_) {
+          tasks.push_back(task.second);
+      }
+      lock.unlock();
+      if(tasks.empty()){
+          break;
+      }
+      for (auto &task : tasks) {
+          task->stop();
+      }
+  }
+
+    this->tasks_cond_.notify_one();
   if (this->epoll_thread_.joinable()) {
     this->epoll_thread_.join();
   }

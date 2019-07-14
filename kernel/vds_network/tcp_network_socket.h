@@ -41,6 +41,7 @@ namespace vds {
 
 #ifndef _WIN32
         expected<void> process(uint32_t events) override;
+        void stop() override ;
 #endif
 
   private:

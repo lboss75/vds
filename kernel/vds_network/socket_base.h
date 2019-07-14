@@ -15,6 +15,7 @@ namespace vds {
   public:
     virtual ~socket_base() {}
     virtual expected<void> process(uint32_t events) = 0;
+    virtual void stop() = 0;
   };
 }
 

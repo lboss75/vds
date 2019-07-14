@@ -115,6 +115,10 @@ vds::expected<void> vds::tcp_network_socket::process(uint32_t events) {
   return this->impl_->process(events);
 }
 
+void vds::tcp_network_socket::stop() {
+    this->impl_->stop();
+}
+
 bool vds::tcp_network_socket::operator!() const {
     return !(*this->impl_);
 }
@@ -144,6 +148,11 @@ vds::expected<void> vds::_tcp_network_socket::process(uint32_t events) {
   }
 
   return expected<void>();
+}
+
+void vds::_tcp_network_socket::stop()
+{
+    (void)this->close();
 }
 
 #endif
