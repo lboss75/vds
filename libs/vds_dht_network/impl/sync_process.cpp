@@ -900,10 +900,10 @@ vds::expected<bool> vds::dht::network::sync_process::apply_message(
   base_message_type state;
   GET_EXPECTED_VALUE(state, this->apply_base_message(t, final_tasks, message, message_info, message_info.source_node(), message.last_applied));
   switch (state) {
-  case base_message_type::successful:
   case base_message_type::not_found:
     break;
 
+  case base_message_type::successful:
   case base_message_type::from_future:
   case base_message_type::from_past:
   case base_message_type::other_leader:
