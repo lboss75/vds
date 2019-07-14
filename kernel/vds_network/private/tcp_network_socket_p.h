@@ -142,6 +142,7 @@ namespace vds {
     }
 
     expected<void> process(uint32_t events);
+    void stop();
 
     expected<void> change_mask(
         const std::shared_ptr<socket_base> & s,
