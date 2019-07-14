@@ -96,6 +96,8 @@ vds::expected<bool> vds::transaction_log::sync_process::apply_message(
   const dht::messages::transaction_log_state& message,
   const dht::network::imessage_map::message_info_t & message_info) {
 
+  std::list<const_data_buffer> validated;
+
   orm::transaction_log_record_dbo t1;
   std::list<const_data_buffer> requests;
   for (auto & p : message.leafs) {
@@ -107,7 +109,14 @@ vds::expected<bool> vds::transaction_log::sync_process::apply_message(
       //Not found
       requests.push_back(p);
     }
+    else {
+      auto state = t1.state.get(st);
+      if (orm::transaction_log_record_dbo::state_t::validated == state) {
+        validated.push_back(p);
+      }
+    }
   }
+
   if (!requests.empty()) {
     for (const auto & p : requests) {
       auto client = this->sp_->get<vds::dht::network::client>();
@@ -118,6 +127,41 @@ vds::expected<bool> vds::transaction_log::sync_process::apply_message(
             request,
             client->current_node_id()));
       });
+    }
+  }
+  else if (!validated.empty()) {
+    std::set<const_data_buffer> record_ids;
+    orm::transaction_log_hierarchy_dbo t1;
+    orm::transaction_log_hierarchy_dbo t2;
+    orm::transaction_log_record_dbo t3;
+    GET_EXPECTED(st, t.get_reader(
+      t1.select(
+        t1.id)
+      .where(db_not_in(t1.id, t2.select(t2.follower_id)) && db_not_in(t1.id, t3.select(t3.id)))));
+
+    WHILE_EXPECTED(st.execute()) {
+      if (record_ids.end() == record_ids.find(t1.id.get(st))) {
+        record_ids.emplace(t1.id.get(st));
+      }
+    }
+    WHILE_EXPECTED_END()
+
+    if (!record_ids.empty()) {
+      auto client = this->sp_->get<dht::network::client>();
+      for (const auto & p : record_ids) {
+        this->sp_->get<logger>()->trace(
+          ThisModule,
+          "Query log records %s",
+          base64::from_bytes(p).c_str());
+
+        final_tasks.push_back([node_id = message.source_node, record_id = p, client]()->async_task<expected<void>> {
+          return (*client)->send(
+            node_id,
+            message_create<dht::messages::transaction_log_request>(
+              record_id,
+              client->current_node_id()));
+        });
+      }
     }
   }
   else {
