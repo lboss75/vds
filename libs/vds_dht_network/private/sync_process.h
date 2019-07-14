@@ -184,27 +184,27 @@ namespace vds {
         const service_provider * sp_;
 
         static std::chrono::system_clock::duration FOLLOWER_TIMEOUT() {
-          return std::chrono::seconds(20);
+          return std::chrono::minutes(20);
         }
 
         static std::chrono::system_clock::duration LEADER_BROADCAST_TIMEOUT() {
-          return std::chrono::seconds(15);
+          return std::chrono::minutes(15);
         }
 
         static std::chrono::system_clock::duration ELECTION_TIMEOUT() {
-          return std::chrono::seconds(10);
+          return std::chrono::minutes(10);
         }
 
         static std::chrono::system_clock::duration CANDITATE_TIMEOUT() {
-          return std::chrono::seconds(10);
+          return std::chrono::minutes(10);
         }
 
         static std::chrono::system_clock::duration MEMBER_TIMEOUT() {
-          return std::chrono::minutes(1);
+          return std::chrono::hours(48);
         }
 
         static std::chrono::system_clock::duration LOCAL_QUEUE_TIMEOUT() {
-          return std::chrono::seconds(5);
+          return std::chrono::minutes(5);
         }
 
         std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> distributed_generators_;

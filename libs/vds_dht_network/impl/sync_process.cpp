@@ -2295,7 +2295,7 @@ vds::expected<void> vds::dht::network::sync_process::send_leader_broadcast(
 
   CHECK_EXPECTED(t.execute(
     t1.update(
-        t1.next_sync = std::chrono::system_clock::now() + FOLLOWER_TIMEOUT())
+        t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
       .where(t1.object_id == object_id)));
 
   return expected<void>();
