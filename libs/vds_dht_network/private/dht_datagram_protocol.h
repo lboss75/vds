@@ -28,6 +28,7 @@ namespace vds {
       class dht_datagram_protocol : public std::enable_shared_from_this<implementation_class> {
       public:
         static constexpr int CHECK_MTU_TIMEOUT = 10;
+        static constexpr int MIN_MTU = 508;
 
         dht_datagram_protocol(
           const service_provider * sp,
@@ -37,12 +38,15 @@ namespace vds {
           const const_data_buffer& session_key) noexcept
           : sp_(sp),
           check_mtu_(0),
+          last_sent_(0),
           address_(address),
           this_node_id_(this_node_id),
           partner_node_id_(partner_node_id),
           session_key_(session_key),
-          mtu_(508),
-          next_sequence_number_(0) {
+          mtu_(MIN_MTU),
+          input_mtu_(0),
+          last_output_index_(0),
+          last_input_index_(0) {
         }
 
         void set_mtu(uint16_t value) {
@@ -64,6 +68,7 @@ namespace vds {
           const const_data_buffer& message) {
           vds_assert(message.size() <= 0xFFFFFFFF);
           vds_assert(target_node != this->this_node_id_);
+          vds_assert(0 == (message_type & static_cast<uint8_t>(protocol_message_type_t::SpecialCommand)));
 
           logger::get(this->sp_)->trace(
             "dht_session",
@@ -97,6 +102,7 @@ namespace vds {
           vds_assert(message.size() <= 0xFFFFFFFF);
           vds_assert(target_node != this->this_node_id_);
           vds_assert(source_node != this->partner_node_id_);
+          vds_assert(0 == (message_type & static_cast<uint8_t>(protocol_message_type_t::SpecialCommand)));
 
           logger::get(this->sp_)->trace(
             "dht_session",
@@ -119,22 +125,72 @@ namespace vds {
             message);
         }
 
-        vds::async_task<vds::expected<void>> process_datagram(
-          
+        vds::async_task<vds::expected<void>> process_datagram(          
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
 
-          if(protocol_message_type_t::MTUTest == static_cast<protocol_message_type_t>(*datagram.data())) {
-            const_data_buffer data = datagram;
-            data[0] = (uint8_t)protocol_message_type_t::MTUTestPassed;
-            co_return co_await s->write_async(udp_datagram(this->address_, data));
+          if (this->last_sent_ > SEND_TIMEOUT) {
+            co_return make_unexpected<std::runtime_error>("Send timeout");
           }
-          if (protocol_message_type_t::MTUTestPassed == static_cast<protocol_message_type_t>(*datagram.data())) {
-            if(this->mtu_ < datagram.size()) {
-              this->mtu_ = safe_cast<decltype(this->mtu_)>(datagram.size());
-              this->check_mtu_ = 0;
-              logger::get(this->sp_)->trace("dht_session", "Change MTU size to %d", this->mtu_);
+
+          if (this->input_mtu_ < datagram.size()) {
+            this->input_mtu_ = datagram.size();
+          }
+
+          if(protocol_message_type_t::MTUTest == static_cast<protocol_message_type_t>(*datagram.data())) {
+            co_return vds::expected<void>();
+          }
+
+          if (protocol_message_type_t::Acknowledgment == static_cast<protocol_message_type_t>(*datagram.data())) {
+            uint32_t last_index =
+              (datagram.data()[1] << 24)
+              | (datagram.data()[1 + 1] << 16)
+              | (datagram.data()[1 + 2] << 8)
+              | (datagram.data()[1 + 3]);
+            for(;;){
+              auto p = this->output_messages_.begin();
+              if (this->output_messages_.end() == p) {
+                break;
+              }
+
+              if (p->first < last_index) {
+                this->output_messages_.erase(p);
+                this->last_sent_ = 0;
+              }
+              else {
+                break;
+              }
             }
+
+            auto p = this->output_messages_.find(last_index);
+            if (this->output_messages_.end() != p) {
+              CHECK_EXPECTED_ASYNC(co_await s->write_async(udp_datagram(this->address_, p->second)));
+            }
+
+            uint32_t mask =
+              (datagram.data()[5] << 24)
+              | (datagram.data()[5 + 1] << 16)
+              | (datagram.data()[5 + 2] << 8)
+              | (datagram.data()[5 + 3]);
+
+            for (int i = 0; 0 != mask && i < 32; ++i) {
+              if (1 == (mask & 1)) {
+                p = this->output_messages_.find(last_index + i + 1);
+                if (this->output_messages_.end() != p) {
+                  CHECK_EXPECTED_ASYNC(co_await s->write_async(udp_datagram(this->address_, p->second)));
+                }
+              }
+
+              mask >>= 1;
+            }
+
+            auto mtu =
+                (datagram.data()[8 + 1] << 8)
+              | (datagram.data()[8 + 2]);
+            if (MIN_MTU < mtu) {
+              this->mtu_ = mtu;
+            }
+
             co_return expected<void>();
           }
 
@@ -154,114 +210,36 @@ namespace vds {
           switch (static_cast<protocol_message_type_t>((uint8_t)protocol_message_type_t::SpecialCommand & *datagram.data())) {
           case protocol_message_type_t::SingleData:
           case protocol_message_type_t::RouteSingleData:
-          case protocol_message_type_t::ProxySingleData: {
-            auto message_type = (uint8_t)(datagram.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand);
-
-            const_data_buffer target_node;
-            const_data_buffer source_node;
-            uint16_t hops;
-            const_data_buffer message;
-
-            switch (
-              static_cast<protocol_message_type_t>(
-              (uint8_t)protocol_message_type_t::SpecialCommand & datagram.data()[0])
-              ) {
-            case protocol_message_type_t::SingleData: {
-              target_node = this->this_node_id_;
-              source_node = this->partner_node_id_;
-              hops = 0;
-              message = const_data_buffer(datagram.data() + 1, datagram.size() - 1 - 32);
-              break;
-            }
-
-            case protocol_message_type_t::RouteSingleData: {
-              target_node = const_data_buffer(datagram.data() + 1, 32);
-              source_node = this->partner_node_id_;
-              hops = 0;
-              message = const_data_buffer(datagram.data() + 33, datagram.size() - 33 - 32);
-              break;
-            }
-
-            case protocol_message_type_t::ProxySingleData: {
-              target_node = const_data_buffer(datagram.data() + 1, 32);
-              source_node = const_data_buffer(datagram.data() + 1 + 32, 32);
-              hops = datagram.data()[1 + 32 + 32];
-
-              message = const_data_buffer(datagram.data() + 1 + 32 + 32 + 1, datagram.size() - (1 + 32 + 32 + 1 + 32));
-              break;
-            default:
-              vds_assert(false);
-              break;
-            }
-            }
-            
-            const auto message_size = message.size();
-            GET_EXPECTED_ASYNC(is_good, co_await static_cast<implementation_class *>(this)->process_message(
-              s,
-              message_type,
-              target_node,
-              source_node,
-              hops,
-              message));
-
-            std::unique_lock<std::mutex> lock(this->traffic_mutex_);
-            if (is_good) {
-              this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
-              this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
-            }
-            else {
-              this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
-              this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
-            }
-            lock.unlock();
-
-            co_return expected<void>();
-          }
-
+          case protocol_message_type_t::ProxySingleData:
           case protocol_message_type_t::Data:
           case protocol_message_type_t::RouteData:
           case protocol_message_type_t::ProxyData: {
-            if (datagram.size() < 33) {
-
-              co_return vds::make_unexpected<std::runtime_error>("Invalid data");
-            }
-
-            this->last_input_message_id_ = const_data_buffer(datagram.data() + 1, 32);
-            this->input_messages_.clear();
-            this->input_messages_[0] = datagram;
-
-            co_return expected<void>();
+            break;
           }
           default: {
-            if (datagram.data()[0] == (uint8_t)protocol_message_type_t::ContinueData) {
-              if (datagram.size() < 1 + 32 + INDEX_SIZE) {
-
-                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
-              }
-
-              const auto message_id = const_data_buffer(datagram.data() + 1, 32);
-              if (this->last_input_message_id_ != message_id) {
-                this->last_input_message_id_.clear();
-                this->input_messages_.clear();
-
-                co_return expected<void>();
-              }
-              uint32_t index =
-                  (datagram.data()[1 + 32] << 24)
-                | (datagram.data()[1 + 32 + 1] << 16)
-                | (datagram.data()[1 + 32 + 2] << 8)
-                | (datagram.data()[1 + 32 + 3]);
-              this->input_messages_[index] = datagram;
-
-              CHECK_EXPECTED_ASYNC(co_await this->continue_process_messages(s));
-              co_return expected<void>();
-            }
-            else {
+            if (datagram.data()[0] != (uint8_t)protocol_message_type_t::ContinueData) {
               co_return vds::make_unexpected<std::runtime_error>("Invalid data");
             }
+            break;
           }
           }
-          co_return expected<void>();
+
+           const auto index =
+            (datagram.data()[1] << 24)
+            | (datagram.data()[1 + 1] << 16)
+            | (datagram.data()[1 + 2] << 8)
+            | (datagram.data()[1 + 3]);
+
+           if (this->input_messages_.end() == this->input_messages_.find(index)) {
+             this->input_messages_[index] = datagram;
+             CHECK_EXPECTED_ASYNC(co_await this->continue_process_messages(s));
+
+             if (index > this->last_input_index_ + 32) {
+               CHECK_EXPECTED_ASYNC(co_await this->send_acknowledgment(s));
+             }
+           }
+           co_return expected<void>();
+
         }
 
         const network_address& address() const {
@@ -279,6 +257,7 @@ namespace vds {
         vds::async_task<vds::expected<void>> on_timer(
           const std::shared_ptr<transport_type>& s) {
           this->check_mtu_++;
+          this->last_sent_++;
           if (this->check_mtu_ < CHECK_MTU_TIMEOUT) {
             if (this->mtu_ < 0xFFFF - 256) {
               resizable_data_buffer out_message;
@@ -293,6 +272,8 @@ namespace vds {
             this->check_mtu_ = 0;
           }
 
+          CHECK_EXPECTED_ASYNC(co_await this->send_acknowledgment(s));
+
           co_return expected<void>();
         }
 
@@ -303,9 +284,42 @@ namespace vds {
         std::mutex traffic_mutex_;
         std::map<std::string /*from*/, std::map<std::string /*to*/, std::map<uint8_t /*message_type*/, session_statistic::traffic_info /*size*/>>> traffic_;
 
+        async_task<vds::expected<void>> send_acknowledgment(
+          const std::shared_ptr<transport_type>& s) {
+
+          resizable_data_buffer out_message;
+          out_message.add((uint8_t)protocol_message_type_t::Acknowledgment);
+
+          out_message.add((uint8_t)((this->last_input_index_) >> 24));//1
+          out_message.add((uint8_t)((this->last_input_index_) >> 16));//1
+          out_message.add((uint8_t)((this->last_input_index_) >> 8));//1
+          out_message.add((uint8_t)((this->last_input_index_) & 0xFF));//1
+
+          uint32_t mask = 0;
+          for (int i = 32; i > 0; --i) {
+            mask <<= 1;
+
+            if (this->input_messages_.end() == this->input_messages_.find(this->last_input_index_ + i)) {
+              mask |= 1;
+            }
+          }
+
+          out_message.add((uint8_t)((mask) >> 24));//1
+          out_message.add((uint8_t)((mask) >> 16));//1
+          out_message.add((uint8_t)((mask) >> 8));//1
+          out_message.add((uint8_t)((mask) & 0xFF));//1
+
+          out_message.add((uint8_t)((this->input_mtu_) >> 8));//1
+          out_message.add((uint8_t)((this->input_mtu_) & 0xFF));//1
+
+          return s->write_async(udp_datagram(this->address_, out_message.move_data()));
+        }
+
       private:
         static constexpr uint8_t INDEX_SIZE = 4;
         static constexpr uint8_t SIZE_SIZE = 4;
+
+        static constexpr int SEND_TIMEOUT = 600;
 
         struct send_queue_item_t {
           std::shared_ptr<transport_type> transport;
@@ -316,20 +330,23 @@ namespace vds {
           const_data_buffer message;
         };
         int check_mtu_;
+        int last_sent_;
         network_address address_;
         const_data_buffer this_node_id_;
         const_data_buffer partner_node_id_;
         const_data_buffer session_key_;
 
         uint16_t mtu_;
+        uint16_t input_mtu_;
+        
+        std::mutex output_mutex_;
+        uint32_t last_output_index_;
+        std::map<uint32_t, const_data_buffer> output_messages_;
 
-        const_data_buffer last_input_message_id_;
+        uint32_t last_input_index_;
         std::map<uint32_t, const_data_buffer> input_messages_;
-        uint32_t next_sequence_number_;
-
 
         vds::async_task<vds::expected<void>> send_message_async(
-          
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
           const const_data_buffer target_node,
@@ -337,293 +354,387 @@ namespace vds {
           const uint8_t hops,
           const const_data_buffer message) {
 
-          for (;;) {
-            resizable_data_buffer buffer;
+          GET_EXPECTED_ASYNC(indexes, this->prepare_to_send(
+            message_type,
+            target_node,
+            source_node,
+            hops,
+            message));
 
-            if (message.size() < this->mtu_ - 5) {
-              if (this->this_node_id_ == source_node) {
-                if (this->partner_node_id_ == target_node) {
-                  buffer.add((uint8_t)((uint8_t)protocol_message_type_t::SingleData | message_type));
-                }
-                else {
-                  buffer.add((uint8_t)((uint8_t)protocol_message_type_t::RouteSingleData | message_type));
-                  buffer += target_node;
-                }
+          for (uint32_t start_index = std::get<0>(indexes); start_index < std::get<1>(indexes); ++start_index) {
+            CHECK_EXPECTED_ASYNC(co_await s->write_async(udp_datagram(this->address_, this->output_messages_[start_index])));
+          }
+          co_return expected<void>();
+        }
+
+        vds::expected<std::tuple<uint32_t, uint32_t>> prepare_to_send(
+          uint8_t message_type,
+          const const_data_buffer target_node,
+          const const_data_buffer source_node,
+          const uint8_t hops,
+          const const_data_buffer message) {
+
+          std::unique_lock<std::mutex> lock(this->output_mutex_);
+          uint32_t start_index = this->last_output_index_;
+
+          size_t total_size = 1 + 4 + 32 + message.size();
+          if (this->this_node_id_ == source_node) {
+            if (this->partner_node_id_ != target_node) {
+              total_size += 32;
+            }
+          }
+          else {
+            total_size += 32 + 32 + 1;
+          }
+
+          resizable_data_buffer buffer;
+
+          if (total_size < this->mtu_) {
+            if (this->this_node_id_ == source_node) {
+              if (this->partner_node_id_ == target_node) {
+                buffer.add((uint8_t)((uint8_t)protocol_message_type_t::SingleData | message_type));
+                buffer.add((uint8_t)((this->last_output_index_) >> 24));//1
+                buffer.add((uint8_t)((this->last_output_index_) >> 16));//1
+                buffer.add((uint8_t)((this->last_output_index_) >> 8));//1
+                buffer.add((uint8_t)((this->last_output_index_) & 0xFF));//1
               }
               else {
-                buffer.add((uint8_t)((uint8_t)protocol_message_type_t::ProxySingleData | message_type));
+                buffer.add((uint8_t)((uint8_t)protocol_message_type_t::RouteSingleData | message_type));
+                buffer.add((uint8_t)((this->last_output_index_) >> 24));//1
+                buffer.add((uint8_t)((this->last_output_index_) >> 16));//1
+                buffer.add((uint8_t)((this->last_output_index_) >> 8));//1
+                buffer.add((uint8_t)((this->last_output_index_) & 0xFF));//1
                 buffer += target_node;
-                buffer += source_node;
-                buffer.add(hops);
-              }
-              buffer += message;
-              GET_EXPECTED_ASYNC(sig, hmac::signature(
-                this->session_key_,
-                hash::sha256(),
-                buffer.data(),
-                buffer.size()));
-              buffer += sig;
-
-              const_data_buffer datagram = buffer.move_data();
-              auto write_result = co_await s->write_async(udp_datagram(this->address_, datagram));
-              if(write_result.has_error()) {
-                auto error = dynamic_cast<udp_datagram_size_exception *>(write_result.error().get());
-                if(nullptr != error) {
-                  this->mtu_ /= 2;
-                  continue;;
-                }
-                co_return unexpected(std::move(write_result.error()));
               }
             }
             else {
-              binary_serializer bs;
-              CHECK_EXPECTED_ASYNC(bs << message_type);
-              CHECK_EXPECTED_ASYNC(bs << target_node);
-                CHECK_EXPECTED_ASYNC(bs << source_node);
-                  CHECK_EXPECTED_ASYNC(bs << hops);
-                    CHECK_EXPECTED_ASYNC(bs <<  message);
+              buffer.add((uint8_t)((uint8_t)protocol_message_type_t::ProxySingleData | message_type));
+              buffer.add((uint8_t)((this->last_output_index_) >> 24));//1
+              buffer.add((uint8_t)((this->last_output_index_) >> 16));//1
+              buffer.add((uint8_t)((this->last_output_index_) >> 8));//1
+              buffer.add((uint8_t)((this->last_output_index_) & 0xFF));//1
+              buffer += target_node;
+              buffer += source_node;
+              buffer.add(hops);
+            }
 
-              GET_EXPECTED_ASYNC(message_id, hash::signature(hash::sha256(), bs.move_data()));
-              vds_assert(message_id.size() == 32);
+            buffer += message;
+            GET_EXPECTED(sig, hmac::signature(
+              this->session_key_,
+              hash::sha256(),
+              buffer.data(),
+              buffer.size()));
+            buffer += sig;
 
-              uint32_t offset;
+            const_data_buffer datagram = buffer.move_data();
+            vds_assert(datagram.size() <= this->mtu_);
 
-              if (this->this_node_id_ == source_node) {
-                if (this->partner_node_id_ == target_node) {
-                  buffer.add((uint8_t)((uint8_t)protocol_message_type_t::Data | message_type));//1
-                  buffer += message_id;//32
-                  buffer.add((uint8_t)((message.size()) >> 24));//1
-                  buffer.add((uint8_t)((message.size()) >> 16));//1
-                  buffer.add((uint8_t)((message.size()) >> 8));//1
-                  buffer.add((uint8_t)((message.size()) & 0xFF));//1
-                  buffer.add(message.data(), this->mtu_ - (1 + 32 + SIZE_SIZE));
-                  offset = this->mtu_ - (1 + 32 + SIZE_SIZE);
-                }
-                else {
-                  buffer.add((uint8_t)((uint8_t)protocol_message_type_t::RouteData | message_type));//1
-                  buffer += message_id;//32
-                  buffer.add((uint8_t)((message.size()) >> 24));//1
-                  buffer.add((uint8_t)((message.size()) >> 16));//1
-                  buffer.add((uint8_t)((message.size()) >> 8));//1
-                  buffer.add((uint8_t)((message.size()) & 0xFF));//1
-                  vds_assert(target_node.size() == 32);
-                  buffer += target_node;//32
-                  buffer.add(message.data(), this->mtu_ - (1 + 32 + SIZE_SIZE + 32));
-                  offset = this->mtu_ - (1 + 32 + SIZE_SIZE + 32);
-                }
+            this->output_messages_[this->last_output_index_] = datagram;
+            this->last_output_index_++;
+          }
+          else {
+            uint32_t offset;
+
+            if (this->this_node_id_ == source_node) {
+              if (this->partner_node_id_ == target_node) {
+                buffer.add((uint8_t)((uint8_t)protocol_message_type_t::Data | message_type));//1
+                buffer.add((uint8_t)((this->last_output_index_) >> 24));//1
+                buffer.add((uint8_t)((this->last_output_index_) >> 16));//1
+                buffer.add((uint8_t)((this->last_output_index_) >> 8));//1
+                buffer.add((uint8_t)((this->last_output_index_) & 0xFF));//1
+                buffer.add((uint8_t)((message.size()) >> 24));//1
+                buffer.add((uint8_t)((message.size()) >> 16));//1
+                buffer.add((uint8_t)((message.size()) >> 8));//1
+                buffer.add((uint8_t)((message.size()) & 0xFF));//1
+
+                buffer.add(message.data(), this->mtu_ - (1 + 4 + SIZE_SIZE + 32));
+                offset = this->mtu_ - (1 + 4 + SIZE_SIZE + 32);
               }
               else {
-                buffer.add((uint8_t)((uint8_t)protocol_message_type_t::ProxyData | message_type));//1
-                buffer += message_id;//32
+                buffer.add((uint8_t)((uint8_t)protocol_message_type_t::RouteData | message_type));//1
+                buffer.add((uint8_t)((this->last_output_index_) >> 24));//1
+                buffer.add((uint8_t)((this->last_output_index_) >> 16));//1
+                buffer.add((uint8_t)((this->last_output_index_) >> 8));//1
+                buffer.add((uint8_t)((this->last_output_index_) & 0xFF));//1
                 buffer.add((uint8_t)((message.size()) >> 24));//1
                 buffer.add((uint8_t)((message.size()) >> 16));//1
                 buffer.add((uint8_t)((message.size()) >> 8));//1
                 buffer.add((uint8_t)((message.size()) & 0xFF));//1
                 vds_assert(target_node.size() == 32);
-                vds_assert(source_node.size() == 32);
                 buffer += target_node;//32
-                buffer += source_node;//32
-                buffer.add((uint8_t)(hops));//1
-                buffer.add(message.data(), this->mtu_ - (1 + 32 + SIZE_SIZE + 32 + 32 + 1));
-                offset = this->mtu_ - (1 + 32 + SIZE_SIZE + 32 + 32 + 1);
+
+
+                buffer.add(message.data(), this->mtu_ - (1 + 4 + SIZE_SIZE + 32 + 32));
+                offset = this->mtu_ - (1 + 4 + SIZE_SIZE + 32 + 32);
+              }
+            }
+            else {
+              buffer.add((uint8_t)((uint8_t)protocol_message_type_t::ProxyData | message_type));//1
+              buffer.add((uint8_t)((this->last_output_index_) >> 24));//1
+              buffer.add((uint8_t)((this->last_output_index_) >> 16));//1
+              buffer.add((uint8_t)((this->last_output_index_) >> 8));//1
+              buffer.add((uint8_t)((this->last_output_index_) & 0xFF));//1
+              buffer.add((uint8_t)((message.size()) >> 24));//1
+              buffer.add((uint8_t)((message.size()) >> 16));//1
+              buffer.add((uint8_t)((message.size()) >> 8));//1
+              buffer.add((uint8_t)((message.size()) & 0xFF));//1
+              vds_assert(target_node.size() == 32);
+              vds_assert(source_node.size() == 32);
+              buffer += target_node;//32
+              buffer += source_node;//32
+              buffer.add((uint8_t)(hops));//1
+
+              buffer.add(message.data(), this->mtu_ - (1 + 4 + SIZE_SIZE + 32 + 32 + 1 + 32));
+              offset = this->mtu_ - (1 + 4 + SIZE_SIZE + 32 + 32 + 1 + 32);
+            }
+
+            GET_EXPECTED(sig, hmac::signature(
+              this->session_key_,
+              hash::sha256(),
+              buffer.data(),
+              buffer.size()));
+
+            buffer += sig;
+            const_data_buffer datagram = buffer.move_data();
+            vds_assert(datagram.size() <= this->mtu_);
+
+            this->output_messages_[this->last_output_index_] = datagram;
+            this->last_output_index_++;
+
+            for (;;) {
+              auto size = this->mtu_ - (1 + 4 + 32);
+              if (size > message.size() - offset) {
+                size = message.size() - offset;
               }
 
-              GET_EXPECTED_ASYNC(sig, hmac::signature(
+              resizable_data_buffer buffer;
+              buffer.add((uint8_t)protocol_message_type_t::ContinueData);//1
+              buffer.add(this->last_output_index_ >> 24);//1
+              buffer.add(this->last_output_index_ >> 16);//1
+              buffer.add(this->last_output_index_ >> 8);//1
+              buffer.add(this->last_output_index_);//1
+              buffer.add(message.data() + offset, size);//
+
+              GET_EXPECTED(sig, hmac::signature(
                 this->session_key_,
                 hash::sha256(),
                 buffer.data(),
                 buffer.size()));
-
               buffer += sig;
+
               const_data_buffer datagram = buffer.move_data();
-              auto write_result = co_await s->write_async(udp_datagram(this->address_, datagram));
-              if (write_result.has_error()) {
-                auto error = dynamic_cast<udp_datagram_size_exception *>(write_result.error().get());
-                if (nullptr != error) {
-                  this->mtu_ /= 2;
-                  continue;;
-                }
-                co_return unexpected(std::move(write_result.error()));
+
+              vds_assert(datagram.size() <= this->mtu_);
+              this->output_messages_[this->last_output_index_] = datagram;
+              this->last_output_index_++;
+
+              if (offset + size >= message.size()) {
+                break;
               }
-
-              uint32_t index = 1;
-              for (;;) {
-                auto size = this->mtu_ - (1 + 32 + INDEX_SIZE + 32);
-                if (size > message.size() - offset) {
-                  size = message.size() - offset;
-                }
-
-                resizable_data_buffer buffer;
-                buffer.add((uint8_t)protocol_message_type_t::ContinueData);//1
-                buffer += message_id;//32
-                buffer.add(index >> 24);//1
-                buffer.add(index >> 16);//1
-                buffer.add(index >> 8);//1
-                buffer.add(index);//1
-                buffer.add(message.data() + offset, size);//
-
-                GET_EXPECTED_ASYNC(sig, hmac::signature(
-                  this->session_key_,
-                  hash::sha256(),
-                  buffer.data(),
-                  buffer.size()));
-                buffer += sig;
-
-                const_data_buffer datagram = buffer.move_data();
-                auto write_result = co_await s->write_async(udp_datagram(this->address_, datagram));
-                if (write_result.has_error()) {
-                  auto error = dynamic_cast<udp_datagram_size_exception *>(write_result.error().get());
-                  if (nullptr != error) {
-                    this->mtu_ /= 2;
-                    continue;;
-                  }
-                  co_return unexpected(std::move(write_result.error()));
-                }
-
-                if (offset + size >= message.size()) {
-                  break;
-                }
-                offset += size;
-                ++index;
-                vds_assert(index < 0xFFFFFF);
-              }
+              offset += size;
             }
-
-            break;
           }
 
-          co_return expected<void>();
+          return std::make_tuple(start_index, this->last_output_index_);
         }
 
         vds::async_task<vds::expected<void>> continue_process_messages(
-
           const std::shared_ptr<transport_type>& s) {
-          auto p = this->input_messages_.find(0);
-          if (p == this->input_messages_.end()) {
-            co_return expected<void>();
-          }
 
-          switch (
-            static_cast<protocol_message_type_t>(
-            (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
-            ) {
-          case protocol_message_type_t::Data:
-          case protocol_message_type_t::RouteData:
-          case protocol_message_type_t::ProxyData: {
-            auto message_type = p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand;
-            size_t size =
-                          uint32_t(p->second.data()[1 + 32] << 24)
-                        | uint32_t(p->second.data()[1 + 32 + 1] << 16)
-                        | uint32_t(p->second.data()[1 + 32 + 2] << 8)
-                        | uint32_t(p->second.data()[1 + 32 + 3]);
-
-            const_data_buffer target_node;
-            const_data_buffer source_node;
-            uint16_t hops;
-            resizable_data_buffer message;
-
-            switch (
-              static_cast<protocol_message_type_t>(
-              (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
-              ) {
-            case protocol_message_type_t::Data: {
-              if (size <= p->second.size() - (1 + 32 + SIZE_SIZE + 32)) {
-                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
-              }
-              vds_assert(p->second.size() > (1 + 32 + SIZE_SIZE + 32));
-              size -= p->second.size() - (1 + 32 + SIZE_SIZE + 32);
-
-              target_node = this->this_node_id_;
-              source_node = this->partner_node_id_;
-              hops = 0;
-              message.add(p->second.data() + 1 + 32 + SIZE_SIZE, p->second.size() - (1 + 32 + SIZE_SIZE + 32));
-              break;
+          for (;;) {
+            auto p = this->input_messages_.find(this->last_input_index_);
+            if (p == this->input_messages_.end()) {
+              co_return expected<void>();
             }
 
-            case protocol_message_type_t::RouteData: {
-              if (size <= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32)) {
-                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
-              }
-              vds_assert(p->second.size() > (1 + 32 + SIZE_SIZE + 32 + 32));
-              size -= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32);
+            switch (static_cast<protocol_message_type_t>((uint8_t)protocol_message_type_t::SpecialCommand & *p->second.data())) {
+            case protocol_message_type_t::SingleData:
+            case protocol_message_type_t::RouteSingleData:
+            case protocol_message_type_t::ProxySingleData: {
+              auto message_type = (uint8_t)(p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand);
 
-              target_node = const_data_buffer(p->second.data() + 1 + 32 + SIZE_SIZE, 32);
-              source_node = this->partner_node_id_;
-              hops = 0;
-              message.add(p->second.data() + (1 + 32 + SIZE_SIZE + 32), p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32));
-              break;
-            }
+              const_data_buffer target_node;
+              const_data_buffer source_node;
+              uint16_t hops;
+              uint32_t index;
+              const_data_buffer message;
 
-            case protocol_message_type_t::ProxyData: {
-              if (size <= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32 + 1 + 32)) {
-                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
-              }
-              vds_assert(p->second.size() > (1 + 32 + SIZE_SIZE + 32 + 32 + 1 + 32));
-              size -= p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32 + 1 + 32);
+              switch (
+                static_cast<protocol_message_type_t>(
+                (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
+                ) {
+              case protocol_message_type_t::SingleData: {
+                target_node = this->this_node_id_;
+                source_node = this->partner_node_id_;
+                hops = 0;
 
-              target_node = const_data_buffer(p->second.data() + 1 + 32 + SIZE_SIZE, 32);
-              source_node = const_data_buffer(p->second.data() + 1 + 32 + SIZE_SIZE + 32, 32);
-
-              hops = p->second.data()[1 + 32 + SIZE_SIZE + 32 + 32];
-              message.add(p->second.data() + (1 + 32 + SIZE_SIZE + 32 + 32 + 1), p->second.size() - (1 + 32 + SIZE_SIZE + 32 + 32 + 1 + 32));
-              break;
-            }
-            default:
-              co_return vds::make_unexpected<std::runtime_error>("Invalid program");
-            }
-
-            for (uint32_t index = 1;; ++index) {
-              auto p1 = this->input_messages_.find(index);
-              if (this->input_messages_.end() == p1) {
+                message = const_data_buffer(p->second.data() + 1 + 4, p->second.size() - 1 - 4 - 32);
                 break;
               }
 
-              if ((uint8_t)protocol_message_type_t::ContinueData != p1->second.data()[0]) {
-                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
+              case protocol_message_type_t::RouteSingleData: {
+                target_node = const_data_buffer(p->second.data() + 1 + 4, 32);
+                source_node = this->partner_node_id_;
+                hops = 0;
+                message = const_data_buffer(p->second.data() + 1 + 4 + 32, p->second.size() - 1 - 4 - 32 - 32);
+                break;
               }
 
-              if (size < p1->second.size() - (1 + 32 + INDEX_SIZE + 32)) {
-                co_return vds::make_unexpected<std::runtime_error>("Invalid data");
+              case protocol_message_type_t::ProxySingleData: {
+                target_node = const_data_buffer(p->second.data() + 1 + 4, 32);
+                source_node = const_data_buffer(p->second.data() + 1 + 4 + 32, 32);
+                hops = p->second.data()[1 + 4 + 32 + 32];
+
+                message = const_data_buffer(p->second.data() + 1 + 4 + 32 + 32 + 1, p->second.size() - (1 + 4 + 32 + 32 + 1 + 32));
+                break;
+              default:
+                vds_assert(false);
+                break;
+              }
               }
 
-              message.add(p1->second.data() + (1 + 32 + INDEX_SIZE), p1->second.size() - (1 + 32 + INDEX_SIZE + 32));
-              vds_assert(p1->second.size() > (1 + 32 + INDEX_SIZE + 32));
-              size -= p1->second.size() - (1 + 32 + INDEX_SIZE + 32);
+              const auto message_size = message.size();
+              GET_EXPECTED_ASYNC(is_good, co_await static_cast<implementation_class *>(this)->process_message(
+                s,
+                message_type,
+                target_node,
+                source_node,
+                hops,
+                message));
 
-              if (0 == size) {
-                this->last_input_message_id_.clear();
-                this->input_messages_.clear();
-                
-                const auto message_size = message.size();
-				        GET_EXPECTED_ASYNC(is_good, co_await static_cast<implementation_class *>(this)->process_message(
-                  s,
-                  message_type,
-                  target_node,
-                  source_node,
-                  hops,
-                  message.move_data()));
-
-                std::unique_lock<std::mutex> lock(this->traffic_mutex_);
-                if (is_good) {
-                  this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
-                  this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
-                }
-                else {
-                  this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
-                  this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
-                }
-                lock.unlock();
-
-                co_return expected<void>();
+              std::unique_lock<std::mutex> lock(this->traffic_mutex_);
+              if (is_good) {
+                this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
+                this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
               }
+              else {
+                this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
+                this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
+              }
+              lock.unlock();
+
+              this->last_input_index_++;
+              break;
+
             }
 
-            break;
-          }
-          default: {
-            vds_assert(false);
-            break;
-          }
+            case protocol_message_type_t::Data:
+            case protocol_message_type_t::RouteData:
+            case protocol_message_type_t::ProxyData: {
+              auto message_type = p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand;
+              size_t size =
+                uint32_t(p->second.data()[1 + 4] << 24)
+                | uint32_t(p->second.data()[1 + 4 + 1] << 16)
+                | uint32_t(p->second.data()[1 + 4 + 2] << 8)
+                | uint32_t(p->second.data()[1 + 4 + 3]);
+
+              const_data_buffer target_node;
+              const_data_buffer source_node;
+              uint16_t hops;
+              resizable_data_buffer message;
+
+              switch (
+                static_cast<protocol_message_type_t>(
+                (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
+                ) {
+              case protocol_message_type_t::Data: {
+                if (size <= p->second.size() - (1 + 4 + SIZE_SIZE + 32)) {
+                  co_return vds::make_unexpected<std::runtime_error>("Invalid data");
+                }
+                vds_assert(p->second.size() > (1 + 4 + SIZE_SIZE + 32));
+                size -= p->second.size() - (1 + 4 + SIZE_SIZE + 32);
+
+                target_node = this->this_node_id_;
+                source_node = this->partner_node_id_;
+                hops = 0;
+                message.add(p->second.data() + 1 + 4 + SIZE_SIZE, p->second.size() - (1 + 4 + SIZE_SIZE + 32));
+                break;
+              }
+
+              case protocol_message_type_t::RouteData: {
+                if (size <= p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 32)) {
+                  co_return vds::make_unexpected<std::runtime_error>("Invalid data");
+                }
+                vds_assert(p->second.size() > (1 + 4 + SIZE_SIZE + 32 + 32));
+                size -= p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 32);
+
+                target_node = const_data_buffer(p->second.data() + 1 + 4 + SIZE_SIZE, 32);
+                source_node = this->partner_node_id_;
+                hops = 0;
+                message.add(p->second.data() + (1 + 4 + SIZE_SIZE + 32), p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 32));
+                break;
+              }
+
+              case protocol_message_type_t::ProxyData: {
+                if (size <= p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 32 + 1 + 32)) {
+                  co_return vds::make_unexpected<std::runtime_error>("Invalid data");
+                }
+                vds_assert(p->second.size() > (1 + 4 + SIZE_SIZE + 32 + 32 + 1 + 32));
+                size -= p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 32 + 1 + 32);
+
+                target_node = const_data_buffer(p->second.data() + 1 + 4 + SIZE_SIZE, 32);
+                source_node = const_data_buffer(p->second.data() + 1 + 4 + SIZE_SIZE + 32, 32);
+
+                hops = p->second.data()[1 + 4 + SIZE_SIZE + 32 + 32];
+                message.add(p->second.data() + (1 + 4 + SIZE_SIZE + 32 + 32 + 1), p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 32 + 1 + 32));
+                break;
+              }
+              default:
+                co_return vds::make_unexpected<std::runtime_error>("Invalid program");
+              }
+
+              uint32_t index = 0;
+              for (;;) {
+                auto p1 = this->input_messages_.find(this->last_input_index_ + ++index);
+                if (this->input_messages_.end() == p1) {
+                  co_return expected<void>();
+                }
+
+                if ((uint8_t)protocol_message_type_t::ContinueData != p1->second.data()[0]) {
+                  co_return vds::make_unexpected<std::runtime_error>("Invalid data");
+                }
+
+                if (size < p1->second.size() - (1 + 4 + 32)) {
+                  co_return vds::make_unexpected<std::runtime_error>("Invalid data");
+                }
+
+                message.add(p1->second.data() + (1 + 4), p1->second.size() - (1 + 4 + 32));
+                vds_assert(p1->second.size() > (1 + 4 + 32));
+                size -= p1->second.size() - (1 + 4 + 32);
+
+                if (0 == size) {
+                  const auto message_size = message.size();
+                  GET_EXPECTED_ASYNC(is_good, co_await static_cast<implementation_class *>(this)->process_message(
+                    s,
+                    message_type,
+                    target_node,
+                    source_node,
+                    hops,
+                    message.move_data()));
+
+                  std::unique_lock<std::mutex> lock(this->traffic_mutex_);
+                  if (is_good) {
+                    this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
+                    this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
+                  }
+                  else {
+                    this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
+                    this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
+                  }
+                  lock.unlock();
+
+                  break;
+                }
+              }
+
+              this->last_input_index_ += index + 1;
+              break;
+            }
+            default: {
+              vds_assert(false);
+              break;
+            }
+            }
           }
           co_return expected<void>();
         }

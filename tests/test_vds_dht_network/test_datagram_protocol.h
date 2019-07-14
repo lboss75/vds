@@ -11,11 +11,16 @@ public:
   : s_(s){
   }
   vds::async_task<vds::expected<void>> write_async(
-      
       const vds::udp_datagram & data);
+
+  void set_partner(std::shared_ptr<mock_dg_transport> partner)
+  {
+    this->partner_ = partner;
+  }
 
 private:
   mock_session & s_;
+  std::weak_ptr<mock_dg_transport> partner_;
 };
 
 class mock_session : public vds::dht::network::dht_datagram_protocol<mock_session, mock_dg_transport> {

@@ -137,6 +137,8 @@ TEST(test_vds_dht_network, test_data_exchange) {
 
   auto transport12 = std::make_shared<mock_dg_transport>(*session2);
   auto transport21 = std::make_shared<mock_dg_transport>(*session1);
+  transport12->set_partner(transport21);
+  transport21->set_partner(transport12);
 
   CHECK_EXPECTED_GTEST(send_message_check(node1, node2, session1, session2, transport12, transport21, 10));
   CHECK_EXPECTED_GTEST(send_message_check(node1, node2, session1, session2, transport12, transport21, 10 * 1024));
@@ -156,6 +158,6 @@ vds::async_task<vds::expected<void>> mock_dg_transport::write_async(
     
     const vds::udp_datagram &data) {
   return this->s_.process_datagram(
-      this->shared_from_this(),
+      this->partner_.lock(),
       vds::const_data_buffer(data.data(), data.data_size()));
 }

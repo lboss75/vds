@@ -10,11 +10,11 @@ All rights reserved
 
 namespace vds {
 
-  class udp_datagram_size_exception : public std::runtime_error {
-  public:
-    udp_datagram_size_exception();
+  //class udp_datagram_size_exception : public std::runtime_error {
+  //public:
+  //  udp_datagram_size_exception();
 
-  };
+  //};
 }
 
 

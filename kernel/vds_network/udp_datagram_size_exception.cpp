@@ -6,6 +6,6 @@ All rights reserved
 #include "stdafx.h"
 #include "udp_datagram_size_exception.h"
 
-vds::udp_datagram_size_exception::udp_datagram_size_exception()
-: std::runtime_error("UDP Message too long") {
-}
+//vds::udp_datagram_size_exception::udp_datagram_size_exception()
+//: std::runtime_error("UDP Message too long") {
+//}
