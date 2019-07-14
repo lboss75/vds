@@ -487,14 +487,11 @@ namespace vds {
             error,
             address .c_str());
 
-          if (EMSGSIZE == error) {
-            r->set_value(make_unexpected<udp_datagram_size_exception>());
-          } else {
-            r->set_value(make_unexpected<std::system_error>(
-                error,
-                std::generic_category(),
-                "Send to " + address));
-          }
+          r->set_value(make_unexpected<std::system_error>(
+            error,
+            std::generic_category(),
+            "Send to " + address));
+
         }
       }
       else {
@@ -542,15 +539,10 @@ namespace vds {
 
         auto address = this->write_message_.address().to_string();
 
-        if (EMSGSIZE == error) {
-          result->set_value(make_unexpected<udp_datagram_size_exception>());
-        }
-        else {
-          result->set_value(make_unexpected<std::system_error>(
+        result->set_value(make_unexpected<std::system_error>(
               error,
               std::generic_category(),
               "Send to " + address));
-        }
       }
       else {
           CHECK_EXPECTED((*this->owner())->change_mask(this->owner_, 0, EPOLLOUT));
