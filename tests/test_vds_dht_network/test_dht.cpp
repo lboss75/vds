@@ -79,7 +79,7 @@ TEST(test_vds_dht_network, test_protocol) {
     uint16_t /*hops_*/
     >> messages;
 
-  for (int i = 0; i < 1000; ++i)
+  for (int i = 0; i < 10000; ++i)
   {
     const size_t size = std::rand();
 
@@ -95,7 +95,7 @@ TEST(test_vds_dht_network, test_protocol) {
     uint16_t hops;
 
 
-    if (std::rand() < 100) {
+    if (std::rand() < 10000) {
       target_node.resize(32);
       vds::crypto_service::rand_bytes(target_node.data(), target_node.size());
       source_node.resize(32);
@@ -103,7 +103,7 @@ TEST(test_vds_dht_network, test_protocol) {
       hops = (uint8_t)std::rand() % 64;
       CHECK_EXPECTED_GTEST(session1->proxy_message(transport12, message_type, target_node, source_node, hops, message).get());
     }
-    else if (std::rand() < 100) {
+    else if (std::rand() < 10000) {
       target_node.resize(32);
       vds::crypto_service::rand_bytes(target_node.data(), target_node.size());
       source_node = node1;
@@ -142,7 +142,7 @@ TEST(test_vds_dht_network, test_protocol) {
 
 vds::async_task<vds::expected<void>> mock_unreliable_transport::write_async(const vds::udp_datagram & data)
 {
-  if (std::rand() < 100)
+  if (std::rand() < 10000)
   {
     return vds::async_task<vds::expected<void>>(vds::expected<void>());
   }

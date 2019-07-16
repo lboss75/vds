@@ -858,6 +858,31 @@ void vds::dht::network::_client::add_route(
 
 }
 
+vds::async_task<vds::expected<void>> vds::dht::network::_client::redirect(
+  const const_data_buffer & target_node_id,
+  const const_data_buffer & source_node_id,
+  uint16_t hops,
+  message_type_t message_id,
+  expected<const_data_buffer>&& message)
+{
+  CHECK_EXPECTED_ERROR(message);
+
+  return this->route_.for_near(
+    target_node_id,
+    1,
+    [target_node_id, source_node_id, hops, message_id, msg = std::move(message.value()), pthis = this->shared_from_this()](
+      const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>& candidate)->async_task<expected<bool>>{
+    CHECK_EXPECTED_ASYNC(co_await candidate->proxy_session_->proxy_message(
+      pthis->udp_transport_,
+      (uint8_t)message_id,
+      target_node_id,
+      source_node_id,
+      hops,
+      msg));
+    co_return false;
+  });
+}
+
 vds::async_task<vds::expected<void>> vds::dht::network::_client::find_nodes(
     
     const vds::const_data_buffer &node_id,

@@ -332,9 +332,11 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
     }
     case protocol_message_type_t::Failed: {
       logger::get(this->sp_)->trace(ThisModule, "Block session %s", datagram.address().to_string().c_str());
-      (*this->sp_->get<client>())->remove_session(session_info.session_);
+      if (session_info.session_) {
+        (*this->sp_->get<client>())->remove_session(session_info.session_);
+        session_info.session_.reset();
+      }
       session_info.blocked_ = true;
-      session_info.session_.reset();
       session_info.update_time_ = std::chrono::steady_clock::now();
       session_info.session_mutex_.unlock();
       break;

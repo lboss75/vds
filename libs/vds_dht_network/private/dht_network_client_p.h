@@ -227,6 +227,24 @@ namespace vds {
           message_type_t message_id,
           expected<const_data_buffer> && message);
 
+        template <typename message_type>
+        async_task<expected<void>> redirect(
+          const const_data_buffer& node_id,
+          const const_data_buffer& source_node_id,
+          uint16_t hops,
+          expected<message_type> && message) {
+          CHECK_EXPECTED_ERROR(message);
+          return this->redirect(node_id, source_node_id, hops, message_type::message_id, message_serialize(message.value()));
+        }
+
+        async_task<expected<void>> redirect(
+          const const_data_buffer& target_node_id,
+          const const_data_buffer& source_node_id,
+          uint16_t hops,
+          message_type_t message_id,
+          expected<const_data_buffer> && message);
+
+
         async_task<expected<void>> find_nodes(
             
             const const_data_buffer& node_id,

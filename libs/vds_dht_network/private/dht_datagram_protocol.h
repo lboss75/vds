@@ -37,6 +37,7 @@ namespace vds {
           const const_data_buffer& partner_node_id,
           const const_data_buffer& session_key) noexcept
           : sp_(sp),
+          failed_state_(false),
           check_mtu_(0),
           last_sent_(0),
           address_(address),
@@ -128,6 +129,10 @@ namespace vds {
         vds::async_task<vds::expected<void>> process_datagram(          
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
+
+          if (this->failed_state_) {
+            co_return make_unexpected<std::runtime_error>("failed state");
+          }
 
           if (this->last_sent_ > SEND_TIMEOUT) {
             co_return make_unexpected<std::runtime_error>("Send timeout");
@@ -230,8 +235,14 @@ namespace vds {
             | (datagram.data()[1 + 2] << 8)
             | (datagram.data()[1 + 3]);
 
-           if (this->input_messages_.end() == this->input_messages_.find(index)) {
+           std::unique_lock<std::mutex> lock(this->input_mutex_);
+           bool is_new = (this->input_messages_.end() == this->input_messages_.find(index));
+           if (is_new) {
              this->input_messages_[index] = datagram;
+           }
+           lock.unlock();
+
+           if(is_new){
              CHECK_EXPECTED_ASYNC(co_await this->continue_process_messages(s));
 
              if (index > this->last_input_index_ + 32) {
@@ -290,6 +301,8 @@ namespace vds {
           resizable_data_buffer out_message;
           out_message.add((uint8_t)protocol_message_type_t::Acknowledgment);
 
+
+          std::unique_lock<std::mutex> lock(this->input_mutex_);
           out_message.add((uint8_t)((this->last_input_index_) >> 24));//1
           out_message.add((uint8_t)((this->last_input_index_) >> 16));//1
           out_message.add((uint8_t)((this->last_input_index_) >> 8));//1
@@ -303,6 +316,7 @@ namespace vds {
               mask |= 1;
             }
           }
+          lock.unlock();
 
           out_message.add((uint8_t)((mask) >> 24));//1
           out_message.add((uint8_t)((mask) >> 16));//1
@@ -329,6 +343,7 @@ namespace vds {
           uint16_t hops;
           const_data_buffer message;
         };
+        bool failed_state_;
         int check_mtu_;
         int last_sent_;
         network_address address_;
@@ -343,6 +358,7 @@ namespace vds {
         uint32_t last_output_index_;
         std::map<uint32_t, const_data_buffer> output_messages_;
 
+        std::mutex input_mutex_;
         uint32_t last_input_index_;
         std::map<uint32_t, const_data_buffer> input_messages_;
 
@@ -535,6 +551,12 @@ namespace vds {
             }
           }
 
+          vds_assert(start_index < this->last_output_index_);
+
+          if (this->last_output_index_ < start_index) {
+            this->failed_state_ = true;
+            return make_unexpected<std::runtime_error>("Overflow pipeline");
+          }
           return std::make_tuple(start_index, this->last_output_index_);
         }
 
@@ -542,6 +564,8 @@ namespace vds {
           const std::shared_ptr<transport_type>& s) {
 
           for (;;) {
+            std::unique_lock<std::mutex> lock(this->input_mutex_);
+
             auto p = this->input_messages_.begin();
             if (p == this->input_messages_.end() || p->first > this->last_input_index_) {
               co_return expected<void>();
@@ -551,6 +575,12 @@ namespace vds {
               this->input_messages_.erase(p);
               continue;
             }
+
+            //auto p = this->input_messages_.find(this->last_input_index_);
+            //if (p == this->input_messages_.end()) {
+            //  co_return expected<void>();
+            //}
+
 
             switch (static_cast<protocol_message_type_t>((uint8_t)protocol_message_type_t::SpecialCommand & *p->second.data())) {
             case protocol_message_type_t::SingleData:
@@ -599,6 +629,9 @@ namespace vds {
               }
 
               const auto message_size = message.size();
+              this->last_input_index_++;
+              lock.unlock();
+
               GET_EXPECTED_ASYNC(is_good, co_await static_cast<implementation_class *>(this)->process_message(
                 s,
                 message_type,
@@ -607,7 +640,7 @@ namespace vds {
                 hops,
                 message));
 
-              std::unique_lock<std::mutex> lock(this->traffic_mutex_);
+              std::unique_lock<std::mutex> traffic_lock(this->traffic_mutex_);
               if (is_good) {
                 this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
                 this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
@@ -616,9 +649,8 @@ namespace vds {
                 this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
                 this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
               }
-              lock.unlock();
+              traffic_lock.unlock();
 
-              this->last_input_index_++;
               break;
 
             }
@@ -709,6 +741,9 @@ namespace vds {
 
                 if (0 == size) {
                   const auto message_size = message.size();
+                  this->last_input_index_ += index + 1;
+                  lock.unlock();
+
                   GET_EXPECTED_ASYNC(is_good, co_await static_cast<implementation_class *>(this)->process_message(
                     s,
                     message_type,
@@ -717,7 +752,7 @@ namespace vds {
                     hops,
                     message.move_data()));
 
-                  std::unique_lock<std::mutex> lock(this->traffic_mutex_);
+                  std::unique_lock<std::mutex> traffic_lock(this->traffic_mutex_);
                   if (is_good) {
                     this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
                     this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
@@ -726,16 +761,19 @@ namespace vds {
                     this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
                     this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
                   }
-                  lock.unlock();
+                  traffic_lock.unlock();
 
                   break;
                 }
               }
 
-              this->last_input_index_ += index + 1;
               break;
             }
             default: {
+              //auto p1 = this->input_messages_.find(this->last_input_index_ - 4);
+              //auto p2 = this->input_messages_.find(this->last_input_index_ - 3);
+              //auto p3 = this->input_messages_.find(this->last_input_index_ - 2);
+              //auto p4 = this->input_messages_.find(this->last_input_index_ - 1);
               vds_assert(false);
               break;
             }

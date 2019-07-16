@@ -1664,6 +1664,17 @@ vds::expected<void> vds::dht::network::sync_process::send_random_replicas(
         base64::from_bytes(object_id).c_str(),
         base64::from_bytes(target_node).c_str(),
         base64::from_bytes(t2.voted_for.get(st)).c_str());
+
+      final_tasks.push_back([client, target_node, target = t2.voted_for.get(st), object_id, exist_replicas]() {
+        return (*client)->redirect(
+          target,
+          target_node,
+          0,
+          message_create<messages::sync_replica_request>(
+            object_id,
+            exist_replicas));
+      });
+
     }
     else {
       const auto generation = t2.generation.get(st);
