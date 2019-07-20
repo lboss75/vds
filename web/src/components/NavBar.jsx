@@ -1,6 +1,8 @@
 import React from 'react';
+import { bindActionCreators } from 'redux';
 import PropTypes from 'prop-types';
 import AppBar from '@material-ui/core/AppBar';
+import Button from '@material-ui/core/Button';
 import Toolbar from '@material-ui/core/Toolbar';
 import IconButton from '@material-ui/core/IconButton';
 import Typography from '@material-ui/core/Typography';
@@ -31,6 +33,8 @@ import Link from 'react-router-dom/Link';
 import Badge from '@material-ui/core/Badge';
 import NotificationsIcon from '@material-ui/icons/Notifications';
 import MoreIcon from '@material-ui/icons/MoreVert';
+import { actionCreators } from "../store/vds_api";
+import { connect } from 'react-redux';
 
 const drawerWidth = 240;
 
@@ -158,6 +162,11 @@ class NavBar extends React.Component {
     this.body = props.children;
   }
 
+    // This method runs when the component is first added to the page
+    componentWillMount() {
+    this.props.connect();
+  }
+
   state = {
     auth: true,
     anchorEl: null,
@@ -258,6 +267,38 @@ class NavBar extends React.Component {
         </MenuItem>
       </Menu>
     );
+
+    const is_loggedin = false;
+    const user_panel = is_loggedin ?
+    (
+      <div className={classes.sectionDesktop}>
+      <IconButton aria-label="Show 4 new mails" color="inherit">
+      <Badge badgeContent={4} color="secondary">
+        <MailIcon />
+      </Badge>
+    </IconButton>
+    <IconButton aria-label="Show 17 new notifications" color="inherit">
+      <Badge badgeContent={17} color="secondary">
+        <NotificationsIcon />
+      </Badge>
+    </IconButton>
+    <IconButton
+      edge="end"
+      aria-label="Account of current user"
+      aria-controls={menuId}
+      aria-haspopup="true"
+      onClick={this.handleMenu}
+      color="inherit"
+    >
+    <AccountCircle />
+  </IconButton>
+</div>
+    ) :
+    (
+      <div className={classes.sectionDesktop}>
+        <Button color="inherit" component={Link} to="/login">Login</Button>
+      </div>
+    );
   
 
     return (
@@ -276,7 +317,7 @@ class NavBar extends React.Component {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" color="inherit" noWrap>
-              АйВи Консантинг
+              АйВи Консантинг {this.props.vdsApiState}
             </Typography>
             <div className={classes.grow} />
             <div className={classNames(classes.search, classes.hide)}>
@@ -291,28 +332,7 @@ class NavBar extends React.Component {
                 }}
               />
             </div>
-            <div className={classes.sectionDesktop}>
-              <IconButton aria-label="Show 4 new mails" color="inherit">
-                <Badge badgeContent={4} color="secondary">
-                  <MailIcon />
-                </Badge>
-              </IconButton>
-              <IconButton aria-label="Show 17 new notifications" color="inherit">
-                <Badge badgeContent={17} color="secondary">
-                  <NotificationsIcon />
-                </Badge>
-              </IconButton>
-              <IconButton
-                edge="end"
-                aria-label="Account of current user"
-                aria-controls={menuId}
-                aria-haspopup="true"
-                onClick={this.handleMenu}
-                color="inherit"
-              >
-              <AccountCircle />
-            </IconButton>
-          </div>
+              {user_panel}
           <div className={classes.sectionMobile}>
             <IconButton
               aria-label="Show more"
@@ -379,4 +399,7 @@ NavBar.propTypes = {
   theme: PropTypes.object.isRequired,
 };
 
-export default withStyles(styles, { withTheme: true })(NavBar);
+export default connect(
+  state => state.vdsApi,
+  dispatch => bindActionCreators(actionCreators, dispatch)
+)(withStyles(styles, { withTheme: true })(NavBar));

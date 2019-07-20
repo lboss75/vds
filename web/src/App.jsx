@@ -5,6 +5,7 @@ import NavBar from './components/NavBar';
 import Products from './components/Products';
 import Contacts from './components/Contacts';
 import VDS from './components/VDS';
+import LoginPage from './components/LoginPage';
 
 class App extends Component {
   render() {
@@ -14,6 +15,7 @@ class App extends Component {
         <Route exact path='/products' component={Products} />
         <Route exact path='/vds' component={VDS} />
         <Route exact path='/contacts' component={Contacts} />
+        <Route exact path='/login' component={LoginPage} />
       </NavBar>
     );
   }
