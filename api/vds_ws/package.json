@@ -1,0 +1,14 @@
+{
+  "name": "vds_ws",
+  "version": "0.0.1",
+  "description": "WebServices API for VDS",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "VDS",
+    "WS"
+  ],
+  "author": "Vadim Malyshev",
+  "license": "MIT"
+}
