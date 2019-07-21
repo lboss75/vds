@@ -36,13 +36,14 @@ const vds::symmetric_crypto_info& vds::symmetric_crypto::aes_256_cbc()
   return result;
 }
 
-const vds::symmetric_crypto_info& vds::symmetric_crypto::rc4()
-{
-  static _symmetric_crypto_info _result(EVP_rc4());
-  static symmetric_crypto_info result(&_result);
-  
-  return result;
-}
+
+//const vds::symmetric_crypto_info& vds::symmetric_crypto::rc4()
+//{
+//  static _symmetric_crypto_info _result(EVP_rc4());
+//  static symmetric_crypto_info result(&_result);
+//  
+//  return result;
+//}
 
 vds::symmetric_key vds::symmetric_key::generate(const symmetric_crypto_info & crypto_info)
 {
@@ -100,13 +101,14 @@ vds::expected<void> vds::symmetric_key::serialize(vds::binary_serializer& s) con
 
 vds::expected<vds::symmetric_key> vds::symmetric_key::from_password(const std::string & password)
 {
-  std::unique_ptr<unsigned char> key(new unsigned char[EVP_MAX_KEY_LENGTH]);
-  if(!EVP_BytesToKey(EVP_rc4(), EVP_md5(), NULL, (const unsigned char *)password.c_str(), password.length(), 1, key.get(), NULL)){
+  static const uint8_t salt[] = { 0xdd, 0x04, 0xee, 0x6a, 0x8a, 0xd6, 0x46, 0x71, 0x9b, 0x4f, 0x9a, 0xfb, 0xc7, 0xf6, 0x73, 0xf8 };
+  std::unique_ptr<unsigned char> key(new unsigned char[symmetric_crypto::aes_256_cbc().key_size()]);
+  if(!PKCS5_PBKDF2_HMAC(password.c_str(), password.length(), salt, sizeof(salt), 1000, EVP_sha512(), symmetric_crypto::aes_256_cbc().key_size(), key.get())){
     auto error = ERR_get_error();
     return vds::make_unexpected<crypto_exception>("EVP_BytesToKey failed", error);
   }
   
-  return symmetric_key(new _symmetric_key(symmetric_crypto::rc4(), key.release(), nullptr));
+  return symmetric_key(new _symmetric_key(symmetric_crypto::aes_256_cbc(), key.release(), nullptr));
 }
 
 vds::symmetric_key::symmetric_key()

@@ -36,7 +36,7 @@ namespace vds {
   {
   public:
     static const symmetric_crypto_info & aes_256_cbc();
-    static const symmetric_crypto_info & rc4();
+    //static const symmetric_crypto_info & rc4();
   };
   
   class symmetric_key

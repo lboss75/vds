@@ -73,6 +73,10 @@ namespace vds {
       co_return expected<void>();
     }
 
+    state_enum_type state() const {
+      std::unique_lock<std::mutex> lock(this->state_mutex_);
+      return this->state_;
+    }
 
   private:
     state_enum_type state_;

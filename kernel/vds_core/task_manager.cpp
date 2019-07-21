@@ -29,6 +29,10 @@ vds::task_manager::~task_manager()
 {
 }
 
+bool vds::timer::is_started() const
+{
+  return (this->current_state_->state() != state_t::bof);
+}
 
 vds::expected<void> vds::timer::start(
   const service_provider * sp,

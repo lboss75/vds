@@ -254,7 +254,7 @@ vds::expected<void> vds::json_parser::write(const uint8_t * input_buffer, size_t
 			}
 			break;
 
-		case ST_INTEGER:
+		case ST_NUMBER:
 			switch (current_symbol) {
 			case '0':
 			case '1':
@@ -266,7 +266,8 @@ vds::expected<void> vds::json_parser::write(const uint8_t * input_buffer, size_t
 			case '7':
 			case '8':
 			case '9':
-				this->buffer_ += current_symbol;
+      case '.':
+        this->buffer_ += current_symbol;
 				break;
 			default:
 				this->state_ = this->saved_states_.top();
@@ -680,7 +681,9 @@ vds::expected<void> vds::json_parser::write(const uint8_t * input_buffer, size_t
 				CHECK_EXPECTED(this->start_array());
 				break;
 
-			case '0':
+      case '+':
+      case '-':
+      case '0':
 			case '1':
 			case '2':
 			case '3':
@@ -690,7 +693,7 @@ vds::expected<void> vds::json_parser::write(const uint8_t * input_buffer, size_t
 			case '7':
 			case '8':
 			case '9':
-				this->state_ = ST_INTEGER;
+				this->state_ = ST_NUMBER;
 				this->buffer_ += current_symbol;
 				break;
 

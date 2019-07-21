@@ -26,7 +26,7 @@ class LoginPage extends React.Component{
     
     handleLogin = () => {
         this.setState({showError:true});
-        this.props.login(this.userEmail, this.userPassword);
+        this.props.login(this.state.userEmail, this.state.userPassword);
     }
 
     handleClose = () => {
@@ -40,9 +40,9 @@ class LoginPage extends React.Component{
     render() {
         const { classes } = this.props;
         const { showError } = this.state;
-        const loading = (this.props.vdsApiState == 'login');
+        const loading = (this.props.vdsApiState === 'login');
         const loginError = this.props.vdsApiLoginError;
-        const showSnackbar = (showError && loginError != '');
+        const showSnackbar = (showError && loginError !== '');
 
         return (
             <Grid container spacing={2}>

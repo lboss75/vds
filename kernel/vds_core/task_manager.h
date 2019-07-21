@@ -24,6 +24,8 @@ namespace vds {
     
     expected<void> stop();
     
+    bool is_started() const;
+
   private:
     const service_provider * sp_;
     std::string name_;

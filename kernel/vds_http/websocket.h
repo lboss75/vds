@@ -23,6 +23,9 @@ namespace vds {
   private:
     std::shared_ptr<stream_output_async<uint8_t>> target_;
 
+    std::mutex out_mutex_;
+    std::list<vds::async_result<>> out_list_;
+
     class output_stream : public stream_output_async<uint8_t>
     {
     public:
@@ -66,7 +69,7 @@ namespace vds {
 
     private:
       const service_provider * sp_;
-      std::shared_ptr<stream_output_async<uint8_t>> target_;
+      std::shared_ptr<websocket_output> target_;
       lambda_holder_t<async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>, bool /*is_binary*/, std::shared_ptr<websocket_output>> handler_;
 
       //Read state
