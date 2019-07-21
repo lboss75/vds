@@ -189,7 +189,7 @@ vds::expected<std::shared_ptr<vds::user_channel>> vds::_user_channel::import_per
   const std::shared_ptr<asymmetric_public_key>& user_cert,
   const std::shared_ptr<asymmetric_private_key>& user_private_key) {
 
-  GET_EXPECTED(fp, user_cert->hash(hash::sha256()));
+  GET_EXPECTED(fp, user_cert->fingerprint());
 
   return std::make_shared<user_channel>(
     fp,
@@ -212,8 +212,8 @@ vds::expected<void> vds::_user_channel::add_to_log(
   GET_EXPECTED(write_cert, this->write_cert());
   GET_EXPECTED(read_cert, this->read_cert());
   GET_EXPECTED(key_data, key.serialize());
-  GET_EXPECTED(read_id, read_cert->hash(hash::sha256()));
-  GET_EXPECTED(write_id, write_cert->hash(hash::sha256()));
+  GET_EXPECTED(read_id, read_cert->fingerprint());
+  GET_EXPECTED(write_id, write_cert->fingerprint());
   GET_EXPECTED(read_cert_public_key_data, read_cert->encrypt(key_data));
   GET_EXPECTED(write_private_key, this->write_private_key());
   GET_EXPECTED(key_crypted, symmetric_encrypt::encrypt(key, data, size));

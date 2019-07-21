@@ -203,6 +203,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::subscribe_channel(
   std::string cb,
   const_data_buffer channel_id)
 {
+  result->add_property("result", "true");
   this->subscribe_handlers_.push_back(std::make_shared<subscribe_handler>(std::move(cb), std::move(channel_id)));
   co_return expected<void>();
 }
@@ -230,7 +231,8 @@ vds::websocket_api::subscribe_handler::subscribe_handler(std::string cb, const_d
 
 vds::async_task<vds::expected<void>> vds::websocket_api::subscribe_handler::process(const vds::service_provider * sp, std::weak_ptr<websocket_output> output_stream)
 {
-  auto item = std::make_shared<json_object>();
+  std::shared_ptr<json_object> item;
+
   CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction(
     [
       sp,

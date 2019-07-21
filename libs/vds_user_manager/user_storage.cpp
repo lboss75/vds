@@ -21,7 +21,7 @@ vds::async_task<vds::expected<std::list<vds::user_storage::storage_info_t>>> vds
     auto client = sp->get<dht::network::client>();
     auto current_node = client->current_node_id();
 
-    GET_EXPECTED(owner_id, user_mng->get_current_user().user_public_key()->hash(hash::sha256()));
+    GET_EXPECTED(owner_id, user_mng->get_current_user().user_public_key()->fingerprint());
 
     orm::device_config_dbo t1;
     orm::device_record_dbo t2;
@@ -68,7 +68,7 @@ vds::expected<std::shared_ptr<vds::json_value>> vds::user_storage::device_storag
   auto result = std::make_shared<json_object>();
 
   auto user = user_mng->get_current_user();
-  GET_EXPECTED(key_id, user.user_public_key()->hash(hash::sha256()));
+  GET_EXPECTED(key_id, user.user_public_key()->fingerprint());
   result->add_property("vds", "0.1");
   result->add_property("name", key_id);
 
@@ -101,7 +101,7 @@ vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const
   }
 
   auto user = user_mng->get_current_user();
-  GET_EXPECTED(key_id, user.user_public_key()->hash(hash::sha256()));
+  GET_EXPECTED(key_id, user.user_public_key()->fingerprint());
   const_data_buffer value;
   if (!sign_info->get_property("name", value) || value != key_id) {
     return vds::make_unexpected<std::runtime_error>("Invalid user name");
@@ -127,7 +127,7 @@ vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const
     auto client = sp->get<dht::network::client>();
     auto current_node = client->current_node_id();
 
-    GET_EXPECTED(owner_id, user.user_public_key()->hash(hash::sha256()));
+    GET_EXPECTED(owner_id, user.user_public_key()->fingerprint());
 
     orm::device_config_dbo t1;
     return t.execute(
@@ -151,7 +151,7 @@ vds::async_task<vds::expected<void>> vds::user_storage::set_device_storage(
 		auto client = sp->get<dht::network::client>();
 		auto current_node = client->current_node_id();
 
-    GET_EXPECTED(owner_id, user.user_public_key()->hash(hash::sha256()));
+    GET_EXPECTED(owner_id, user.user_public_key()->fingerprint());
 
 		orm::device_config_dbo t1;
 		orm::device_record_dbo t2;

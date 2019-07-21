@@ -36,11 +36,25 @@ namespace vds {
       return *this;
     }
 
+    resizable_data_buffer & add_uint32(const uint32_t value) {
+      this->resize_data(this->size_ + 4);
+      this->data_[this->size_++] = 0xFF & (value >> 24);
+      this->data_[this->size_++] = 0xFF & (value >> 16);
+      this->data_[this->size_++] = 0xFF & (value >> 8);
+      this->data_[this->size_++] = 0xFF & value;
+      return *this;
+    }
+
+
     const_data_buffer move_data() {
       return const_data_buffer(std::move(*this));
     }
 
     const uint8_t * data() const {
+      return this->data_;
+    }
+
+    uint8_t * data() {
       return this->data_;
     }
 

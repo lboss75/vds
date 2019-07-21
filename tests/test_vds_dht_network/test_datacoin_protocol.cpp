@@ -25,7 +25,7 @@ static vds::expected<vds::const_data_buffer> get_user_id(
   CHECK_EXPECTED(sp->get<vds::db_model>()->async_transaction([sp, &result, user_name, user_password](vds::database_transaction & t) -> vds::expected<void> {
     auto user_mng = std::make_shared<vds::user_manager>(sp);
     CHECK_EXPECTED(user_mng->load(t, user_name, user_password));
-    GET_EXPECTED_VALUE(result, user_mng->get_current_user().user_public_key()->hash(vds::hash::sha256()));
+    GET_EXPECTED_VALUE(result, user_mng->get_current_user().user_public_key()->fingerprint());
     return vds::expected<void>();
   }).get());
   
@@ -148,7 +148,7 @@ static vds::expected<uint64_t> get_proposed_balance(
     CHECK_EXPECTED(user_mng->load(t, user_name, user_password));
 
     for (const auto & wallet : user_mng->wallets()) {
-      GET_EXPECTED(wallet_id, wallet->public_key().hash(vds::hash::sha256()));
+      GET_EXPECTED(wallet_id, wallet->public_key().fingerprint());
 
       vds::orm::datacoin_balance_dbo t1;
       GET_EXPECTED(st,
@@ -187,7 +187,7 @@ static vds::expected<uint64_t> get_confirmed_balance(
     CHECK_EXPECTED(user_mng->load(t, user_name, user_password));
 
     for (const auto & wallet : user_mng->wallets()) {
-      GET_EXPECTED(wallet_id, wallet->public_key().hash(vds::hash::sha256()));
+      GET_EXPECTED(wallet_id, wallet->public_key().fingerprint());
 
       vds::orm::datacoin_balance_dbo t1;
       GET_EXPECTED(st,
@@ -226,7 +226,7 @@ static vds::expected<vds::const_data_buffer> create_wallet(
     CHECK_EXPECTED(user_mng->load(t, user_name, user_password));
 
     GET_EXPECTED(wallet, vds::user_wallet::create_wallet(log, user_mng->get_current_user(), "default"));
-    GET_EXPECTED_VALUE(wallet_id, wallet.public_key().hash(vds::hash::sha256()));
+    GET_EXPECTED_VALUE(wallet_id, wallet.public_key().fingerprint());
 
     CHECK_EXPECTED(sp->get<vds::dht::network::client>()->save(sp, log, t));
 

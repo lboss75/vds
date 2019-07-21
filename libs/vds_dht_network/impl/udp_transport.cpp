@@ -28,7 +28,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::start(
 
   this->send_thread_ = std::make_shared<thread_apartment>(sp);
   this->sp_ = sp;
-  GET_EXPECTED_VALUE(this->this_node_id_, node_public_key->hash(hash::sha256()));
+  GET_EXPECTED_VALUE(this->this_node_id_, node_public_key->fingerprint());
   this->node_public_key_ = node_public_key;
   this->node_key_ = node_key;
 
@@ -245,7 +245,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
         const_data_buffer partner_node_public_key_der;
         CHECK_EXPECTED_ASYNC(bd >> partner_node_public_key_der);
         GET_EXPECTED_ASYNC(partner_node_public_key, asymmetric_public_key::parse_der(partner_node_public_key_der));
-        GET_EXPECTED_ASYNC(partner_node_id, partner_node_public_key.hash(hash::sha256()));
+        GET_EXPECTED_ASYNC(partner_node_id, partner_node_public_key.fingerprint());
         if (partner_node_id == this->this_node_id_) {
           session_info.session_mutex_.unlock();
           break;
@@ -306,7 +306,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
         GET_EXPECTED_ASYNC(public_key, asymmetric_public_key::parse_der(public_key_buffer));
         GET_EXPECTED_ASYNC(key, this->node_key_->decrypt(key_buffer));
 
-        GET_EXPECTED_ASYNC(partner_id, public_key.hash(hash::sha256()));
+        GET_EXPECTED_ASYNC(partner_id, public_key.fingerprint());
 
         auto session = std::make_shared<dht_session>(
           this->sp_,

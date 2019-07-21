@@ -35,6 +35,14 @@ namespace vds {
     static expected<const_data_buffer> to_bytes(const std::string & data);
   };
 
+  class hex
+  {
+  public:
+    static std::string from_bytes(const void * data, size_t len);
+    static std::string from_bytes(const const_data_buffer & data);
+    static expected<const_data_buffer> to_bytes(const std::string & data);
+  };
+
   class url_encode {
   public:
     static std::string encode(const std::string & original);

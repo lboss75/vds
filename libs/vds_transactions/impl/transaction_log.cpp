@@ -989,7 +989,7 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   const create_user_transaction & message,
   const const_data_buffer & block_id)
 {
-  GET_EXPECTED(id, message.user_public_key->hash(hash::sha256()));
+  GET_EXPECTED(id, message.user_public_key->fingerprint());
   GET_EXPECTED(public_key, message.user_public_key->der());
 
   orm::member_user_dbo t1;
@@ -1024,7 +1024,7 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   const node_add_transaction & message,
   const const_data_buffer & block_id)
 {
-  GET_EXPECTED(node_id, message.node_public_key->hash(hash::sha256()));
+  GET_EXPECTED(node_id, message.node_public_key->fingerprint());
   GET_EXPECTED(public_key, message.node_public_key->der());
 
   orm::node_info_dbo t1;
@@ -1061,7 +1061,7 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(
   const node_add_transaction & message,
   const const_data_buffer & block_id)
 {
-  GET_EXPECTED(node_id, message.node_public_key->hash(hash::sha256()));
+  GET_EXPECTED(node_id, message.node_public_key->fingerprint());
 
   orm::node_info_dbo t1;
   CHECK_EXPECTED(t.execute(
@@ -1078,7 +1078,7 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   const const_data_buffer & block_id)
 {
   GET_EXPECTED(public_key, asymmetric_public_key::parse_der(message.public_key));
-  GET_EXPECTED(wallet_id, public_key.hash(hash::sha256()));
+  GET_EXPECTED(wallet_id, public_key.fingerprint());
 
   orm::wallet_dbo t1;
   CHECK_EXPECTED(t.execute(
@@ -1106,7 +1106,7 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(
   const const_data_buffer & block_id)
 {
   GET_EXPECTED(public_key, asymmetric_public_key::parse_der(message.public_key));
-  GET_EXPECTED(wallet_id, public_key.hash(hash::sha256()));
+  GET_EXPECTED(wallet_id, public_key.fingerprint());
 
   orm::wallet_dbo t1;
   CHECK_EXPECTED(t.execute(

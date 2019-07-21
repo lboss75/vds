@@ -644,7 +644,7 @@ vds::expected<void> mock_server::allocate_storage(
       vds::foldername fl(vds::foldername(current_user, ".vds"), "storage");
       CHECK_EXPECTED(fl.create());
 
-      GET_EXPECTED(owner_id, user_mng->get_current_user().user_public_key()->hash(vds::hash::sha256()));
+      GET_EXPECTED(owner_id, user_mng->get_current_user().user_public_key()->fingerprint());
 
       vds::orm::device_config_dbo t1;
       CHECK_EXPECTED(t.execute(

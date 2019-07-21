@@ -49,15 +49,16 @@ export function parse_public_key(public_key){
     return result;
 }
 
-export function public_key_to_der(public_key){
-    const buffer = forge.pki.publicKeyToAsn1(public_key);
-    const result = forge.asn1.toDer(buffer);
+export function public_key_fingerprint(public_key){
+    const result = forge.ssh.getPublicKeyFingerprint(public_key, { md: forge.md.sha256.create()});
     return result.getBytes();
+
 }
 
 export function hash_sha256(data){
     var md = forge.md.sha256.create();
-    md.update(data);
+    md.start();
+    md.update(data, 'raw');
     const result = md.digest();
     return result.getBytes();
 }

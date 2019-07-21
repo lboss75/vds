@@ -45,7 +45,7 @@ class LoginPage extends React.Component{
         const showSnackbar = (showError && loginError !== '');
 
         return (
-            <Grid container spacing={2}>
+            <Grid container>
                 <Grid item xs={12}>
                     <Grid container justify="center">
                         <Grid item>

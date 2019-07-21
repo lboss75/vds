@@ -496,7 +496,7 @@ vds::async_task<vds::expected<void>> mock_transport::start(
   const std::shared_ptr<vds::asymmetric_public_key> & node_public_key,
   const std::shared_ptr<vds::asymmetric_private_key> & /*node_key*/,
   uint16_t /*port*/, bool dev_network) {
-  GET_EXPECTED_VALUE_ASYNC(this->node_id_, node_public_key->hash(vds::hash::sha256()));
+  GET_EXPECTED_VALUE_ASYNC(this->node_id_, node_public_key->fingerprint());
   co_return vds::expected<void>();
 }
 

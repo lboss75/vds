@@ -33,7 +33,7 @@ vds::expected<std::shared_ptr<vds::dht::network::_client>> vds::dht::network::_c
   const std::shared_ptr<iudp_transport> & udp_transport,
   const std::shared_ptr<asymmetric_public_key> & node_public_key) {
 
-  GET_EXPECTED(this_node_id, node_public_key->hash(hash::sha256()));
+  GET_EXPECTED(this_node_id, node_public_key->fingerprint());
 
   return std::make_shared<_client>(sp, udp_transport, this_node_id);
 }
@@ -925,7 +925,7 @@ vds::expected<void> vds::dht::network::client::load_keys(database_transaction & 
     this->node_key_ = std::make_shared<asymmetric_private_key>(std::move(node_key_data));
 
     GET_EXPECTED(public_key, asymmetric_public_key::create(*this->node_key_));
-    GET_EXPECTED(key_id, public_key.hash(hash::sha256()));
+    GET_EXPECTED(key_id, public_key.fingerprint());
 
     this->node_public_key_ = std::make_shared<asymmetric_public_key>(std::move(public_key));
     GET_EXPECTED(node_public_key_data, this->node_public_key_->der());
@@ -1006,7 +1006,7 @@ vds::expected<vds::const_data_buffer> vds::dht::network::client::save(
   }
 
   if (this->is_new_node_) {
-    GET_EXPECTED(node_id, this->node_public_key_->hash(hash::sha256()));
+    GET_EXPECTED(node_id, this->node_public_key_->fingerprint());
 
     orm::node_info_dbo t1;
     GET_EXPECTED(st, t.get_reader(t1.select(t1.public_key).where(t1.node_id == node_id)));

@@ -385,8 +385,8 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
         [this, channel_id = message.channel_id(), log](
           const transactions::channel_add_reader_transaction & message,
           const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
-        GET_EXPECTED(read_id, message.read_public_key->hash(hash::sha256()));
-        GET_EXPECTED(write_id, message.write_public_key->hash(hash::sha256()));
+        GET_EXPECTED(read_id, message.read_public_key->fingerprint());
+        GET_EXPECTED(write_id, message.write_public_key->fingerprint());
         auto cp = std::make_shared<user_channel>(
           message.id,
           message.channel_type,
@@ -407,8 +407,8 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
         [this, channel_id = message.channel_id(), log](
           const transactions::channel_add_writer_transaction & message,
           const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
-        GET_EXPECTED(read_id, message.read_public_key->hash(hash::sha256()));
-        GET_EXPECTED(write_id, message.write_public_key->hash(hash::sha256()));
+        GET_EXPECTED(read_id, message.read_public_key->fingerprint());
+        GET_EXPECTED(write_id, message.write_public_key->fingerprint());
         auto cp = std::make_shared<user_channel>(
           message.id,
           message.channel_type,
@@ -433,8 +433,8 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
         if (new_channels.end() == new_channels.find(channel_id)) {
           new_channels.emplace(message.channel_id);
         }
-        GET_EXPECTED(read_id, message.read_public_key->hash(hash::sha256()));
-        GET_EXPECTED(write_id, message.write_public_key->hash(hash::sha256()));
+        GET_EXPECTED(read_id, message.read_public_key->fingerprint());
+        GET_EXPECTED(write_id, message.write_public_key->fingerprint());
         auto cp = std::make_shared<user_channel>(
           message.channel_id,
           message.channel_type,
@@ -533,7 +533,7 @@ vds::expected<void> vds::_user_manager::update(
 }
 
 vds::expected<void> vds::_user_manager::add_public_key(const std::shared_ptr<vds::asymmetric_public_key> &public_key) {
-  GET_EXPECTED(id, public_key->hash(hash::sha256()));
+  GET_EXPECTED(id, public_key->fingerprint());
 	this->certificate_chain_[id] = public_key;
   return expected<void>();
 }

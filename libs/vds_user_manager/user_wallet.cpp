@@ -23,7 +23,7 @@ vds::expected<vds::user_wallet> vds::user_wallet::create_wallet(
 {
   GET_EXPECTED(private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
   GET_EXPECTED(public_key, asymmetric_public_key::create(private_key));
-  GET_EXPECTED(key_id, public_key.hash(hash::sha256()));
+  GET_EXPECTED(key_id, public_key.fingerprint());
   GET_EXPECTED(key_der, public_key.der());
 
   CHECK_EXPECTED(log.add(message_create<transactions::create_wallet_transaction>(key_id, key_der)));
@@ -50,7 +50,7 @@ vds::expected<void> vds::user_wallet::transfer(
   const const_data_buffer & target_wallet,
   uint64_t value) {
 
-  GET_EXPECTED(wallet_id, this->public_key().hash(hash::sha256()));
+  GET_EXPECTED(wallet_id, this->public_key().fingerprint());
 
   GET_EXPECTED(data, transactions::payment_transaction::signature_data(issuer, currency, source_transaction, source_wallet, target_wallet, value));
   GET_EXPECTED(signature, asymmetric_sign::signature(hash::sha256(), this->private_key(), data));
@@ -71,8 +71,8 @@ vds::expected<void> vds::user_wallet::asset_issue(
   uint64_t value,
   const member_user & issuer)
 {
-  GET_EXPECTED(issuer_id, issuer.user_public_key()->hash(hash::sha256()));
-  GET_EXPECTED(wallet_id, this->public_key().hash(hash::sha256()));
+  GET_EXPECTED(issuer_id, issuer.user_public_key()->fingerprint());
+  GET_EXPECTED(wallet_id, this->public_key().fingerprint());
 
   binary_serializer s;
   CHECK_EXPECTED(s << (uint8_t)transactions::asset_issue_transaction::message_id);

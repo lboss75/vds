@@ -266,7 +266,7 @@ vds::expected<bool> vds::transaction_log::sync_process::apply_message(
   if (!write_public_key) {
     GET_EXPECTED(block, transactions::transaction_block::create(message.data));
     CHECK_EXPECTED(block.walk_messages([&block, &write_public_key](const transactions::node_add_transaction & message)->expected<bool> {
-      GET_EXPECTED(node_id, message.node_public_key->hash(hash::sha256()));
+      GET_EXPECTED(node_id, message.node_public_key->fingerprint());
       if (block.write_public_key_id() == node_id) {
         write_public_key = message.node_public_key;
         return false;

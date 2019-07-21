@@ -1,5 +1,5 @@
 import vds_ws from './vds_ws';
-import { user_credentials_to_key, decrypt_private_key, parse_public_key, hash_sha256, public_key_to_der, base64 } from './vds_crypto';
+import { user_credentials_to_key, decrypt_private_key, parse_public_key, public_key_fingerprint, base64 } from './vds_crypto';
 
 const vdsApiConnectType = 'VDS_API_CONNECT';
 const vdsApiConnectedType = 'VDS_API_CONNECTED';
@@ -27,7 +27,7 @@ export const actionCreators = {
       const private_key = decrypt_private_key(keys.private_key, password); 
       const public_key = parse_public_key(keys.public_key);
 
-      await ws.subscribe('channel', base64(hash_sha256(public_key_to_der(public_key))), function(message){
+      await ws.subscribe('channel', base64(public_key_fingerprint(public_key)), function(message){
         dispatch({ type: vdsApiPersonalMessageType, message });
       });
 

@@ -41,7 +41,7 @@ vds::expected<vds::const_data_buffer> vds::transactions::transaction_block_build
   CHECK_EXPECTED(block_data << transaction_block::CURRENT_VERSION);
   CHECK_EXPECTED(block_data << static_cast<uint64_t>(std::chrono::system_clock::to_time_t(this->time_point_)));
   CHECK_EXPECTED(block_data << this->order_no_);
-  CHECK_EXPECTED(block_data << write_public_key->hash(hash::sha256()));
+  CHECK_EXPECTED(block_data << write_public_key->fingerprint());
   CHECK_EXPECTED(block_data << this->ancestors_);
   CHECK_EXPECTED(block_data << this->data_.move_data());
 

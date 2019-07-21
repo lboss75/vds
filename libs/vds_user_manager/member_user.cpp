@@ -125,10 +125,10 @@ vds::expected<vds::user_channel> vds::_member_user::create_channel(
   GET_EXPECTED(read_cert_data, asymmetric_public_key::create(*read_private_key));
 
   auto read_cert = std::make_shared<asymmetric_public_key>(std::move(read_cert_data));
-  GET_EXPECTED(read_id, read_cert->hash(hash::sha256()));
+  GET_EXPECTED(read_id, read_cert->fingerprint());
   GET_EXPECTED(write_cert_data, asymmetric_public_key::create(*write_private_key));
   auto write_cert = std::make_shared<asymmetric_public_key>(std::move(write_cert_data));
-  GET_EXPECTED(write_id, write_cert->hash(hash::sha256()));
+  GET_EXPECTED(write_id, write_cert->fingerprint());
 
   GET_EXPECTED(pc, (*this).personal_channel());
   CHECK_EXPECTED(pc->add_log(log, 
@@ -154,16 +154,15 @@ vds::expected<vds::user_channel> vds::_member_user::create_channel(
 }
 
 vds::expected<vds::user_channel> vds::_member_user::personal_channel() const {
-  GET_EXPECTED(fp, this->user_cert_->hash(hash::sha256()));
-  GET_EXPECTED(read_id, this->user_cert_->hash(hash::sha256()));
+  GET_EXPECTED(fp, this->user_cert_->fingerprint());
   return user_channel(
     fp,
     user_channel::channel_type_t::personal_channel,
     "!Personal",
-    read_id,
+    fp,
     this->user_cert_,
     this->private_key_,
-    read_id,
+    fp,
     this->user_cert_,
     this->private_key_);
 }

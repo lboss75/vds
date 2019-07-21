@@ -279,7 +279,7 @@ vds::expected<vds::certificate> vds::_cert_control::create_cert(
   const vds::asymmetric_private_key & private_key) {
   
   GET_EXPECTED(cert_pkey, asymmetric_public_key::create(private_key));
-  GET_EXPECTED(name, cert_pkey.hash(hash::sha1()));
+  GET_EXPECTED(name, cert_pkey.fingerprint());
 
   certificate::create_options local_user_options;
   local_user_options.country = "RU";
@@ -294,7 +294,7 @@ vds::expected<vds::certificate> vds::_cert_control::create_cert(
 	const certificate & user_cert,
 	const asymmetric_private_key & user_private_key) {
   GET_EXPECTED(cert_pkey, asymmetric_public_key::create(private_key));
-  GET_EXPECTED(name, cert_pkey.hash(hash::sha1()));
+  GET_EXPECTED(name, cert_pkey.fingerprint());
   
   certificate::create_options local_user_options;
   local_user_options.country = "RU";
@@ -386,7 +386,7 @@ static vds::expected<void> save_private_key(char (&private_key_storage)[vds::asy
 vds::expected<void> vds::keys_control::genereate_all(
   const private_info_t & private_info) {
   GET_EXPECTED(root_certificate, asymmetric_public_key::create(*private_info.root_private_key_));
-  GET_EXPECTED(root_id, root_certificate.hash(hash::sha256()));
+  GET_EXPECTED(root_id, root_certificate.fingerprint());
   save_buffer(root_id_, root_id);
 
   //
@@ -400,7 +400,7 @@ vds::expected<void> vds::keys_control::genereate_all(
 
   GET_EXPECTED(common_news_admin_certificate, asymmetric_public_key::create(*private_info.common_news_admin_private_key_));
   CHECK_EXPECTED(save_public_key(common_news_admin_public_key_, common_news_admin_certificate));
-  GET_EXPECTED(common_news_channel_id, common_news_admin_certificate.hash(hash::sha256()));
+  GET_EXPECTED(common_news_channel_id, common_news_admin_certificate.fingerprint());
   save_buffer(common_news_channel_id_, common_news_channel_id);
 
   //Auto update
@@ -415,7 +415,7 @@ vds::expected<void> vds::keys_control::genereate_all(
   GET_EXPECTED(autoupdate_admin_certificate, asymmetric_public_key::create(*private_info.autoupdate_admin_private_key_));
   CHECK_EXPECTED(save_public_key(autoupdate_admin_public_key_, autoupdate_admin_certificate));
 
-  GET_EXPECTED(autoupdate_channel_id, autoupdate_admin_certificate.hash(hash::sha256()));
+  GET_EXPECTED(autoupdate_channel_id, autoupdate_admin_certificate.fingerprint());
   save_buffer(autoupdate_channel_id_, autoupdate_channel_id);
 
   //Web
@@ -433,7 +433,7 @@ vds::expected<void> vds::keys_control::genereate_all(
     *private_info.web_admin_private_key_));
   CHECK_EXPECTED(save_public_key(web_admin_public_key_, web_admin_certificate));
 
-  GET_EXPECTED(web_channel_id, web_admin_certificate.hash(hash::sha256()));
+  GET_EXPECTED(web_channel_id, web_admin_certificate.fingerprint());
   save_buffer(web_channel_id_, web_channel_id);
 
   return expected<void>();

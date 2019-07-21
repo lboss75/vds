@@ -395,3 +395,62 @@ std::string vds::url_encode::decode(const std::string& original) {
 //  return result;
 //}
 //
+
+std::string vds::hex::from_bytes(const void * d, size_t len)
+{
+  auto data = static_cast<const uint8_t *>(d);
+  static const char hex_chars[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+
+  auto result = new char[2 * len];
+  for(size_t i = 0; i < len; ++i) {
+    const uint8_t byte = *data++;
+
+    result[2 * i] = hex_chars[(byte & 0xF0) >> 4];
+    result[2 * i + 1] = hex_chars[(byte & 0x0F) >> 0];
+  }
+  std::string ret(result, 2 * len);
+  delete[] result;
+  return ret;
+}
+
+std::string vds::hex::from_bytes(const const_data_buffer & data)
+{
+  return from_bytes(data.data(), data.size());
+}
+
+vds::expected<vds::const_data_buffer> vds::hex::to_bytes(const std::string & data)
+{
+  resizable_data_buffer result;
+  bool is_first = true;
+  uint8_t value = 0;
+  for (auto & ch : data) {
+    uint8_t v;
+    if ('0' <= ch && ch <= '9') {
+      v = ch - '0';
+    }
+    else if ('a' <= ch && ch <= 'f') {
+        v = ch - 'a' + 10;
+    }
+    else if ('A' <= ch && ch <= 'F') {
+      v = ch - 'A' + 10;
+    }
+    else {
+      return make_unexpected<std::runtime_error>("Invalid hex string");
+    }
+
+    if (is_first) {
+      value = v;
+      is_first = false;
+    }
+    else {
+      result.add((value << 4) | v);
+      is_first = true;
+    }
+  }
+
+  if (!is_first) {
+    return make_unexpected<std::runtime_error>("Invalid hex string");
+  }
+
+  return result.move_data();
+}

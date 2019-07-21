@@ -97,6 +97,8 @@ namespace vds {
       return this->key_;
     }
 
+    expected<const_data_buffer> fingerprint() const;
+
     expected<const_data_buffer> der() const;
     static expected<asymmetric_public_key> parse_der(const const_data_buffer& value);
 
