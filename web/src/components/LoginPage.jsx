@@ -97,7 +97,7 @@ class LoginPage extends React.Component{
                     </Grid>
                 </Grid>
                 <Grid item xs={12}>
-                    <Grid container justify="center" spacing={2}>
+                    <Grid container justify="center">
                         <Grid item>
                             <p>Если Вы ещё не зарегистрировались, пожалуйста <Link to='/register'>зарегистрируйтесь</Link></p>                            
                         </Grid>
