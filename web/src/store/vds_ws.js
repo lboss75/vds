@@ -1,46 +1,55 @@
 class vds_ws {
 
-    constructor(client){
-        this.callback_ = new Map(); 
+    constructor() {
+        this.callback_ = new Map();
         this.id_ = 0;
-        this.client_ = client;
+        this.is_opened_ = false;
     }
 
-    connect() {
+    async connect() {
         this.ws_ = new WebSocket('ws://localhost:8050/api/ws');
-    
-        webSocket.onopen = event => {
-          this.client_.change_vds_state('opened');
+
+        var promise = new Promise((resolve, reject) => {
+            this.callback_.set(0, { resolve, reject });
+        });
+
+        this.ws_.onopen = event => {
+            const handler = this.callback_.get(0);
+            this.callback_.delete(0);
+            handler.promise();
         };
-    
-        webSocket.onmessage = event => {
+
+        this.ws_.onclose = event => {
+            this.ws_ = null;
+        };
+
+        this.ws_.onmessage = event => {
             const msg = event.data;
             const id = msg.id;
             const handler = this.callback_.get(id);
             this.callback_.delete(id);
             handler.promise(msg.result);
         };
-    
-        webSocket.onerror = event => {
-            this.callback_.forEach(function(item){
-                item.reject(event.message);
+
+        this.ws_.onerror = event => {
+            this.callback_.forEach(function (item) {
+                item.reject("Соединение прервано");
             });
             this.callback_.clear();
-            this.client_.change_vds_state('failed', event.message);
-        };
-    
-        webSocket.onclose = event => {
-            this.client_.change_vds_state('closed');
         };
 
+        return await promise;
     }
 
     async invoke(message) {
+        if (null == this.ws_) {
+            await this.connect();
+        }
+
         this.id_++;
         const id = this.id_;
-        let promise = new Promise((result, reject)=>
-        {
-            this.callback_.set(id, {result, reject});
+        let promise = new Promise((result, reject) => {
+            this.callback_.set(id, { result, reject });
         });
 
         this.ws_.send(JSON.stringify({
@@ -53,3 +62,5 @@ class vds_ws {
     }
 
 }
+
+export default vds_ws;

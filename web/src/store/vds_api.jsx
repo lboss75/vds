@@ -1,41 +1,33 @@
+import vds_ws from './vds_ws';
+import user_credentials_to_key from './vds_crypto';
+
 const vdsApiConnectType = 'VDS_API_CONNECT';
 const vdsApiConnectedType = 'VDS_API_CONNECTED';
 const vdsApiMessageType = 'VDS_API_MESSAGE';
 const vdsApiClosedType = 'VDS_API_CLOSED';
 const vdsApiErrorType = 'VDS_API_ERROR';
 const vdsApiLoginType = 'VDS_API_LOGIN';
+const vdsApiLoginedType = 'VDS_API_LOGINED';
+const vdsApiLoginErrorType = 'VDS_API_LOGIN_ERROR';
 
 const initialState =
 {
   vdsApiState: 'offline',
+  vdsApiLoginError: '',
   vdsApiWebSocket: null
 };
 
 export const actionCreators = {
-  connect: () => async (dispatch, getState) => {
-    const webSocket = new WebSocket('ws://localhost:8050/api/ws');
-    dispatch({ type: vdsApiConnectType, ws: webSocket });
-
-    webSocket.onopen = event => {
-      dispatch({ type: vdsApiConnectedType });
-    };
-
-    webSocket.onmessage = event => {
-      dispatch({ type: vdsApiMessageType, message: event.data });
-    };
-
-    webSocket.onerror = event => {
-      dispatch({ type: vdsApiErrorType, error: event.message });
-    };
-
-    webSocket.onclose = event => {
-      dispatch({ type: vdsApiClosedType });
-    };
-  },
   login: (email, password) => async(dispatch, getState) => {
     dispatch({ type: vdsApiLoginType });
-    const ws = getState().vdsApi.ws;
-    ws.send(JSON.stringify({email, password}));
+    try{
+      const ws = new vds_ws();
+      await ws.invoke({ method: 'login', key: user_credentials_to_key(email, password)});
+      dispatch({ type: vdsApiLoginedType, ws: ws });
+    }
+    catch(ex){
+      dispatch({ type: vdsApiLoginErrorType, error: ex });
+    }
   }
 };
 
@@ -49,7 +41,7 @@ export const reducer = (state, action) => {
       }
     case vdsApiConnectedType:
       {
-        return { ...state, vdsApiState: 'connected' };
+        return { ...state, vdsApiState: 'connected', vdsApiWebSocket: action.ws };
       }
     case vdsApiMessageType:
       {
@@ -63,7 +55,15 @@ export const reducer = (state, action) => {
           {
             return { ...state, vdsApiState: 'login' };
           }
-        case vdsApiErrorType:
+          case vdsApiLoginedType:
+            {
+              return { ...state, vdsApiState: 'logined',  vdsApiWebSocket: action.ws };
+            }
+            case vdsApiLoginErrorType:
+              {
+                return { ...state, vdsApiState: 'failed',  vdsApiLoginError: action.error };
+              }
+            case vdsApiErrorType:
       {
         return { ...state, vdsApiState: 'error' };
       }

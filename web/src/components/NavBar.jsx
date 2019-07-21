@@ -162,11 +162,6 @@ class NavBar extends React.Component {
     this.body = props.children;
   }
 
-    // This method runs when the component is first added to the page
-    componentWillMount() {
-    this.props.connect();
-  }
-
   state = {
     auth: true,
     anchorEl: null,
