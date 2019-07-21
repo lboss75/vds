@@ -8,6 +8,7 @@ All rights reserved
 
 #include "http_request.h"
 #include "http_response.h"
+#include "async_mutex.h"
 
 namespace vds {
 
@@ -22,15 +23,13 @@ namespace vds {
 
   private:
     std::shared_ptr<stream_output_async<uint8_t>> target_;
-
-    std::mutex out_mutex_;
-    std::list<vds::async_result<>> out_list_;
+    async_mutex async_mutex_;
 
     class output_stream : public stream_output_async<uint8_t>
     {
     public:
       output_stream(
-        std::shared_ptr<stream_output_async<uint8_t>> target,
+        std::shared_ptr<websocket_output> target,
         uint64_t message_size)
         : target_(target), message_size_(message_size) {
       }
@@ -40,7 +39,7 @@ namespace vds {
         size_t len) override;
 
     private:
-      std::shared_ptr<stream_output_async<uint8_t>> target_;
+      std::shared_ptr<websocket_output> target_;
       uint64_t message_size_;
     };
 	};

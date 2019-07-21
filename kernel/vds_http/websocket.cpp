@@ -240,21 +240,21 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
     offset = 10;
   }
 
+  co_await this->async_mutex_.lock();
 
-  vds::async_result<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> result;
-
-  std::unique_lock<std::mutex> lock(this->out_mutex_);
-  this->out_list_.push_back([result, pthis = this->shared_from_this(), buffer, offset, message_size]() -> vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> {
-    CHECK_EXPECTED_ASYNC(co_await pthis->target_->write_async(buffer, offset));
-    co_return std::make_shared<output_stream>(pthis->target_, message_size);
-  });
-
-  return result.get_future();
+  CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(buffer, offset));
+  co_return std::make_shared<output_stream>(this->shared_from_this(), message_size);
 }
 
 vds::async_task<vds::expected<void>> vds::websocket_output::output_stream::write_async(const uint8_t * data, size_t len)
 {
   vds_assert(this->message_size_ >= len);
   this->message_size_ -= len;
-  return this->target_->write_async(data, len);
+  CHECK_EXPECTED_ASYNC(co_await this->target_->target_->write_async(data, len));
+
+  if (0 == this->message_size_) {
+    this->target_->async_mutex_.unlock();
+  }
+
+  co_return expected<void>();
 }
