@@ -240,6 +240,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::subscribe_handler::proc
       output_stream,
       &item
     ](database_read_transaction & t)->expected<void> {
+
     auto pthis = this_.lock();
     if (!pthis) {
       return expected<void>();
@@ -249,6 +250,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::subscribe_handler::proc
     GET_EXPECTED(st, t.get_reader(t1.select(t1.id, t1.block_id, t1.channel_id, t1.read_id, t1.write_id, t1.crypted_key, t1.crypted_data, t1.signature).where(t1.channel_id == pthis->channel_id_ && t1.id > pthis->last_id_).order_by(t1.id)));
     WHILE_EXPECTED(st.execute())
     {
+
       pthis->last_id_ = t1.id.get(st);
 
       item = std::make_shared<json_object>();

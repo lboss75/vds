@@ -23,7 +23,7 @@ namespace vds {
 
 	private:
 
-    class subscribe_handler : std::enable_shared_from_this<subscribe_handler>
+    class subscribe_handler : public std::enable_shared_from_this<subscribe_handler>
     {
     public:
       subscribe_handler(
