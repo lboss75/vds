@@ -41,7 +41,10 @@ export function decrypt_private_key(private_key, user_password){
         throw "Decrypt error";
     }
 
-    return decipher.output;
+    const asn = forge.asn1.fromDer(decipher.output);
+    const result = forge.pki.privateKeyFromAsn1(asn);
+
+    return result;
 }
 
 export function parse_public_key(public_key){
@@ -66,4 +69,33 @@ export function hash_sha256(data){
 export function base64(data){
     const result = forge.util.encode64(data);
     return result;
+}
+
+export function decode64(data){
+    const result = forge.util.decode64(data);
+    return result;
+}
+
+export function decrypt_by_private_key(private_key, message){
+    var result = private_key.decrypt(message);
+    return result;
+}
+
+export function decrypt_by_aes_256_cbc(key_seriliazed_data, message){
+    const key_data = forge.util.createBuffer(key_seriliazed_data, 'raw');
+    
+    const key_len = key_data.getByte();
+    const key = key_data.getBytes(key_len);
+
+    const iv_len = key_data.getByte();
+    const iv = key_data.getBytes(iv_len);
+
+    const decipher = forge.cipher.createDecipher('AES-CBC', key);
+    decipher.start({iv:iv});
+    decipher.update(forge.util.createBuffer(message, 'raw'));
+    if(!decipher.finish()){
+        throw "Decrypt error";
+    }
+
+    return decipher.output;
 }

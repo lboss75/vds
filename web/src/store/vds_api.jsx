@@ -26,8 +26,12 @@ export const actionCreators = {
       const keys = await ws.invoke('login', [ user_credentials_to_key(email, password) ]);
       const private_key = decrypt_private_key(keys.private_key, password); 
       const public_key = parse_public_key(keys.public_key);
+      const public_key_id = base64(public_key_fingerprint(public_key));
 
-      await ws.subscribe('channel', base64(public_key_fingerprint(public_key)), function(message){
+      ws.add_read_key(public_key_id, { public_key, private_key });
+      ws.add_write_key(public_key_id, { public_key, private_key });
+
+      await ws.subscribe('channel', public_key_id, function(message){       
         dispatch({ type: vdsApiPersonalMessageType, message });
       });
 
@@ -78,6 +82,8 @@ export const reducer = (state, action) => {
     }
     case vdsApiPersonalMessageType:
     {
+      var msg = state.vdsApiWebSocket.decrypt(action.message);
+
       break;
     }
   }

@@ -1,8 +1,13 @@
+import { decode64, decrypt_by_private_key, decrypt_by_aes_256_cbc } from "./vds_crypto";
+
 class vds_ws {
 
     constructor() {
         this.callback_ = new Map();
         this.subscription_ = new Map();
+        this.read_keys_ = new Map();
+        this.write_keys_ = new Map();
+
         this.id_ = 0;
         this.is_opened_ = false;
     }
@@ -91,6 +96,29 @@ class vds_ws {
         return await this.invoke("subscribe", [ id, method, params ]);
     }
 
+    add_read_key(id, key){
+        this.read_keys_.set(id, key);
+    }
+
+    add_write_key(id, key){
+        this.write_keys_.set(id, key);
+    }
+
+    decrypt(message) {
+        const read_keys = this.read_keys_.get(message.read_id);
+        const key_data = decrypt_by_private_key(read_keys.private_key, decode64(message.crypted_key));
+        const data = decrypt_by_aes_256_cbc(key_data, decode64(message.crypted_data));
+        while(0 < data.length())
+        {
+            const message_id = data.getByte();
+            switch(message_id){
+                //create_channel_transaction
+                case 'p':{
+                    break;
+                }
+            }
+        }
+    }
 }
 
 export default vds_ws;
