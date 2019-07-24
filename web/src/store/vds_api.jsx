@@ -11,13 +11,14 @@ const vdsApiLoginType = 'VDS_API_LOGIN';
 const vdsApiLoginedType = 'VDS_API_LOGINED';
 const vdsApiLoginErrorType = 'VDS_API_LOGIN_ERROR';
 const vdsApiPersonalMessageType = 'VDS_API_PERSONAL_MESSAGE';
+const vdsApiChannelMessageType = 'VDS_API_CHANNEL_MESSAGE';
 
 const initialState =
 {
   vdsApiState: 'offline',
   vdsApiLoginError: '',
   vdsApiWebSocket: null,
-  vdsApiChannels: []
+  vdsApiChannels: new Map(),
 };
 
 export const actionCreators = {
@@ -34,7 +35,22 @@ export const actionCreators = {
       ws.add_write_key(public_key_id, { public_key, private_key });
 
       await ws.subscribe('channel', public_key_id, function(message){       
-        dispatch({ type: vdsApiPersonalMessageType, message });
+        message.forEach(async message => {
+          var msg = getState().vdsApi.vdsApiWebSocket.decrypt(message);
+          switch(msg.type){
+            case 'channel_create': {
+              await ws.subscribe('channel', msg.channel_id, function(items){
+                items.forEach(item => {
+                  var item_msg = getState().vdsApi.vdsApiWebSocket.decrypt(item);
+                  dispatch({ type: vdsApiChannelMessageType, channel: msg.channel_id, message: item_msg });
+                });
+              });
+
+              dispatch({ type: vdsApiPersonalMessageType, message: msg });
+              break;
+            }
+          }  
+        });
       });
 
       dispatch({ type: vdsApiLoginedType, ws: ws, keys: { public_key: public_key, private_key: private_key } })
@@ -77,25 +93,24 @@ export const reducer = (state, action) => {
       {
         return { ...state, vdsApiState: 'failed',  vdsApiLoginError: action.error };
       }
+
     case vdsApiErrorType:
     {
       return { ...state, vdsApiState: 'error' };
     }
+
     case vdsApiPersonalMessageType:
     {
-      var newChannels = [];
-      action.message.forEach(message => {
-        var msg = state.vdsApiWebSocket.decrypt(message);
-        switch(msg.type){
-          case 'channel_create': {
-            newChannels.push(msg);
-            break;
-          }
-        }  
-      });
+      var newChannels = new Map(state.vdsApiChannels);
+      newChannels.set(action.message.channel_id, { ...action.message, messages: []});
+      return { ...state, vdsApiChannels: newChannels };
+    }
 
-      return { ...state, vdsApiChannels: state.vdsApiChannels.concat(newChannels) };
-break;
+    case vdsApiChannelMessageType:
+    {
+      var channel = state.vdsApiChannels.get(action.channel_id);
+      channel.messages.push(action.message);
+      return { ...state, vdsApiChannels: newChannels };
     }
   }
 

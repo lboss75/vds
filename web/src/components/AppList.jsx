@@ -28,7 +28,7 @@ class AppList extends React.Component {
 
         return (
             <List className={classes.root}>
-                {items.map((item) => {
+                {Array.from(items, ([key, item]) => {
                     return (
                         <ListItem key={item.channel_id} button onClick={() => this.props.history.push(`/app/${encodeURIComponent(item.channel_id)}`)}>
                             <ListItemAvatar>
