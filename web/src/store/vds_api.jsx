@@ -83,16 +83,19 @@ export const reducer = (state, action) => {
     }
     case vdsApiPersonalMessageType:
     {
-      var msg = state.vdsApiWebSocket.decrypt(action.message);
-      switch(msg.type){
-        case 'channel_create': {
-          const result = { ...state, vdsApiChannels: state.vdsApiChannels.concat(msg) };
-          console.log(msg);
-          return result;
-        }
-      }
+      var newChannels = [];
+      action.message.forEach(message => {
+        var msg = state.vdsApiWebSocket.decrypt(message);
+        switch(msg.type){
+          case 'channel_create': {
+            newChannels.push(msg);
+            break;
+          }
+        }  
+      });
 
-      break;
+      return { ...state, vdsApiChannels: state.vdsApiChannels.concat(newChannels) };
+break;
     }
   }
 

@@ -35,11 +35,16 @@ vds::websocket_api::open_connection(
     return expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>(std::make_shared<collect_data>([sp, output_stream, api](const_data_buffer data)->async_task<expected<void>> {
       GET_EXPECTED_ASYNC(message, json_parser::parse("Web Socket API", data));
 
-      GET_EXPECTED_ASYNC(result, co_await api->process_message(sp, output_stream, message));
+      std::list<lambda_holder_t<async_task<expected<void>>>> post_tasks;
+      GET_EXPECTED_ASYNC(result, co_await api->process_message(sp, output_stream, message, post_tasks));
 
       GET_EXPECTED_ASYNC(result_str, result->str());
       GET_EXPECTED_ASYNC(stream, co_await output_stream->start(result_str.length(), false));
       CHECK_EXPECTED_ASYNC(co_await stream->write_async((const uint8_t *)result_str.c_str(), result_str.length()));
+
+      for (auto & task : post_tasks) {
+        CHECK_EXPECTED_ASYNC(co_await task());
+      }
 
       co_return expected<void>();
     }));
@@ -49,7 +54,8 @@ vds::websocket_api::open_connection(
 vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::websocket_api::process_message(
   const vds::service_provider * sp,
   std::shared_ptr<websocket_output> output_stream,
-  const std::shared_ptr<json_value> & message)
+  const std::shared_ptr<json_value> & message,
+  std::list<lambda_holder_t<async_task<expected<void>>>> & post_tasks)
 {
   auto request = std::dynamic_pointer_cast<json_object>(message);
   if (!request) {
@@ -63,7 +69,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::websocket_
     co_return make_unexpected<std::runtime_error>("id field is expected");
   }
 
-  auto result = co_await process_message(sp, output_stream, id, request);
+  auto result = co_await process_message(sp, output_stream, id, request, post_tasks);
   if (!result.has_error()) {
     co_return std::move(result.value());
   }
@@ -79,7 +85,8 @@ vds::websocket_api::process_message(
   const vds::service_provider * sp,
   std::shared_ptr<websocket_output> output_stream,
   int id,
-  const std::shared_ptr<json_object> & request) {
+  const std::shared_ptr<json_object> & request,
+  std::list<lambda_holder_t<async_task<expected<void>>>> & post_tasks) {
 
   std::string method_name;
   GET_EXPECTED_ASYNC(isOk, request->get_property("invoke", method_name));
@@ -128,7 +135,10 @@ vds::websocket_api::process_message(
 
       GET_EXPECTED_ASYNC(ch_id, base64::to_bytes(channel_id->value()));
 
-      CHECK_EXPECTED_ASYNC(co_await this->subscribe_channel(sp, r, cb->value(), ch_id));
+      auto handler = this->subscribe_channel(sp, r, cb->value(), ch_id);
+      post_tasks.push_back([sp, handler, output_stream]() {
+        return handler->process(sp, output_stream);
+      });
     }
     else {
       co_return make_unexpected<std::runtime_error>("invalid subscription '" + method->value() + "'");
@@ -197,20 +207,21 @@ vds::async_task<vds::expected<void>> vds::websocket_api::login(
 	co_return expected<void>();
 }
 
-vds::async_task<vds::expected<void>> vds::websocket_api::subscribe_channel(
-  const vds::service_provider * sp,
+std::shared_ptr<vds::websocket_api::subscribe_handler> vds::websocket_api::subscribe_channel(
+  const vds::service_provider * /*sp*/,
   std::shared_ptr<json_object> result,
   std::string cb,
   const_data_buffer channel_id)
 {
   result->add_property("result", "true");
-  this->subscribe_handlers_.push_back(std::make_shared<subscribe_handler>(std::move(cb), std::move(channel_id)));
-  co_return expected<void>();
+  auto handler = std::make_shared<subscribe_handler>(std::move(cb), std::move(channel_id));
+  this->subscribe_handlers_.push_back(handler);
+  return handler;
 }
 
 vds::expected<void> vds::websocket_api::start_timer(const vds::service_provider * sp, std::shared_ptr<websocket_output> output_stream)
 {
-  return this->subscribe_timer_.start(sp, std::chrono::seconds(1), [sp, this_ = this->weak_from_this(), target_ = std::weak_ptr<websocket_output>(output_stream)]()->async_task<expected<bool>> {
+  return this->subscribe_timer_.start(sp, std::chrono::seconds(10), [sp, this_ = this->weak_from_this(), target_ = std::weak_ptr<websocket_output>(output_stream)]()->async_task<expected<bool>> {
     auto pthis = this_.lock();
     if (!pthis) {
       co_return false;
@@ -231,14 +242,14 @@ vds::websocket_api::subscribe_handler::subscribe_handler(std::string cb, const_d
 
 vds::async_task<vds::expected<void>> vds::websocket_api::subscribe_handler::process(const vds::service_provider * sp, std::weak_ptr<websocket_output> output_stream)
 {
-  std::shared_ptr<json_object> item;
+  auto items = std::make_shared<json_array>();
 
   CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction(
     [
       sp,
       this_ = this->weak_from_this(),
       output_stream,
-      &item
+      &items
     ](database_read_transaction & t)->expected<void> {
 
     auto pthis = this_.lock();
@@ -253,7 +264,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::subscribe_handler::proc
 
       pthis->last_id_ = t1.id.get(st);
 
-      item = std::make_shared<json_object>();
+      auto item = std::make_shared<json_object>();
       item->add_property("id", t1.id.get(st));
       item->add_property("block_id", t1.block_id.get(st));
       item->add_property("channel_id", t1.channel_id.get(st));
@@ -263,20 +274,20 @@ vds::async_task<vds::expected<void>> vds::websocket_api::subscribe_handler::proc
       item->add_property("crypted_data", t1.crypted_data.get(st));
       item->add_property("signature", t1.signature.get(st));
 
-      return expected<void>();
+      items->add(item);
     }
     WHILE_EXPECTED_END()
 
     return expected<void>();
   }));
 
-  if (item) {
+  if (0 < items->size()) {
     auto output_stream_ = output_stream.lock();
     if (output_stream_) {
 
       auto result = std::make_shared<json_object>();
       result->add_property("id", this->cb_);
-      result->add_property("result", item);
+      result->add_property("result", items);
 
       GET_EXPECTED_ASYNC(result_str, result->json_value::str());
       GET_EXPECTED_ASYNC(stream, co_await output_stream_->start(result_str.length(), false));

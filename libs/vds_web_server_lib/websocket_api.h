@@ -47,20 +47,22 @@ namespace vds {
     async_task<expected<std::shared_ptr<json_value>>> process_message(
       const vds::service_provider * sp,
       std::shared_ptr<websocket_output> output_stream,
-      const std::shared_ptr<json_value> & message);
+      const std::shared_ptr<json_value> & message,
+      std::list<lambda_holder_t<async_task<expected<void>>>> & post_tasks);
 
     async_task<expected<std::shared_ptr<json_value>>> process_message(
       const vds::service_provider * sp,
       std::shared_ptr<websocket_output> output_stream,
       int id,
-      const std::shared_ptr<json_object> & request);
+      const std::shared_ptr<json_object> & request,
+      std::list<lambda_holder_t<async_task<expected<void>>>> & post_tasks);
 
 		async_task<expected<void>> login(
       const vds::service_provider * sp,
       std::shared_ptr<json_object> result,
       std::string login_cred);
 
-    async_task<expected<void>> subscribe_channel(
+    std::shared_ptr<subscribe_handler> subscribe_channel(
       const vds::service_provider * sp,
       std::shared_ptr<json_object> result,
       std::string cb,

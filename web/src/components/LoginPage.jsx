@@ -29,7 +29,7 @@ class LoginPage extends React.Component{
         await this.props.login(this.state.userEmail, this.state.userPassword);
 
         if('logined' == this.props.vdsApiState){
-            this.props.history.push('/apps');
+            this.props.history.push('/app');
         }
     }
 

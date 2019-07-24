@@ -19,7 +19,7 @@ class App extends Component {
           <Route exact path='/vds' component={VDS} />
           <Route exact path='/contacts' component={Contacts} />
           <Route exact path='/login' component={LoginPage} />
-          <Route exact path='/apps' component={Channels} />
+          <Route exact path='/app' component={Channels} />
           <Route exact path='/app/:id' component={Channel} />
         </Switch>
       </NavBar>
