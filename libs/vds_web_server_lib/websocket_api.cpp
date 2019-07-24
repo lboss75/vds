@@ -210,7 +210,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::subscribe_channel(
 
 vds::expected<void> vds::websocket_api::start_timer(const vds::service_provider * sp, std::shared_ptr<websocket_output> output_stream)
 {
-  return this->subscribe_timer_.start(sp, std::chrono::seconds(10), [sp, this_ = this->weak_from_this(), target_ = std::weak_ptr<websocket_output>(output_stream)]()->async_task<expected<bool>> {
+  return this->subscribe_timer_.start(sp, std::chrono::seconds(1), [sp, this_ = this->weak_from_this(), target_ = std::weak_ptr<websocket_output>(output_stream)]()->async_task<expected<bool>> {
     auto pthis = this_.lock();
     if (!pthis) {
       co_return false;

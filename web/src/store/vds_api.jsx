@@ -1,5 +1,6 @@
 import vds_ws from './vds_ws';
 import { user_credentials_to_key, decrypt_private_key, parse_public_key, public_key_fingerprint, base64 } from './vds_crypto';
+import { push } from 'react-router-redux';
 
 const vdsApiConnectType = 'VDS_API_CONNECT';
 const vdsApiConnectedType = 'VDS_API_CONNECTED';
@@ -15,7 +16,8 @@ const initialState =
 {
   vdsApiState: 'offline',
   vdsApiLoginError: '',
-  vdsApiWebSocket: null
+  vdsApiWebSocket: null,
+  vdsApiChannels: []
 };
 
 export const actionCreators = {
@@ -35,8 +37,7 @@ export const actionCreators = {
         dispatch({ type: vdsApiPersonalMessageType, message });
       });
 
-      dispatch({ type: vdsApiLoginedType, ws: ws, keys: { public_key: public_key, private_key: private_key } });
-
+      dispatch({ type: vdsApiLoginedType, ws: ws, keys: { public_key: public_key, private_key: private_key } })
     }
     catch(ex){
       dispatch({ type: vdsApiLoginErrorType, error: ex });
@@ -83,6 +84,13 @@ export const reducer = (state, action) => {
     case vdsApiPersonalMessageType:
     {
       var msg = state.vdsApiWebSocket.decrypt(action.message);
+      switch(msg.type){
+        case 'channel_create': {
+          const result = { ...state, vdsApiChannels: state.vdsApiChannels.concat(msg) };
+          console.log(msg);
+          return result;
+        }
+      }
 
       break;
     }

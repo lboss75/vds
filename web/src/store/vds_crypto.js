@@ -81,14 +81,38 @@ export function decrypt_by_private_key(private_key, message){
     return result;
 }
 
+export function buffer_read_number(buffer) {
+    let value = buffer.getByte();
+    
+    if(0x80 > value){
+      return value;
+    }
+    
+    let result = 0;
+    for(let i = (value & 0x7F); i > 0; --i){
+        value = buffer.getByte();
+        result <<= 8;
+        result |= value;
+    }
+    
+    return result + 0x80;  
+}
+
+export function buffer_pop_data(buffer) {
+    const len = buffer_read_number(buffer);
+    return buffer.getBytes(len);
+}
+
+export function buffer_get_string(buffer) {
+    const data = buffer_pop_data(buffer);
+    return forge.util.decodeUtf8(data);
+}
+
 export function decrypt_by_aes_256_cbc(key_seriliazed_data, message){
     const key_data = forge.util.createBuffer(key_seriliazed_data, 'raw');
     
-    const key_len = key_data.getByte();
-    const key = key_data.getBytes(key_len);
-
-    const iv_len = key_data.getByte();
-    const iv = key_data.getBytes(iv_len);
+    const key = buffer_pop_data(key_data);
+    const iv = buffer_pop_data(key_data);
 
     const decipher = forge.cipher.createDecipher('AES-CBC', key);
     decipher.start({iv:iv});

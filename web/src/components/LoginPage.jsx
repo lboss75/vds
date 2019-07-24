@@ -24,9 +24,13 @@ class LoginPage extends React.Component{
         showError: true
       };
     
-    handleLogin = () => {
+    handleLogin = async () => {
         this.setState({showError:true});
-        this.props.login(this.state.userEmail, this.state.userPassword);
+        await this.props.login(this.state.userEmail, this.state.userPassword);
+
+        if('logined' == this.props.vdsApiState){
+            this.props.history.push('/apps');
+        }
     }
 
     handleClose = () => {

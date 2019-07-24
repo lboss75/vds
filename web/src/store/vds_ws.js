@@ -1,4 +1,4 @@
-import { decode64, decrypt_by_private_key, decrypt_by_aes_256_cbc } from "./vds_crypto";
+import { decode64, decrypt_by_private_key, decrypt_by_aes_256_cbc, buffer_pop_data, buffer_get_string, base64 } from "./vds_crypto";
 
 class vds_ws {
 
@@ -108,16 +108,33 @@ class vds_ws {
         const read_keys = this.read_keys_.get(message.read_id);
         const key_data = decrypt_by_private_key(read_keys.private_key, decode64(message.crypted_key));
         const data = decrypt_by_aes_256_cbc(key_data, decode64(message.crypted_data));
-        while(0 < data.length())
-        {
-            const message_id = data.getByte();
-            switch(message_id){
-                //create_channel_transaction
-                case 'p':{
-                    break;
+
+        const message_id = data.getByte();
+        switch(message_id){
+            //channel_create_transaction
+            case 110:{
+                const channel_id = base64(buffer_pop_data(data));
+                const channel_type = buffer_get_string(data);
+                const name = buffer_get_string(data);
+                const read_public_key = buffer_pop_data(data);
+                const read_private_key = buffer_pop_data(data);
+                const write_public_key = buffer_pop_data(data);
+                const write_private_key = buffer_pop_data(data);
+
+                if(0 != data.length()){
+                    throw "Invalid message";
                 }
+
+                return {
+                    type: 'channel_create',
+                    channel_id: channel_id,
+                    channel_type: channel_type,
+                    channel_name: name
+                };
             }
         }
+
+        throw "Invalid message";
     }
 }
 
