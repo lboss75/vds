@@ -1,13 +1,13 @@
 import React, { Component } from 'react'
 import { Switch, Route } from 'react-router';
-import Home from './components/Home';
+import Home from './pages/public/Home';
 import NavBar from './components/NavBar';
-import Products from './components/Products';
-import Contacts from './components/Contacts';
-import VDS from './components/VDS';
-import LoginPage from './components/LoginPage';
-import Channels from './components/Channels';
-import Channel from './components/Channel';
+import Products from './pages/public/Products';
+import Contacts from './pages/public/Contacts';
+import VDS from './pages/public/VDS';
+import LoginPage from './pages/user/LoginPage';
+import Channels from './pages/user/Channels';
+import Channel from './pages/user/Channel';
 
 class App extends Component {
   render() {
