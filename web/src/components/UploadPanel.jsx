@@ -14,12 +14,26 @@ class UploadPanel extends React.Component {
         this.body = props.children;
     }
 
+    getFileFromInput(file) {
+        return new Promise(function (resolve, reject) {
+            const reader = new FileReader();
+            reader.onerror = reject;
+            reader.onload = function () { resolve(reader.result); };
+            reader.readAsBinaryString(file); // here the file can be read in different way Text, DataUrl, ArrayBuffer
+        });
+    }
+
+    handleFileChange = async (event) => {
+        event.persist();
+        await this.props.upload(event.target.files);
+    }
+
     render() {
         const { classes, theme } = this.props;
         
         return (
             <div>
-                <input type="file" id="files" name="files[]" multiple />
+                <input type="file" id="files" name="files[]" multiple onChange={this.handleFileChange} />
             </div>
         );
     }

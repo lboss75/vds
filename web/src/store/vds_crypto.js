@@ -71,6 +71,10 @@ export function base64(data){
     return result;
 }
 
+export function from_hex(data){
+    return forge.util.hexToBytes(data);
+}
+
 export function decode64(data){
     const result = forge.util.decode64(data);
     return result;
@@ -122,4 +126,15 @@ export function decrypt_by_aes_256_cbc(key_seriliazed_data, message){
     }
 
     return decipher.output;
+}
+
+export function crypt_by_aes_256_cbc(key, iv, message){
+    const cipher = forge.cipher.createCipher('AES-CBC', key);
+    cipher.start({iv:iv});
+    cipher.update(forge.util.createBuffer(message, 'raw'));
+    if(!cipher.finish()){
+        throw "Crypt error";
+    }
+
+    return cipher.output;
 }

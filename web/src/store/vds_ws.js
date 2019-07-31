@@ -1,4 +1,14 @@
-import { decode64, decrypt_by_private_key, decrypt_by_aes_256_cbc, buffer_pop_data, buffer_get_string, base64 } from "./vds_crypto";
+import { 
+    decode64,
+    decrypt_by_private_key,
+    decrypt_by_aes_256_cbc,
+    buffer_pop_data,
+    buffer_get_string,
+    base64,
+    hash_sha256,
+    crypt_by_aes_256_cbc,
+    from_hex } from './vds_crypto';
+import pako from 'pako';
 
 class vds_ws {
 
@@ -136,6 +146,17 @@ class vds_ws {
 
         throw "Invalid message";
     }
+
+    save_block(data){
+        const key_data = hash_sha256(data);
+        const iv_data = from_hex('a5bb9fcec2e44b91a8c9594462559024');
+
+        const key_data2 = hash_sha256(crypt_by_aes_256_cbc(key_data, iv_data, data));
+        const zipped = pako.deflate(data);
+        const crypted_data = crypt_by_aes_256_cbc(key_data2, iv_data, zipped);
+        const result = this.invoke('upload', crypted_data);
+        return result;
+  }
 }
 
 export default vds_ws;

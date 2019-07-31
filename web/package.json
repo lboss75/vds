@@ -13,6 +13,7 @@
     "create-hash": "1.2.0",
     "crypto-js": "^3.1.9-1",
     "node-forge": "^0.8.5",
+    "pako": "^1.0.10",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
     "react-helmet": "^5.2.0",

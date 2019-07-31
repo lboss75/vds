@@ -271,6 +271,10 @@ vds::expected<void> vds::db_model::migrate(
 									'udp://46.21.68.42:8050',\
 									datetime('now'))",
 
+       "INSERT INTO well_known_node(address, last_connect) VALUES(\
+				'udp6://::ffff:192.168.0.169:8050',\
+				datetime('now'))",
+
       "INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))"
     };
 

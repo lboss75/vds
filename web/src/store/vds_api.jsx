@@ -21,7 +21,7 @@ const initialState =
   vdsApiChannels: new Map(),
 };
 
-export const actionCreators = {
+  export const actionCreators = {
   login: (email, password) => async(dispatch, getState) => {
     dispatch({ type: vdsApiLoginType });
     try{
@@ -58,6 +58,43 @@ export const actionCreators = {
     catch(ex){
       dispatch({ type: vdsApiLoginErrorType, error: ex });
     }
+  },
+  
+  upload: (files) => async(dispatch, getState) => {
+    Array.from(files).forEach(file => {
+
+      const fileSize   = file.size;
+      const chunkSize  = 64 * 1024;
+      var offset = 0;
+      const self = this;
+      var chunkReaderBlock = null;
+
+      var readEventHandler = function(evt) {
+          if (evt.target.error == null) {
+              offset += evt.target.result.length;
+              const result = getState().vdsApi.vdsApiWebSocket.save_block(evt.target.result);
+            } else {
+              console.log("Read error: " + evt.target.error);
+              return;
+          }
+          if (offset >= fileSize) {
+              console.log("Done reading file");
+              return;
+          }
+
+          // of to the next chunk
+          chunkReaderBlock(offset, chunkSize, file);
+      }
+
+      chunkReaderBlock = function(_offset, length, _file) {
+          var r = new FileReader();
+          var blob = _file.slice(_offset, length + _offset);
+          r.onload = readEventHandler;
+          r.readAsArrayBuffer(blob);
+      }
+
+      chunkReaderBlock(offset, chunkSize, file);
+    });
   }
 };
 

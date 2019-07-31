@@ -62,6 +62,11 @@ namespace vds {
       std::shared_ptr<json_object> result,
       std::string login_cred);
 
+    async_task<expected<void>> upload(
+      const vds::service_provider * sp,
+      std::shared_ptr<json_object> result,
+      const_data_buffer body);
+
     std::shared_ptr<subscribe_handler> subscribe_channel(
       const vds::service_provider * sp,
       std::shared_ptr<json_object> result,
