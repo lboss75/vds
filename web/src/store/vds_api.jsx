@@ -13,12 +13,21 @@ const vdsApiLoginErrorType = 'VDS_API_LOGIN_ERROR';
 const vdsApiPersonalMessageType = 'VDS_API_PERSONAL_MESSAGE';
 const vdsApiChannelMessageType = 'VDS_API_CHANNEL_MESSAGE';
 
+const vdsApiUploadFileType = 'VDS_API_UPLOAD_FILE';
+const vdsApiUploadingFileType = 'VDS_API_UPLOADING_FILE';
+const vdsApiUploadFileErrorType = 'VDS_API_UPLOAD_ERROR_FILE';
+
 const initialState =
 {
   vdsApiState: 'offline',
   vdsApiLoginError: '',
   vdsApiWebSocket: null,
   vdsApiChannels: new Map(),
+
+  vdsApiUploading: '',
+  vdsApiUploaded: 0,
+  vdsApiUploadSize: 0,
+  vdsApiUploadError: ''
 };
 
   export const actionCreators = {
@@ -68,17 +77,28 @@ const initialState =
       var offset = 0;
       const self = this;
       var chunkReaderBlock = null;
+      var chunks = [];
 
-      var readEventHandler = function(evt) {
+      var readEventHandler = async function(evt) {
           if (evt.target.error == null) {
               offset += evt.target.result.length;
-              const result = getState().vdsApi.vdsApiWebSocket.save_block(evt.target.result);
+              try
+              {
+                const result = await getState().vdsApi.vdsApiWebSocket.save_block(evt.target.result);
+                chunks.push(result);
+                dispatch({ type: vdsApiUploadingFileType, uploaded: offset });
+              }
+              catch(ex)
+              {
+                dispatch({ type: vdsApiUploadFileErrorType, error: ex });
+              }
             } else {
-              console.log("Read error: " + evt.target.error);
+              dispatch({ type: vdsApiUploadFileErrorType, error: evt.target.error });
               return;
           }
           if (offset >= fileSize) {
-              console.log("Done reading file");
+              await getState().vdsApi.vdsApiWebSocket.save_file(this.props.match.params.id, file.name, chunks);
+              dispatch({ type: vdsApiUploadFileType, name: '', size: 0 });
               return;
           }
 
@@ -93,6 +113,7 @@ const initialState =
           r.readAsArrayBuffer(blob);
       }
 
+      dispatch({ type: vdsApiUploadFileType, name: file.name, size: file.size });
       chunkReaderBlock(offset, chunkSize, file);
     });
   }
@@ -148,6 +169,21 @@ export const reducer = (state, action) => {
       var channel = state.vdsApiChannels.get(action.channel_id);
       channel.messages.push(action.message);
       return { ...state, vdsApiChannels: newChannels };
+    }
+
+    case vdsApiUploadFileType:
+    {
+      return { ...state, vdsApiUploading: action.name, vdsApiUploaded: 0, vdsApiUploadSize: action.size, vdsApiUploadError: '' };
+    }
+
+    case vdsApiUploadingFileType:
+    {
+      return { ...state, vdsApiUploaded: action.uploaded };
+    }
+
+    case vdsApiUploadFileErrorType:
+    {
+      return { ...state, vdsApiUploading: '', vdsApiUploadError: action.error };
     }
   }
 

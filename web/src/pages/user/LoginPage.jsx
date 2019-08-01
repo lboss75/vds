@@ -29,7 +29,9 @@ class LoginPage extends React.Component{
         await this.props.login(this.state.userEmail, this.state.userPassword);
 
         if('logined' == this.props.vdsApiState){
-            this.props.history.push('/app');
+            const has_storage = await this.props.has_storage();
+
+            this.props.history.push(has_storage ? '/app' : '/storage_create');
         }
     }
 
@@ -95,7 +97,7 @@ class LoginPage extends React.Component{
                                     </span>
                                 }
                                 />
-                                </Snackbar>
+                            </Snackbar>
 
                         </Grid>
                     </Grid>

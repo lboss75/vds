@@ -10,6 +10,7 @@ All rights reserved
 #include "websocket.h"
 #include "channel_message_dbo.h"
 #include "dht_network_client.h"
+#include "user_storage.h"
 
 vds::websocket_api::websocket_api()
   : subscribe_timer_("WebSocket API Subscribe Timer")
@@ -127,6 +128,36 @@ vds::websocket_api::process_message(
 
     CHECK_EXPECTED_ASYNC(co_await this->upload(sp, r, body));
   }
+  else if ("devices" == method_name) {
+    auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
+    if (!args) {
+      co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'devices'");
+    }
+
+    auto owner_id_str = std::dynamic_pointer_cast<json_primitive>(args->get(0));
+    if (!owner_id_str) {
+      co_return make_unexpected<std::runtime_error>("missing login argument at invoke method 'devices'");
+    }
+
+    GET_EXPECTED_ASYNC(owner_id, base64::to_bytes(owner_id_str->value()));
+
+    CHECK_EXPECTED_ASYNC(co_await this->devices(sp, r, owner_id));
+  }
+  else if ("broadcast" == method_name) {
+    auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
+    if (!args) {
+      co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'broadcast'");
+    }
+
+    auto body_str = std::dynamic_pointer_cast<json_primitive>(args->get(0));
+    if (!body_str) {
+      co_return make_unexpected<std::runtime_error>("missing login argument at invoke method 'broadcast'");
+    }
+
+    GET_EXPECTED_ASYNC(body, base64::to_bytes(body_str->value()));
+
+    CHECK_EXPECTED_ASYNC(co_await this->broadcast(sp, r, body));
+  }
   else if ("subscribe" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
     if (!args || args->size() < 2) {
@@ -170,7 +201,6 @@ vds::websocket_api::process_message(
 
   co_return r;
 }
-
 
 vds::async_task<vds::expected<void>> vds::websocket_api::login(
   const vds::service_provider * sp,
@@ -284,6 +314,44 @@ vds::expected<void> vds::websocket_api::start_timer(const vds::service_provider 
     }
 
     co_return !sp->get_shutdown_event().is_shuting_down();
+  });
+}
+
+vds::async_task<vds::expected<void>> vds::websocket_api::devices(
+  const vds::service_provider * sp,
+  std::shared_ptr<json_object> res,
+  const_data_buffer owner_id)
+{
+  auto result = co_await user_storage::device_storages(sp, owner_id);
+  CHECK_EXPECTED_ASYNC(result);
+
+  auto result_json = std::make_shared<json_array>();
+  for (const auto & storage : result.value()) {
+    result_json->add(storage.serialize());
+  }
+
+  res->add_property("result", result_json);
+  co_return expected<void>();
+}
+
+vds::async_task<vds::expected<void>> vds::websocket_api::broadcast(
+  const vds::service_provider * sp,
+  std::shared_ptr<json_object> result,
+  const_data_buffer body)
+{
+  return sp->get<db_model>()->async_transaction(
+    [
+      sp,
+      body,
+      result
+    ](database_transaction & t)->expected<void> {
+    GET_EXPECTED(playback, transactions::transaction_block_builder::create(sp, t, body));
+
+    auto network_client = sp->get<dht::network::client>();
+    GET_EXPECTED(trx_id, network_client->save(sp, playback, t));
+    result->add_property("result", trx_id);
+
+    return expected<void>();
   });
 }
 

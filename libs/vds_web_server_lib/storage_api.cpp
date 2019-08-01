@@ -17,7 +17,9 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::storage_ap
 	const std::shared_ptr<user_manager> & user_mng,
 	const http_message & /*request*/)
 {
-	auto result = co_await user_storage::device_storages(sp, user_mng);
+  GET_EXPECTED_ASYNC(owner_id, user_mng->get_current_user().user_public_key()->fingerprint());
+
+	auto result = co_await user_storage::device_storages(sp, owner_id);
 	CHECK_EXPECTED_ASYNC(result);
 
 	auto result_json = std::make_shared<json_array>();

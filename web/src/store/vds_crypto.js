@@ -75,6 +75,12 @@ export function from_hex(data){
     return forge.util.hexToBytes(data);
 }
 
+export function create_buffer(data){
+    return new forge.util.ByteStringBuffer(data);
+}
+
+
+
 export function decode64(data){
     const result = forge.util.decode64(data);
     return result;
@@ -136,5 +142,5 @@ export function crypt_by_aes_256_cbc(key, iv, message){
         throw "Crypt error";
     }
 
-    return cipher.output;
+    return cipher.output.data;
 }

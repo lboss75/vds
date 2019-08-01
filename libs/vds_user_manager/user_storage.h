@@ -28,7 +28,7 @@ namespace vds {
     static async_task<expected<std::list<storage_info_t>>>
       device_storages(
         const service_provider * sp,
-        const std::shared_ptr<user_manager> & user_mng);
+        const_data_buffer owner_id);
 
     static expected<std::shared_ptr<json_value>>
       device_storage_label(

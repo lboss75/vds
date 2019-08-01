@@ -175,9 +175,11 @@ const char* vds::vds_embedded::vds_session::get_login_state() {
 }
 
 const char* vds::vds_embedded::vds_session::get_device_storages() {
-	auto result = user_storage::device_storages(
+  auto owner_id = this->user_mng_->get_current_user().user_public_key()->fingerprint();
+
+  auto result = user_storage::device_storages(
 		this->sp_,
-		this->user_mng_).get();
+    owner_id.value()).get();
 	if (result.has_error()) {
 		this->last_result_ = result.error()->what();
 	}
@@ -233,10 +235,12 @@ const char* vds::vds_embedded::vds_session::add_device_storage(
 const char * vds::vds_embedded::vds_session::get_device_storage_path()
 {
 	this->last_result_.clear();
+  
+  auto owner_id = this->user_mng_->get_current_user().user_public_key()->fingerprint();
 
 	auto result = user_storage::device_storages(
 		this->sp_,
-		this->user_mng_).get();
+    owner_id.value()).get();
 	if (result.has_error()) {
 		this->last_result_ = result.error()->what();
 	}
@@ -256,9 +260,11 @@ uint64_t vds::vds_embedded::vds_session::get_device_storage_used()
 {
 	this->last_result_.clear();
 
+  auto owner_id = this->user_mng_->get_current_user().user_public_key()->fingerprint();
+
 	auto result = user_storage::device_storages(
 		this->sp_,
-		this->user_mng_).get();
+    owner_id.value()).get();
 	if (result.has_error()) {
 		this->last_result_ = result.error()->what();
 	}
@@ -277,9 +283,10 @@ uint64_t vds::vds_embedded::vds_session::get_device_storage_size()
 {
 	this->last_result_.clear();
 
-	auto result = user_storage::device_storages(
+  auto owner_id = this->user_mng_->get_current_user().user_public_key()->fingerprint();
+  auto result = user_storage::device_storages(
 		this->sp_,
-		this->user_mng_).get();
+    owner_id.value()).get();
 	if (result.has_error()) {
 		this->last_result_ = result.error()->what();
 	}

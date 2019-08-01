@@ -93,6 +93,15 @@ vds::expected<vds::transactions::transaction_block_builder> vds::transactions::t
 vds::expected<vds::transactions::transaction_block_builder> vds::transactions::transaction_block_builder::create(
   const service_provider * sp,
   vds::database_read_transaction& t,
+  const const_data_buffer & data) {
+  GET_EXPECTED(result, create(sp, t));
+  CHECK_EXPECTED(result.data_.push_data(data.data(), data.size(), false));
+  return result;
+}
+
+vds::expected<vds::transactions::transaction_block_builder> vds::transactions::transaction_block_builder::create(
+  const service_provider * sp,
+  vds::database_read_transaction& t,
   const std::set<const_data_buffer> & ancestors){
 
   uint64_t order_no = 0;

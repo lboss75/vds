@@ -7,6 +7,7 @@ import {
     base64,
     hash_sha256,
     crypt_by_aes_256_cbc,
+    create_buffer,
     from_hex } from './vds_crypto';
 import pako from 'pako';
 
@@ -147,16 +148,22 @@ class vds_ws {
         throw "Invalid message";
     }
 
-    save_block(data){
-        const key_data = hash_sha256(data);
+    async save_block(data){
+        const buffer = create_buffer(data);
+        const key_data = hash_sha256(buffer);
         const iv_data = from_hex('a5bb9fcec2e44b91a8c9594462559024');
 
-        const key_data2 = hash_sha256(crypt_by_aes_256_cbc(key_data, iv_data, data));
-        const zipped = pako.deflate(data);
+        const key_data2 = hash_sha256(crypt_by_aes_256_cbc(key_data, iv_data, buffer.data));
+        const zipped = pako.deflate(buffer.data);
         const crypted_data = crypt_by_aes_256_cbc(key_data2, iv_data, zipped);
-        const result = this.invoke('upload', crypted_data);
+        const result = await this.invoke('upload', [base64(crypted_data)]);
         return result;
-  }
+    }
+
+    async save_file(channel, name, chunks){
+        const result = await this.invoke('upload', [channel, name, chunks]);
+        return result;
+    }
 }
 
 export default vds_ws;

@@ -13,15 +13,13 @@ All rights reserved
 
 vds::async_task<vds::expected<std::list<vds::user_storage::storage_info_t>>> vds::user_storage::device_storages(
   const service_provider* sp,
-  const std::shared_ptr<user_manager>& user_mng) {
+  const_data_buffer owner_id) {
 
 	std::list<vds::user_storage::storage_info_t> result;
 
-  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction([sp, user_mng, &result](database_read_transaction & t) -> expected<void> {
+  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction([sp, owner_id, &result](database_read_transaction & t) -> expected<void> {
     auto client = sp->get<dht::network::client>();
     auto current_node = client->current_node_id();
-
-    GET_EXPECTED(owner_id, user_mng->get_current_user().user_public_key()->fingerprint());
 
     orm::device_config_dbo t1;
     orm::device_record_dbo t2;

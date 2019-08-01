@@ -35,7 +35,8 @@ vds::expected<vds::const_data_buffer> vds::deflate::compress(
   auto result = std::make_shared<collect_data>();
   _deflate_handler df;
   CHECK_EXPECTED(df.create(result, Z_DEFAULT_COMPRESSION));
-  
+
+  thread_unprotect unprotect;
   CHECK_EXPECTED(df.write_async(data, len).get());
   CHECK_EXPECTED(df.write_async(nullptr, 0).get());
   

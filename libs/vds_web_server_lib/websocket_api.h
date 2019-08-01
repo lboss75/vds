@@ -77,7 +77,15 @@ namespace vds {
       const vds::service_provider * sp,
       std::shared_ptr<websocket_output> output_stream);
 
+    async_task<expected<void>> devices(
+      const vds::service_provider * sp,
+      std::shared_ptr<json_object> result,
+      const_data_buffer owner_id);
 
+    async_task<expected<void>> broadcast(
+      const vds::service_provider * sp,
+      std::shared_ptr<json_object> result,
+      const_data_buffer body);
   };
 
 }//vds
