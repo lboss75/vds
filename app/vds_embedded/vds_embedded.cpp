@@ -135,22 +135,6 @@ vds::expected<void> vds::vds_embedded::do_stop() {
   return this->registrator_.shutdown();
 }
 
-bool vds::vds_embedded::local_storage_exists() {
-  this->last_error_.clear();
-  auto result = do_local_storage_exists();
-  if (result.has_error()) {
-    this->last_error_ = result.error()->what();
-    return false;
-  }
-  else {
-    return result.value();
-  }
-}
-
-vds::expected<bool> vds::vds_embedded::do_local_storage_exists() {
-  return user_storage::local_storage_exists(this->sp_).get();
-}
-
 vds::vds_embedded::vds_session::vds_session(
   service_provider * sp,
   const std::shared_ptr<user_manager>& user_mng)
@@ -177,17 +161,16 @@ const char* vds::vds_embedded::vds_session::get_login_state() {
 const char* vds::vds_embedded::vds_session::get_device_storages() {
   auto owner_id = this->user_mng_->get_current_user().user_public_key()->fingerprint();
 
-  auto result = user_storage::device_storages(
-		this->sp_,
-    owner_id.value()).get();
+  auto result = user_storage::device_storage(
+		this->sp_).get();
 	if (result.has_error()) {
 		this->last_result_ = result.error()->what();
 	}
 	else {
 		auto result_json = std::make_shared<json_array>();
-		for (const auto & storage : result.value()) {
-			result_json->add(storage.serialize());
-		}
+    const auto storage = result.value();
+		result_json->add(storage.serialize());
+		
 		auto result_str = result_json->json_value::str();
 		if (result_str.has_error()) {
 			this->last_result_ = result_str.error()->what();
@@ -217,12 +200,11 @@ const char* vds::vds_embedded::vds_session::prepare_device_storage() {
   return this->last_result_.c_str();
 }
 
-const char* vds::vds_embedded::vds_session::add_device_storage(
-  const std::string& name,
+const char* vds::vds_embedded::vds_session::set_device_storage(
   const std::string& local_path,
   uint64_t reserved_size) {
 
-  auto result = user_storage::add_device_storage(this->sp_, this->user_mng_, name, local_path, reserved_size).get();
+  auto result = user_storage::set_device_storage(this->sp_, this->user_mng_, local_path, reserved_size).get();
   if (result.has_error()) {
     this->last_result_ = result.error()->what();
     return this->last_result_.c_str();
@@ -238,19 +220,15 @@ const char * vds::vds_embedded::vds_session::get_device_storage_path()
   
   auto owner_id = this->user_mng_->get_current_user().user_public_key()->fingerprint();
 
-	auto result = user_storage::device_storages(
-		this->sp_,
-    owner_id.value()).get();
+	auto result = user_storage::device_storage(
+		this->sp_).get();
 	if (result.has_error()) {
 		this->last_result_ = result.error()->what();
 	}
 	else {
-		for (const auto & device : result.value()) {
-			if (device.current) {
-				this->last_result_ = device.local_path.full_name();
-				return this->last_result_.c_str();
-			}
-		}
+    const auto device = result.value();
+		this->last_result_ = device.local_path.full_name();
+		return this->last_result_.c_str();
 	}
 
 	return nullptr;
@@ -262,18 +240,13 @@ uint64_t vds::vds_embedded::vds_session::get_device_storage_used()
 
   auto owner_id = this->user_mng_->get_current_user().user_public_key()->fingerprint();
 
-	auto result = user_storage::device_storages(
-		this->sp_,
-    owner_id.value()).get();
+	auto result = user_storage::device_storage(
+		this->sp_).get();
 	if (result.has_error()) {
 		this->last_result_ = result.error()->what();
 	}
 	else {
-		for (const auto & device : result.value()) {
-			if (device.current) {
-				return device.used_size;
-			}
-		}
+		return result.value().used_size;
 	}
 
 	return 0;
@@ -284,18 +257,13 @@ uint64_t vds::vds_embedded::vds_session::get_device_storage_size()
 	this->last_result_.clear();
 
   auto owner_id = this->user_mng_->get_current_user().user_public_key()->fingerprint();
-  auto result = user_storage::device_storages(
-		this->sp_,
-    owner_id.value()).get();
+  auto result = user_storage::device_storage(
+		this->sp_).get();
 	if (result.has_error()) {
 		this->last_result_ = result.error()->what();
 	}
 	else {
-		for (const auto & device : result.value()) {
-			if (device.current) {
-				return device.reserved_size;
-			}
-		}
+		return result.value().reserved_size;
 	}
 
 	return 0;

@@ -19,14 +19,10 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::storage_ap
 {
   GET_EXPECTED_ASYNC(owner_id, user_mng->get_current_user().user_public_key()->fingerprint());
 
-	auto result = co_await user_storage::device_storages(sp, owner_id);
+	auto result = co_await user_storage::device_storage(sp);
 	CHECK_EXPECTED_ASYNC(result);
 
-	auto result_json = std::make_shared<json_array>();
-	for (const auto & storage : result.value()) {
-		result_json->add(storage.serialize());
-	}
-
+	auto result_json = result.value().serialize();
 	co_return result_json;
 }
 
@@ -44,5 +40,5 @@ vds::async_task<vds::expected<void>> vds::storage_api::add_device_storage(
   const std::string & name,
   const std::string & local_path,
   uint64_t reserved_size){ 
-  return user_storage::add_device_storage(sp, user_mng, name, local_path, reserved_size);
+  return user_storage::set_device_storage(sp, user_mng, local_path, reserved_size);
 }

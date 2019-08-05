@@ -1,47 +1,28 @@
-#ifndef __VDS_DB_MODEL_DEVICE_CONFIG_DBO_H_
-#define __VDS_DB_MODEL_DEVICE_CONFIG_DBO_H_
-
-/*
-Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
-All rights reserved
-*/
-
-#include "database_orm.h"
-
-namespace vds {
-  namespace orm {
-    class device_config_dbo : public database_table {
-    public:
-      device_config_dbo()
-      : database_table("device_config"),
-        node_id(this, "node_id"),
-        local_path(this, "local_path"),
-        owner_id(this, "owner_id"),
-        name(this, "name"),
-        reserved_size(this, "reserved_size") {
-      }
-
-      database_column<const_data_buffer, std::string> node_id;
-      database_column<std::string> local_path;
-
-      database_column<const_data_buffer, std::string> owner_id;
-
-      database_column<std::string> name;
-      database_column<int64_t> reserved_size;
-
-      struct device_info {
-        std::string name;
-        std::string local_path;
-        int64_t reserved_size;
-        int64_t used_size;
-        int64_t free_size;
-      };
-
-      static expected<std::list<device_info>> get_free_space(
-        database_read_transaction & t,
-        const const_data_buffer & node_id);
-    };
-  }
-}
-
-#endif //__VDS_DB_MODEL_DEVICE_CONFIG_DBO_H_
+//#ifndef __VDS_DB_MODEL_DEVICE_CONFIG_DBO_H_
+//#define __VDS_DB_MODEL_DEVICE_CONFIG_DBO_H_
+//
+///*
+//Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+//All rights reserved
+//*/
+//
+//#include "database_orm.h"
+//
+//namespace vds {
+//  namespace orm {
+//    class device_config_dbo : public database_table {
+//    public:
+//      device_config_dbo()
+//      : database_table("device_config"),
+//        node_id(this, "node_id"),
+//        local_path(this, "local_path"),
+//        owner_id(this, "owner_id"),
+//        reserved_size(this, "reserved_size") {
+//      }
+//
+//
+//    };
+//  }
+//}
+//
+//#endif //__VDS_DB_MODEL_DEVICE_CONFIG_DBO_H_

@@ -69,7 +69,6 @@ extern "C" {
 API api_void_ptr APICALL vds_init(APIENV_);
 API void APICALL vds_done(APIENV api_void_ptr vds);
 API api_string APICALL vds_last_error(APIENV api_void_ptr vds);
-API api_string APICALL vds_local_storage_exists(APIENV api_void_ptr vds);
 
 API api_string APICALL vds_start(APIENV api_void_ptr vds, int port, bool dev_network);
 

@@ -204,33 +204,19 @@ std::map<vds::const_data_buffer, std::shared_ptr<vds::user_channel>> vds::user_m
 vds::expected<uint64_t> vds::user_manager::get_device_storage_used() {
   GET_EXPECTED(owner_id, this->get_current_user().user_public_key()->fingerprint());
 
-  GET_EXPECTED(result, user_storage::device_storages(
-    this->sp_,
-    owner_id).get());
+  GET_EXPECTED(result, user_storage::device_storage(
+    this->sp_).get());
 
-  for (const auto & device : result) {
-    if (device.current) {
-      return device.used_size;
-    }
-  }  
-
-  return 0;
+  return result.used_size;
 }
 
 vds::expected<uint64_t> vds::user_manager::get_device_storage_size() {
   GET_EXPECTED(owner_id, this->get_current_user().user_public_key()->fingerprint());
 
-  GET_EXPECTED(result, user_storage::device_storages(
-    this->sp_,
-    owner_id).get());
+  GET_EXPECTED(result, user_storage::device_storage(
+    this->sp_).get());
 
-  for (const auto & device : result) {
-    if (device.current) {
-      return device.reserved_size;
-    }
-  }
-
-  return 0;
+  return result.reserved_size;
 }
 
 vds::expected<uint64_t> vds::user_manager::get_user_balance() {

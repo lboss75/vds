@@ -10,6 +10,7 @@
 #include "chunk_dbo.h"
 #include "test_log.h"
 #include "device_config_dbo.h"
+#include "current_config_dbo.h"
 
 #define SERVER_COUNT 100
 
@@ -270,13 +271,12 @@ vds::expected<void> test_server::start(const std::shared_ptr<transport_hab> & ha
     static uint8_t owner_id[] = { 0x3e, 0x80, 0xf3, 0x7b, 0xed, 0x14, 0x4b, 0xe0, 0x85, 0x71, 0xf2, 0xda, 0x5f, 0x4, 0xa2, 0x36 };
 
 
-    vds::orm::device_config_dbo t1;
+    vds::orm::current_config_dbo t1;
     CHECK_EXPECTED(t.execute(
       t1.insert(
         t1.node_id = current_node,
         t1.local_path = fl.full_name(),
         t1.owner_id = vds::const_data_buffer(owner_id, sizeof(owner_id)),
-        t1.name = "Test",
         t1.reserved_size = 1024 * 1024 * 1024)));
     return vds::expected<void>();
   }).get());

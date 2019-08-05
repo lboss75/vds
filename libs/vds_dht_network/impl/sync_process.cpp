@@ -21,6 +21,7 @@ All rights reserved
 #include "chunk_dbo.h"
 #include "device_record_dbo.h"
 #include "dht_network.h"
+#include "current_config_dbo.h"
 
 vds::dht::network::sync_process::sync_process(const service_provider * sp)
   : sp_(sp), sync_replicas_timeout_(0) {
@@ -675,8 +676,8 @@ vds::expected<vds::const_data_buffer> vds::dht::network::sync_process::restore_r
   orm::device_record_dbo t4;
   GET_EXPECTED(st, t.get_reader(
     t2.select(
-        t2.replica, t2.replica_hash, t4.local_path)
-      .inner_join(t4, t4.node_id == client->current_node_id() && t4.data_hash == t2.replica_hash)
+        t2.replica, t2.replica_hash, t4.storage_path)
+      .inner_join(t4, t4.data_hash == t2.replica_hash)
       .where(t2.object_id == object_id)));
 
   WHILE_EXPECTED(st.execute()) {
@@ -684,7 +685,7 @@ vds::expected<vds::const_data_buffer> vds::dht::network::sync_process::restore_r
 
     GET_EXPECTED(data, _client::read_data(
       t2.replica_hash.get(st),
-      filename(t4.local_path.get(st))));
+      filename(t4.storage_path.get(st))));
 
     datas.push_back(data);
 
@@ -913,35 +914,33 @@ vds::expected<bool> vds::dht::network::sync_process::apply_message(
     return vds::make_unexpected<vds_exceptions::invalid_operation>();
   }
 
-  GET_EXPECTED(records, orm::device_config_dbo::get_free_space(t, client->current_node_id()));
-  for (const auto& record : records) {
-    if (record.used_size + message.object_size < record.reserved_size
-      && message.object_size < record.free_size) {
+  GET_EXPECTED(record, orm::current_config_dbo::get_free_space(t));
+  if (record.used_size + message.object_size < record.reserved_size
+    && message.object_size < record.free_size) {
 
-      std::set<uint16_t> replicas;
-      orm::chunk_replica_data_dbo t1;
-      GET_EXPECTED(st, t.get_reader(t1.select(t1.replica).where(t1.object_id == message.object_id)));
-      WHILE_EXPECTED(st.execute()) {
-        replicas.emplace(t1.replica.get(st));
-      }
-      WHILE_EXPECTED_END()
-
-      this->sp_->get<logger>()->trace(
-        SyncModule,
-        "%s: Ready to store object %s",
-        base64::from_bytes(client->current_node_id()).c_str(),
-        base64::from_bytes(message.object_id).c_str());
-
-      final_tasks.push_back([client, source_node = message_info.source_node(), object_id = message.object_id, replicas]() {
-        return (*client)->send(
-          source_node,
-          message_create<messages::sync_looking_storage_response>(
-            object_id,
-            replicas));
-      });
-
-      return true;
+    std::set<uint16_t> replicas;
+    orm::chunk_replica_data_dbo t1;
+    GET_EXPECTED(st, t.get_reader(t1.select(t1.replica).where(t1.object_id == message.object_id)));
+    WHILE_EXPECTED(st.execute()) {
+      replicas.emplace(t1.replica.get(st));
     }
+    WHILE_EXPECTED_END()
+
+    this->sp_->get<logger>()->trace(
+      SyncModule,
+      "%s: Ready to store object %s",
+      base64::from_bytes(client->current_node_id()).c_str(),
+      base64::from_bytes(message.object_id).c_str());
+
+    final_tasks.push_back([client, source_node = message_info.source_node(), object_id = message.object_id, replicas]() {
+      return (*client)->send(
+        source_node,
+        message_create<messages::sync_looking_storage_response>(
+          object_id,
+          replicas));
+    });
+
+    return true;
   }
 
   return false;
@@ -1518,8 +1517,8 @@ vds::expected<bool> vds::dht::network::sync_process::remove_replica(
   orm::device_record_dbo t2;
   GET_EXPECTED(st, t.get_reader(t1.select(
                              t1.replica_hash,
-                             t2.local_path)
-                           .inner_join(t2, t2.node_id == client->current_node_id() && t2.data_hash == t1.replica_hash)
+                             t2.storage_path)
+                           .inner_join(t2, t2.data_hash == t1.replica_hash)
                            .where(t1.object_id == object_id && t1.replica == replica)));
   GET_EXPECTED(st_execute, st.execute());
   if (!st_execute) {
@@ -1535,7 +1534,7 @@ vds::expected<bool> vds::dht::network::sync_process::remove_replica(
   CHECK_EXPECTED(
   _client::delete_data(
     replica_hash,
-    filename(t2.local_path.get(st))));
+    filename(t2.storage_path.get(st))));
 
   CHECK_EXPECTED(t.execute(t1.delete_if(t1.object_id == object_id && t1.replica == replica)));
   CHECK_EXPECTED(t.execute(t2.delete_if(t2.node_id == client->client::current_node_id() && t2.data_hash == replica_hash)));
@@ -1690,8 +1689,8 @@ vds::expected<void> vds::dht::network::sync_process::send_random_replicas(
       orm::device_record_dbo t6;
       GET_EXPECTED_VALUE(st, t.get_reader(
         t5
-        .select(t5.replica, t5.replica_hash, t6.local_path)
-        .inner_join(t6, t6.node_id == client->client::current_node_id() && t6.data_hash == t5.replica_hash)
+        .select(t5.replica, t5.replica_hash, t6.storage_path)
+        .inner_join(t6, t6.data_hash == t5.replica_hash)
         .where(t5.object_id == object_id)));
 
       WHILE_EXPECTED (st.execute()) {
@@ -1710,7 +1709,7 @@ vds::expected<void> vds::dht::network::sync_process::send_random_replicas(
                 last_applied,
                 replica,
                 replica_hash = t5.replica_hash.get(st),
-                local_path = t6.local_path.get(st),
+                local_path = t6.storage_path.get(st),
                 target_node,
                 object_id,
                 &final_tasks]() -> expected<void>{
@@ -1817,13 +1816,13 @@ vds::expected<void> vds::dht::network::sync_process::send_random_replicas(
       orm::device_record_dbo t4;
       GET_EXPECTED_VALUE(st, t.get_reader(
         t3
-        .select(t4.local_path)
-        .inner_join(t4, t4.node_id == client->client::current_node_id() && t4.data_hash == object_id)
+        .select(t4.storage_path)
+        .inner_join(t4, t4.data_hash == object_id)
         .where(t3.object_id == object_id)));
 
       GET_EXPECTED(st_execute, st.execute());
       if (st_execute) {
-        GET_EXPECTED(data, file::read_all(filename(t4.local_path.get(st))));
+        GET_EXPECTED(data, file::read_all(filename(t4.storage_path.get(st))));
         for (uint16_t replica = 0; replica < service::GENERATE_DISTRIBUTED_PIECES; ++replica) {
           if (allowed_replicas.end() == allowed_replicas.find(replica)
             && send_replicas.end() == send_replicas.find(replica)) {
@@ -3583,8 +3582,8 @@ vds::expected<void> vds::dht::network::sync_process::send_replica(
   orm::device_record_dbo t2;
   GET_EXPECTED(st, t.get_reader(t1.select(
                              t1.replica_hash,
-                             t2.local_path)
-                           .inner_join(t2, t2.node_id == client->current_node_id() && t2.data_hash == t1.replica_hash)
+                             t2.storage_path)
+                           .inner_join(t2, t2.data_hash == t1.replica_hash)
                            .where(t1.object_id == object_id && t1.replica == replica)));
   GET_EXPECTED(st_execute, st.execute());
   if (!st_execute) {
@@ -3593,7 +3592,7 @@ vds::expected<void> vds::dht::network::sync_process::send_replica(
 
   GET_EXPECTED(data, _client::read_data(
     t1.replica_hash.get(st),
-    filename(t2.local_path.get(st))));
+    filename(t2.storage_path.get(st))));
 
   final_tasks.push_back([
     client,
