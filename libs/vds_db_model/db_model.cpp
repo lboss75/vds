@@ -102,10 +102,13 @@ vds::expected<void> vds::db_model::migrate(
 			last_connect DATETIME NOT NULL)",
 
       "CREATE TABLE current_config (\
-			id INTEGER PRIMARY KEY AUTOINCREMENT,\
+			node_id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			public_key BLOB NOT NULL,\
-      private_key BLOB NOT NULL)",
-
+      private_key BLOB NOT NULL,\
+			local_path VARCHAR(254) NOT NULL,\
+			owner_id VARCHAR(64) NOT NULL,\
+			reserved_size INTEGER NOT NULL)",
+      
       "CREATE TABLE channel_local_cache(\
       channel_id VARCHAR(64) PRIMARY KEY NOT NULL,\
       last_sync INTEGER NOT NULL)",
@@ -174,18 +177,10 @@ vds::expected<void> vds::db_model::migrate(
 			device VARCHAR(64) NOT NULL,\
 			CONSTRAINT pk_chunk_map PRIMARY KEY(id,replica,device))",
 
-      "CREATE TABLE device_config(\
-			node_id VARCHAR(64) NOT NULL,\
-			local_path VARCHAR(254) NOT NULL,\
-			owner_id VARCHAR(64) NOT NULL,\
-			name VARCHAR(64) NOT NULL,\
-			reserved_size INTEGER NOT NULL,\
-      CONSTRAINT pk_device_config PRIMARY KEY(node_id,local_path))",
 
       "CREATE TABLE device_record(\
 			node_id VARCHAR(64) NOT NULL,\
       storage_path VARCHAR(254) NOT NULL,\
-			local_path VARCHAR(254) NOT NULL,\
 			data_hash VARCHAR(64) NOT NULL,\
 			data_size INTEGER NOT NULL,\
       CONSTRAINT pk_device_record PRIMARY KEY(node_id,storage_path,data_hash))",

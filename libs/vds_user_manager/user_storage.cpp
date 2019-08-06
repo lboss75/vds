@@ -10,50 +10,37 @@ All rights reserved
 #include "db_model.h"
 #include "dht_network_client.h"
 #include "member_user.h"
+#include "current_config_dbo.h"
 
-vds::async_task<vds::expected<std::list<vds::user_storage::storage_info_t>>> vds::user_storage::device_storages(
-  const service_provider* sp,
-  const_data_buffer owner_id) {
+vds::async_task<vds::expected<vds::user_storage::storage_info_t>> vds::user_storage::device_storage(
+  const service_provider* sp) {
 
-	std::list<vds::user_storage::storage_info_t> result;
+	vds::user_storage::storage_info_t result;
 
-  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction([sp, owner_id, &result](database_read_transaction & t) -> expected<void> {
+  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction([sp, &result](database_read_transaction & t) -> expected<void> {
     auto client = sp->get<dht::network::client>();
-    auto current_node = client->current_node_id();
 
-    orm::device_config_dbo t1;
+    orm::current_config_dbo t1;
     orm::device_record_dbo t2;
     db_value<int64_t> used_size;
     GET_EXPECTED(st, t.get_reader(
       t1.select(
-        t1.name,
         t1.node_id,
         t1.local_path,
         t1.reserved_size,
         db_sum(t2.data_size).as(used_size))
-      .left_join(t2, t2.local_path == t1.local_path && t2.node_id == t1.node_id)
-      .where(t1.owner_id == owner_id)
-      .group_by(t1.name, t1.node_id, t1.local_path, t1.reserved_size)));
-	WHILE_EXPECTED(st.execute())
-		auto current = (t1.node_id.get(st) == current_node);
-		uint64_t free_size;
+      .left_join(t2, t2.node_id == t1.node_id)));
+    WHILE_EXPECTED(st.execute()) {
+      result.node_id = t1.node_id.get(st);
+      result.local_path = foldername(t1.local_path.get(st));
+      result.reserved_size = safe_cast<uint64_t>(t1.reserved_size.get(st));
+      result.used_size = safe_cast<uint64_t>(used_size.get(st));
 
-		if(current){
-			auto free_size_result = foldername(t1.local_path.get(st)).free_size();
-			if (free_size_result.has_value()) {
-				free_size = free_size_result.value();
-			}
-		}
-
-		result.push_back(vds::user_storage::storage_info_t{
-			t1.node_id.get(st),
-			t1.name.get(st),
-			foldername(t1.local_path.get(st)),
-			safe_cast<uint64_t>(t1.reserved_size.get(st)),
-			safe_cast<uint64_t>(used_size.get(st)),
-			free_size,
-			current });
-
+      auto free_size_result = foldername(result.local_path).free_size();
+      if (free_size_result.has_value()) {
+        result.free_size = free_size_result.value();
+      }
+    }
     WHILE_EXPECTED_END()
     return expected<void>();
   }));
@@ -84,8 +71,10 @@ vds::expected<std::shared_ptr<vds::json_value>> vds::user_storage::device_storag
   return std::static_pointer_cast<json_value>(result);
 }
 
-vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const service_provider* sp,
-  const std::shared_ptr<user_manager>& user_mng, const std::string& name, const std::string& local_path,
+vds::async_task<vds::expected<void>> vds::user_storage::set_device_storage(
+  const service_provider* sp,
+  const std::shared_ptr<user_manager>& user_mng,
+  const std::string& local_path,
   uint64_t reserved_size) {
   GET_EXPECTED(json, json_parser::parse(".vds_storage.json", file::read_all(filename(foldername(local_path), ".vds_storage.json"))));
   auto sign_info = std::dynamic_pointer_cast<json_object>(json);
@@ -120,138 +109,32 @@ vds::async_task<vds::expected<void>> vds::user_storage::add_device_storage(const
     return vds::make_unexpected<std::runtime_error>("Invalid signature");
   }
 
-  return sp->get<db_model>()->async_transaction([sp, user_mng, local_path, name, reserved_size](database_transaction & t) -> expected<void> {
+  return sp->get<db_model>()->async_transaction([sp, user_mng, local_path, reserved_size](database_transaction & t) -> expected<void> {
     auto user = user_mng->get_current_user();
     auto client = sp->get<dht::network::client>();
     auto current_node = client->current_node_id();
 
     GET_EXPECTED(owner_id, user.user_public_key()->fingerprint());
 
-    orm::device_config_dbo t1;
+    orm::current_config_dbo t1;
     return t.execute(
-      t1.insert(
-        t1.node_id = client->current_node_id(),
+      t1.update(
         t1.local_path = local_path,
         t1.owner_id = owner_id,
-        t1.name = name,
-        t1.reserved_size = reserved_size));
+        t1.reserved_size = reserved_size)
+    .where(t1.node_id == client->current_node_id()));
   });
 }
 
-vds::async_task<vds::expected<void>> vds::user_storage::set_device_storage(
-	const service_provider * sp,
-	const std::shared_ptr<user_manager>& user_mng,
-	const std::string & local_path,
-	uint64_t reserved_size)
-{
-	return sp->get<db_model>()->async_transaction([sp, user_mng, local_path, reserved_size](database_transaction & t) -> expected<void> {
-		auto user = user_mng->get_current_user();
-		auto client = sp->get<dht::network::client>();
-		auto current_node = client->current_node_id();
-
-    GET_EXPECTED(owner_id, user.user_public_key()->fingerprint());
-
-		orm::device_config_dbo t1;
-		orm::device_record_dbo t2;
-		db_value<int64_t> used_size;
-		GET_EXPECTED(st, t.get_reader(
-			t1.select(
-				t1.local_path,
-				t1.reserved_size,
-				db_sum(t2.data_size).as(used_size))
-			.left_join(t2, t2.local_path == t1.local_path && t2.node_id == t1.node_id)
-			.where(t1.node_id == current_node && t1.owner_id == owner_id)
-			.group_by(t1.local_path, t1.reserved_size)));
-
-		std::map<std::string, uint64_t> storages;
-		WHILE_EXPECTED(st.execute())
-			storages[t1.local_path.get(st)] = used_size.get(st);
-		WHILE_EXPECTED_END()
-
-			auto p = storages.find(local_path);
-		if (storages.end() != p && p->second <= reserved_size) {
-			CHECK_EXPECTED(t.execute(t1.update(
-				t1.reserved_size = reserved_size
-			).where(
-				t1.node_id == current_node
-				&& t1.local_path == local_path
-				&& t1.owner_id == owner_id)));
-
-			for (const auto & other_storage : storages) {
-				if (other_storage.first != local_path) {
-					(void)foldername(other_storage.first).delete_folder(true);
-					CHECK_EXPECTED(t.execute(t1.delete_if(
-						t1.node_id == current_node
-						&& t1.local_path == local_path 
-						&& t1.owner_id == owner_id)));
-				}
-			}
-		}
-		else {
-			for (const auto & other_storage : storages) {
-				(void)foldername(other_storage.first).delete_folder(true);
-				CHECK_EXPECTED(t.execute(t1.delete_if(
-					t1.node_id == current_node
-					&& t1.local_path == local_path
-					&& t1.owner_id == owner_id)));
-			}
-
-			return t.execute(
-				t1.insert(
-					t1.node_id = client->current_node_id(),
-					t1.local_path = local_path,
-					t1.owner_id = owner_id,
-					t1.name = "Storage",
-					t1.reserved_size = reserved_size));
-		}
-
-		return expected<void>();
-	});
-}
-vds::async_task<vds::expected<bool>> vds::user_storage::local_storage_exists(const service_provider* sp) {
-
-  auto result = std::make_shared<bool>();
-
-  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction([sp, result](database_read_transaction & t) -> expected<void> {
-    auto client = sp->get<dht::network::client>();
-    auto current_node = client->current_node_id();
-
-    orm::device_config_dbo t1;
-    db_value<int> storage_count;
-    GET_EXPECTED(st, t.get_reader(
-      t1.select(db_count(t1.name).as(storage_count))
-      .where(t1.node_id == current_node)));
-
-    auto st_result = st.execute();
-    CHECK_EXPECTED_ERROR(st_result);
-
-    if (st_result.value()) {
-      *result = (storage_count.get(st) != 0);
-    }
-    else {
-      *result = false;
-    }
-    return expected<void>();
-  }));
-
-  co_return *result;
-}
 
 std::shared_ptr<vds::json_value> vds::user_storage::storage_info_t::serialize() const
 {
 	auto item = std::make_shared<json_object>();
 	item->add_property("node", base64::from_bytes(this->node_id));
-	item->add_property("name", this->name);
 	item->add_property("local_path", this->local_path.full_name());
 	item->add_property("reserved_size", this->reserved_size);
 	item->add_property("used_size", std::to_string(this->used_size));
-	if (this->current) {
-		item->add_property("free_size", std::to_string(this->free_size));
-		item->add_property("current", "true");
-	}
-	else {
-		item->add_property("current", "false");
-	}
+	item->add_property("free_size", std::to_string(this->free_size));
 
 	return item;
 }

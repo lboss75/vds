@@ -13,6 +13,7 @@ All rights reserved
 #include "dht_object_id.h"
 #include "device_config_dbo.h"
 #include "member_user.h"
+#include "current_config_dbo.h"
 
 vds_mock::vds_mock()
 {
@@ -646,13 +647,12 @@ vds::expected<void> mock_server::allocate_storage(
 
       GET_EXPECTED(owner_id, user_mng->get_current_user().user_public_key()->fingerprint());
 
-      vds::orm::device_config_dbo t1;
+      vds::orm::current_config_dbo t1;
       CHECK_EXPECTED(t.execute(
         t1.insert(
           t1.node_id = current_node,
           t1.local_path = fl.full_name(),
           t1.owner_id = owner_id,
-          t1.name = "Test",
           t1.reserved_size = 1024 * 1024 * 1024)));
       return vds::expected<void>();
     });

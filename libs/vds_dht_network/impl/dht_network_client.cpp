@@ -375,7 +375,7 @@ vds::expected<vds::filename> vds::dht::network::_client::save_data(
 
   orm::device_record_dbo t4;
   GET_EXPECTED(st, t.get_reader(t4.select(
-    t4.local_path, t4.data_size)
+    t4.storage_path, t4.data_size)
     .where(t4.node_id == client->current_node_id()
       && t4.data_hash == data_hash)));
   GET_EXPECTED(st_execute, st.execute());
@@ -385,18 +385,17 @@ vds::expected<vds::filename> vds::dht::network::_client::save_data(
       return make_unexpected<std::runtime_error>("Data collusion " + base64::from_bytes(data_hash));
     }
 
-    return filename(t4.local_path.get(st));
+    return filename(t4.storage_path.get(st));
   }
 
   uint64_t allowed_size = 0;
   std::string local_path;
 
-  orm::device_config_dbo t3;
+  orm::current_config_dbo t3;
   db_value<int64_t> data_size;
   GET_EXPECTED_VALUE(st, t.get_reader(
     t3.select(t3.local_path, t3.reserved_size, db_sum(t4.data_size).as(data_size))
       .left_join(t4, t4.node_id == t3.node_id && t4.storage_path == t3.local_path)
-      .where(t3.node_id == client->current_node_id())
       .group_by(t3.local_path, t3.reserved_size)));
   WHILE_EXPECTED (st.execute()) {
     const int64_t size = data_size.is_null(st) ? 0 : data_size.get(st);
@@ -429,8 +428,7 @@ vds::expected<vds::filename> vds::dht::network::_client::save_data(
 
   CHECK_EXPECTED(t.execute(t4.insert(
     t4.node_id = client->current_node_id(),
-    t4.storage_path = local_path,
-    t4.local_path = fn.full_name(),
+    t4.storage_path = fn.full_name(),
     t4.data_hash = data_hash,
     t4.data_size = data.size())));
 
@@ -444,13 +442,12 @@ vds::expected<vds::filename> vds::dht::network::_client::save_data(const service
   uint64_t allowed_size = 0;
   std::string local_path;
 
-  orm::device_config_dbo t3;
+  orm::current_config_dbo t3;
   orm::device_record_dbo t4;
   db_value<int64_t> data_size;
   GET_EXPECTED(st, t.get_reader(
     t3.select(t3.local_path, t3.reserved_size, db_sum(t4.data_size).as(data_size))
     .left_join(t4, t4.node_id == t3.node_id && t4.storage_path == t3.local_path)
-    .where(t3.node_id == client->current_node_id())
     .group_by(t3.local_path, t3.reserved_size)));
 
   WHILE_EXPECTED (st.execute()) {
@@ -485,8 +482,7 @@ vds::expected<vds::filename> vds::dht::network::_client::save_data(const service
 
   CHECK_EXPECTED(t.execute(t4.insert(
     t4.node_id = client->current_node_id(),
-    t4.storage_path = local_path,
-    t4.local_path = fn.full_name(),
+    t4.storage_path = fn.full_name(),
     t4.data_hash = data_hash,
     t4.data_size = size)));
 
@@ -695,13 +691,13 @@ vds::expected<void> vds::dht::network::_client::restore_async(
   for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
     GET_EXPECTED(st, t.get_reader(
       t1
-      .select(t4.local_path)
-      .inner_join(t4, t4.node_id == this->current_node_id() && t4.data_hash == t1.object_id)
+      .select(t4.storage_path)
+      .inner_join(t4, t4.data_hash == t1.object_id)
       .where(t1.object_id == object_ids[replica])));
     GET_EXPECTED(st_execute, st.execute());
     if (st_execute) {
       replicas.push_back(replica);
-      GET_EXPECTED(data, file::read_all(filename(t4.local_path.get(st))));
+      GET_EXPECTED(data, file::read_all(filename(t4.storage_path.get(st))));
       datas.push_back(data);
 
       if (replicas.size() >= service::MIN_HORCRUX) {
@@ -721,15 +717,15 @@ vds::expected<void> vds::dht::network::_client::restore_async(
       orm::chunk_replica_data_dbo t2;
       GET_EXPECTED(st, t.get_reader(
         t2.select(
-          t2.replica, t2.replica_hash, t4.local_path)
-        .inner_join(t4, t4.node_id == this->current_node_id() && t4.data_hash == t2.replica_hash)
+          t2.replica, t2.replica_hash, t4.storage_path)
+        .inner_join(t4, t4.data_hash == t2.replica_hash)
         .where(t2.object_id == p->second)));
       WHILE_EXPECTED(st.execute()) {
         piece_replicas.push_back(t2.replica.get(st));
         GET_EXPECTED(data,
           _client::read_data(
             t2.replica_hash.get(st),
-            filename(t4.local_path.get(st))));
+            filename(t4.storage_path.get(st))));
         piece_datas.push_back(data);
 
         if (piece_replicas.size() >= service::MIN_DISTRIBUTED_PIECES) {

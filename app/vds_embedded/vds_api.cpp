@@ -74,14 +74,8 @@ api_string APICALL vds_add_device_storage(APIENV api_void_ptr vds_session, api_s
   api_string_argument(name, name_);
   api_string_argument(local_path, local_path_);
 
-  return api_return_string(session->add_device_storage(name, local_path, static_cast<uint64_t>(size) * 1024 * 1024 * 1024));
+  return api_return_string(session->set_device_storage(local_path, static_cast<uint64_t>(size) * 1024 * 1024 * 1024));
 }
-
-api_string APICALL vds_local_storage_exists(APIENV api_void_ptr vds) {
-  auto pthis = static_cast<vds::vds_embedded *>(vds);
-  return api_return_string(pthis->local_storage_exists() ? "true" : "false");
-}
-
 
 api_string APICALL vds_get_device_storage_path(APIENV api_void_ptr vds_session) {
 	auto session = static_cast<vds::vds_embedded::vds_session *>(vds_session);

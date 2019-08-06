@@ -21,6 +21,7 @@
 #include "http_request.h"
 #include "private/create_message_form.h"
 #include "string_format.h"
+#include "current_config_dbo.h"
 
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
@@ -314,13 +315,12 @@ vds::api_controller::lock_device(
 
     GET_EXPECTED(owner_id, user_mng->get_current_user().user_public_key()->fingerprint());
 
-    orm::device_config_dbo t1;
+    orm::current_config_dbo t1;
     return t.execute(
         t1.insert(
             t1.node_id = current_node,
             t1.local_path = local_path,
             t1.owner_id = owner_id,
-            t1.name = device_name,
             t1.reserved_size = reserved_size * 1024 * 1024 * 1024));
   });
 }

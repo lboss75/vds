@@ -31,7 +31,6 @@ namespace vds {
 
     void start(int port, bool dev_network);
     void stop();
-    bool local_storage_exists();
 
     class vds_session {
     public:
@@ -43,8 +42,7 @@ namespace vds {
       const char * get_device_storages();
 
       const char * prepare_device_storage();
-      const char * add_device_storage(
-        const std::string& name,
+      const char * set_device_storage(
         const std::string& local_path,
         uint64_t reserved_size);
 
@@ -80,9 +78,6 @@ namespace vds {
     expected<void> do_server_root(const std::string & login, const std::string & password);
     expected<void> do_start(int port, bool dev_network);
     expected<void> do_stop();
-    expected<bool> do_local_storage_exists();
-
-
   };
 }
 

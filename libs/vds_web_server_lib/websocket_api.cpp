@@ -322,14 +322,11 @@ vds::async_task<vds::expected<void>> vds::websocket_api::devices(
   std::shared_ptr<json_object> res,
   const_data_buffer owner_id)
 {
-  auto result = co_await user_storage::device_storages(sp, owner_id);
+  auto result = co_await user_storage::device_storage(sp);
   CHECK_EXPECTED_ASYNC(result);
 
-  auto result_json = std::make_shared<json_array>();
-  for (const auto & storage : result.value()) {
-    result_json->add(storage.serialize());
-  }
-
+  auto result_json = result.value().serialize();
+ 
   res->add_property("result", result_json);
   co_return expected<void>();
 }
