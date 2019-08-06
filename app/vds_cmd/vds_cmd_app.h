@@ -52,7 +52,6 @@ namespace vds {
     command_line_value channel_type_;
 
     //Storage
-    command_line_value storage_name_;
     command_line_value storage_folder_;
     command_line_value storage_size_;
 

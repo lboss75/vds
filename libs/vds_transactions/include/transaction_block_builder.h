@@ -29,6 +29,7 @@ namespace vds {
     class transaction_block_builder {
     public:
       transaction_block_builder() = default;
+      transaction_block_builder(transaction_block_builder &&) = default;
       transaction_block_builder(
         const service_provider * sp,
         const std::chrono::system_clock::time_point & time_point,
@@ -37,6 +38,9 @@ namespace vds {
       )
         : sp_(sp), time_point_(time_point), ancestors_(std::move(ancestors)), order_no_(order_no) {
       }
+
+      transaction_block_builder & operator = (transaction_block_builder &&) = default;
+      transaction_block_builder & operator = (const transaction_block_builder &) = delete;
 
       static expected<transaction_block_builder> create(
         const service_provider * sp,

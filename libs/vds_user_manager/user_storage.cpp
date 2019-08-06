@@ -26,19 +26,25 @@ vds::async_task<vds::expected<vds::user_storage::storage_info_t>> vds::user_stor
     GET_EXPECTED(st, t.get_reader(
       t1.select(
         t1.node_id,
+        t1.owner_id,
         t1.local_path,
         t1.reserved_size,
         db_sum(t2.data_size).as(used_size))
-      .left_join(t2, t2.node_id == t1.node_id)));
-    WHILE_EXPECTED(st.execute()) {
-      result.node_id = t1.node_id.get(st);
-      result.local_path = foldername(t1.local_path.get(st));
-      result.reserved_size = safe_cast<uint64_t>(t1.reserved_size.get(st));
-      result.used_size = safe_cast<uint64_t>(used_size.get(st));
+      .left_join(t2, t2.node_id == t1.node_id)
+      .group_by(t1.node_id, t1.owner_id, t1.local_path, t1.reserved_size)));
 
-      auto free_size_result = foldername(result.local_path).free_size();
-      if (free_size_result.has_value()) {
-        result.free_size = free_size_result.value();
+    WHILE_EXPECTED(st.execute()) {
+      if (!t1.local_path.get(st).empty()) {
+        result.node_id = t1.node_id.get(st);
+        result.owner_id = t1.owner_id.get(st);
+        result.local_path = foldername(t1.local_path.get(st));
+        result.reserved_size = safe_cast<uint64_t>(t1.reserved_size.get(st));
+        result.used_size = safe_cast<uint64_t>(used_size.get(st));
+
+        auto free_size_result = foldername(result.local_path).free_size();
+        if (free_size_result.has_value()) {
+          result.free_size = free_size_result.value();
+        }
       }
     }
     WHILE_EXPECTED_END()

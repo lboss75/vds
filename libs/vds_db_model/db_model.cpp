@@ -107,7 +107,7 @@ vds::expected<void> vds::db_model::migrate(
       private_key BLOB NOT NULL,\
 			local_path VARCHAR(254) NOT NULL,\
 			owner_id VARCHAR(64) NOT NULL,\
-			reserved_size INTEGER NOT NULL)",
+			reserved_size INTEGER NON NULL)",
       
       "CREATE TABLE channel_local_cache(\
       channel_id VARCHAR(64) PRIMARY KEY NOT NULL,\

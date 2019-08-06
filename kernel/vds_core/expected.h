@@ -189,11 +189,10 @@ namespace vds {
 
 #define GET_EXPECTED(var, v) \
   auto __result ## var { std::move(v) };\
-  typename std::remove_reference<decltype(__result ## var.value())>::type var;\
   if(__result ## var.has_error()){\
     return vds::unexpected(std::move(__result ## var.error()));\
   }\
-  var = std::move(__result ## var.value());
+  typename std::remove_reference<decltype(__result ## var.value())>::type var { std::move(__result ## var.value()) };
 
 #define WHILE_EXPECTED(exp) \
   for(;;) { \

@@ -94,11 +94,6 @@ vds::vds_cmd_app::vds_cmd_app()
     "channel-type",
     "Channel type",
     "Type of channel"),
-  storage_name_(
-    "stn",
-    "storage-name",
-    "Storage name",
-    "Name of the storage"),
   storage_folder_(
     "stp",
     "storage-path",
@@ -227,7 +222,6 @@ void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
   this->storage_add_cmd_set_.required(this->user_login_);
   this->storage_add_cmd_set_.required(this->user_password_);
   this->storage_add_cmd_set_.optional(this->server_);
-  this->storage_add_cmd_set_.required(this->storage_name_);
   this->storage_add_cmd_set_.required(this->storage_folder_);
   this->storage_add_cmd_set_.optional(this->storage_size_);
 
@@ -866,42 +860,39 @@ vds::expected<void> vds::vds_cmd_app::device_list_out(const const_data_buffer & 
       "/api/devices",
       response_body));
 
+    auto item = dynamic_cast<const json_object *>(body.get());
+
+    std::string node;
+    CHECK_EXPECTED(item->get_property("node", node));
+
+    std::string local_path;
+    CHECK_EXPECTED(item->get_property("local_path", local_path));
+
+    std::string reserved_size;
+    CHECK_EXPECTED(item->get_property("reserved_size", reserved_size));
+
+    std::string used_size;
+    CHECK_EXPECTED(item->get_property("used_size", used_size));
+
+    std::string free_size;
+    CHECK_EXPECTED(item->get_property("free_size", free_size));
+
+
     std::cout 
-      << std::setw(44) << std::left << "Node" << "|"
-      << std::setw(15) << std::left << "Name" << "|"
-      << "Path" << "|"
-      << "Reserved" << "|"
-      << "Used" << "|"
-      << "Free" << "|"
-      << "Current"
+      << std::setw(max(node.length(), 4)) << std::left << "Node" << "|"
+      << std::setw(max(local_path.length(), 4)) << std::left << "Path" << "|"
+      << std::setw(max(reserved_size.length(), 8)) << "Reserved" << "|"
+      << std::setw(max(used_size.length(), 4)) << "Used" << "|"
+      << std::setw(max(free_size.length(), 4)) << "Free"
       << std::endl;
 
-    auto body_array = dynamic_cast<const json_array *>(body.get());
-    for (size_t i = 0; i < body_array->size(); ++i) {
-      auto item = dynamic_cast<const json_object *>(body_array->get(i).get());
-
-      std::string value;
-      CHECK_EXPECTED(item->get_property("node", value));
-      std::cout << std::setw(44) << value << "|";
-
-      CHECK_EXPECTED(item->get_property("name", value));
-      std::cout << std::setw(15) << std::left << value << "|";
-
-      CHECK_EXPECTED(item->get_property("local_path", value));
-      std::cout << value << "|"; 
-
-      CHECK_EXPECTED(item->get_property("reserved_size", value));
-      std::cout << value << "|";
-
-      CHECK_EXPECTED(item->get_property("used_size", value));
-      std::cout << value << "|";
-
-      CHECK_EXPECTED(item->get_property("free_size", value));
-      std::cout << value << "|";
-
-      CHECK_EXPECTED(item->get_property("current", value));
-      std::cout << value << std::endl;
-    }
+    std::cout
+      << std::setw(max(node.length(), 4)) << std::left << node << "|"
+      << std::setw(max(local_path.length(), 4)) << std::left << local_path << "|"
+      << std::setw(max(reserved_size.length(), 8)) << reserved_size << "|"
+      << std::setw(max(used_size.length(), 4)) << used_size << "|"
+      << std::setw(max(free_size.length(), 4)) << free_size
+      << std::endl;
   }
 
   return expected<void>();
@@ -931,7 +922,6 @@ vds::expected<void> vds::vds_cmd_app::storage_add(const service_provider * sp, c
     http_message(
       "POST",
       "/api/devices?session=" + url_encode::encode(session)
-      + "&name=" + url_encode::encode(this->storage_name_.value())
       + "&size=" + url_encode::encode(this->storage_size_.value())
       + "&path=" + url_encode::encode(this->storage_folder_.value())
     ),

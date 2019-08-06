@@ -927,8 +927,12 @@ vds::expected<void> vds::dht::network::client::load_keys(database_transaction & 
     GET_EXPECTED(node_public_key_data, this->node_public_key_->der());
     GET_EXPECTED(node_key_der, this->node_key_->der(std::string()));
     CHECK_EXPECTED(t.execute(t1.insert(
+      t1.node_id = key_id,
       t1.public_key = node_public_key_data,
-      t1.private_key = node_key_der)));
+      t1.private_key = node_key_der,
+      t1.local_path = std::string(),
+      t1.owner_id = const_data_buffer(),
+      t1.reserved_size = 0)));
   }
 
   return expected<void>();
