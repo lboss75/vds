@@ -16,6 +16,7 @@ namespace vds {
   {
   public:
     timer(const char * name);
+    ~timer();
 
     expected<void> start(
       const service_provider * sp,

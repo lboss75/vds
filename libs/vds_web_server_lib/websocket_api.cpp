@@ -121,7 +121,7 @@ vds::websocket_api::process_message(
 
     auto body_str = std::dynamic_pointer_cast<json_primitive>(args->get(0));
     if (!body_str) {
-      co_return make_unexpected<std::runtime_error>("missing login argument at invoke method 'upload'");
+      co_return make_unexpected<std::runtime_error>("missing body argument at invoke method 'upload'");
     }
 
     GET_EXPECTED_ASYNC(body, base64::to_bytes(body_str->value()));
@@ -136,7 +136,7 @@ vds::websocket_api::process_message(
 
     auto owner_id_str = std::dynamic_pointer_cast<json_primitive>(args->get(0));
     if (!owner_id_str) {
-      co_return make_unexpected<std::runtime_error>("missing login argument at invoke method 'devices'");
+      co_return make_unexpected<std::runtime_error>("missing body argument at invoke method 'devices'");
     }
 
     GET_EXPECTED_ASYNC(owner_id, base64::to_bytes(owner_id_str->value()));
@@ -151,7 +151,7 @@ vds::websocket_api::process_message(
 
     auto body_str = std::dynamic_pointer_cast<json_primitive>(args->get(0));
     if (!body_str) {
-      co_return make_unexpected<std::runtime_error>("missing login argument at invoke method 'broadcast'");
+      co_return make_unexpected<std::runtime_error>("missing body argument at invoke method 'broadcast'");
     }
 
     GET_EXPECTED_ASYNC(body, base64::to_bytes(body_str->value()));

@@ -161,7 +161,7 @@ class vds_ws {
     }
 
     async save_file(channel, name, chunks){
-        const result = await this.invoke('upload', [channel, name, chunks]);
+        const result = await this.invoke('broadcast', [channel, name, chunks]);
         return result;
     }
 }

@@ -79,8 +79,6 @@ export function create_buffer(data){
     return new forge.util.ByteStringBuffer(data);
 }
 
-
-
 export function decode64(data){
     const result = forge.util.decode64(data);
     return result;

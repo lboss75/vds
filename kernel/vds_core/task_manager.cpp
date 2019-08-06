@@ -19,6 +19,10 @@ vds::timer::timer(const char * name)
 {
 }
 
+vds::timer::~timer() {
+  vds_assert(!this->is_started());
+}
+
 
 vds::task_manager::task_manager()
 : is_shuting_down_(false), is_disabled_(false)
