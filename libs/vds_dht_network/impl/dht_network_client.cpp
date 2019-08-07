@@ -637,18 +637,18 @@ vds::expected<bool> vds::dht::network::_client::apply_message( database_transact
   return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::_client::restore(  
+vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::_client::restore(
   std::vector<const_data_buffer> object_ids,
-  std::shared_ptr<const_data_buffer> result,
   std::chrono::steady_clock::time_point start) {
-  for (;;) {
+  auto result = std::make_shared<const_data_buffer>();
+    for (;;) {
     uint8_t progress;
     GET_EXPECTED_VALUE_ASYNC(progress, co_await this->restore_async(
       object_ids,
       result));
 
     if (result->size() > 0) {
-      co_return expected<void>();
+      co_return *result;
     }
 
     if (std::chrono::minutes(10) < (std::chrono::steady_clock::now() - start)) {
@@ -1111,15 +1111,14 @@ vds::dht::network::client::finish_save(
 vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::client::restore(
   
   const chunk_info& block_id) {
-  auto result = std::make_shared<const_data_buffer>();
-  CHECK_EXPECTED_ASYNC(co_await this->impl_->restore(block_id.object_ids, result, std::chrono::steady_clock::now()));
+  GET_EXPECTED_ASYNC(result, co_await this->impl_->restore(block_id.object_ids, std::chrono::steady_clock::now()));
 
   auto key2 = symmetric_key::create(
     symmetric_crypto::aes_256_cbc(),
     block_id.key.data(),
     pack_block_iv);
 
-  GET_EXPECTED_ASYNC(zipped, symmetric_decrypt::decrypt(key2, *result));
+  GET_EXPECTED_ASYNC(zipped, symmetric_decrypt::decrypt(key2, result));
   GET_EXPECTED_ASYNC(original_data, inflate::decompress(zipped.data(), zipped.size()));
 
   GET_EXPECTED_ASYNC(sig, hash::signature(hash::sha256(), original_data));
@@ -1128,6 +1127,11 @@ vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::client
   }
 
   co_return original_data;
+}
+
+vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::client::restore(std::vector<const_data_buffer> object_ids)
+{
+  return this->impl_->restore(object_ids, std::chrono::steady_clock::now());
 }
 
 vds::expected<vds::dht::network::client::block_info_t> vds::dht::network::client::prepare_restore(

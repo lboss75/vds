@@ -82,6 +82,12 @@ namespace vds {
       std::shared_ptr<json_object> result,
       const_data_buffer owner_id);
 
+    async_task<expected<void>> download(
+      const vds::service_provider * sp,
+      std::shared_ptr<json_object> result,
+      std::vector<const_data_buffer> object_ids);
+
+
     async_task<expected<void>> broadcast(
       const vds::service_provider * sp,
       std::shared_ptr<json_object> result,

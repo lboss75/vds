@@ -11,6 +11,7 @@ All rights reserved
 #include "channel_message_dbo.h"
 #include "dht_network_client.h"
 #include "user_storage.h"
+#include "dht_network.h"
 
 vds::websocket_api::websocket_api()
   : subscribe_timer_("WebSocket API Subscribe Timer")
@@ -127,6 +128,26 @@ vds::websocket_api::process_message(
     GET_EXPECTED_ASYNC(body, base64::to_bytes(body_str->value()));
 
     CHECK_EXPECTED_ASYNC(co_await this->upload(sp, r, body));
+  }
+  else if ("download" == method_name) {
+    auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
+    if (!args || args->size() != dht::network::service::GENERATE_HORCRUX) {
+      co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'download'");
+    }
+
+    std::vector<const_data_buffer> object_ids;
+    for(decltype(args->size()) i = 0; i < args->size(); ++i){
+      auto id_str = std::dynamic_pointer_cast<json_primitive>(args->get(i));
+      if (!id_str) {
+        co_return make_unexpected<std::runtime_error>("missing argument at invoke method 'download'");
+      }
+
+      GET_EXPECTED_ASYNC(id, base64::to_bytes(id_str->value()));
+
+      object_ids.push_back(id);
+    }
+
+    CHECK_EXPECTED_ASYNC(co_await this->download(sp, r, object_ids));
   }
   else if ("devices" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
@@ -328,6 +349,18 @@ vds::async_task<vds::expected<void>> vds::websocket_api::devices(
   auto result_json = result.value().serialize();
  
   res->add_property("result", result_json);
+  co_return expected<void>();
+}
+
+vds::async_task<vds::expected<void>> vds::websocket_api::download(
+  const vds::service_provider * sp,
+  std::shared_ptr<json_object> result,
+  std::vector<const_data_buffer> object_ids)
+{
+  auto network_client = sp->get<dht::network::client>();
+  GET_EXPECTED_ASYNC(buffer, co_await network_client->restore(object_ids));
+
+  result->add_property("result", buffer);
   co_return expected<void>();
 }
 

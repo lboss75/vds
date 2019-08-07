@@ -20,7 +20,9 @@ vds::timer::timer(const char * name)
 }
 
 vds::timer::~timer() {
-  vds_assert(!this->is_started());
+  if (this->is_started()) {
+    (void)this->stop();
+  }
 }
 
 

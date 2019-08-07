@@ -284,9 +284,8 @@ namespace vds {
           const std::shared_ptr<dht_session>& session,
           uint8_t hops);
 
-        async_task<expected<void>> restore(          
+        async_task<expected<const_data_buffer>> restore(
           std::vector<const_data_buffer> object_ids,
-          std::shared_ptr<const_data_buffer> result,
           std::chrono::steady_clock::time_point start);
 
         expected<client::block_info_t> prepare_restore(
