@@ -649,11 +649,11 @@ vds::expected<void> mock_server::allocate_storage(
 
       vds::orm::current_config_dbo t1;
       CHECK_EXPECTED(t.execute(
-        t1.insert(
-          t1.node_id = current_node,
+        t1.update(          
           t1.local_path = fl.full_name(),
           t1.owner_id = owner_id,
-          t1.reserved_size = 1024 * 1024 * 1024)));
+          t1.reserved_size = 1024 * 1024 * 1024)
+      .where(t1.node_id == current_node)));
       return vds::expected<void>();
     });
   });

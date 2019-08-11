@@ -651,11 +651,11 @@ vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::_clien
       co_return *result;
     }
 
-    if (std::chrono::minutes(10) < (std::chrono::steady_clock::now() - start)) {
+    if (std::chrono::minutes(30) < (std::chrono::steady_clock::now() - start)) {
       co_return vds::make_unexpected<vds_exceptions::not_found>();
     }
 
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::this_thread::sleep_for(std::chrono::seconds(60));
   }
 }
 
@@ -868,14 +868,19 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::redirect(
     1,
     [target_node_id, source_node_id, hops, message_id, msg = std::move(message.value()), pthis = this->shared_from_this()](
       const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>& candidate)->async_task<expected<bool>>{
-    CHECK_EXPECTED_ASYNC(co_await candidate->proxy_session_->proxy_message(
-      pthis->udp_transport_,
-      (uint8_t)message_id,
-      target_node_id,
-      source_node_id,
-      hops,
-      msg));
-    co_return false;
+    if (candidate->proxy_session_->partner_node_id() != source_node_id) {
+      CHECK_EXPECTED_ASYNC(co_await candidate->proxy_session_->proxy_message(
+        pthis->udp_transport_,
+        (uint8_t)message_id,
+        target_node_id,
+        source_node_id,
+        hops,
+        msg));
+      co_return false;
+    }
+    else {
+      co_return true;
+    }
   });
 }
 
@@ -893,12 +898,13 @@ vds::expected<void> vds::dht::network::client::start(
   uint16_t port,
   bool dev_network) {
 
-  this->udp_transport_task_ = std::make_unique<async_task<expected<void>>>(udp_transport->start(
+  udp_transport->start(
     sp,
     this->node_public_key_,
     this->node_key_,
     port,
-    dev_network));
+    dev_network).then([](expected<void> result) {
+  });
   
   GET_EXPECTED_VALUE(this->impl_, _client::create(sp, udp_transport, this->node_public_key_));
   return this->impl_->start();
@@ -941,11 +947,6 @@ vds::expected<void> vds::dht::network::client::load_keys(database_transaction & 
 vds::expected<void> vds::dht::network::client::stop() {
   if (this->impl_) {
     this->impl_->stop();
-  }
-
-  if (this->udp_transport_task_) {
-    CHECK_EXPECTED(this->udp_transport_task_->get());
-    this->udp_transport_task_.reset();
   }
 
   return expected<void>();

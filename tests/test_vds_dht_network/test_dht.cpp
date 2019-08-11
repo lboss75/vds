@@ -56,7 +56,7 @@ TEST(test_vds_dht_network, test_protocol) {
     node1,
     node2,
     session_key);
-  session1->set_mtu(1024);
+  //session1->set_mtu(1024);
 
   auto session2 = std::make_shared<mock_unreliable_session>(
     sp,
@@ -64,7 +64,7 @@ TEST(test_vds_dht_network, test_protocol) {
     node2,
     node1,
     session_key);
-  session1->set_mtu(20 * 1024);
+  //session1->set_mtu(20 * 1024);
 
   auto transport12 = std::make_shared<mock_unreliable_transport>(*session2);
   auto transport21 = std::make_shared<mock_unreliable_transport>(*session1);
@@ -81,7 +81,7 @@ TEST(test_vds_dht_network, test_protocol) {
 
   for (int i = 0; i < 10000; ++i)
   {
-    const size_t size = std::rand();
+    const size_t size = std::rand() & 0xFFFFFFFF;
 
     vds::const_data_buffer message;
     message.resize(size);
@@ -121,7 +121,7 @@ TEST(test_vds_dht_network, test_protocol) {
     messages.push_back(std::make_tuple(message_type, message, target_node, source_node, hops));
   }
 
-  for (int i = 0; i < 1000; ++i)
+  for (int i = 0; i < messages.size(); ++i)
   {
     GET_EXPECTED_GTEST(
       isFinish,
@@ -133,7 +133,7 @@ TEST(test_vds_dht_network, test_protocol) {
         std::get<3>(messages[i]),
         std::get<4>(messages[i])));
     if (!isFinish) {
-      GTEST_ASSERT_LT(990, i);
+      GTEST_ASSERT_LT(messages.size() - 10, i);
     }
   }
 
@@ -142,7 +142,7 @@ TEST(test_vds_dht_network, test_protocol) {
 
 vds::async_task<vds::expected<void>> mock_unreliable_transport::write_async(const vds::udp_datagram & data)
 {
-  if (std::rand() < 10000)
+  if ((3 & std::rand()) == 0)
   {
     return vds::async_task<vds::expected<void>>(vds::expected<void>());
   }

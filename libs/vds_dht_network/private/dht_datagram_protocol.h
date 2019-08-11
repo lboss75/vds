@@ -47,7 +47,9 @@ namespace vds {
           mtu_(MIN_MTU),
           input_mtu_(0),
           last_output_index_(0),
-          last_input_index_(0) {
+          last_input_index_(0),
+          expected_index_(0),
+          last_processed_(std::chrono::steady_clock::now()){
         }
 
         void set_mtu(uint16_t value) {
@@ -62,7 +64,7 @@ namespace vds {
           CHECK_EXPECTED_ERROR(message);
           return this->send_message(s, message_type, target_node, message.value());
         }
-          vds::async_task<vds::expected<void>> send_message(
+        vds::async_task<vds::expected<void>> send_message(
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
           const const_data_buffer& target_node,
@@ -93,7 +95,7 @@ namespace vds {
         }
 
         vds::async_task<vds::expected<void>> proxy_message(
-          
+
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
           const const_data_buffer& target_node,
@@ -126,7 +128,7 @@ namespace vds {
             message);
         }
 
-        vds::async_task<vds::expected<void>> process_datagram(          
+        vds::async_task<vds::expected<void>> process_datagram(
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
 
@@ -142,61 +144,12 @@ namespace vds {
             this->input_mtu_ = datagram.size();
           }
 
-          if(protocol_message_type_t::MTUTest == static_cast<protocol_message_type_t>(*datagram.data())) {
+          if (protocol_message_type_t::MTUTest == static_cast<protocol_message_type_t>(*datagram.data())) {
             co_return vds::expected<void>();
           }
 
           if (protocol_message_type_t::Acknowledgment == static_cast<protocol_message_type_t>(*datagram.data())) {
-            uint32_t last_index =
-              (datagram.data()[1] << 24)
-              | (datagram.data()[1 + 1] << 16)
-              | (datagram.data()[1 + 2] << 8)
-              | (datagram.data()[1 + 3]);
-            for(;;){
-              auto p = this->output_messages_.begin();
-              if (this->output_messages_.end() == p) {
-                break;
-              }
-
-              if (p->first < last_index) {
-                this->output_messages_.erase(p);
-                this->last_sent_ = 0;
-              }
-              else {
-                break;
-              }
-            }
-
-            auto p = this->output_messages_.find(last_index);
-            if (this->output_messages_.end() != p) {
-              CHECK_EXPECTED_ASYNC(co_await s->write_async(udp_datagram(this->address_, p->second)));
-            }
-
-            uint32_t mask =
-              (datagram.data()[5] << 24)
-              | (datagram.data()[5 + 1] << 16)
-              | (datagram.data()[5 + 2] << 8)
-              | (datagram.data()[5 + 3]);
-
-            for (int i = 0; 0 != mask && i < 32; ++i) {
-              if (1 == (mask & 1)) {
-                p = this->output_messages_.find(last_index + i + 1);
-                if (this->output_messages_.end() != p) {
-                  CHECK_EXPECTED_ASYNC(co_await s->write_async(udp_datagram(this->address_, p->second)));
-                }
-              }
-
-              mask >>= 1;
-            }
-
-            auto mtu =
-                (datagram.data()[8 + 1] << 8)
-              | (datagram.data()[8 + 2]);
-            if (MIN_MTU < mtu) {
-              this->mtu_ = mtu;
-            }
-
-            co_return expected<void>();
+            co_return co_await this->process_acknowledgment(s, datagram);
           }
 
           if (datagram.size() < 33) {
@@ -229,27 +182,42 @@ namespace vds {
           }
           }
 
-           const auto index =
+          const auto index =
             (datagram.data()[1] << 24)
             | (datagram.data()[1 + 1] << 16)
             | (datagram.data()[1 + 2] << 8)
             | (datagram.data()[1 + 3]);
 
-           std::unique_lock<std::mutex> lock(this->input_mutex_);
-           bool is_new = (this->input_messages_.end() == this->input_messages_.find(index));
-           if (is_new) {
-             this->input_messages_[index] = datagram;
-           }
-           lock.unlock();
+          std::unique_lock<std::mutex> lock(this->input_mutex_);
 
-           if(is_new){
-             CHECK_EXPECTED_ASYNC(co_await this->continue_process_messages(s));
+          if (this->last_processed_ < std::chrono::steady_clock::now() - std::chrono::minutes(10)) {
+            co_return vds::make_unexpected<std::runtime_error>("Process timeout");
+          }
 
-             if (index > this->last_input_index_ + 32) {
-               CHECK_EXPECTED_ASYNC(co_await this->send_acknowledgment(s));
-             }
-           }
-           co_return expected<void>();
+          bool is_new = (this->input_messages_.end() == this->input_messages_.find(index));
+          if (is_new) {
+            this->sp_->get<logger>()->trace(
+              "DHT",
+              "%s->%s[%d] got %d(%d,%d,%d)",
+              base64::from_bytes(this->partner_node_id_).c_str(),
+              base64::from_bytes(this->this_node_id_).c_str(),
+              index,
+              (int)datagram.data()[0],
+              this->input_messages_.size(),
+              this->last_input_index_,
+              this->expected_index_);
+            this->input_messages_[index] = datagram;
+          }
+          lock.unlock();
+
+          if (is_new) {
+            CHECK_EXPECTED_ASYNC(co_await this->continue_process_messages(s));
+
+            if (index > this->expected_index_ + 32) {
+              CHECK_EXPECTED_ASYNC(co_await this->send_acknowledgment(s));
+            }
+          }
+          co_return expected<void>();
 
         }
 
@@ -274,13 +242,9 @@ namespace vds {
               resizable_data_buffer out_message;
               out_message.resize_data(this->mtu_ + 256);
               out_message.add((uint8_t)protocol_message_type_t::MTUTest);
-
+              out_message.apply_size(this->mtu_ + 255);
               (void)co_await s->write_async(udp_datagram(this->address_, out_message.move_data()));
             }
-          }
-          else if(this->mtu_ > 1024) {
-            this->mtu_ -= 256;
-            this->check_mtu_ = 0;
           }
 
           CHECK_EXPECTED_ASYNC(co_await this->send_acknowledgment(s));
@@ -301,18 +265,31 @@ namespace vds {
           resizable_data_buffer out_message;
           out_message.add((uint8_t)protocol_message_type_t::Acknowledgment);
 
-
           std::unique_lock<std::mutex> lock(this->input_mutex_);
           out_message.add((uint8_t)((this->last_input_index_) >> 24));//1
           out_message.add((uint8_t)((this->last_input_index_) >> 16));//1
           out_message.add((uint8_t)((this->last_input_index_) >> 8));//1
           out_message.add((uint8_t)((this->last_input_index_) & 0xFF));//1
 
+          this->sp_->get<logger>()->trace(
+            "DHT",
+            "%s->%s ask %d",
+            base64::from_bytes(this->this_node_id_).c_str(),
+            base64::from_bytes(this->partner_node_id_).c_str(),
+            this->last_input_index_);
+
           uint32_t mask = 0;
           for (int i = 32; i > 0; --i) {
             mask <<= 1;
 
             if (this->input_messages_.end() == this->input_messages_.find(this->last_input_index_ + i)) {
+              this->sp_->get<logger>()->trace(
+                "DHT",
+                "%s->%s mask %d",
+                base64::from_bytes(this->this_node_id_).c_str(),
+                base64::from_bytes(this->partner_node_id_).c_str(),
+                this->last_input_index_ + i);
+
               mask |= 1;
             }
           }
@@ -353,13 +330,15 @@ namespace vds {
 
         uint16_t mtu_;
         uint16_t input_mtu_;
-        
+
         std::mutex output_mutex_;
         uint32_t last_output_index_;
         std::map<uint32_t, const_data_buffer> output_messages_;
 
         std::mutex input_mutex_;
         uint32_t last_input_index_;
+        uint32_t expected_index_;
+        std::chrono::steady_clock::time_point last_processed_;
         std::map<uint32_t, const_data_buffer> input_messages_;
 
         vds::async_task<vds::expected<void>> send_message_async(
@@ -446,6 +425,15 @@ namespace vds {
             vds_assert(datagram.size() <= this->mtu_);
 
             this->output_messages_[this->last_output_index_] = datagram;
+            this->sp_->get<logger>()->trace(
+              "DHT",
+              "%s->%s[%d] sent %d(%d)",
+              base64::from_bytes(this->this_node_id_).c_str(),
+              base64::from_bytes(this->partner_node_id_).c_str(),
+              this->last_output_index_,
+              (int)datagram.data()[0],
+              this->output_messages_.size());
+
             this->last_output_index_++;
           }
           else {
@@ -515,6 +503,15 @@ namespace vds {
             vds_assert(datagram.size() <= this->mtu_);
 
             this->output_messages_[this->last_output_index_] = datagram;
+            this->sp_->get<logger>()->trace(
+              "DHT",
+              "%s->%s[%d] send %d(%d)",
+              base64::from_bytes(this->this_node_id_).c_str(),
+              base64::from_bytes(this->partner_node_id_).c_str(),
+              this->last_output_index_,
+              (int)datagram.data()[0],
+              this->output_messages_.size());
+
             this->last_output_index_++;
 
             for (;;) {
@@ -542,6 +539,15 @@ namespace vds {
 
               vds_assert(datagram.size() <= this->mtu_);
               this->output_messages_[this->last_output_index_] = datagram;
+              this->sp_->get<logger>()->trace(
+                "DHT",
+                "%s->%s[%d] send %d(%d)",
+                base64::from_bytes(this->this_node_id_).c_str(),
+                base64::from_bytes(this->partner_node_id_).c_str(),
+                this->last_output_index_,
+                (int)datagram.data()[0],
+                this->output_messages_.size());
+
               this->last_output_index_++;
 
               if (offset + size >= message.size()) {
@@ -557,7 +563,8 @@ namespace vds {
             this->failed_state_ = true;
             return make_unexpected<std::runtime_error>("Overflow pipeline");
           }
-          return std::make_tuple(start_index, this->last_output_index_);
+          auto final_index = this->last_output_index_;
+          return std::make_tuple(start_index, final_index);
         }
 
         vds::async_task<vds::expected<void>> continue_process_messages(
@@ -566,17 +573,21 @@ namespace vds {
           for (;;) {
             std::unique_lock<std::mutex> lock(this->input_mutex_);
 
+            while (this->input_messages_.end() != this->input_messages_.find(this->last_input_index_)) {
+              this->last_input_index_++;
+            }
+
             auto p = this->input_messages_.begin();
-            if (p == this->input_messages_.end() || p->first > this->last_input_index_) {
+            if (p == this->input_messages_.end() || p->first > this->expected_index_) {
               co_return expected<void>();
             }
 
-            if(p->first < this->last_input_index_) {
+            if(p->first < this->expected_index_) {
               this->input_messages_.erase(p);
               continue;
             }
 
-            //auto p = this->input_messages_.find(this->last_input_index_);
+            //auto p = this->input_messages_.find(this->expected_index_);
             //if (p == this->input_messages_.end()) {
             //  co_return expected<void>();
             //}
@@ -591,7 +602,6 @@ namespace vds {
               const_data_buffer target_node;
               const_data_buffer source_node;
               uint16_t hops;
-              uint32_t index;
               const_data_buffer message;
 
               switch (
@@ -629,27 +639,28 @@ namespace vds {
               }
 
               const auto message_size = message.size();
-              this->last_input_index_++;
+              this->expected_index_++;
+              this->last_processed_ = std::chrono::steady_clock::now();
               lock.unlock();
 
-              GET_EXPECTED_ASYNC(is_good, co_await static_cast<implementation_class *>(this)->process_message(
+              static_cast<implementation_class *>(this)->process_message(
                 s,
                 message_type,
                 target_node,
                 source_node,
                 hops,
-                message));
-
-              std::unique_lock<std::mutex> traffic_lock(this->traffic_mutex_);
-              if (is_good) {
-                this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
-                this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
-              }
-              else {
-                this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
-                this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
-              }
-              traffic_lock.unlock();
+                message).then([pthis = this->shared_from_this(), message_type, target_node, source_node, message_size](expected<bool> is_good) {
+                std::unique_lock<std::mutex> traffic_lock(pthis->traffic_mutex_);
+                if (is_good.has_value() && is_good.value()) {
+                  pthis->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
+                  pthis->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
+                }
+                else {
+                  pthis->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
+                  pthis->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
+                }
+                traffic_lock.unlock();
+              });
 
               break;
 
@@ -722,7 +733,7 @@ namespace vds {
 
               uint32_t index = 0;
               for (;;) {
-                auto p1 = this->input_messages_.find(this->last_input_index_ + ++index);
+                auto p1 = this->input_messages_.find(this->expected_index_ + ++index);
                 if (this->input_messages_.end() == p1) {
                   co_return expected<void>();
                 }
@@ -741,27 +752,28 @@ namespace vds {
 
                 if (0 == size) {
                   const auto message_size = message.size();
-                  this->last_input_index_ += index + 1;
+                  this->expected_index_ += index + 1;
+                  this->last_processed_ = std::chrono::steady_clock::now();
                   lock.unlock();
 
-                  GET_EXPECTED_ASYNC(is_good, co_await static_cast<implementation_class *>(this)->process_message(
+                  static_cast<implementation_class *>(this)->process_message(
                     s,
                     message_type,
                     target_node,
                     source_node,
                     hops,
-                    message.move_data()));
-
-                  std::unique_lock<std::mutex> traffic_lock(this->traffic_mutex_);
-                  if (is_good) {
-                    this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
-                    this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
-                  }
-                  else {
-                    this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
-                    this->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
-                  }
-                  traffic_lock.unlock();
+                    message.move_data()).then([pthis = this->shared_from_this(), message_type, target_node, source_node, message_size](expected<bool> is_good) {
+                    std::unique_lock<std::mutex> traffic_lock(pthis->traffic_mutex_);
+                    if (is_good.has_value() && is_good.value()) {
+                      pthis->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_count_++;
+                      pthis->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].good_traffic_ += message_size;
+                    }
+                    else {
+                      pthis->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_count_++;
+                      pthis->traffic_[base64::from_bytes(source_node)][base64::from_bytes(target_node)][message_type].bad_traffic_ += message_size;
+                    }
+                    traffic_lock.unlock();
+                  });
 
                   break;
                 }
@@ -770,15 +782,105 @@ namespace vds {
               break;
             }
             default: {
-              //auto p1 = this->input_messages_.find(this->last_input_index_ - 4);
-              //auto p2 = this->input_messages_.find(this->last_input_index_ - 3);
-              //auto p3 = this->input_messages_.find(this->last_input_index_ - 2);
-              //auto p4 = this->input_messages_.find(this->last_input_index_ - 1);
+              //auto p1 = this->input_messages_.find(this->expected_index_ - 4);
+              //auto p2 = this->input_messages_.find(this->expected_index_ - 3);
+              //auto p3 = this->input_messages_.find(this->expected_index_ - 2);
+              //auto p4 = this->input_messages_.find(this->expected_index_ - 1);
               vds_assert(false);
               break;
             }
             }
           }
+          co_return expected<void>();
+        }
+
+        vds::async_task<vds::expected<void>> process_acknowledgment(
+          const std::shared_ptr<transport_type>& s,
+          const const_data_buffer& datagram) {
+
+          this->output_mutex_.lock();
+
+          uint32_t last_index =
+            (datagram.data()[1] << 24)
+            | (datagram.data()[1 + 1] << 16)
+            | (datagram.data()[1 + 2] << 8)
+            | (datagram.data()[1 + 3]);
+
+          this->sp_->get<logger>()->trace(
+            "DHT",
+            "%s->%s acknowledgment %d",
+            base64::from_bytes(this->this_node_id_).c_str(),
+            base64::from_bytes(this->partner_node_id_).c_str(),
+            last_index);
+
+          for (;;) {
+            auto p = this->output_messages_.begin();
+            if (this->output_messages_.end() == p) {
+              break;
+            }
+
+            if (p->first < last_index) {
+              this->output_messages_.erase(p);
+              this->last_sent_ = 0;
+            }
+            else {
+              break;
+            }
+          }
+
+          auto p = this->output_messages_.find(last_index);
+          if (this->output_messages_.end() != p) {
+            this->output_mutex_.unlock();
+
+            this->sp_->get<logger>()->trace(
+              "DHT",
+              "%s->%s resend %d",
+              base64::from_bytes(this->this_node_id_).c_str(),
+              base64::from_bytes(this->partner_node_id_).c_str(),
+              last_index);
+
+            CHECK_EXPECTED_ASYNC(co_await s->write_async(udp_datagram(this->address_, p->second)));
+
+            this->output_mutex_.lock();
+          }
+
+          uint32_t mask =
+            (datagram.data()[5] << 24)
+            | (datagram.data()[5 + 1] << 16)
+            | (datagram.data()[5 + 2] << 8)
+            | (datagram.data()[5 + 3]);
+
+          for (int i = 0; 0 != mask && i < 32; ++i) {
+            if (1 == (mask & 1)) {
+              p = this->output_messages_.find(last_index + i + 1);
+              if (this->output_messages_.end() != p) {
+                this->output_mutex_.unlock();
+
+                this->sp_->get<logger>()->trace(
+                  "DHT",
+                  "%s->%s resend %d",
+                  base64::from_bytes(this->this_node_id_).c_str(),
+                  base64::from_bytes(this->partner_node_id_).c_str(),
+                  last_index + i + 1);
+
+                CHECK_EXPECTED_ASYNC(co_await s->write_async(udp_datagram(this->address_, p->second)));
+
+                this->output_mutex_.lock();
+              }
+            }
+
+            mask >>= 1;
+          }
+
+          auto mtu =
+            (datagram.data()[8 + 1] << 8)
+            | (datagram.data()[8 + 2]);
+          if (this->mtu_ < mtu) {
+            this->mtu_ = mtu;
+          }
+
+          this->output_mutex_.unlock();
+
           co_return expected<void>();
         }
       };

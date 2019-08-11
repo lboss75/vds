@@ -99,7 +99,6 @@ namespace vds {
         std::shared_ptr<asymmetric_public_key> node_public_key_;
         std::shared_ptr<asymmetric_private_key> node_key_;
         bool is_new_node_;
-        std::unique_ptr<async_task<expected<void>>> udp_transport_task_;
       };
     }
   }

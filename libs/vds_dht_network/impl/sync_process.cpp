@@ -1653,9 +1653,38 @@ vds::expected<void> vds::dht::network::sync_process::send_random_replicas(
       base64::from_bytes(client->current_node_id()).c_str(),
       base64::from_bytes(object_id).c_str(),
       base64::from_bytes(target_node).c_str());
+
+    std::map<const_data_buffer /*distance*/, std::list<const_data_buffer/*node_id*/>> neighbors;
+    CHECK_EXPECTED((*client)->neighbors(object_id, neighbors, 16));
+    for (const auto & distance : neighbors) {
+      for (const auto & neighbor : distance.second) {
+        if (
+          dht::dht_object_id::distance(object_id, neighbor) < dht::dht_object_id::distance(object_id, client->current_node_id())
+          && dht::dht_object_id::distance(object_id, neighbor) < dht::dht_object_id::distance(object_id, target_node)
+          ) {
+          this->sp_->get<logger>()->trace(
+            SyncModule,
+            "%s: replica %s request from %s redirected to %s",
+            base64::from_bytes(client->client::current_node_id()).c_str(),
+            base64::from_bytes(object_id).c_str(),
+            base64::from_bytes(target_node).c_str(),
+            base64::from_bytes(neighbor).c_str());
+
+          final_tasks.push_back([client, target_node, target = neighbor, object_id, exist_replicas]() {
+            return (*client)->redirect(
+              target,
+              target_node,
+              0,
+              message_create<messages::sync_replica_request>(
+                object_id,
+                exist_replicas));
+          });
+        }
+      }      
+    }
   }
   else {
-    if (t1.state.get(st) != orm::sync_state_dbo::state_t::leader) {
+    if (t1.state.get(st) != orm::sync_state_dbo::state_t::leader && t2.voted_for.get(st) != client->client::current_node_id()) {
       this->sp_->get<logger>()->trace(
         SyncModule,
         "%s: replica %s request from %s redirected to %s",
@@ -1673,7 +1702,6 @@ vds::expected<void> vds::dht::network::sync_process::send_random_replicas(
             object_id,
             exist_replicas));
       });
-
     }
     else {
       const auto generation = t2.generation.get(st);
