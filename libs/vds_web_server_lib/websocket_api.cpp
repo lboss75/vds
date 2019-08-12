@@ -12,6 +12,7 @@ All rights reserved
 #include "dht_network_client.h"
 #include "user_storage.h"
 #include "dht_network.h"
+#include "../private/dht_network_client_p.h"
 
 vds::websocket_api::websocket_api()
   : subscribe_timer_("WebSocket API Subscribe Timer")
@@ -179,6 +180,46 @@ vds::websocket_api::process_message(
 
     CHECK_EXPECTED_ASYNC(co_await this->broadcast(sp, r, body));
   }
+  else if ("get_channel_messages" == method_name) {
+    auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
+    if (!args || args->size() < 1) {
+      co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'get_channel_messages'");
+    }
+
+    auto channel_id_str = std::dynamic_pointer_cast<json_primitive>(args->get(0));
+    if (!channel_id_str) {
+      co_return make_unexpected<std::runtime_error>("missing channel_id argument at invoke method 'get_channel_messages'");
+    }
+
+    GET_EXPECTED_ASYNC(channel_id, base64::to_bytes(channel_id_str->value()));
+
+#undef max
+    int64_t last_id = std::numeric_limits<int64_t>::max();
+    int limit = 1000;
+
+    if (1 < args->size()) {
+      auto last_id_str = std::dynamic_pointer_cast<json_primitive>(args->get(1));
+      if (!last_id_str) {
+        co_return make_unexpected<std::runtime_error>("invalid last_id argument at invoke method 'get_channel_messages'");
+      }
+
+      last_id = _atoi64(last_id_str->value().c_str());
+    }
+
+    if (2 < args->size()) {
+      auto limit_str = std::dynamic_pointer_cast<json_primitive>(args->get(2));
+      if (!limit_str) {
+        co_return make_unexpected<std::runtime_error>("invalid limit argument at invoke method 'get_channel_messages'");
+      }
+
+      limit = atoi(limit_str->value().c_str());
+      if (limit > 1000) {
+        limit = 1000;
+      }
+    }
+
+    CHECK_EXPECTED_ASYNC(co_await this->get_channel_messages(sp, r, channel_id, last_id, limit));
+  }
   else if ("subscribe" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
     if (!args || args->size() < 2) {
@@ -286,14 +327,12 @@ vds::websocket_api::upload(const vds::service_provider * sp, std::shared_ptr<jso
         &final_tasks
       ](database_transaction & t)->expected<void> {
       auto network_client = sp->get<dht::network::client>();
-      GET_EXPECTED(info, network_client->save(t, final_tasks, body));
+      GET_EXPECTED(info, (*network_client)->save(t, final_tasks, body));
 
       auto res = std::make_shared<json_object>();
-      res->add_property("id", info.id);
-      res->add_property("key", info.key);
-      
+     
       auto replicas = std::make_shared<json_array>();
-      for (const auto & p : info.object_ids) {
+      for (const auto & p : info) {
         replicas->add(std::make_shared<json_primitive>(base64::from_bytes(p)));
       }
       res->add_property("replicas", replicas);
@@ -349,6 +388,60 @@ vds::async_task<vds::expected<void>> vds::websocket_api::devices(
   auto result_json = result.value().serialize();
  
   res->add_property("result", result_json);
+  co_return expected<void>();
+}
+
+vds::async_task<vds::expected<void>> vds::websocket_api::get_channel_messages(
+  const vds::service_provider * sp,
+  std::shared_ptr<json_object> result,
+  const_data_buffer channel_id,
+  int64_t last_id,
+  int limit)
+{
+  auto items = std::make_shared<json_array>();
+
+  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction(
+    [
+      sp,
+      this_ = this->weak_from_this(),
+      channel_id,
+      items,
+      last_id,
+      limit
+    ](database_read_transaction & t)->expected<void> {
+
+    auto pthis = this_.lock();
+    if (!pthis) {
+      return expected<void>();
+    }
+
+    orm::channel_message_dbo t1;
+    GET_EXPECTED(st, t.get_reader(t1.select(t1.id, t1.block_id, t1.channel_id, t1.read_id, t1.write_id, t1.crypted_key, t1.crypted_data, t1.signature)
+      .where(t1.channel_id == channel_id && t1.id < last_id).order_by(db_desc_order(t1.id))));
+    WHILE_EXPECTED(st.execute())
+    {
+      auto item = std::make_shared<json_object>();
+      item->add_property("id", t1.id.get(st));
+      item->add_property("block_id", t1.block_id.get(st));
+      item->add_property("channel_id", t1.channel_id.get(st));
+      item->add_property("read_id", t1.read_id.get(st));
+      item->add_property("write_id", t1.write_id.get(st));
+      item->add_property("crypted_key", t1.crypted_key.get(st));
+      item->add_property("crypted_data", t1.crypted_data.get(st));
+      item->add_property("signature", t1.signature.get(st));
+
+      items->add(item);
+
+      if (limit < items->size()) {
+        break;
+      }
+    }
+    WHILE_EXPECTED_END()
+
+      return expected<void>();
+  }));
+
+  result->add_property("result", items);
   co_return expected<void>();
 }
 

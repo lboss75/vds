@@ -27,7 +27,7 @@ namespace vds {
       {
       }
 
-      database_column<int> id;
+      database_column<int64_t> id;
       database_column<const_data_buffer, std::string> block_id;
       database_column<const_data_buffer, std::string> channel_id;
       database_column<const_data_buffer, std::string> read_id;

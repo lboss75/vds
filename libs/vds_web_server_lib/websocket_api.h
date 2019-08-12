@@ -82,6 +82,13 @@ namespace vds {
       std::shared_ptr<json_object> result,
       const_data_buffer owner_id);
 
+    async_task<expected<void>> get_channel_messages(
+      const vds::service_provider * sp,
+      std::shared_ptr<json_object> result,
+      const_data_buffer channel_id,
+      int64_t last_id,
+      int limit);
+
     async_task<expected<void>> download(
       const vds::service_provider * sp,
       std::shared_ptr<json_object> result,
