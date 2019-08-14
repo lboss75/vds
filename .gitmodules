@@ -1,0 +1,3 @@
+[submodule "modules/vds_web"]
+	path = modules/vds_web
+	url = https://gitlab.com/lboss75/vds_web.git
