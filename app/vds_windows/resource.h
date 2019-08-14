@@ -26,6 +26,7 @@
 #define IDS_SIZE_POSTFIXES              138
 #define IDI_SMALL_RED                   139
 #define IDS_SIZE_FORMAT                 139
+#define IDD_INITIAL_SETTINGS            141
 #define IDC_EDIT1                       1000
 #define IDC_LOGIN_EDIT                  1000
 #define IDC_EDIT2                       1001
@@ -38,6 +39,8 @@
 #define IDC_SETTINGS_BUTTON             1008
 #define IDC_SLIDER1                     1009
 #define IDC_DISKUSAGE_STATIC            1010
+#define IDC_EDIT3                       1012
+#define IDC_RESERVED_SIZE               1012
 #define ID_POPUP_WEB32771               32771
 #define ID_POPUP_32772                  32772
 #define ID_POPUP_32773                  32773
@@ -55,9 +58,9 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
-#define _APS_NEXT_RESOURCE_VALUE        140
+#define _APS_NEXT_RESOURCE_VALUE        142
 #define _APS_NEXT_COMMAND_VALUE         32781
-#define _APS_NEXT_CONTROL_VALUE         1011
+#define _APS_NEXT_CONTROL_VALUE         1013
 #define _APS_NEXT_SYMED_VALUE           110
 #endif
 #endif

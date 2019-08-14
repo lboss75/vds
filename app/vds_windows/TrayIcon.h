@@ -50,5 +50,7 @@ private:
   void show_logindlg();
 
   void update_icon_state();
+
+  bool show_InitialSettings();
 };
 

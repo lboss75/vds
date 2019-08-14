@@ -25,7 +25,7 @@ All rights reserved
 #include "current_config_dbo.h"
 
 vds::dht::network::client::client()
-: is_new_node_(true) {
+: is_new_node_(true), port_(0) {
 }
 
 vds::expected<std::shared_ptr<vds::dht::network::_client>> vds::dht::network::_client::create(
@@ -898,6 +898,8 @@ vds::expected<void> vds::dht::network::client::start(
   uint16_t port,
   bool dev_network) {
 
+  this->port_ = port;
+  
   udp_transport->start(
     sp,
     this->node_public_key_,

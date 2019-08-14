@@ -19,6 +19,8 @@ All rights reserved
 #include "vds_parser.h"
 #include "vds_crypto.h"
 
+#include "current_config_dbo.h"
+
 #define ThisModule "WebServer"
 
 #endif // __VDS_WEB_SERVER_LIB_STDAFX_H_

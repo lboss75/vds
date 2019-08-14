@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "TrayIcon.h"
 #include "StringUtils.h"
+#include "InitSettingsDlg.h"
 
 TrayIcon::TrayIcon()
 : auth_state_(AuthState::AS_NOT_INITIED),
@@ -25,21 +26,18 @@ TrayIcon::~TrayIcon()
 bool TrayIcon::create(HINSTANCE hInst) {
 
   auto sp = this->registrator_.build();
-  if(sp.has_error()) {
-    MessageBoxA(NULL, sp.error()->what(), "VDS Distributed System", MB_ICONERROR);
+  if(!check(sp)) {
     return false;
   }
   this->sp_ = sp.value();
 
   auto start_result = this->registrator_.start();
-  if (start_result.has_error()) {
-    MessageBoxA(NULL, start_result.error()->what(), "VDS Distributed System", MB_ICONERROR);
+  if (!check(start_result)) {
     return false;
   }
 
   start_result = this->server_.start_network(8050, true).get();
-  if (start_result.has_error()) {
-    MessageBoxA(NULL, start_result.error()->what(), "VDS Distributed System", MB_ICONERROR);
+  if (!check(start_result)) {
     return false;
   }
 
@@ -83,6 +81,34 @@ bool TrayIcon::create(HINSTANCE hInst) {
   nid.uTimeout = 5000;
 
   Shell_NotifyIcon(NIM_MODIFY, &nid);
+
+  bool disk_allocated = false;
+  auto result = this->sp_->get<vds::db_model>()->async_read_transaction(
+    [this, &disk_allocated](vds::database_read_transaction & t) -> vds::expected<void> {
+
+    auto client = this->sp_->get<vds::dht::network::client>();
+
+    vds::orm::current_config_dbo t1;
+    GET_EXPECTED(st, t.get_reader(
+      t1
+      .select(t1.owner_id)
+      .where(t1.node_id == client->current_node_id())));
+    GET_EXPECTED(st_result, st.execute());
+
+    if (st_result && t1.owner_id.get(st).size() > 0) {
+      disk_allocated = true;
+    }
+
+    return vds::expected<void>();
+  }).get();
+
+  if (!check(result)) {
+    return false;
+  }
+
+  if (!disk_allocated) {
+    return this->show_InitialSettings();
+  }
 
   return true;
 }
@@ -166,12 +192,8 @@ LRESULT CALLBACK TrayIcon::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
     {
 	case WM_LBUTTONUP: {
 		auto pthis = reinterpret_cast<TrayIcon *>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
-		if (pthis->auth_state_ == AuthState::AS_LOGGED_IN) {
-
-		}
-		else {
-			pthis->show_logindlg();
-		}
+    auto url = std::string("http://localhost:") + std::to_string(pthis->sp_->get<vds::dht::network::client>()->port());
+    ShellExecuteA(0, 0, url.c_str(), 0, 0, SW_SHOW);
 		break;
 	}
     case WM_RBUTTONUP:
@@ -366,6 +388,77 @@ void TrayIcon::update_icon_state()
 	}
 
 	Shell_NotifyIcon(NIM_MODIFY, &nid);
+}
+
+bool TrayIcon::show_InitialSettings()
+{
+  auto current_user = vds::persistence::current_user(this->sp_);
+  if (!check(current_user)) {
+    return false;
+  }
+
+  auto storage_folder = vds::foldername(current_user.value(), "storage").local_name();
+
+  for (;;) {
+    InitSettingsDlg dlg;
+
+    dlg.login(this->login_);
+    dlg.password(this->password_);
+    dlg.storage_path(storage_folder);
+
+    if (!dlg.show_dialog(this->hInst_)) {
+      return false;
+    }
+
+    this->login_ = dlg.login();
+    this->password_ = dlg.password();
+    this->auth_state_ = AuthState::AS_LOGGING_IN;
+    this->session_ = std::make_shared<vds::user_manager>(this->sp_);
+    auto result = this->sp_->get<vds::db_model>()->async_read_transaction(
+      [this](vds::database_read_transaction & t) -> vds::expected<void> {
+      return this->session_->load(t, StringUtils::to_string(this->login_.c_str()), StringUtils::to_string(this->password_.c_str()));
+    }).get();
+
+    if (!check(result)) {
+      return false;
+    }
+
+    if(vds::user_manager::login_state_t::login_successful == this->session_->get_login_state()) {
+      this->auth_state_ = AuthState::AS_LOGGED_IN;
+      this->update_icon_state();
+
+      vds::foldername f(dlg.storage_path());
+      
+      if (!check(f.create())) {
+        return false;
+      }
+
+      auto body = vds::user_storage::device_storage_label(this->session_);
+      if (!check(body)) {
+        return false;
+      }
+
+      auto file_body = body.value()->str();
+      if (!check(file_body)) {
+        return false;
+      }
+
+      vds::filename fn(f, ".vds_storage.json");
+      if (!check(vds::file::write_all(fn, vds::const_data_buffer(file_body.value().c_str(), file_body.value().size())))) {
+        return false;
+      }
+
+      if (!check(vds::user_storage::set_device_storage(this->sp_, this->session_, dlg.storage_path(), dlg.reserved_size() * 1024 * 1024 * 1024).get())) {
+        return false;
+      }
+
+      return true;
+    }
+    else {
+      MessageBoxA(NULL, "Логин или пароль не зарегистрированы", "Виртуальное хранение файлов", MB_ICONERROR);
+    }
+  }
+  return false;
 }
 
 bool TrayIcon::isDialogMessage(MSG& msg) {

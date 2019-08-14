@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "targetver.h"
 
@@ -37,3 +37,19 @@ namespace std {
 #include "web_server.h"
 #include "user_manager.h"
 #include "db_model.h"
+#include "current_config_dbo.h"
+#include "dht_network_client.h"
+#include "persistence.h"
+#include "user_storage.h"
+#include "filename.h"
+
+template<typename result_type>
+inline bool check(const vds::expected<result_type> & result)
+{
+  if (result.has_error()) {
+    MessageBoxA(NULL, result.error()->what(), "Виртуальное хранение файлов", MB_ICONERROR);
+    return false;
+  }
+
+  return true;
+}

@@ -8,7 +8,7 @@ add_subdirectory(vds_cmd)
 add_subdirectory(vds_updater)
 endif(CMAKE_SYSTEM_NAME STREQUAL 'Android')
 
-add_subdirectory(vds_embedded)
+#add_subdirectory(vds_embedded)
 
 IF(MSVC)
 

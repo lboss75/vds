@@ -94,11 +94,14 @@ namespace vds {
 
         void update_wellknown_connection_enabled(bool value);
 
+        uint16_t port() const { return this->port_; }
+
       private:
         std::shared_ptr<_client> impl_;
         std::shared_ptr<asymmetric_public_key> node_public_key_;
         std::shared_ptr<asymmetric_private_key> node_key_;
         bool is_new_node_;
+        uint16_t port_;
       };
     }
   }

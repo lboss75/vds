@@ -67,6 +67,7 @@ vds::async_task<vds::expected<void>> vds::server::prepare_to_stop() {
 vds::async_task<vds::expected<vds::server_statistic>> vds::server::get_statistic() const {
   return this->impl_->get_statistic();
 }
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 vds::_server::_server(server * owner)
 : owner_(owner),
