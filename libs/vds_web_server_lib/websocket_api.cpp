@@ -172,7 +172,7 @@ vds::websocket_api::process_message(
     }
 
     auto body_str = std::dynamic_pointer_cast<json_primitive>(args->get(0));
-    if (!body_str) {
+    if (!body_str || body_str->value().empty()) {
       co_return make_unexpected<std::runtime_error>("missing body argument at invoke method 'broadcast'");
     }
 
