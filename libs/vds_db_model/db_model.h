@@ -13,20 +13,10 @@ namespace vds {
   class db_model {
   public:
     vds::async_task<vds::expected<void>> async_transaction(
-        const std::function<expected<void>(class database_transaction & t)> & handler);
+        lambda_holder_t<expected<void>, class database_transaction &> handler);
 
 		vds::async_task<vds::expected<void>> async_read_transaction(
-				const std::function<expected<void>(class database_read_transaction & t)> & handler);
-
-    async_task<vds::expected<void>> async_transaction(
-      const char * file_name,
-      int line,
-      const std::function<expected<void>(class database_transaction & t)> & handler);
-
-    vds::async_task<vds::expected<void>> async_read_transaction(
-      const char * file_name,
-      int line,
-      const std::function<expected<void>(class database_read_transaction & t)> & handler);
+      lambda_holder_t<expected<void>, class database_read_transaction &> handler);
 
     expected<void> start(const service_provider * sp);
     expected<void> stop();

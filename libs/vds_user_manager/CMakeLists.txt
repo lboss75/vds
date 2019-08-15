@@ -4,7 +4,6 @@ cmake_minimum_required(VERSION 2.6.2)
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB SOURCE_LIB *.cpp)
-FILE(GLOB TRANSACTION_FILES ../vds_transactions/transactions/*.cpp ../vds_transactions/transactions/*.h)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
@@ -12,7 +11,6 @@ add_library(vds_user_manager
 	STATIC
 		${PRIVATE_HEADER_FILES}
 		${SOURCE_LIB}
-		${TRANSACTION_FILES}
 		${HEADER_FILES})
 
 target_include_directories(vds_user_manager

@@ -124,7 +124,7 @@ static vds::expected<void> transfer_asset(
     }
 
     GET_EXPECTED(log, vds::transactions::transaction_block_builder::create(sp, t));
-    CHECK_EXPECTED(wallets.front()->transfer(log, issuer, currency, source_transaction, source_wallet, target_wallet, value));
+    CHECK_EXPECTED(wallets.front()->transfer(log, issuer, currency, source_transaction, target_wallet, value, std::string(), std::string()));
     CHECK_EXPECTED(sp->get<vds::dht::network::client>()->save(sp, log, t));
 
     return vds::expected<void>();

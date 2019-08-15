@@ -10,6 +10,7 @@ All rights reserved
 #include "vds_exceptions.h"
 #include "user_manager.h"
 #include "user_wallet.h"
+#include "mutual_settlements.h"
 
 namespace vds {
   class _user_manager : public std::enable_shared_from_this<_user_manager> {
@@ -91,6 +92,7 @@ namespace vds {
     std::map<const_data_buffer, std::shared_ptr<user_channel>> channels_;
     std::map<const_data_buffer, std::shared_ptr<asymmetric_public_key>> certificate_chain_;
     std::list<std::shared_ptr<user_wallet>> wallets_;
+    std::shared_ptr<mutual_settlements> mutual_settlements_;
 
     expected<bool> process_create_user_transaction(
       const transactions::create_user_transaction & message);

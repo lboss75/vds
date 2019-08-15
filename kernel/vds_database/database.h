@@ -110,10 +110,10 @@ namespace vds {
     expected<void> close();
 
     vds::async_task<vds::expected<void>> async_transaction(
-      const std::function<expected<bool>(database_transaction & tr)> & callback);
+      lambda_holder_t<expected<bool>, class database_transaction &> callback);
 
     vds::async_task<vds::expected<void>> async_read_transaction(
-      const std::function<expected<void>(database_read_transaction & tr)> & callback);
+      lambda_holder_t<expected<void>, class database_read_transaction &> callback);
 
     vds::async_task<vds::expected<void>> prepare_to_stop();
 

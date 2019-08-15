@@ -1,40 +1,16 @@
 #include "stdafx.h"
 #include "db_model.h"
 
-vds::async_task<vds::expected<void>> vds::db_model::async_transaction(const std::function<expected<void>(vds::database_transaction &)> &handler) {
-  return this->db_.async_transaction([handler](database_transaction & t)->expected<bool> {
-    CHECK_EXPECTED(handler(t));
+vds::async_task<vds::expected<void>> vds::db_model::async_transaction(lambda_holder_t<expected<void>, class database_transaction &> handler) {
+  return this->db_.async_transaction([h = std::move(handler)](database_transaction & t)->expected<bool> {
+    CHECK_EXPECTED(h(t));
     return true;
   });
 }
 
 vds::async_task<vds::expected<void>> vds::db_model::async_read_transaction(
-    const std::function<expected<void>(vds::database_read_transaction &)> &handler) {
-  return this->db_.async_read_transaction(handler);
-}
-
-vds::async_task<vds::expected<void>> vds::db_model::async_transaction(
-  const char * file_name,
-  int line,
-  const std::function<expected<void>(vds::database_transaction &)> &handler) {
-  return this->db_.async_transaction([handler, file_name, line, sp = this->sp_](database_transaction & t)->expected<bool> {
-    sp->get<logger>()->trace(ThisModule, "Start Transaction %s:%d", file_name, line);
-    CHECK_EXPECTED(handler(t));
-    sp->get<logger>()->trace(ThisModule, "Finish transaction %s:%d", file_name, line);
-    return true;
-  });
-}
-
-vds::async_task<vds::expected<void>> vds::db_model::async_read_transaction(
-  const char * file_name,
-  int line,
-  const std::function<expected<void>(vds::database_read_transaction &)> &handler) {
-  return this->db_.async_read_transaction([handler, file_name, line, sp = this->sp_](database_read_transaction & t)->expected<void> {
-    sp->get<logger>()->trace(ThisModule, "Start Transaction %s:%d", file_name, line);
-    CHECK_EXPECTED(handler(t));
-    sp->get<logger>()->trace(ThisModule, "Finish transaction %s:%d", file_name, line);
-    return expected<void>();
-  });
+  lambda_holder_t<expected<void>, class database_read_transaction &> handler) {
+  return this->db_.async_read_transaction(std::move(handler));
 }
 
 vds::expected<void> vds::db_model::start(const service_provider * sp)

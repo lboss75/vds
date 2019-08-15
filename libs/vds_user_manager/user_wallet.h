@@ -38,9 +38,20 @@ namespace vds {
       const const_data_buffer & issuer,
       const std::string & currency,
       const const_data_buffer & source_transaction,
-      const const_data_buffer & source_wallet,
       const const_data_buffer & target_wallet,
-      uint64_t value);
+      uint64_t value,
+      const std::string & payment_type,
+      const std::string & notes);
+
+    expected<uint64_t> transfer(
+      transactions::transaction_block_builder& log,
+      database_read_transaction & t,
+      const const_data_buffer & issuer,
+      const std::string & currency,
+      const const_data_buffer & target_wallet,
+      uint64_t value,
+      const std::string & payment_type,
+      const std::string & notes);
 
     expected<void> asset_issue(
       transactions::transaction_block_builder& log,

@@ -46,23 +46,60 @@ vds::expected<void> vds::user_wallet::transfer(
   const const_data_buffer & issuer,
   const std::string & currency,
   const const_data_buffer & source_transaction,
-  const const_data_buffer & source_wallet,
   const const_data_buffer & target_wallet,
-  uint64_t value) {
+  uint64_t value,
+  const std::string & payment_type,
+  const std::string & notes) {
 
   GET_EXPECTED(wallet_id, this->public_key().fingerprint());
 
-  GET_EXPECTED(data, transactions::payment_transaction::signature_data(issuer, currency, source_transaction, source_wallet, target_wallet, value));
+  GET_EXPECTED(data, transactions::payment_transaction::signature_data(issuer, currency, source_transaction, wallet_id, target_wallet, value, payment_type, notes));
   GET_EXPECTED(signature, asymmetric_sign::signature(hash::sha256(), this->private_key(), data));
   
   return log.add(message_create<transactions::payment_transaction>(
     issuer,
     currency,
     source_transaction,
-    source_wallet,
+    wallet_id,
     target_wallet,
     value,
+    payment_type,
+    notes,
     signature));
+}
+
+vds::expected<uint64_t> vds::user_wallet::transfer(
+  transactions::transaction_block_builder & log,
+  database_read_transaction & t,
+  const const_data_buffer & issuer,
+  const std::string & currency,
+  const const_data_buffer & target_wallet,
+  uint64_t value,
+  const std::string & payment_type,
+  const std::string & notes)
+{
+  GET_EXPECTED(wallet_id, this->public_key().fingerprint());
+
+  uint64_t result = 0;
+
+  orm::datacoin_balance_dbo t1;
+  GET_EXPECTED(st, t.get_reader(t1.select(t1.source_transaction, t1.confirmed_balance).where(t1.owner == wallet_id && t1.issuer == issuer && t1.currency == currency)));
+  WHILE_EXPECTED(st.execute()) {
+    auto v = t1.confirmed_balance.get(st);
+    if (v > value - result) {
+      v = value - result;
+    }
+
+    CHECK_EXPECTED(this->transfer(log, issuer, currency, t1.source_transaction.get(st), target_wallet, v, payment_type, notes));
+    result += v;
+
+    if (result == value) {
+      break;
+    }
+  }
+  WHILE_EXPECTED_END()
+
+  return expected<uint64_t>(result);
 }
 
 vds::expected<void> vds::user_wallet::asset_issue(

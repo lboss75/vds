@@ -19,7 +19,7 @@ vds::mock_database::~mock_database()
 }
 
 vds::async_task<vds::expected<void>> vds::mock_database::async_transaction(
-  const std::function<expected<bool> (vds::mock_database_transaction & t)> & callback)
+  lambda_holder_t<expected<bool>, class database_transaction &> callback)
 {
   mock_database_transaction t{ std::shared_ptr<_database>() };
   CHECK_EXPECTED_ASYNC(callback(t));
@@ -27,7 +27,7 @@ vds::async_task<vds::expected<void>> vds::mock_database::async_transaction(
 }
 
 vds::async_task<vds::expected<void>>  vds::mock_database::async_read_transaction(
-  const std::function<expected<void>(vds::mock_database_read_transaction & t)> & callback)
+  lambda_holder_t<expected<void>, class database_read_transaction &> callback)
 {
   mock_database_read_transaction t{ std::shared_ptr<_database>() };
   co_return callback(t);

@@ -22,6 +22,8 @@ namespace vds {
       const_data_buffer source_wallet;
       const_data_buffer target_wallet;
       uint64_t value;
+      std::string payment_type;
+      std::string notes;
       const_data_buffer signature;
 
       template <typename visitor_t>
@@ -33,6 +35,8 @@ namespace vds {
           source_wallet,
           target_wallet,
           value,
+          payment_type,
+          notes,
           signature);
       }
 
@@ -42,7 +46,9 @@ namespace vds {
         const const_data_buffer & source_transaction,
         const const_data_buffer & source_wallet,
         const const_data_buffer & target_wallet,
-        uint64_t value);
+        uint64_t value,
+        const std::string & payment_type,
+        const std::string & notes);
       
       expected<const_data_buffer> signature_data() const {
         return signature_data(
@@ -51,7 +57,9 @@ namespace vds {
           this->source_transaction,
           this->source_wallet,
           this->target_wallet,
-          this->value);
+          this->value,
+          this->payment_type,
+          this->notes);
       }
     };
 
@@ -104,6 +112,51 @@ namespace vds {
       }
 
     };
+
+    class payment_request_transaction {
+    public:
+      static const transaction_id message_id = transaction_id::payment_request_transaction;
+
+      const_data_buffer issuer;
+      std::string currency;
+      const_data_buffer target_wallet;
+      uint64_t value;
+      std::string payment_type;
+      std::string notes;
+      const_data_buffer signature;
+
+      template <typename visitor_t>
+      void visit(visitor_t & v) {
+        v(
+          issuer,
+          currency,
+          target_wallet,
+          value,
+          payment_type,
+          notes,
+          signature);
+      }
+
+      static expected<const_data_buffer> signature_data(
+        const const_data_buffer & issuer,
+        const std::string & currency,
+        const const_data_buffer & target_wallet,
+        uint64_t value,
+        const std::string & payment_type,
+        const std::string & notes);
+
+      expected<const_data_buffer> signature_data() const {
+        return signature_data(
+          this->issuer,
+          this->currency,
+          this->target_wallet,
+          this->value,
+          this->payment_type,
+          this->notes);
+      }
+    };
+
+
   }
 }
 

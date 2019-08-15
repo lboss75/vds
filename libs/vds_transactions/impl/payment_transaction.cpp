@@ -7,7 +7,9 @@ vds::transactions::payment_transaction::signature_data(
   const const_data_buffer & source_transaction,
   const const_data_buffer & source_wallet,
   const const_data_buffer & target_wallet,
-  uint64_t value)
+  uint64_t value,
+  const std::string & payment_type,
+  const std::string & notes)
 {
   binary_serializer s;
   CHECK_EXPECTED(s << (uint8_t)message_id);
@@ -17,6 +19,8 @@ vds::transactions::payment_transaction::signature_data(
   CHECK_EXPECTED(s << source_wallet);
   CHECK_EXPECTED(s << target_wallet);
   CHECK_EXPECTED(s << value);
+  CHECK_EXPECTED(s << payment_type);
+  CHECK_EXPECTED(s << notes);
 
   return s.move_data();
 }

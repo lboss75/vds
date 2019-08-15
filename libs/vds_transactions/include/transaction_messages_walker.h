@@ -10,6 +10,7 @@ All rights reserved
 #include "channel_message.h"
 #include "create_user_transaction.h"
 #include "node_manager_transactions.h"
+#include "store_block_transaction.h"
 
 namespace vds {
   namespace transactions {
@@ -37,6 +38,10 @@ namespace vds {
       }
 
       virtual expected<bool> visit(const asset_issue_transaction & /*message*/) {
+        return true;
+      }
+
+      virtual expected<bool> visit(const store_block_transaction & /*message*/) {
         return true;
       }
 
@@ -90,6 +95,14 @@ namespace vds {
             }
             case transactions::asset_issue_transaction::message_id: {
               GET_EXPECTED(message, message_deserialize<asset_issue_transaction>(s));
+              GET_EXPECTED(result, this->visit(message));
+              if (!result) {
+                return false;
+              }
+              break;
+            }
+            case transactions::store_block_transaction::message_id: {
+              GET_EXPECTED(message, message_deserialize<store_block_transaction>(s));
               GET_EXPECTED(result, this->visit(message));
               if (!result) {
                 return false;

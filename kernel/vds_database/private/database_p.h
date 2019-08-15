@@ -273,10 +273,10 @@ namespace vds {
     }
 
     async_task<expected<void>> async_read_transaction(
-      const std::function<expected<void>(database_read_transaction & tr)> & callback) {
+      lambda_holder_t<expected<void>, class database_read_transaction &> callback_) {
 
       auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
-      this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback]() -> expected<void> {
+      this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback = std::move(callback_)]() -> expected<void> {
         thread_protect protect;
 
         database_read_transaction tr(pthis);
@@ -296,10 +296,10 @@ namespace vds {
     }
 
     async_task<expected<void>> async_transaction(
-      const std::function<expected<bool>(database_transaction & tr)> & callback) {
+      lambda_holder_t<expected<bool>, class database_transaction &> callback_) {
       auto r = std::make_shared<vds::async_result<vds::expected<void>>>();
 
-      this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback]() -> expected<void> {
+      this->execute_queue_->schedule([pthis = this->shared_from_this(), r, callback = std::move(callback_)]() -> expected<void> {
         thread_protect protect;
         CHECK_EXPECTED(pthis->execute("BEGIN TRANSACTION"));
 

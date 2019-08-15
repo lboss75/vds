@@ -514,9 +514,47 @@ vds::expected<void> vds::_user_manager::update(
         return this->process_create_user_transaction(message);
       },
       [this, &new_channels, tp = block.time_point()](const transactions::channel_message  & message)->expected<bool>{
-      return this->process_channel_message(message, new_channels, tp);
-    }
+        return this->process_channel_message(message, new_channels, tp);
+      },
+      [this, &block](const transactions::store_block_transaction & message)->expected<bool> {
+        if (!this->user_cert_) {
+          return expected<bool>(true);
+        }
+
+        GET_EXPECTED(user_id, this->user_cert_->fingerprint());
+
+        if (message.owner_id != user_id) {
+          return expected<bool>(true);
+        }
+
+        CHECK_EXPECTED(this->mutual_settlements_->update(block, message));
+        return expected<bool>(true);
+      },
+      [this, &block](const transactions::payment_transaction & message)->expected<bool> {
+        if (message.payment_type != "mutual_settlements") {
+          return expected<bool>(true);
+        }
+
+        bool my_wallet = false;
+        for (const auto & wallet : this->wallets()) {
+          GET_EXPECTED(wallet_id, wallet->public_key().fingerprint());
+          if (wallet_id == message.source_wallet) {
+            my_wallet = true;
+          }
+        }
+
+        if (!my_wallet) {
+          return expected<bool>(true);
+        }
+
+        CHECK_EXPECTED(this->mutual_settlements_->update(block, message));
+        return expected<bool>(true);
+      }
     ));
+  }
+
+  if (new_records.empty()) {
+    CHECK_EXPECTED(this->mutual_settlements_->calculate(this->sp_, this->wallets(), t));
   }
   
   return expected<void>();

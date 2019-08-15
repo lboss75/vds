@@ -24,19 +24,19 @@ namespace vds {
       //vds_assert(this->task_queue_.empty());
     }
 
-    void schedule(const std::function<expected<void>(void)> & callback) {
+    void schedule(lambda_holder_t<expected<void>> callback) {
       std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
       vds_assert(!this->is_stopping_);
 
       const auto need_start = this->task_queue_.empty();
-      this->task_queue_.push(callback);
+      this->task_queue_.push(std::move(callback));
       lock.unlock();
 
       if(need_start) {
         mt_service::async(this->sp_, [pthis = this->shared_from_this()]() {
           for (;;) {
             std::unique_lock<std::mutex> lock(pthis->task_queue_mutex_);
-            auto f = pthis->task_queue_.front();
+            auto & f = pthis->task_queue_.front();
             lock.unlock();
 
             auto callback_result = f();
@@ -86,7 +86,7 @@ namespace vds {
     const service_provider * sp_;
     bool is_stopping_;
     mutable std::mutex task_queue_mutex_;
-    std::queue<std::function<expected<void>(void)>> task_queue_;
+    std::queue<lambda_holder_t<expected<void>>> task_queue_;
     std::unique_ptr<async_result<expected<void>>> empty_query_;
   };
 }
