@@ -97,7 +97,7 @@ vds::expected<vds::member_user> vds::_member_user::create_user(
   auto user_cert = std::make_shared<asymmetric_public_key>(std::move(c));
 
   GET_EXPECTED(user_private_key_der, private_key->der(user_password));
-  GET_EXPECTED(user_id, dht::dht_object_id::user_credentials_to_key(user_email, user_password));
+  GET_EXPECTED(user_id, dht::dht_object_id::user_credentials_to_key(user_password));
   CHECK_EXPECTED(log.add(
     message_create<transactions::create_user_transaction>(
       user_id,

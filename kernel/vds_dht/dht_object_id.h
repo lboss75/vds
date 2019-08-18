@@ -114,16 +114,14 @@ namespace vds {
         return from_string("my.records.channel:" + user_email);
       }
 
-      static expected<std::string> user_credentials_to_key(const std::string & user_email, const std::string & user_password) {
+      static expected<std::string> user_credentials_to_key(const std::string & user_password) {
         GET_EXPECTED(sig, hash::signature(hash::sha256(), user_password.c_str(), user_password.length()));
-        return user_credentials_to_key(user_email, sig);
+        return user_credentials_to_key(sig);
       }
 
-      static std::string user_credentials_to_key(const std::string & user_email, const const_data_buffer & password_hash) {
+      static std::string user_credentials_to_key(const const_data_buffer & password_hash) {
         auto ph = base64::from_bytes(password_hash);
-        return "credentials:"
-          + std::to_string(user_email.length()) + "." + user_email + ","
-          + std::to_string(ph.length()) + "." + ph;
+        return std::to_string(ph.length()) + "." + ph;
       }
 
     private:

@@ -108,12 +108,17 @@ vds::websocket_api::process_message(
       co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'login'");
     }
 
-    auto login_cred = std::dynamic_pointer_cast<json_primitive>(args->get(0));
+    auto login = std::dynamic_pointer_cast<json_primitive>(args->get(0));
+    if (!login) {
+      co_return make_unexpected<std::runtime_error>("missing login argument at invoke method 'login'");
+    }
+
+    auto login_cred = std::dynamic_pointer_cast<json_primitive>(args->get(1));
     if (!login_cred) {
       co_return make_unexpected<std::runtime_error>("missing login argument at invoke method 'login'");
     }
 
-    CHECK_EXPECTED_ASYNC(co_await this->login(sp, r, login_cred->value()));
+    CHECK_EXPECTED_ASYNC(co_await this->login(sp, r, login->value(), login_cred->value()));
   }
   else if ("upload" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
@@ -267,12 +272,17 @@ vds::websocket_api::process_message(
 vds::async_task<vds::expected<void>> vds::websocket_api::login(
   const vds::service_provider * sp,
   std::shared_ptr<json_object> result,
+  std::string login,
   std::string login_cred)
 {
+  std::string result_str("User not found");
+
 	CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction(
 		[
+      login,
       login_cred,
-			result
+			result,
+      &result_str
 		](database_read_transaction & t)->expected<void> {
 
 		orm::transaction_log_record_dbo t1;
@@ -285,31 +295,34 @@ vds::async_task<vds::expected<void>> vds::websocket_api::login(
 			GET_EXPECTED(block, transactions::transaction_block::create(data));
 
 			CHECK_EXPECTED(block.walk_messages(
-        [login_cred, &result](const transactions::create_user_transaction & message)->expected<bool> {
-        if (login_cred == message.user_credentials_key) {
-          
-          auto res = std::make_shared<json_object>();
-          CHECK_EXPECTED(res->add_property("public_key", message.user_public_key->str()));
-          res->add_property("private_key", base64::from_bytes(message.user_private_key));
+        [login, login_cred, &result, &result_str](const transactions::create_user_transaction & message)->expected<bool> {
+        if (login == message.user_name) {
+          if (login_cred == message.user_credentials_key) {
 
-          result->add_property("result", res);
+            auto res = std::make_shared<json_object>();
+            CHECK_EXPECTED(res->add_property("public_key", message.user_public_key->str()));
+            res->add_property("private_key", base64::from_bytes(message.user_private_key));
 
-          return false;
+            result->add_property("result", res);
+
+            return false;
+          }
+          else {
+            result_str = "Invalid password";
+          }
         }
-        else
-        {
-          return true;
-        }
+
+        return true;
       }));
 
 
 			WHILE_EXPECTED_END()
 
-				return expected<void>();
+			return expected<void>();
 	}));
 
   if (!result->get_property("result")) {
-    result->add_property("error", "User not found");
+    result->add_property("error", result_str);
   }
 
 	co_return expected<void>();

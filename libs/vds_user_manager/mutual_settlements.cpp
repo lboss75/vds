@@ -40,6 +40,10 @@ vds::expected<void> vds::mutual_settlements::calculate(
   const std::list<std::shared_ptr<vds::user_wallet>>& wallets,
   database_read_transaction & t)
 {
+  if (nullptr == this) {
+    return expected<void>();
+  }
+
   if (this->last_calculate_ < std::chrono::steady_clock::now() - std::chrono::hours(1)) {
     return expected<void>();
   }

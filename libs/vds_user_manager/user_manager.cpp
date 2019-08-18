@@ -84,7 +84,7 @@ vds::expected<void> vds::user_manager::reset(
     //Create root user
     GET_EXPECTED(root_user, _member_user::create_user(
       playback,
-      "root",
+      root_user_name,
       root_user_name,
       root_password,
       private_info.root_private_key_));
@@ -290,7 +290,7 @@ vds::async_task<vds::expected<void>> vds::user_manager::create_user(
       userPassword
     ](database_transaction & t)->expected<void> {
 
-    GET_EXPECTED(user_id, dht::dht_object_id::user_credentials_to_key(userEmail, userPassword));
+    GET_EXPECTED(user_id, dht::dht_object_id::user_credentials_to_key(userPassword));
     GET_EXPECTED(user_private_key, vds::asymmetric_private_key::generate(
       vds::asymmetric_crypto::rsa4096()));
     GET_EXPECTED(user_private_key_der, user_private_key.der(userPassword));
@@ -338,16 +338,16 @@ vds::expected<void> vds::_user_manager::create(
     const std::string & user_password) {
   this->sp_ = sp;
   this->login_state_ = user_manager::login_state_t::waiting;
-  GET_EXPECTED_VALUE(this->user_credentials_key_, dht::dht_object_id::user_credentials_to_key(user_login, user_password));
+  GET_EXPECTED_VALUE(this->user_credentials_key_, dht::dht_object_id::user_credentials_to_key(user_password));
+  this->user_name_ = user_login;
   this->user_password_ = user_password;
   return expected<void>();
 }
 
 vds::expected<bool> vds::_user_manager::process_create_user_transaction(
   const transactions::create_user_transaction & message) {
-  if (this->user_credentials_key_ == message.user_credentials_key) {
+  if (this->user_credentials_key_ == message.user_credentials_key && this->user_name_ == message.user_name) {
     this->user_cert_ = message.user_public_key;
-    this->user_name_ = message.user_name;
 
     GET_EXPECTED(user_private_key, asymmetric_private_key::parse_der(message.user_private_key, this->user_password_));
     this->user_private_key_ = std::make_shared<asymmetric_private_key>(std::move(user_private_key));

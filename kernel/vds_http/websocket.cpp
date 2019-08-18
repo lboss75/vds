@@ -219,7 +219,7 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
     buffer[1] = (uint8_t)message_size;
     offset = 2;
   }
-  else if (message_size < 0x7FFF)
+  else if (message_size <= 0xFFFF)
   {
     buffer[1] = 126;
     buffer[2] = (uint8_t)((message_size >> 8) & 0xFF);

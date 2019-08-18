@@ -60,6 +60,7 @@ namespace vds {
 		async_task<expected<void>> login(
       const vds::service_provider * sp,
       std::shared_ptr<json_object> result,
+      std::string login,
       std::string login_cred);
 
     async_task<expected<void>> upload(
