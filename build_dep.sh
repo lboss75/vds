@@ -16,8 +16,8 @@ cd externals
 svn co http://llvm.org/svn/llvm-project/llvm/trunk llvm
 
 cd llvm/projects
-svn co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
-svn co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
+svn -q co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx
+svn -q co http://llvm.org/svn/llvm-project/libcxxabi/trunk libcxxabi
 cd ..
 
 set +e

@@ -1,0 +1,15 @@
+version: '3'
+services:
+  web:
+    build:
+        context: .
+        dockerfile: deploy/Dockerfile.web
+    ports:
+        - "8125:80"
+
+  api:
+    build:
+        context: .
+        dockerfile: deploy/Dockerfile.api
+    ports:
+        - "8050:8050"
