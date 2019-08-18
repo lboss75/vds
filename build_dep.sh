@@ -13,7 +13,7 @@ export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -fPIC"
 export LDFLAGS="-lstdc++ -Wl"
 cd externals
 
-svn co http://llvm.org/svn/llvm-project/llvm/trunk llvm
+svn -q co http://llvm.org/svn/llvm-project/llvm/trunk llvm
 
 cd llvm/projects
 svn -q co http://llvm.org/svn/llvm-project/libcxx/trunk libcxx

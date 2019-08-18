@@ -27,8 +27,6 @@ build-ubuntu:
 build-web:
     image: ubuntu:16.04
     stage: build
-    except:
-        - master
     script:
         - apt-get -qq update
         - apt-get install -y sudo curl git
