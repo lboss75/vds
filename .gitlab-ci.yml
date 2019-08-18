@@ -39,7 +39,7 @@ build-web:
        GIT_SUBMODULE_STRATEGY: recursive
     artifacts:
         paths:
-            - modules/vds_web/src/dist
+            - modules/vds_web/src/frontend/build
 
 deploy-web:
     stage: deploy
