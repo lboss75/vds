@@ -850,6 +850,10 @@ vds::expected<void> vds::vds_cmd_app::storage_list(
 
   return this->device_list_out(response_body);
 }
+#undef max
+inline int max(int a, int b){
+    return (a > b) ? a : b;
+}
 
 vds::expected<void> vds::vds_cmd_app::device_list_out(const const_data_buffer & response_body) {
   if (this->output_format_.value() == "json") {
