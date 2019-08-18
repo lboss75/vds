@@ -196,7 +196,7 @@ namespace vds {
 
           bool is_new = (this->input_messages_.end() == this->input_messages_.find(index));
           if (is_new) {
-            this->sp_->get<logger>()->trace(
+            this->sp_->template get<logger>()->trace(
               "DHT",
               "%s->%s[%d] got %d(%d,%d,%d)",
               base64::from_bytes(this->partner_node_id_).c_str(),
@@ -271,7 +271,7 @@ namespace vds {
           out_message.add((uint8_t)((this->last_input_index_) >> 8));//1
           out_message.add((uint8_t)((this->last_input_index_) & 0xFF));//1
 
-          this->sp_->get<logger>()->trace(
+          this->sp_->template get<logger>()->trace(
             "DHT",
             "%s->%s ask %d",
             base64::from_bytes(this->this_node_id_).c_str(),
@@ -283,7 +283,7 @@ namespace vds {
             mask <<= 1;
 
             if (this->input_messages_.end() == this->input_messages_.find(this->last_input_index_ + i)) {
-              this->sp_->get<logger>()->trace(
+              this->sp_->template get<logger>()->trace(
                 "DHT",
                 "%s->%s mask %d",
                 base64::from_bytes(this->this_node_id_).c_str(),
@@ -425,7 +425,7 @@ namespace vds {
             vds_assert(datagram.size() <= this->mtu_);
 
             this->output_messages_[this->last_output_index_] = datagram;
-            this->sp_->get<logger>()->trace(
+            this->sp_->template get<logger>()->trace(
               "DHT",
               "%s->%s[%d] sent %d(%d)",
               base64::from_bytes(this->this_node_id_).c_str(),
@@ -503,7 +503,7 @@ namespace vds {
             vds_assert(datagram.size() <= this->mtu_);
 
             this->output_messages_[this->last_output_index_] = datagram;
-            this->sp_->get<logger>()->trace(
+            this->sp_->template get<logger>()->trace(
               "DHT",
               "%s->%s[%d] send %d(%d)",
               base64::from_bytes(this->this_node_id_).c_str(),
@@ -539,7 +539,7 @@ namespace vds {
 
               vds_assert(datagram.size() <= this->mtu_);
               this->output_messages_[this->last_output_index_] = datagram;
-              this->sp_->get<logger>()->trace(
+              this->sp_->template get<logger>()->trace(
                 "DHT",
                 "%s->%s[%d] send %d(%d)",
                 base64::from_bytes(this->this_node_id_).c_str(),
@@ -806,7 +806,7 @@ namespace vds {
             | (datagram.data()[1 + 2] << 8)
             | (datagram.data()[1 + 3]);
 
-          this->sp_->get<logger>()->trace(
+          this->sp_->template get<logger>()->trace(
             "DHT",
             "%s->%s acknowledgment %d",
             base64::from_bytes(this->this_node_id_).c_str(),
@@ -832,7 +832,7 @@ namespace vds {
           if (this->output_messages_.end() != p) {
             this->output_mutex_.unlock();
 
-            this->sp_->get<logger>()->trace(
+            this->sp_->template get<logger>()->trace(
               "DHT",
               "%s->%s resend %d",
               base64::from_bytes(this->this_node_id_).c_str(),
@@ -856,7 +856,7 @@ namespace vds {
               if (this->output_messages_.end() != p) {
                 this->output_mutex_.unlock();
 
-                this->sp_->get<logger>()->trace(
+                this->sp_->template get<logger>()->trace(
                   "DHT",
                   "%s->%s resend %d",
                   base64::from_bytes(this->this_node_id_).c_str(),
