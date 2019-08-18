@@ -32,11 +32,11 @@ build-web:
         - apt-get install -y sudo curl git
         - curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
         - apt-get install -y nodejs
-        - git clone https://gitlab+deploy-token-71826:hR6fCJT16swUhzMz3TSe@gitlab.com/TrustyTeam/vuex-bitshares client-front-end/vuex-bitshares
         - cd modules/vds_web/src/frontend
         - npm install
         - npm run build
-
+    variables:
+       GIT_SUBMODULE_STRATEGY: recursive
     artifacts:
         paths:
             - modules/vds_web/src/dist
