@@ -414,7 +414,9 @@ vds::app::app(): logger_(log_level::ll_info, std::unordered_set<std::string>()),
                  current_command_set_(nullptr),
                  help_cmd_set_("Show help", "Show application help", "help"),
                  help_cmd_switch_("h", "help", "Help", "Show help") {
+#ifdef _WIN32
   the_app_ = this;
+#endif
 
 }
 
