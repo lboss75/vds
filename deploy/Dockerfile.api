@@ -1,4 +1,4 @@
 FROM ubuntu:16.04
-COPY build/app/vds_web_server/vds_web_server .
+COPY build/app/vds_web_server .
 ENTRYPOINT ["vds_web_server", "service", "start"]
 EXPOSE 8050
