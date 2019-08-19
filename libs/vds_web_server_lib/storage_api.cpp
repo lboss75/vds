@@ -36,7 +36,6 @@ vds::async_task<vds::expected<std::shared_ptr<vds::json_value>>> vds::storage_ap
 vds::async_task<vds::expected<void>> vds::storage_api::add_device_storage(
   const vds::service_provider * sp,
   const std::shared_ptr<user_manager> & user_mng,
-  const std::string & name,
   const std::string & local_path,
   uint64_t reserved_size){ 
   return user_storage::set_device_storage(sp, user_mng, local_path, reserved_size);

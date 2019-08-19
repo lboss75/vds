@@ -36,7 +36,7 @@ bool TrayIcon::create(HINSTANCE hInst) {
     return false;
   }
 
-  start_result = this->server_.start_network(8050, true).get();
+  start_result = this->server_.start_network(8050, false).get();
   if (!check(start_result)) {
     return false;
   }

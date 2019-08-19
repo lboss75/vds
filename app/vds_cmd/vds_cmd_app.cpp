@@ -29,6 +29,8 @@ vds::vds_cmd_app::vds_cmd_app()
   channel_create_cmd_set_("Channel create", "Create new channel", "create", "channel"),
   storage_list_cmd_set_("Storage list", "List user storages", "list", "storage"),
   storage_add_cmd_set_("Storage add", "Add user storage", "add", "storage"),
+  storage_request_cmd_set_("Storage request", "Create storage request file", "request", "storage"),
+  storage_approve_cmd_set_("Storage approve", "Approve storage", "approve", "storage"),
   user_login_(
     "l",
     "login",
@@ -157,6 +159,20 @@ vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
     CHECK_EXPECTED(this->logout(sp, client, session));
     CHECK_EXPECTED(client->close().get());
   }
+  else if (this->current_command_set_ == &this->storage_request_cmd_set_) {
+    GET_EXPECTED(client, this->connect(sp));
+    GET_EXPECTED(session, this->login(sp, client));
+    CHECK_EXPECTED(this->storage_request(sp, client, session));
+    CHECK_EXPECTED(this->logout(sp, client, session));
+    CHECK_EXPECTED(client->close().get());
+  }
+  else if (this->current_command_set_ == &this->storage_approve_cmd_set_) {
+    GET_EXPECTED(client, this->connect(sp));
+    GET_EXPECTED(session, this->login(sp, client));
+    CHECK_EXPECTED(this->storage_approve(sp, client, session));
+    CHECK_EXPECTED(this->logout(sp, client, session));
+    CHECK_EXPECTED(client->close().get());
+  }
 
   return expected<void>();
 }
@@ -224,6 +240,20 @@ void vds::vds_cmd_app::register_command_line(command_line & cmd_line)
   this->storage_add_cmd_set_.optional(this->server_);
   this->storage_add_cmd_set_.required(this->storage_folder_);
   this->storage_add_cmd_set_.optional(this->storage_size_);
+
+  cmd_line.add_command_set(this->storage_request_cmd_set_);
+  this->storage_request_cmd_set_.required(this->user_login_);
+  this->storage_request_cmd_set_.required(this->user_password_);
+  this->storage_request_cmd_set_.optional(this->server_);
+  this->storage_request_cmd_set_.required(this->output_folder_);
+
+  cmd_line.add_command_set(this->storage_approve_cmd_set_);
+  this->storage_approve_cmd_set_.required(this->user_login_);
+  this->storage_approve_cmd_set_.required(this->user_password_);
+  this->storage_approve_cmd_set_.optional(this->server_);
+  this->storage_approve_cmd_set_.required(this->storage_folder_);
+  this->storage_approve_cmd_set_.optional(this->storage_size_);
+
 
   //cmd_line.add_command_set(this->server_init_command_set_);
   //this->server_init_command_set_.required(this->user_login_);
@@ -938,4 +968,43 @@ vds::expected<void> vds::vds_cmd_app::storage_add(const service_provider * sp, c
     return expected<std::shared_ptr<stream_output_async<uint8_t>>>();
   }).get();
 
+}
+
+vds::expected<void> vds::vds_cmd_app::storage_request(const service_provider * sp, const std::shared_ptr<http_client>& client, const std::string & session)
+{
+  filename fn(foldername(this->output_folder_.value()), ".vds_storage.json");
+  GET_EXPECTED(f, file_stream_output_async::create(fn, file::file_mode::open_or_create));
+  return client->send(
+    http_message(
+      "GET",
+      "/api/devices/label?session=" + url_encode::encode(session)),
+    [f](http_message response) -> async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
+
+    http_response label_response(std::move(response));
+
+    if (label_response.code() != http_response::HTTP_OK) {
+      return vds::make_unexpected<std::runtime_error>("Get label failed");
+    }
+
+    return expected<std::shared_ptr<stream_output_async<uint8_t>>>(f);
+  }).get();
+}
+
+vds::expected<void> vds::vds_cmd_app::storage_approve(const service_provider * sp, const std::shared_ptr<http_client>& client, const std::string & session)
+{
+  return client->send(
+    http_message(
+      "POST",
+      "/api/devices?session=" + url_encode::encode(session)
+      + "&size=" + url_encode::encode(this->storage_size_.value())
+      + "&path=" + url_encode::encode(this->storage_folder_.value())
+    ),
+    [](http_message response) -> async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
+
+    if (http_response(response).code() != http_response::HTTP_OK) {
+      return vds::make_unexpected<std::runtime_error>("Allocate storage failed");
+    }
+
+    return expected<std::shared_ptr<stream_output_async<uint8_t>>>();
+  }).get();
 }

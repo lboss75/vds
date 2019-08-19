@@ -5,4 +5,5 @@ COPY dist/libc++abi.so.1 /usr/lib/
 COPY dist/libcrypto.so.1.1 /usr/lib/
 COPY dist/libssl.so.1.1 /usr/lib/
 ENTRYPOINT ["./vds_web_server", "server", "start"]
-EXPOSE 8050
+EXPOSE 8050/udp
+EXPOSE 8050/tcp
