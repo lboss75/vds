@@ -12,17 +12,15 @@ build-ubuntu:
         - mkdir build
         - ./build.sh
         - mkdir dist
-        - mkdir libs
         - cp build/app/vds_web_server/vds_web_server dist
-        - cp /usr/lib/libc++.so.1 libs
-        - cp /usr/lib/libc++.so libs
-        - cp /usr/lib/libc++abi.so.1 libs
-        - cp externals/openssl-out/lib/libcrypto.so.1.1 libs
-        - cp externals/openssl-out/lib/libssl.so.1.1 libs
+        - cp /usr/lib/libc++.so.1 dist
+        - cp /usr/lib/libc++.so dist
+        - cp /usr/lib/libc++abi.so.1 dist
+        - cp externals/openssl-out/lib/libcrypto.so.1.1 dist
+        - cp externals/openssl-out/lib/libssl.so.1.1 dist
     artifacts:
         paths:
           - dist
-          - libs
 
 deploy-api:
     stage: deploy

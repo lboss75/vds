@@ -1,8 +1,8 @@
 FROM ubuntu:16.04
 COPY dist/vds_web_server .
-COPY libs/libc++.so.1 /usr/lib/
-COPY libs/libc++abi.so.1 /usr/lib/
-COPY libs/libcrypto.so.1.1 /usr/lib/
-COPY libs/libssl.so.1.1 /usr/lib/
+COPY dist/libc++.so.1 /usr/lib/
+COPY dist/libc++abi.so.1 /usr/lib/
+COPY dist/libcrypto.so.1.1 /usr/lib/
+COPY dist/libssl.so.1.1 /usr/lib/
 ENTRYPOINT ["./vds_web_server", "service", "start"]
 EXPOSE 8050
