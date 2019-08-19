@@ -4,5 +4,7 @@ services:
     build:
         context: .
         dockerfile: deploy/Dockerfile.api
+    volumes:
+      - /vds/:/.vds/
     ports:
         - "8050:8050"

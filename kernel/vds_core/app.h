@@ -91,12 +91,11 @@ namespace vds{
       SERVICE_STATUS          gSvcStatus;
       SERVICE_STATUS_HANDLE   gSvcStatusHandle;
       HANDLE                  ghSvcStopEvent;
+      static BOOL WINAPI CtrlHandler(DWORD fdwCtrlType);
 
     void service_main();
 
     void SvcInit();
-
-    void waiting_stop_signal();
 
     VOID ReportSvcStatus(DWORD dwCurrentState,
                          DWORD dwWin32ExitCode,
@@ -114,9 +113,8 @@ static expected<void> demonize(const foldername & root_folder, const std::string
 
       static void signalHandler(int /*signum*/);
 
-      void waiting_stop_signal();
-
 #endif // _WIN32
+      void waiting_stop_signal(bool is_service);
 
   private:
       command_line_set help_cmd_set_;
