@@ -286,7 +286,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
       }
       else {
         session_info.session_mutex_.unlock();
-        co_return vds::make_unexpected<std::runtime_error>("Invalid protocol");
+        continue;
       }
       break;
     }
