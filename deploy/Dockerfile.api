@@ -4,5 +4,5 @@ COPY dist/libc++.so.1 /usr/lib/
 COPY dist/libc++abi.so.1 /usr/lib/
 COPY dist/libcrypto.so.1.1 /usr/lib/
 COPY dist/libssl.so.1.1 /usr/lib/
-ENTRYPOINT ["./vds_web_server", "service", "start"]
+ENTRYPOINT ["./vds_web_server", "server", "start"]
 EXPOSE 8050
