@@ -11,18 +11,18 @@ build-ubuntu:
         - ./build_dep.sh
         - mkdir build
         - ./build.sh
+        - mkdir dist
+        - mkdir libs
+        - cp build/app/vds_web_server/vds_web_server dist
+        - cp /usr/lib/libc++.so.1 libs
+        - cp /usr/lib/libc++.so libs
+        - cp /usr/lib/libc++abi.so.1 libs
+        - cp externals/openssl-out/lib/libcrypto.so.1.1 libs
+        - cp externals/openssl-out/lib/libssl.so.1.1 libs
     artifacts:
         paths:
-          - build/tests/test_vds_core/test_vds_core
-          - build/tests/test_vds_crypto/test_vds_crypto
-          - build/tests/test_vds_data/test_vds_data
-          - build/tests/test_vds_database/test_vds_database
-          - build/tests/test_vds_dht_network/test_vds_dht_network
-          - build/tests/test_vds_network/test_vds_network
-          - build/tests/test_vds_parser/test_vds_parser
-          - build/tests/test_vds_scenarios/test_vds_scenarios
-          - build/tests/test_vds_user_manager/test_vds_user_manager
-          - build/app/vds_web_server/vds_web_server
+          - dist
+          - libs
 
 deploy-api:
     stage: deploy
