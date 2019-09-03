@@ -119,7 +119,6 @@ namespace vds {
 
     static async_task<expected<void>> create_user(
       const service_provider * sp,
-      const std::string& userName,
       const std::string& userEmail,
       const std::string& userPassword);
 

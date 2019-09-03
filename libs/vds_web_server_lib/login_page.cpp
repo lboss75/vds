@@ -23,20 +23,17 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
 
 	return parser->parse(message, [sp, output_stream, parser]() -> vds::async_task<vds::expected<void>> {
 
-		auto userName = parser->values().find("userName");
 		auto userEmail = parser->values().find("userEmail");
 		auto userPassword = parser->values().find("userPassword");
 
 		if (
-			userName == parser->values().end()
-			|| userEmail == parser->values().end()
+			userEmail == parser->values().end()
 			|| userPassword == parser->values().end()) {
 			CHECK_EXPECTED_ASYNC(co_await http_response::redirect(output_stream, "/error/?code=InvalidRegister"));
 		}
 		else {
 			CHECK_EXPECTED_ASYNC(co_await user_manager::create_user(
 				sp,
-				userName->second,
 				userEmail->second,
 				userPassword->second));
 

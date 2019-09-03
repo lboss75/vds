@@ -359,7 +359,6 @@ TEST(test_vds_dht_network, test_datacoin_protocol) {
 
     CHECK_EXPECTED_GTEST(vds::user_manager::create_user(
       mock.get_sp(4),
-      "User 1",
       user_name,
       user_password).get());
     GET_EXPECTED_GTEST(create_user1_transaction, get_new_transaction(mock.get_sp(4), transactions));

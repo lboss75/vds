@@ -130,7 +130,7 @@ namespace vds {
 
         vds::async_task<vds::expected<void>> process_datagram(
           const std::shared_ptr<transport_type>& s,
-          const const_data_buffer& datagram) {
+          const_data_buffer datagram) {
 
           if (this->failed_state_) {
             co_return make_unexpected<std::runtime_error>("failed state");
@@ -206,7 +206,7 @@ namespace vds {
               this->input_messages_.size(),
               this->last_input_index_,
               this->expected_index_);
-            this->input_messages_[index] = datagram;
+            this->input_messages_[index] = std::move(datagram);
           }
           lock.unlock();
 
@@ -214,11 +214,12 @@ namespace vds {
             CHECK_EXPECTED_ASYNC(co_await this->continue_process_messages(s));
 
             if (index > this->expected_index_ + 32) {
-              CHECK_EXPECTED_ASYNC(co_await this->send_acknowledgment(s));
+              mt_service::async(this->sp_, [pthis = this->shared_from_this(), s](){
+                pthis->send_acknowledgment(s).then([](expected<void>) {});
+              });
             }
           }
           co_return expected<void>();
-
         }
 
         const network_address& address() const {
@@ -357,7 +358,16 @@ namespace vds {
             message));
 
           for (uint32_t start_index = std::get<0>(indexes); start_index < std::get<1>(indexes); ++start_index) {
-            CHECK_EXPECTED_ASYNC(co_await s->write_async(udp_datagram(this->address_, this->output_messages_[start_index])));
+            std::unique_lock<std::mutex> lock(this->output_mutex_);
+            auto p = this->output_messages_.find(start_index);
+            if (this->output_messages_.end() == p) {
+              continue;
+            }
+
+            udp_datagram datagram(this->address_, p->second);
+            lock.unlock();
+
+            CHECK_EXPECTED_ASYNC(co_await s->write_async(datagram));
           }
           co_return expected<void>();
         }
@@ -424,7 +434,7 @@ namespace vds {
             const_data_buffer datagram = buffer.move_data();
             vds_assert(datagram.size() <= this->mtu_);
 
-            this->output_messages_[this->last_output_index_] = datagram;
+            this->output_messages_.emplace(this->last_output_index_, datagram);
             this->sp_->get<logger>()->trace(
               "DHT",
               "%s->%s[%d] sent %d(%d)",
@@ -502,7 +512,7 @@ namespace vds {
             const_data_buffer datagram = buffer.move_data();
             vds_assert(datagram.size() <= this->mtu_);
 
-            this->output_messages_[this->last_output_index_] = datagram;
+            this->output_messages_.emplace(this->last_output_index_, datagram);
             this->sp_->get<logger>()->trace(
               "DHT",
               "%s->%s[%d] send %d(%d)",
@@ -538,7 +548,7 @@ namespace vds {
               const_data_buffer datagram = buffer.move_data();
 
               vds_assert(datagram.size() <= this->mtu_);
-              this->output_messages_[this->last_output_index_] = datagram;
+              this->output_messages_.emplace(this->last_output_index_, datagram);
               this->sp_->get<logger>()->trace(
                 "DHT",
                 "%s->%s[%d] send %d(%d)",
@@ -830,6 +840,7 @@ namespace vds {
 
           auto p = this->output_messages_.find(last_index);
           if (this->output_messages_.end() != p) {
+            udp_datagram datagram(this->address_, p->second);
             this->output_mutex_.unlock();
 
             this->sp_->get<logger>()->trace(
@@ -839,7 +850,7 @@ namespace vds {
               base64::from_bytes(this->partner_node_id_).c_str(),
               last_index);
 
-            CHECK_EXPECTED_ASYNC(co_await s->write_async(udp_datagram(this->address_, p->second)));
+            CHECK_EXPECTED_ASYNC(co_await s->write_async(datagram));
 
             this->output_mutex_.lock();
           }
@@ -854,6 +865,7 @@ namespace vds {
             if (1 == (mask & 1)) {
               p = this->output_messages_.find(last_index + i + 1);
               if (this->output_messages_.end() != p) {
+                udp_datagram datagram(this->address_, p->second);
                 this->output_mutex_.unlock();
 
                 this->sp_->get<logger>()->trace(
@@ -863,7 +875,7 @@ namespace vds {
                   base64::from_bytes(this->partner_node_id_).c_str(),
                   last_index + i + 1);
 
-                CHECK_EXPECTED_ASYNC(co_await s->write_async(udp_datagram(this->address_, p->second)));
+                CHECK_EXPECTED_ASYNC(co_await s->write_async(datagram));
 
                 this->output_mutex_.lock();
               }

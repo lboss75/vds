@@ -64,6 +64,7 @@ private:
     auto __result = (v);\
     if(__result.has_error()) { \
       GTEST_FATAL_FAILURE_(__result.error()->what());\
+      return;\
     }\
     var = std::move(__result.value());\
   }
@@ -73,6 +74,7 @@ private:
   std::remove_reference<decltype(__result ## var.value())>::type var;\
   if(__result ## var.has_error()) { \
     GTEST_FATAL_FAILURE_(__result ## var.error()->what());\
+    return;\
   }\
   var = std::move(__result ## var.value());
 

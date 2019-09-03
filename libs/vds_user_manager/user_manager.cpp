@@ -278,14 +278,12 @@ const std::shared_ptr<vds::asymmetric_private_key> & vds::user_manager::get_curr
 
 vds::async_task<vds::expected<void>> vds::user_manager::create_user(
   const service_provider * sp,
-  const std::string& userName,
   const std::string& userEmail,
   const std::string& userPassword) {
 
   return sp->get<db_model>()->async_transaction(
     [
       sp,
-      userName,
       userEmail,
       userPassword
     ](database_transaction & t)->expected<void> {
@@ -304,7 +302,7 @@ vds::async_task<vds::expected<void>> vds::user_manager::create_user(
         user_id,
         std::make_shared<asymmetric_public_key>(std::move(user_public_key)),
         user_private_key_der,
-        userName)));
+        userEmail)));
 
     //auto channel_id = dht::dht_object_id::generate_random_id();
 

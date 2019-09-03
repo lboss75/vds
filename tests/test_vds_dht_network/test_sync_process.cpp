@@ -273,11 +273,11 @@ vds::expected<void> test_server::start(const std::shared_ptr<transport_hab> & ha
 
     vds::orm::current_config_dbo t1;
     CHECK_EXPECTED(t.execute(
-      t1.insert(
-        t1.node_id = current_node,
+      t1.update(
         t1.local_path = fl.full_name(),
         t1.owner_id = vds::const_data_buffer(owner_id, sizeof(owner_id)),
-        t1.reserved_size = 1024 * 1024 * 1024)));
+        t1.reserved_size = 1024 * 1024 * 1024)
+    .where(t1.node_id == current_node)));
     return vds::expected<void>();
   }).get());
 

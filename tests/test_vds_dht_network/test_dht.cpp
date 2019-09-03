@@ -85,8 +85,8 @@ TEST(test_vds_dht_network, test_protocol) {
 
     vds::const_data_buffer message;
     message.resize(size);
-    for (size_t i = 0; i < size; ++i) {
-      message[i] = static_cast<uint8_t>(std::rand());
+    for (size_t b = 0; b < size; ++b) {
+      message[b] = static_cast<uint8_t>(std::rand());
     }
 
     uint8_t message_type = (uint8_t)std::rand() % 32;
