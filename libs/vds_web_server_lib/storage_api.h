@@ -30,7 +30,6 @@ namespace vds {
     add_device_storage(
       const vds::service_provider * sp,
       const std::shared_ptr<user_manager> & user_mng,
-      const std::string &name,
       const std::string &local_path,
       uint64_t reserved_size);
   };

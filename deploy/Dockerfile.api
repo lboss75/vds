@@ -1,4 +1,9 @@
 FROM ubuntu:16.04
-COPY build/app/vds_web_server/vds_web_server .
-ENTRYPOINT ["vds_web_server", "service", "start"]
-EXPOSE 8050
+COPY dist/vds_web_server .
+COPY dist/libc++.so.1 /usr/lib/
+COPY dist/libc++abi.so.1 /usr/lib/
+COPY dist/libcrypto.so.1.1 /usr/lib/
+COPY dist/libssl.so.1.1 /usr/lib/
+ENTRYPOINT ["./vds_web_server", "server", "start"]
+EXPOSE 8050/udp
+EXPOSE 8050/tcp

@@ -9,9 +9,15 @@ call %root_folder%..\setenv.bat
 
 mkdir %root_folder%\build_openssl
 cd %root_folder%\openssl
-perl Configure debug-VC-WIN64A no-shared no-tests --prefix=%root_folder%\build_openssl --openssldir=%root_folder%\build_openssl
-rem perl Configure debug-VC-WIN32 no-shared no-tests --prefix=%root_folder%\build_openssl --openssldir=%root_folder%\build_openssl
 
+if %project_style% == "Visual Studio 15 2017" goto x86
+perl Configure debug-VC-WIN64A no-shared no-tests --prefix=%root_folder%\build_openssl --openssldir=%root_folder%\build_openssl
+goto build
+
+:x86
+perl Configure debug-VC-WIN32 no-shared no-tests --prefix=%root_folder%\build_openssl --openssldir=%root_folder%\build_openssl
+
+:build
 nmake -f makefile clean
 nmake -f makefile
 nmake -f makefile test

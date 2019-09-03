@@ -35,19 +35,12 @@ vds::expected<void> vds::web_server_app::main(const service_provider * sp)
     std::cout << "Open http://localhost:" << port << "\n";
 
     if (this->current_command_set_ == &this->server_start_command_set_) {
-      for (;;) {
-        std::cout << "Enter command:\n";
-
-        std::string cmd;
-        std::cin >> cmd;
-
-        if ("exit" == cmd) {
-          break;
-        }
-      }
+      GET_EXPECTED(home, persistence::current_user(sp));
+      std::cout << "Server started at " << home.full_name() << "\n";
+      this->waiting_stop_signal(false);
     }
     else {
-      this->waiting_stop_signal();
+      this->waiting_stop_signal(true);
     }
   }
 

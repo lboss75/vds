@@ -168,7 +168,7 @@ vds::expected<void> vds::app::demonize(const vds::foldername &root_folder, const
           stop_barrier.set();
       }
 
-      void vds::app::waiting_stop_signal() {
+      void vds::app::waiting_stop_signal(bool) {
           signal(SIGINT, signalHandler);
           stop_barrier.wait();
       }
@@ -243,10 +243,44 @@ void vds::app::SvcInit() {
   (void)registrator.shutdown();
 }
 
-void vds::app::waiting_stop_signal() {
-  ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
-  WaitForSingleObject(ghSvcStopEvent, INFINITE);
-  ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
+BOOL WINAPI vds::app::CtrlHandler(DWORD fdwCtrlType)
+{
+  switch (fdwCtrlType)
+  {
+  case CTRL_C_EVENT:
+  case CTRL_CLOSE_EVENT:
+  case CTRL_BREAK_EVENT:
+  case CTRL_LOGOFF_EVENT:
+  case CTRL_SHUTDOWN_EVENT:
+    SetEvent(the_app_->ghSvcStopEvent);
+    return TRUE;
+
+  default:
+    return FALSE;
+  }
+}
+
+void vds::app::waiting_stop_signal(bool is_service) {
+  if (is_service) {
+    ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
+    WaitForSingleObject(ghSvcStopEvent, INFINITE);
+    ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
+  }
+  else {
+    ghSvcStopEvent = CreateEvent(
+      NULL, // default security attributes
+      TRUE, // manual reset event
+      FALSE, // not signaled
+      NULL); // no name
+
+    if (ghSvcStopEvent == NULL) {
+      return;
+    }
+
+    if (SetConsoleCtrlHandler(CtrlHandler, TRUE)) {
+      WaitForSingleObject(ghSvcStopEvent, INFINITE);
+    }
+  }
 }
 
 void vds::app::ReportSvcStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHint) {
@@ -380,6 +414,10 @@ vds::app::app(): logger_(log_level::ll_info, std::unordered_set<std::string>()),
                  current_command_set_(nullptr),
                  help_cmd_set_("Show help", "Show application help", "help"),
                  help_cmd_switch_("h", "help", "Help", "Show help") {
+#ifdef _WIN32
+  the_app_ = this;
+#endif
+
 }
 
 int vds::app::run(int argc, const char** argv) {

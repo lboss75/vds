@@ -124,14 +124,12 @@ router_({
     const std::shared_ptr<http_async_serializer> & output_stream,
     const std::shared_ptr<user_manager> & user_mng,
     const http_message & request) -> async_task<expected<void>> {
-            const auto name = request.get_parameter("name");
             const auto reserved_size = safe_cast<uint64_t>(std::atoll(request.get_parameter("size").c_str()));
             const auto local_path = request.get_parameter("path");
       
             CHECK_EXPECTED_ASYNC(co_await storage_api::add_device_storage(
               sp,
               user_mng,
-              name,
               local_path,
               reserved_size));
 

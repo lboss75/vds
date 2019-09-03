@@ -207,8 +207,11 @@ vds::websocket_api::process_message(
       if (!last_id_str) {
         co_return make_unexpected<std::runtime_error>("invalid last_id argument at invoke method 'get_channel_messages'");
       }
-
+#ifdef _WIN32
       last_id = _atoi64(last_id_str->value().c_str());
+#else
+        last_id = atoll(last_id_str->value().c_str());
+#endif
     }
 
     if (2 < args->size()) {

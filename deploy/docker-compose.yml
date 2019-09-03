@@ -1,15 +1,12 @@
 version: '3'
 services:
-  web:
-    build:
-        context: .
-        dockerfile: deploy/Dockerfile.web
-    ports:
-        - "8125:80"
-
   api:
     build:
         context: .
         dockerfile: deploy/Dockerfile.api
+    volumes:
+      - /vds/:/root/.vds
+    restart: always
     ports:
-        - "8050:8050"
+        - "8050:8050/udp"
+        - "8050:8050/tcp"

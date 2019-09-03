@@ -31,6 +31,8 @@ namespace vds {
 
     command_line_set storage_list_cmd_set_;
     command_line_set storage_add_cmd_set_;
+    command_line_set storage_request_cmd_set_;
+    command_line_set storage_approve_cmd_set_;
 
     command_line_value user_login_;
     command_line_value user_password_;
@@ -54,7 +56,6 @@ namespace vds {
     //Storage
     command_line_value storage_folder_;
     command_line_value storage_size_;
-
 
     task_manager task_manager_;
     mt_service mt_service_;
@@ -142,6 +143,16 @@ namespace vds {
       const const_data_buffer & response);
 
     expected<void> storage_add(
+      const service_provider * sp,
+      const std::shared_ptr<http_client> & client,
+      const std::string & session);
+
+    expected<void> storage_request(
+      const service_provider * sp,
+      const std::shared_ptr<http_client> & client,
+      const std::string & session);
+
+    expected<void> storage_approve(
       const service_provider * sp,
       const std::shared_ptr<http_client> & client,
       const std::string & session);

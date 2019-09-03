@@ -11,42 +11,23 @@ build-ubuntu:
         - ./build_dep.sh
         - mkdir build
         - ./build.sh
+        - mkdir dist
+        - cp build/app/vds_web_server/vds_web_server dist
+        - cp /usr/lib/libc++.so.1 dist
+        - cp /usr/lib/libc++.so dist
+        - cp /usr/lib/libc++abi.so.1 dist
+        - cp externals/openssl-out/lib/libcrypto.so.1.1 dist
+        - cp externals/openssl-out/lib/libssl.so.1.1 dist
     artifacts:
         paths:
-          - build/tests/test_vds_core/test_vds_core
-          - build/tests/test_vds_crypto/test_vds_crypto
-          - build/tests/test_vds_data/test_vds_data
-          - build/tests/test_vds_database/test_vds_database
-          - build/tests/test_vds_dht_network/test_vds_dht_network
-          - build/tests/test_vds_network/test_vds_network
-          - build/tests/test_vds_parser/test_vds_parser
-          - build/tests/test_vds_scenarios/test_vds_scenarios
-          - build/tests/test_vds_user_manager/test_vds_user_manager
-          - build/app/vds_web_server/vds_web_server
+          - dist
 
-build-web:
-    image: ubuntu:16.04
-    stage: build
-    script:
-        - apt-get -qq update
-        - apt-get install -y sudo curl git
-        - curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
-        - apt-get install -y nodejs
-        - git clone https://gitlab+deploy-token-71826:hR6fCJT16swUhzMz3TSe@gitlab.com/TrustyTeam/vuex-bitshares client-front-end/vuex-bitshares
-        - cd modules/vds_web/src/frontend
-        - npm install
-        - npm run build
-
-    artifacts:
-        paths:
-            - modules/vds_web/src/dist
-
-deploy-web:
+deploy-api:
     stage: deploy
     only:
         - master
     tags:
-        - cd
+        - ivsoftcd
     script:
         - docker-compose -f deploy/docker-compose.yml --project-directory . up --build -d
 
