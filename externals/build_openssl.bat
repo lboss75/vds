@@ -10,7 +10,8 @@ call %root_folder%..\setenv.bat
 mkdir %root_folder%\build_openssl
 cd %root_folder%\openssl
 
-if %project_style% == "Visual Studio 15 2017" goto x86
+if %BuildArch% == x86 goto x86
+
 perl Configure debug-VC-WIN64A no-shared no-tests --prefix=%root_folder%\build_openssl --openssldir=%root_folder%\build_openssl
 goto build
 

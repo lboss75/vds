@@ -7,6 +7,6 @@ call %root_folder%..\setenv.bat
 mkdir %root_folder%\build_gtest
 cd %root_folder%\build_gtest
 
-cmake -G %project_style% -Dgtest_force_shared_crt=ON %root_folder%\googletest\googletest
+cmake -G %project_style% -A %project_arch% -Dgtest_force_shared_crt=ON %root_folder%\googletest\googletest
 
 cmake --build .

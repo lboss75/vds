@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 project(test_vds_crypto)
 
+find_package (OpenSSL REQUIRED)
+
 enable_testing()
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_FILES *.cpp)

@@ -29,6 +29,7 @@ TEST(test_vds_dht_network, test_sync_process) {
   auto hab = std::make_shared<transport_hab>();
 
   for(int i = 0; i < SERVER_COUNT; ++i) {
+    std::cout << "Starting server " << i << std::endl;
     GET_EXPECTED_GTEST(address, vds::network_address::udp_ip4("localhost", i));
     auto server = std::make_shared<test_server>(address, hab);
     CHECK_EXPECTED_GTEST(server->start(hab, i));
@@ -41,7 +42,7 @@ TEST(test_vds_dht_network, test_sync_process) {
   }
 
   vds::const_data_buffer object_data;
-  object_data.resize(400000);
+  object_data.resize(40000);
   for(size_t i = 0; i < object_data.size(); ++i) {
     object_data[i] = std::rand();
   }
@@ -52,10 +53,14 @@ TEST(test_vds_dht_network, test_sync_process) {
   //All corresponding nodes have to approve data storage
   int stage = 0;
   size_t replica_count = 0;
+  size_t log_count = 0;
   for(; ; ) {
     replica_count = 0;
     std::map<vds::const_data_buffer/*node*/, std::set<uint16_t /*replicas*/>> members;
-    CHECK_EXPECTED_GTEST(hab->walk_messages([stage, &object_id, &members, &replica_count](const message_log_t & log_record)->vds::expected<message_log_action>{
+
+    size_t current_message_count = 0;
+
+    CHECK_EXPECTED_GTEST(hab->walk_messages([stage, &object_id, &members, &replica_count, &current_message_count](const message_log_t & log_record)->vds::expected<message_log_action>{
       switch (log_record.message_info_.message_type()) {
       case vds::dht::network::message_type_t::sync_looking_storage_request: {
         vds::binary_deserializer s(log_record.message_info_.message_data());
@@ -101,7 +106,7 @@ TEST(test_vds_dht_network, test_sync_process) {
         return vds::make_unexpected<std::runtime_error>("Invalid operation");
       }
       }
-
+      ++current_message_count;
       return (stage == 0) ? message_log_action::skip : message_log_action::remove;
     }));
 
@@ -141,16 +146,21 @@ TEST(test_vds_dht_network, test_sync_process) {
       break;
     }
 
-    bool is_ready_to_stop = true;
-    for (const auto server : servers) {
-      if(!server->is_ready_to_stop()) {
-        is_ready_to_stop = false;
+    if (current_message_count == log_count) {
+      bool is_ready_to_stop = true;
+      for (const auto server : servers) {
+        if (!server->is_ready_to_stop()) {
+          is_ready_to_stop = false;
+          break;
+        }
+      }
+
+      if (is_ready_to_stop) {
         break;
       }
     }
-
-    if(is_ready_to_stop) {
-      break;
+    else{
+      log_count = current_message_count;
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -347,28 +357,26 @@ const vds::network_address& mock_sync_server::address() const {
 
 #define route_client(message_type)\
   case vds::dht::network::message_type_t::message_type: {\
-      bool result;\
-      CHECK_EXPECTED_ASYNC(co_await this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, message_info, &final_tasks, &result](vds::database_transaction & t)->vds::expected<void> {\
+      CHECK_EXPECTED_ASYNC(co_await this->sp_->get<vds::db_model>()->async_transaction([sp = this->sp_, message_info, &final_tasks, &process_result](vds::database_transaction & t)->vds::expected<void> {\
         vds::binary_deserializer s(message_info.message_data()); \
         GET_EXPECTED(message, vds::message_deserialize<vds::dht::messages::message_type>(s)); \
-        GET_EXPECTED_VALUE(result, (*sp->get<vds::dht::network::client>())->apply_message(\
+        GET_EXPECTED_VALUE(process_result, (*sp->get<vds::dht::network::client>())->apply_message(\
           t, \
           final_tasks, \
           message, \
           message_info)); \
         return vds::expected<void>();\
       }));\
-      co_return vds::expected<bool>(result);\
+      break;\
     }
 
 #define route_client_wait(message_type)\
   case vds::dht::network::message_type_t::message_type: {\
       vds::binary_deserializer s(message_info.message_data());\
       GET_EXPECTED_ASYNC(message, vds::message_deserialize<vds::dht::messages::message_type>(s));\
-      GET_EXPECTED_ASYNC(result, co_await (*this->sp_->get<vds::dht::network::client>())->apply_message(\
+      GET_EXPECTED_VALUE_ASYNC(process_result, co_await (*this->sp_->get<vds::dht::network::client>())->apply_message(\
         message,\
         message_info));\
-      co_return vds::expected<bool>(result);\
       break;\
     }
 
@@ -378,6 +386,7 @@ vds::async_task<vds::expected<bool>> mock_sync_server::process_message(
   static_cast<mock_transport *>(this->transport_.get())->hab()->register_message(
     this->sp_->get<vds::dht::network::client>()->current_node_id(), message_info);
 
+  bool process_result = false;
   std::list<std::function<vds::async_task<vds::expected<void>>()>> final_tasks;
 
   switch (message_info.message_type()) {
@@ -421,7 +430,7 @@ vds::async_task<vds::expected<bool>> mock_sync_server::process_message(
     final_tasks.pop_front();
   }
 
-  co_return vds::expected<bool>(false);
+  co_return vds::expected<bool>(process_result);
 
 }
 
