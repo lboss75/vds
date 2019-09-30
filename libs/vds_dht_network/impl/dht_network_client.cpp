@@ -178,6 +178,24 @@ vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(
   co_return true;
 }
 
+vds::async_task<vds::expected<void>> vds::dht::network::_client::for_near(
+  const const_data_buffer& target_node_id,
+  size_t max_count,
+  const std::function<expected<bool>(const dht_route::node & node)>& filter,
+  lambda_holder_t<vds::async_task<vds::expected<bool>>, const std::shared_ptr<dht_route::node>&> callback)
+{
+  return this->route_.for_near(target_node_id, max_count, filter, std::move(callback));
+}
+
+vds::expected<void> vds::dht::network::_client::for_near_sync(
+  const const_data_buffer& target_node_id,
+  size_t max_count,
+  const std::function<expected<bool>(const dht_route::node & node)>& filter,
+  lambda_holder_t<vds::expected<bool>, const std::shared_ptr<dht_route::node>&> callback)
+{
+  return this->route_.for_near_sync(target_node_id, max_count, filter, std::move(callback));
+}
+
 vds::async_task<vds::expected<void>> vds::dht::network::_client::add_session(
   const std::shared_ptr<dht_session>& session,
   uint8_t hops) {
@@ -877,6 +895,28 @@ void vds::dht::network::_client::add_route(
   const std::shared_ptr<dht_session>& session) {
   this->route_.add_node(source_node, session, hops, false);
 
+}
+
+vds::async_task<vds::expected<void>> vds::dht::network::_client::redirect(
+  const_data_buffer node_id,
+  std::vector<const_data_buffer> hops,
+  message_type_t message_id,
+  expected<const_data_buffer> message)
+{
+  CHECK_EXPECTED_ERROR(message);
+
+  return this->route_.for_near(node_id, 1, [](const dht_route::node& node)->expected<bool> {
+    return true;
+  },
+  [pthis = this->shared_from_this(), h = std::move(hops), message_id, m = std::move(message)](const std::shared_ptr<dht_route::node> & node) mutable -> vds::async_task<vds::expected<bool>> {
+    CHECK_EXPECTED_ASYNC(co_await node->proxy_session_->proxy_message(
+      pthis->udp_transport_,
+      (uint8_t)message_id,
+      node->node_id_,
+      std::move(h),
+      std::move(m.value())));
+    co_return false;
+  });
 }
 
 vds::async_task<vds::expected<void>> vds::dht::network::_client::find_nodes(

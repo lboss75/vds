@@ -89,6 +89,8 @@ namespace vds {
           const service_provider * sp,
           std::list<transactions::user_message_transaction::file_block_t> file_blocks);
 
+        ~download_stream_t();
+
         async_task<expected<size_t>> read_async(
           uint8_t * buffer,
           size_t len) override;

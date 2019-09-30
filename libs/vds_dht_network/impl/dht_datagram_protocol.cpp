@@ -83,11 +83,11 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::s
 }
 
 vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::proxy_message(
-  const std::shared_ptr<iudp_transport>& s,
+  std::shared_ptr<iudp_transport> s,
   uint8_t message_type,
-  const const_data_buffer& target_node,
+  const_data_buffer target_node,
   std::vector<const_data_buffer> hops,
-  const const_data_buffer& message) {
+  const_data_buffer message) {
   vds_assert(message.size() <= 0xFFFFFFFF);
   vds_assert(target_node != this->this_node_id_);
   vds_assert(hops[0] != this->partner_node_id_);
@@ -112,7 +112,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::p
     message_type,
     target_node,
     std::move(hops),
-    message);
+    std::move(message));
 }
 
 vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::process_datagram(const std::shared_ptr<iudp_transport>& s, const_data_buffer datagram) {
@@ -271,13 +271,18 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::s
   return s->write_async(udp_datagram(this->address_, out_message.move_data()));
 }
 
-vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::send_message_async(const std::shared_ptr<iudp_transport>& s, uint8_t message_type, const const_data_buffer target_node, const std::vector<const_data_buffer> hops, const const_data_buffer message) {
+vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::send_message_async(
+  std::shared_ptr<iudp_transport> s,
+  uint8_t message_type,
+  const_data_buffer target_node,
+  std::vector<const_data_buffer> hops,
+  const_data_buffer message) {
 
   GET_EXPECTED_ASYNC(indexes, this->prepare_to_send(
     message_type,
-    target_node,
-    hops,
-    message));
+    std::move(target_node),
+    std::move(hops),
+    std::move(message)));
 
   for (uint32_t start_index = std::get<0>(indexes); start_index < std::get<1>(indexes); ++start_index) {
     std::unique_lock<std::mutex> lock(this->output_mutex_);
@@ -294,7 +299,11 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::s
   co_return expected<void>();
 }
 
-vds::expected<std::tuple<uint32_t, uint32_t>> vds::dht::network::dht_datagram_protocol::prepare_to_send(uint8_t message_type, const const_data_buffer target_node, const std::vector<const_data_buffer>& hops, const const_data_buffer message) {
+vds::expected<std::tuple<uint32_t, uint32_t>> vds::dht::network::dht_datagram_protocol::prepare_to_send(
+  uint8_t message_type,
+  const_data_buffer target_node,
+  std::vector<const_data_buffer> hops,
+  const_data_buffer message) {
 
   std::unique_lock<std::mutex> lock(this->output_mutex_);
   uint32_t start_index = this->last_output_index_;

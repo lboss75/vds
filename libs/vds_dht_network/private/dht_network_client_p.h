@@ -220,12 +220,18 @@ namespace vds {
 
         template <typename message_type>
         async_task<expected<void>> redirect(
-          const const_data_buffer& node_id,
-          const std::vector<const_data_buffer>& hops,
-          expected<message_type> && message) {
+          const_data_buffer node_id,
+          std::vector<const_data_buffer> hops,
+          expected<message_type> message) {
           CHECK_EXPECTED_ERROR(message);
-          return this->redirect(node_id, source_node_id, hops, message_type::message_id, message_serialize(message.value()));
+          return this->redirect(std::move(node_id), std::move(hops), message_type::message_id, message_serialize(message.value()));
         }
+
+        async_task<expected<void>> redirect(
+          const_data_buffer node_id,
+          std::vector<const_data_buffer> hops,
+          message_type_t message_id,
+          expected<const_data_buffer> message);
 
 
         async_task<expected<void>> find_nodes(
@@ -241,6 +247,18 @@ namespace vds {
           GET_EXPECTED(message_data, message_serialize(message.value()));
           return this->send_near(node_id, radius, message_type::message_id, message_data, filter);
         }
+
+        async_task<expected<void>> for_near(
+          const const_data_buffer& target_node_id,
+          size_t max_count,
+          const std::function<expected<bool>(const dht_route::node & node)>& filter,
+          lambda_holder_t<vds::async_task<vds::expected<bool>>, const std::shared_ptr<dht_route::node>&> callback);
+
+        expected<void> for_near_sync(
+          const const_data_buffer& target_node_id,
+          size_t max_count,
+          const std::function<expected<bool>(const dht_route::node & node)>& filter,
+          lambda_holder_t<vds::expected<bool>, const std::shared_ptr<dht_route::node>&> callback);
 
         template <typename message_type>
         vds::async_task<vds::expected<void>> send_neighbors(

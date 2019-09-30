@@ -325,6 +325,10 @@ vds::file_manager_private::_file_operations::download_stream_t::download_stream_
   : sp_(sp), file_blocks_(std::move(file_blocks)), readed_(0) {
 }
 
+vds::file_manager_private::_file_operations::download_stream_t::~download_stream_t()
+{
+}
+
 vds::async_task<vds::expected<size_t>> vds::file_manager_private::_file_operations::download_stream_t::read_async(
   uint8_t * buffer,
   size_t len) {

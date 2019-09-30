@@ -70,12 +70,11 @@ namespace vds {
         const std::function<expected<bool>(const node & node)>& filter,
         std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<node>>>& result_nodes) const;
 
-      template<typename callback_type>//std::function<vds::async_task<vds::expected<bool>>(const std::shared_ptr<node> & candidate)>
       vds::async_task<vds::expected<void>> for_near(
         const const_data_buffer &target_node_id,
         size_t max_count,
         const std::function<expected<bool>(const node & node)>& filter,
-        callback_type callback) {
+        lambda_holder_t<vds::async_task<vds::expected<bool>>, const std::shared_ptr<node> &> callback) {
 
         std::map<
             const_data_buffer /*distance*/,
@@ -95,6 +94,29 @@ namespace vds {
         co_return expected<void>();
       }
       
+      vds::expected<void> for_near_sync(
+        const const_data_buffer& target_node_id,
+        size_t max_count,
+        const std::function<expected<bool>(const node & node)>& filter,
+        lambda_holder_t<vds::expected<bool>, const std::shared_ptr<node>&> callback) {
+
+        std::map<
+          const_data_buffer /*distance*/,
+          std::map<const_data_buffer, std::shared_ptr<node>>> result_nodes;
+        CHECK_EXPECTED(this->search_nodes(target_node_id, max_count, filter, result_nodes));
+
+        for (auto& presult : result_nodes) {
+          for (auto& node : presult.second) {
+            auto callback_result = callback(node.second);
+            CHECK_EXPECTED_ERROR(callback_result);
+            if (!callback_result.value()) {
+              return expected<void>();
+            }
+          }
+        }
+
+        return expected<void>();
+      }
 
       void get_neighbors(
         std::list<std::shared_ptr<node>> & result_nodes) const;

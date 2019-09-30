@@ -56,11 +56,11 @@ namespace vds {
           const const_data_buffer& message);
 
         vds::async_task<vds::expected<void>> proxy_message(
-          const std::shared_ptr<iudp_transport>& s,
+          std::shared_ptr<iudp_transport> s,
           uint8_t message_type,
-          const const_data_buffer& target_node,
+          const_data_buffer target_node,
           std::vector<const_data_buffer> hops,
-          const const_data_buffer& message);
+          const_data_buffer message);
 
         vds::async_task<vds::expected<void>> process_datagram(
           const std::shared_ptr<iudp_transport>& s,
@@ -141,17 +141,17 @@ namespace vds {
         std::map<uint32_t, const_data_buffer> input_messages_;
 
         vds::async_task<vds::expected<void>> send_message_async(
-          const std::shared_ptr<iudp_transport>& s,
+          std::shared_ptr<iudp_transport> s,
           uint8_t message_type,
-          const const_data_buffer target_node,
-          const std::vector<const_data_buffer> hops,
-          const const_data_buffer message);
+          const_data_buffer target_node,
+          std::vector<const_data_buffer> hops,
+          const_data_buffer message);
 
         vds::expected<std::tuple<uint32_t, uint32_t>> prepare_to_send(
           uint8_t message_type,
-          const const_data_buffer target_node,
-          const std::vector<const_data_buffer>& hops,
-          const const_data_buffer message);
+          const_data_buffer target_node,
+          std::vector<const_data_buffer> hops,
+          const_data_buffer message);
 
         vds::async_task<vds::expected<void>> continue_process_messages(
           const std::shared_ptr<iudp_transport>& s);

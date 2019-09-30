@@ -764,21 +764,17 @@ vds::expected<vds::const_data_buffer> vds::dht::network::sync_process::restore_r
     }
   }
   else {
-    final_tasks.push_back([client, object_id]() {
-      return (*client)->send_neighbors(
-        message_create<messages::dht_find_node>(object_id));
-    });
-
-    GET_EXPECTED(nodes, vds::dht::network::service::select_near(t, object_id, service::GENERATE_DISTRIBUTED_PIECES));
-    for (const auto& node : nodes) {
-      final_tasks.push_back([client, node, object_id, exist_replicas]() {
-        return (*client)->send(
-          node,
-          message_create<messages::sync_replica_request>(
-            object_id,
-            exist_replicas));
+    final_tasks.push_back([client, object_id, exist_replicas]() {
+      return (*client)->send_near(
+        object_id,
+        1,
+        message_create<messages::sync_replica_request>(
+          object_id,
+          exist_replicas),
+        [](const dht::dht_route::node& node) -> bool {
+          return node.hops_ == 0;
         });
-    }
+    });
   }
 
   return const_data_buffer();
@@ -1652,34 +1648,31 @@ vds::expected<void> vds::dht::network::sync_process::send_random_replicas(
       base64::from_bytes(object_id).c_str(),
       base64::from_bytes(target_node).c_str());
 
-    std::map<const_data_buffer /*distance*/, std::list<const_data_buffer/*node_id*/>> neighbors;
-    //TODO: CHECK_EXPECTED((*client)->neighbors(object_id, neighbors, 16));
-    for (const auto & distance : neighbors) {
-      for (const auto & neighbor : distance.second) {
-        if (
-          dht::dht_object_id::distance(object_id, neighbor) < dht::dht_object_id::distance(object_id, client->current_node_id())
-          && dht::dht_object_id::distance(object_id, neighbor) < dht::dht_object_id::distance(object_id, target_node)
-          ) {
-          this->sp_->get<logger>()->trace(
-            SyncModule,
-            "%s: replica %s request from %s redirected to %s",
-            base64::from_bytes(client->client::current_node_id()).c_str(),
-            base64::from_bytes(object_id).c_str(),
-            base64::from_bytes(target_node).c_str(),
-            base64::from_bytes(neighbor).c_str());
+    CHECK_EXPECTED((*client)->for_near_sync(
+      object_id,
+      1,
+      [object_id, client](const dht_route::node& node)->expected<bool> {
+        return dht::dht_object_id::distance(object_id, node.node_id_) < dht::dht_object_id::distance(object_id, client->current_node_id());
+      },
+      [this, client, target_node, object_id, exist_replicas, &final_tasks](const std::shared_ptr<dht_route::node>& node) -> vds::expected<bool> {
+        this->sp_->get<logger>()->trace(
+          SyncModule,
+          "%s: replica %s request from %s redirected to %s",
+          base64::from_bytes(client->client::current_node_id()).c_str(),
+          base64::from_bytes(object_id).c_str(),
+          base64::from_bytes(target_node).c_str(),
+          base64::from_bytes(node->node_id_).c_str());
 
-          //TODO: final_tasks.push_back([client, target_node, target = neighbor, object_id, exist_replicas]() {
-            //return (*client)->redirect(
-            //  target,
-            //  target_node,
-            //  0,
-            //  message_create<messages::sync_replica_request>(
-            //    object_id,
-            //    exist_replicas));
-          //});
-        }
-      }      
-    }
+        final_tasks.push_back([client, target_node, target = node->node_id_, object_id, exist_replicas]() {
+          return (*client)->redirect(
+            target,
+            std::vector<const_data_buffer>({ target_node }),
+            message_create<messages::sync_replica_request>(
+              object_id,
+              exist_replicas));
+          });
+        return false;
+      }));
   }
   else {
     if (t1.state.get(st) != orm::sync_state_dbo::state_t::leader && t2.voted_for.get(st) != client->client::current_node_id()) {

@@ -74,7 +74,8 @@ TEST(test_vds, integration_test)
       }
       else {
         auto value = std::move(result.value());
-        value.body->copy_to(result_data).then([&is_final, &error](vds::expected<void> r) {
+        auto body = value.body;
+        body->copy_to(result_data).then([&is_final, &error, body](vds::expected<void> r) {
           if (r.has_error()) {
             error = r.error()->what();
           }
