@@ -84,7 +84,6 @@ namespace vds {
         if (!block.walk_messages(
           [this, channel_id, &channel_handlers, tp = block.time_point()](const transactions::channel_message & message)->expected<bool> {
           if (channel_id == message.channel_id()) {
-
             auto read_cert_key = this->get_channel(channel_id)->read_cert_private_key(message.read_id());
             GET_EXPECTED(key_data, read_cert_key->decrypt(message.crypted_key()));
             GET_EXPECTED(key, symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data));

@@ -64,10 +64,37 @@ TEST(test_vds, integration_test)
     std::cout << "Download file...\n";
 
     result_data = std::make_shared<compare_data_async<uint8_t>>(buffer.get(), len);
-    GET_EXPECTED_VALUE_GTEST(result, mock.download_data(4, channel.id(), "test data", file_hash).get());
-    CHECK_EXPECTED_GTEST(result.body->copy_to(result_data).get());
 
-    std::cout << "Done...\n";
+    bool is_final = false;
+    std::string error;
+    mock.download_data(4, channel.id(), "test data", file_hash).then([&is_final, &error, result_data](vds::expected<vds::file_manager::file_operations::download_result_t> result) {
+      if (result.has_error()) {
+        error = result.error()->what();
+        is_final = true;
+      }
+      else {
+        auto value = std::move(result.value());
+        value.body->copy_to(result_data).then([&is_final, &error](vds::expected<void> r) {
+          if (r.has_error()) {
+            error = r.error()->what();
+          }
+          is_final = true;
+        });
+      }
+    });
+
+    while (!is_final) {
+      CHECK_EXPECTED_GTEST(mock.dump_log());
+      std::this_thread::sleep_for(std::chrono::seconds(10));
+    }
+
+    if (error.empty()) {
+      std::cout << "Done...\n";
+    }
+    else {
+      std::cout << error << std::endl;
+    }
+
     CHECK_EXPECTED_GTEST(mock.stop());
 
     ASSERT_EQ(len, result.size);

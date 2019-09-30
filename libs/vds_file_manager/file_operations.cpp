@@ -39,11 +39,11 @@ vds::async_task<vds::expected<void>> vds::file_manager::file_operations::prepare
 
 vds::async_task<vds::expected<vds::file_manager::file_operations::download_result_t>>
 vds::file_manager::file_operations::download_file(
-  const std::shared_ptr<vds::user_manager> & user_mng,
-  const const_data_buffer & channel_id,
-  const std::string & file_name,
-  const const_data_buffer & file_hash) {
-  return this->impl_->download_file(user_mng, channel_id, file_name, file_hash);
+  std::shared_ptr<vds::user_manager> user_mng,
+  const_data_buffer channel_id,
+  std::string file_name,
+  const_data_buffer file_hash) {
+  return this->impl_->download_file(std::move(user_mng), std::move(channel_id), std::move(file_name), std::move(file_hash));
 }
 
 vds::async_task<vds::expected<vds::file_manager::file_operations::prepare_download_result_t>>
@@ -111,11 +111,10 @@ vds::file_manager_private::_file_operations::upload_file(
 
 vds::async_task<vds::expected<vds::file_manager::file_operations::download_result_t>>
 vds::file_manager_private::_file_operations::download_file(
-  
-  const std::shared_ptr<user_manager> & user_mng,
-  const const_data_buffer & channel_id,
-  const std::string & file_name,
-  const const_data_buffer & file_hash) {
+  std::shared_ptr<user_manager> user_mng,
+  const_data_buffer channel_id,
+  std::string file_name,
+  const_data_buffer file_hash) {
 
   auto result = std::make_shared<file_manager::file_operations::download_result_t>();
   std::list<transactions::user_message_transaction::file_block_t> download_tasks;

@@ -2,12 +2,14 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <device_config_dbo.h>
 #include "stdafx.h"
 #include "dht_network.h"
 #include "private/udp_transport.h"
 #include "db_model.h"
 #include "keys_control.h"
+#include "node_info_dbo.h"
+#include "dht_object_id.h"
+#include "device_config_dbo.h"
 
 vds::expected<void> vds::dht::network::service::register_services(service_registrator& registrator) {
   registrator.add_service<client>(&this->client_);
@@ -55,5 +57,29 @@ vds::expected<void> vds::dht::network::service::stop() {
 
 vds::async_task<vds::expected<void>> vds::dht::network::service::prepare_to_stop() {
   co_return expected<void>();
+}
+
+vds::expected<std::list<vds::const_data_buffer>> vds::dht::network::service::select_near(const database_read_transaction& t, const const_data_buffer& target, size_t count)
+{
+  std::list<std::tuple<vds::const_data_buffer, vds::const_data_buffer>> cache;
+
+  orm::node_info_dbo t1;
+  GET_EXPECTED(st, t.get_reader(t1.select(t1.node_id).where(t1.last_activity > std::chrono::system_clock::now() - std::chrono::hours(72))));
+  WHILE_EXPECTED(st.execute()) {
+    auto distance = dht::dht_object_id::distance(t1.node_id.get(st), target);
+    auto value = std::make_tuple(distance, t1.node_id.get(st));
+    cache.insert(std::lower_bound(cache.begin(), cache.end(), value, [](auto l, auto r) { return std::get<0>(l) < std::get<0>(r);  }), value);
+    while (count < cache.size()) {
+      cache.pop_back();
+    }
+  }
+  WHILE_EXPECTED_END()
+
+  std::list<vds::const_data_buffer> result;
+  for (const auto& item : cache) {
+    result.push_back(std::get<0>(item));
+  }
+
+  return result;
 }
 

@@ -36,6 +36,13 @@ namespace vds {
         expected<void> stop();
         vds::async_task<expected<void>> prepare_to_stop();
 
+
+        static expected<std::list<const_data_buffer>> select_near(
+          const database_read_transaction& t,
+          const const_data_buffer& target,
+          size_t count);
+
+
       private:
         client client_;
       };

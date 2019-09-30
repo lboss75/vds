@@ -101,12 +101,13 @@ public:
   vds::async_task<vds::expected<vds::file_manager::file_operations::download_result_t>>
   download_data(
 	  size_t client_index,
-	  const vds::const_data_buffer & channel_id,
-	  const std::string & name,
-	  const vds::const_data_buffer & file_hash);
+	  vds::const_data_buffer channel_id,
+	  std::string name,
+	  vds::const_data_buffer file_hash);
 
   vds::expected<bool> dump_statistic(std::ostream & logfile, std::vector<vds::server_statistic>& statistics);
   vds::expected<void> sync_wait();
+  vds::expected<void> dump_log();
 
   vds::expected<vds::user_channel> create_channel(int index, const std::string & channel_type, const std::string &name);
 

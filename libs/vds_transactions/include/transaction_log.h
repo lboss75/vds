@@ -94,114 +94,114 @@ namespace vds {
         const service_provider * sp,
         class database_transaction &t,
         const payment_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       static expected<void> consensus_record(
         const service_provider * sp,
         class database_transaction &t,
         const payment_transaction & message,
-        const const_data_buffer & block_id);      
+        const transaction_block& block);
 
       static expected<void> undo_record(
         const service_provider * sp,
         class database_transaction &t,
         const payment_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       ////////////
       static expected<bool> apply_record(
         const service_provider * sp,
         class database_transaction &t,
         const channel_message & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       static expected<void> consensus_record(
         const service_provider * sp,
         class database_transaction &t,
         const channel_message & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       static expected<void> undo_record(
         const service_provider * sp,
         class database_transaction &t,
         const channel_message & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       ////////////
       static expected<bool> apply_record(
         const service_provider * sp,
         class database_transaction &t,
         const create_user_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       static expected<void> consensus_record(
         const service_provider * sp,
         class database_transaction &t,
         const create_user_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       static expected<void> undo_record(
         const service_provider * sp,
         database_transaction &t,
         const create_user_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       ////////////
       static expected<bool> apply_record(
         const service_provider * sp,
         class database_transaction &t,
         const node_add_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       static expected<void> consensus_record(
         const service_provider * sp,
         class database_transaction &t,
         const node_add_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       static expected<void> undo_record(
         const service_provider * sp,
         class database_transaction &t,
         const node_add_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       ////////////
       static expected<bool> apply_record(
         const service_provider * sp,
         class database_transaction &t,
         const create_wallet_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       static expected<void> consensus_record(
         const service_provider * sp,
         class database_transaction &t,
         const create_wallet_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       static expected<void> undo_record(
         const service_provider * sp,
         class database_transaction &t,
         const create_wallet_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       ////////////
       static expected<bool> apply_record(
         const service_provider * sp,
         class database_transaction &t,
         const asset_issue_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       static expected<void> consensus_record(
         const service_provider * sp,
         class database_transaction &t,
         const asset_issue_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
 
       static expected<void> undo_record(
         const service_provider * sp,
         class database_transaction &t,
         const asset_issue_transaction & message,
-        const const_data_buffer & block_id);
+        const transaction_block& block);
     };
   }
 }

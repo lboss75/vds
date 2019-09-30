@@ -257,10 +257,13 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
           crypto_service::rand_bytes(session_info.session_key_.data(), session_info.session_key_.size());
         }
 
+        GET_EXPECTED_ASYNC(encrypted_key, partner_node_public_key.encrypt(session_info.session_key_));
+
         session_info.session_ = std::make_shared<dht_session>(
           this->sp_,
           datagram.address(),
           this->this_node_id_,
+          std::move(partner_node_public_key),
           partner_node_id,
           session_info.session_key_);
 
@@ -273,7 +276,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
 
         binary_serializer bs;
         CHECK_EXPECTED_ASYNC(bs << this->node_public_key_->der());
-        CHECK_EXPECTED_ASYNC(bs << partner_node_public_key.encrypt(session_info.session_key_));
+        CHECK_EXPECTED_ASYNC(bs << encrypted_key);
 
         session_info.session_mutex_.unlock();
 
@@ -312,6 +315,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
           this->sp_,
           datagram.address(),
           this->this_node_id_,
+          std::move(public_key),
           partner_id,
           key);
 

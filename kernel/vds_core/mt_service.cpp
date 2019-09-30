@@ -112,11 +112,17 @@ void vds::_mt_service::do_async(lambda_holder_t<void> handler)
   std::unique_lock<std::mutex> lock(this->mutex_);
   this->queue_.push(std::move(handler));
   if(0 == this->free_threads_) {
-    this->work_threads_.emplace_back(std::bind(&_mt_service::work_thread, this));
+    auto count = std::thread::hardware_concurrency();
+    if(count < 1){
+      count = 1;
+    }
+    if (this->work_threads_.size() < 16 * count) {
+      this->work_threads_.emplace_back(std::bind(&_mt_service::work_thread, this));
+      return;
+    }
   }
-  else {
-    this->cond_.notify_one();
-  }
+
+  this->cond_.notify_one();
 }
 
 void vds::_mt_service::set_instance(const service_provider * sp)

@@ -12,7 +12,7 @@
 #include "device_config_dbo.h"
 #include "current_config_dbo.h"
 
-#define SERVER_COUNT 100
+#define SERVER_COUNT 10
 
 TEST(test_vds_dht_network, test_sync_process) {
 #ifdef _WIN32
@@ -55,6 +55,8 @@ TEST(test_vds_dht_network, test_sync_process) {
   size_t replica_count = 0;
   size_t log_count = 0;
   for(; ; ) {
+    std::this_thread::sleep_for(std::chrono::seconds(60));
+
     replica_count = 0;
     std::map<vds::const_data_buffer/*node*/, std::set<uint16_t /*replicas*/>> members;
 
@@ -162,8 +164,6 @@ TEST(test_vds_dht_network, test_sync_process) {
     else{
       log_count = current_message_count;
     }
-
-    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 
   for(auto server : servers){
@@ -192,24 +192,36 @@ void transport_hab::add(const vds::network_address& address, test_server* server
   this->servers_[address] = server;
 }
 
+inline static vds::expected<vds::asymmetric_public_key> clone_key(const vds::asymmetric_public_key& original)
+{
+  GET_EXPECTED(der, original.der());
+  GET_EXPECTED(result, vds::asymmetric_public_key::parse_der(der));
+
+  return result;
+}
+
 vds::expected<void> transport_hab::attach(const std::shared_ptr<test_server>& server1, const std::shared_ptr<test_server>& server2) {
   vds::const_data_buffer session_key;
   session_key.resize(32);
   vds::crypto_service::rand_bytes(session_key.data(), session_key.size());
 
+  GET_EXPECTED(server2_key, clone_key(*server2->node_key()));
   auto session = std::make_shared<vds::dht::network::dht_session>(
     server1->sp_,
     server2->address(),
     server1->node_id(),
+    std::move(server2_key),
     server2->node_id(),
     session_key);
 
   CHECK_EXPECTED(server1->add_session(session));
 
+  GET_EXPECTED(server1_key, clone_key(*server1->node_key()));
   auto reverce_session = std::make_shared<vds::dht::network::dht_session>(
     server2->sp_,
     server1->address(),
     server2->node_id(),
+    std::move(server1_key),
     server1->node_id(),
     session_key);
 
@@ -323,6 +335,10 @@ const vds::const_data_buffer& test_server::node_id() const {
   return (*this->sp_->get<vds::dht::network::client>())->current_node_id();
 }
 
+const std::shared_ptr<vds::asymmetric_public_key>& test_server::node_key() const {
+  return this->server_.node_key();
+}
+
 const vds::network_address& test_server::address() const {
   return this->server_.address();
 }
@@ -352,6 +368,11 @@ vds::async_task<vds::expected<void>> mock_sync_server::add_session(
 
 const vds::network_address& mock_sync_server::address() const {
   return this->address_;
+}
+
+const std::shared_ptr<vds::asymmetric_public_key>& mock_sync_server::node_key() const
+{
+  return dynamic_cast<mock_transport*>(this->transport_.get())->node_key();
 }
 
 
@@ -505,6 +526,7 @@ vds::async_task<vds::expected<void>> mock_transport::start(
   const std::shared_ptr<vds::asymmetric_public_key> & node_public_key,
   const std::shared_ptr<vds::asymmetric_private_key> & /*node_key*/,
   uint16_t /*port*/, bool dev_network) {
+  this->node_key_ = node_public_key;
   GET_EXPECTED_VALUE_ASYNC(this->node_id_, node_public_key->fingerprint());
   co_return vds::expected<void>();
 }

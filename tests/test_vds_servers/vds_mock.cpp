@@ -65,6 +65,7 @@ vds::expected<bool> vds_mock::dump_statistic(std::ostream & logfile, std::vector
     statistics.push_back(statistic);
   }
 
+  //Log records
   std::map<int, std::list<vds::const_data_buffer>> order_no;
   std::map<vds::const_data_buffer, std::map<std::string, std::string>> states;
   for(std::size_t i = 0; i < statistics.size(); ++i) {
@@ -167,11 +168,13 @@ vds::expected<bool> vds_mock::dump_statistic(std::ostream & logfile, std::vector
     }
   }
   print_table(logfile, table);
+
   //Sync state
   std::map<vds::const_data_buffer, std::size_t> node_id2index;
   for (std::size_t i = 0; i < statistics.size(); ++i) {
     node_id2index[statistics[i].route_statistic_.node_id_] = i;
   }
+  /*
   for (const auto & object : objects) {
     logfile << "Object replicas:" << vds::base64::from_bytes(object.first) << "\n";
 
@@ -235,7 +238,8 @@ vds::expected<bool> vds_mock::dump_statistic(std::ostream & logfile, std::vector
         print_table(logfile, table);
       }
     }
-  }
+  }*/
+  
   //Network
   table.clear();
   logfile << "Route:\n";
@@ -296,6 +300,20 @@ vds::expected<void> vds_mock::sync_wait()
   
   std::cout << "Synchronize error\n";
   return vds::make_unexpected<std::runtime_error>("Synchronize error");
+}
+
+vds::expected<void> vds_mock::dump_log()
+{
+  std::ofstream logfile("test.log", std::ofstream::app);
+
+  std::vector<vds::server_statistic> statistics;
+  GET_EXPECTED(result, this->dump_statistic(logfile, statistics));
+  if (result) {
+    logfile.flush();
+    return vds::expected<void>();
+  }
+
+  return vds::expected<void>();
 }
 
 std::string vds_mock::generate_password(size_t min_len, size_t max_len)
@@ -541,9 +559,9 @@ vds::expected<vds::const_data_buffer> vds_mock::upload_file(
 vds::async_task<vds::expected<vds::file_manager::file_operations::download_result_t>>
 vds_mock::download_data(
   size_t client_index,
-  const vds::const_data_buffer &channel_id,
-  const std::string &name,
-  const vds::const_data_buffer & file_hash) {
+  vds::const_data_buffer channel_id,
+  std::string name,
+  vds::const_data_buffer file_hash) {
   auto sp = this->servers_[client_index]->get_service_provider();
 
   auto user_mng = std::make_shared<vds::user_manager>(sp);
@@ -558,10 +576,10 @@ vds_mock::download_data(
   }));
 
   co_return co_await sp->get<vds::file_manager::file_operations>()->download_file(
-    user_mng,
-    channel_id,
-    name,
-    file_hash);
+    std::move(user_mng),
+    std::move(channel_id),
+    std::move(name),
+    std::move(file_hash));
 }
 
 vds::expected<vds::user_channel> vds_mock::create_channel(int index, const std::string & channel_type, const std::string &name) {

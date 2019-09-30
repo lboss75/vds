@@ -2,8 +2,6 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <device_config_dbo.h>
-#include <device_record_dbo.h>
 #include "stdafx.h"
 #include "dht_network_client.h"
 #include "chunk_dbo.h"
@@ -23,6 +21,8 @@ All rights reserved
 #include "transaction_block_builder.h"
 #include "node_info_dbo.h"
 #include "current_config_dbo.h"
+#include "device_config_dbo.h"
+#include "device_record_dbo.h"
 
 vds::dht::network::client::client()
 : is_new_node_(true), port_(0) {
@@ -106,9 +106,15 @@ vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(
   const messages::dht_find_node& message,
   const imessage_map::message_info_t& message_info) {
   std::map<const_data_buffer /*distance*/,
-  std::map<const_data_buffer, std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>> result_nodes;
+  std::map<const_data_buffer, std::shared_ptr<dht_route::node>>> result_nodes;
 
-  CHECK_EXPECTED_ASYNC(this->route_.search_nodes(message.target_id, 70, result_nodes));
+  CHECK_EXPECTED_ASYNC(this->route_.search_nodes(
+    message.target_id,
+    70,
+    [&message_info](const dht_route::node & node) -> expected<bool> {
+      return message_info.hops().end() == std::find(message_info.hops().begin(), message_info.hops().end(), node.node_id_);
+    },
+    result_nodes));
 
   std::list<messages::dht_find_node_response::target_node> result;
   for (auto& presult : result_nodes) {
@@ -140,7 +146,7 @@ vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(
       && this->route_.add_node(
       p.target_id_,
       message_info.session(),
-      p.hops_ + message_info.hops() + 1,
+      p.hops_ + message_info.hops().size() + 1,
       true)) {
       CHECK_EXPECTED_ASYNC(co_await this->udp_transport_->try_handshake(p.address_));
     }
@@ -176,7 +182,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::add_session(
   const std::shared_ptr<dht_session>& session,
   uint8_t hops) {
   this->route_.add_node(session->partner_node_id(), session, hops, false);
-  return this->sp_->get<db_model>()->async_transaction([address = session->address().to_string()](database_transaction& t)->expected<void> {
+  return this->sp_->get<db_model>()->async_transaction([address = session->address().to_string(), session](database_transaction& t)->expected<void> {
     orm::well_known_node_dbo t1;
     GET_EXPECTED(st, t.get_reader(t1.select(t1.last_connect).where(t1.address == address)));
     GET_EXPECTED(st_execute, st.execute());
@@ -186,6 +192,20 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::add_session(
     else {
       CHECK_EXPECTED(t.execute(t1.insert(t1.last_connect = std::chrono::system_clock::now(), t1.address = address)));
     }
+
+    orm::node_info_dbo t2;
+    GET_EXPECTED_VALUE(st, t.get_reader(t2.select(t2.last_activity).where(t2.node_id == session->partner_node_id())));
+    GET_EXPECTED_VALUE(st_execute, st.execute());
+    if (st_execute) {
+      if (t2.last_activity.get(st) < std::chrono::system_clock::now()) {
+        CHECK_EXPECTED(t.execute(t2.update(t2.last_activity = std::chrono::system_clock::now()).where(t2.node_id == session->partner_node_id())));
+      }
+    }
+    else {
+      GET_EXPECTED(public_key, session->partner_node_key().der());
+      CHECK_EXPECTED(t.execute(t2.insert(t2.last_activity = std::chrono::system_clock::now(), t2.node_id = session->partner_node_id(), t2.public_key = public_key)));
+    }
+
     return expected<void>();
   });
 }
@@ -199,8 +219,11 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::send(
   return this->route_.for_near(
     target_node_id,
     1,
+    [](const dht_route::node& node) -> expected<bool> {
+      return true;
+    },
     [target_node_id, message_id, msg = std::move(message.value()), pthis = this->shared_from_this()](
-    const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>& candidate) -> async_task<expected<bool>>{
+    const std::shared_ptr<dht_route::node>& candidate) -> async_task<expected<bool>>{
     CHECK_EXPECTED_ASYNC(co_await candidate->proxy_session_->send_message(
         pthis->udp_transport_,
         (uint8_t)message_id,
@@ -212,73 +235,70 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::send(
 
 vds::async_task<vds::expected<void>> vds::dht::network::_client::send_near(
   const const_data_buffer& target_node_id,
-  size_t radius,
+  size_t max_count,
   const message_type_t message_id,
-  const const_data_buffer& message) {
-  return this->route_.for_near(
-    target_node_id,
-    radius,
-    [target_node_id, message_id, message, this](
-    const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>& candidate) -> vds::async_task<vds::expected<bool>> {
-      CHECK_EXPECTED_ASYNC(co_await candidate->proxy_session_->send_message(
-        this->udp_transport_,
-        (uint8_t)message_id,
-        candidate->node_id_,
-        message));
-      co_return true;
-    });
-}
-
-vds::async_task<vds::expected<void>> vds::dht::network::_client::send_near(
-  const const_data_buffer& target_node_id,
-  size_t radius,
-  const message_type_t message_id,
-  const const_data_buffer& message,
-  const std::function<expected<bool>(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter) {
+  expected<const_data_buffer>&& message,
+  const std::function<expected<bool>(const dht_route::node & node)>& filter) {
+  CHECK_EXPECTED_ERROR(message);
 
   return this->route_.for_near(
     target_node_id,
-    radius,
+    max_count,
     filter,
-    [target_node_id, message_id, message, this](
-    const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>& candidate) -> vds::async_task<vds::expected<bool>> {
-    CHECK_EXPECTED_ASYNC(co_await candidate->proxy_session_->send_message(
-        this->udp_transport_,
+    [target_node_id, message_id, msg = std::move(message.value()), pthis = this->shared_from_this()](
+      const std::shared_ptr<dht_route::node>& candidate)->async_task<expected<bool>>{
+      CHECK_EXPECTED_ASYNC(co_await candidate->proxy_session_->send_message(
+        pthis->udp_transport_,
         (uint8_t)message_id,
-        candidate->node_id_,
-        message));
-      co_return true;
+        target_node_id,
+        msg));
+      co_return false;
     });
 }
+
 
 vds::async_task<vds::expected<void>> vds::dht::network::_client::proxy_message(
-    
     const const_data_buffer &target_node_id,
     message_type_t message_id,
     const const_data_buffer &message,
-    const const_data_buffer &source_node,
-    uint16_t hops) {
-  return this->route_.for_near(
-    target_node_id,
-    1,
-    [
-      target_node_id,
+    const std::vector<const_data_buffer>& hops) {
+
+  if (hops.size() > 10) {
+    auto best = this->current_node_id();
+    for (const auto& item : hops) {
+      if (dht_object_id::distance(target_node_id, item) < dht_object_id::distance(target_node_id, best)) {
+        best = item;
+      }
+    }
+
+    return this->proxy_message(
+      hops[hops.size() - 1],
       message_id,
       message,
-      pthis = this->shared_from_this(),
-      distance = dht_object_id::distance(this->current_node_id(), target_node_id),
-      source_node,
-      hops](
-    const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>& candidate)->vds::async_task<vds::expected<bool>> {
-      if (dht_object_id::distance(candidate->node_id_, target_node_id) < distance
-        && source_node != candidate->proxy_session_->partner_node_id()) {
-
+      std::vector<const_data_buffer>({ best })
+    );
+  }
+  else {
+    return this->route_.for_near(
+      target_node_id,
+      1,
+      [&hops](const dht_route::node& node) -> expected<bool> {
+        return hops.end() == std::find(hops.begin(), hops.end(), node.proxy_session_->partner_node_id());
+      },
+      [
+        target_node_id,
+        message_id,
+        message,
+        pthis = this->shared_from_this(),
+        distance = dht_object_id::distance(this->current_node_id(), target_node_id),
+        hops](
+          const std::shared_ptr<dht_route::node>& candidate)->vds::async_task<vds::expected<bool>> {
         pthis->sp_->get<logger>()->trace(
           "dht_protocol",
           "%s Message %d from %s to %s redirected to %s over %s",
           base64::from_bytes(pthis->current_node_id()).c_str(),
           message_id,
-          base64::from_bytes(source_node).c_str(),
+          base64::from_bytes(hops[0]).c_str(),
           base64::from_bytes(target_node_id).c_str(),
           base64::from_bytes(candidate->node_id_).c_str(),
           candidate->proxy_session_->address().to_string().c_str());
@@ -287,13 +307,11 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::proxy_message(
           pthis->udp_transport_,
           (uint8_t)message_id,
           target_node_id,
-          source_node,
           hops,
           message));
         co_return false;
-      }
-      co_return true;
-    });
+      });
+  }
 }
 
 vds::async_task<vds::expected<void>> vds::dht::network::_client::send_neighbors(
@@ -302,7 +320,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::send_neighbors(
   CHECK_EXPECTED_ERROR(message);
   return this->route_.for_neighbors(
     [message_id, msg = std::move(message.value()), pthis = this->shared_from_this()](
-      const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>& candidate)->vds::async_task<vds::expected<bool>> {
+      const std::shared_ptr<dht_route::node>& candidate)->vds::async_task<vds::expected<bool>> {
     CHECK_EXPECTED_ASYNC(co_await candidate->proxy_session_->send_message(
         pthis->udp_transport_,
         (uint8_t)message_id,
@@ -344,7 +362,7 @@ void vds::dht::network::_client::stop() {
 }
 
 void vds::dht::network::_client::get_neighbors(
-                                               std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>
+                                               std::list<std::shared_ptr<dht_route::node>>
                                                & result) {
   this->route_.get_neighbors(result);
 }
@@ -846,42 +864,19 @@ vds::expected<void> vds::dht::network::_client::delete_data(
 }
 
 void vds::dht::network::_client::add_route(
-  
+  const std::vector<const_data_buffer> & nodes,
+  const std::shared_ptr<dht_session>& session) {
+  for (uint16_t hops = 0; hops < nodes.size(); ++hops) {
+    this->add_route(nodes[hops], hops, session);
+  }
+}
+
+void vds::dht::network::_client::add_route(
   const const_data_buffer& source_node,
   uint16_t hops,
   const std::shared_ptr<dht_session>& session) {
   this->route_.add_node(source_node, session, hops, false);
 
-}
-
-vds::async_task<vds::expected<void>> vds::dht::network::_client::redirect(
-  const const_data_buffer & target_node_id,
-  const const_data_buffer & source_node_id,
-  uint16_t hops,
-  message_type_t message_id,
-  expected<const_data_buffer>&& message)
-{
-  CHECK_EXPECTED_ERROR(message);
-
-  return this->route_.for_near(
-    target_node_id,
-    1,
-    [target_node_id, source_node_id, hops, message_id, msg = std::move(message.value()), pthis = this->shared_from_this()](
-      const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>& candidate)->async_task<expected<bool>>{
-    if (candidate->proxy_session_->partner_node_id() != source_node_id) {
-      CHECK_EXPECTED_ASYNC(co_await candidate->proxy_session_->proxy_message(
-        pthis->udp_transport_,
-        (uint8_t)message_id,
-        target_node_id,
-        source_node_id,
-        hops,
-        msg));
-      co_return false;
-    }
-    else {
-      co_return true;
-    }
-  });
 }
 
 vds::async_task<vds::expected<void>> vds::dht::network::_client::find_nodes(

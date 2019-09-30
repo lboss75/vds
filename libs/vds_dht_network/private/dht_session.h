@@ -17,14 +17,15 @@ namespace vds {
   namespace dht {
     namespace network {
 
-      class dht_session : public dht_datagram_protocol<dht_session, iudp_transport> {
-        using base_class = dht_datagram_protocol<dht_session, iudp_transport>;
+      class dht_session : public dht_datagram_protocol {
+        using base_class = dht_datagram_protocol;
 
       public:
         dht_session(
           const service_provider * sp,
           const network_address& address,
           const const_data_buffer& this_node_id,
+          asymmetric_public_key partner_node_key,
           const const_data_buffer& partner_node_id,
           const const_data_buffer& session_key) noexcept;
 
@@ -33,12 +34,10 @@ namespace vds {
           const std::shared_ptr<iudp_transport>& transport);
 
         vds::async_task<vds::expected<bool>> process_message(
-          
           const std::shared_ptr<iudp_transport>& transport,
           uint8_t message_type,
           const const_data_buffer & target_node,
-          const const_data_buffer & source_node,
-          uint16_t hops,
+          const std::vector<const_data_buffer> & hops,
           const const_data_buffer& message);
 
         session_statistic::session_info get_statistic() const;

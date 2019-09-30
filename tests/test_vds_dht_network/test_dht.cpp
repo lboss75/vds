@@ -28,22 +28,22 @@ TEST(test_vds_dht_network, test_protocol) {
   CHECK_EXPECTED_GTEST(registrator.start());
 
   GET_EXPECTED_GTEST(node1_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
-  GET_EXPECTED_GTEST(node1_certificate, vds::_cert_control::create_cert(node1_key));
+  GET_EXPECTED_GTEST(node1_certificate, vds::asymmetric_public_key::create(node1_key));
 
   GET_EXPECTED_GTEST(node2_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
-  GET_EXPECTED_GTEST(node2_certificate, vds::_cert_control::create_cert(node2_key));
+  GET_EXPECTED_GTEST(node2_certificate, vds::asymmetric_public_key::create(node2_key));
 
   GET_EXPECTED_GTEST(node3_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
-  GET_EXPECTED_GTEST(node3_certificate, vds::_cert_control::create_cert(node3_key));
+  GET_EXPECTED_GTEST(node3_certificate, vds::asymmetric_public_key::create(node3_key));
 
   GET_EXPECTED_GTEST(node4_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
-  GET_EXPECTED_GTEST(node4_certificate, vds::_cert_control::create_cert(node4_key));
+  GET_EXPECTED_GTEST(node4_certificate, vds::asymmetric_public_key::create(node4_key));
 
 
-  GET_EXPECTED_GTEST(node1, node1_certificate.fingerprint(vds::hash::sha256()));
-  GET_EXPECTED_GTEST(node2, node2_certificate.fingerprint(vds::hash::sha256()));
-  GET_EXPECTED_GTEST(node3, node3_certificate.fingerprint(vds::hash::sha256()));
-  GET_EXPECTED_GTEST(node4, node4_certificate.fingerprint(vds::hash::sha256()));
+  GET_EXPECTED_GTEST(node1, node1_certificate.fingerprint());
+  GET_EXPECTED_GTEST(node2, node2_certificate.fingerprint());
+  GET_EXPECTED_GTEST(node3, node3_certificate.fingerprint());
+  GET_EXPECTED_GTEST(node4, node4_certificate.fingerprint());
 
   vds::const_data_buffer session_key;
   session_key.resize(32);
@@ -54,6 +54,7 @@ TEST(test_vds_dht_network, test_protocol) {
     sp,
     address,
     node1,
+    std::move(node2_certificate),
     node2,
     session_key);
   //session1->set_mtu(1024);
@@ -62,6 +63,7 @@ TEST(test_vds_dht_network, test_protocol) {
     sp,
     address,
     node2,
+    std::move(node1_certificate),
     node1,
     session_key);
   //session1->set_mtu(20 * 1024);
@@ -75,8 +77,7 @@ TEST(test_vds_dht_network, test_protocol) {
     uint8_t /*message_type_*/,
     vds::const_data_buffer /*message_*/,
     vds::const_data_buffer /*target_node_*/,
-    vds::const_data_buffer /*source_node_*/,
-    uint16_t /*hops_*/
+    std::vector<vds::const_data_buffer> /*hops_*/
     >> messages;
 
   for (int i = 0; i < 10000; ++i)
@@ -92,33 +93,40 @@ TEST(test_vds_dht_network, test_protocol) {
     uint8_t message_type = (uint8_t)std::rand() % 32;
     vds::const_data_buffer target_node;
     vds::const_data_buffer source_node;
-    uint16_t hops;
-
+    std::vector<vds::const_data_buffer> hops;
 
     if (std::rand() < 10000) {
       target_node.resize(32);
       vds::crypto_service::rand_bytes(target_node.data(), target_node.size());
       source_node.resize(32);
       vds::crypto_service::rand_bytes(source_node.data(), source_node.size());
-      hops = (uint8_t)std::rand() % 64;
-      CHECK_EXPECTED_GTEST(session1->proxy_message(transport12, message_type, target_node, source_node, hops, message).get());
+
+      hops.push_back(node1);
+      hops.push_back(source_node);
+
+      CHECK_EXPECTED_GTEST(session1->proxy_message(
+        transport12,
+        message_type,
+        target_node,
+        std::vector<vds::const_data_buffer>({ source_node }),
+        message).get());
     }
     else if (std::rand() < 10000) {
       target_node.resize(32);
       vds::crypto_service::rand_bytes(target_node.data(), target_node.size());
       source_node = node1;
-      hops = 0;
+      hops.push_back(node1);
 
       CHECK_EXPECTED_GTEST(session1->send_message(transport12, message_type, target_node, message).get());
     }
     else {
       target_node = node2;
       source_node = node1;
-      hops = 0;
+      hops.push_back(node1);
       CHECK_EXPECTED_GTEST(session1->send_message(transport12, message_type, node2, message).get());
     }
 
-    messages.push_back(std::make_tuple(message_type, message, target_node, source_node, hops));
+    messages.push_back(std::make_tuple(message_type, message, target_node, hops));
   }
 
   for (int i = 0; i < messages.size(); ++i)
@@ -130,8 +138,7 @@ TEST(test_vds_dht_network, test_protocol) {
         std::get<0>(messages[i]),
         std::get<1>(messages[i]),
         std::get<2>(messages[i]),
-        std::get<3>(messages[i]),
-        std::get<4>(messages[i])));
+        std::get<3>(messages[i])));
     if (!isFinish) {
       GTEST_ASSERT_LT(messages.size() - 10, i);
     }
@@ -152,4 +159,29 @@ vds::async_task<vds::expected<void>> mock_unreliable_transport::write_async(cons
       this->partner_.lock(),
       vds::const_data_buffer(data.data(), data.data_size()));
   }
+}
+
+vds::async_task<vds::expected<void>> mock_unreliable_transport::start(const vds::service_provider* sp, const std::shared_ptr<vds::asymmetric_public_key>& node_public_key, const std::shared_ptr<vds::asymmetric_private_key>& node_key, uint16_t port, bool dev_network)
+{
+  throw vds::vds_exceptions::invalid_operation();
+}
+
+void mock_unreliable_transport::stop()
+{
+  throw vds::vds_exceptions::invalid_operation();
+}
+
+vds::async_task<vds::expected<void>> mock_unreliable_transport::try_handshake(const std::string& address)
+{
+  throw vds::vds_exceptions::invalid_operation();
+}
+
+vds::expected<void> mock_unreliable_transport::broadcast_handshake()
+{
+  throw vds::vds_exceptions::invalid_operation();
+}
+
+vds::async_task<vds::expected<void>> mock_unreliable_transport::on_timer()
+{
+  throw vds::vds_exceptions::invalid_operation();
 }

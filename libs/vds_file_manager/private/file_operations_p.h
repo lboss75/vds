@@ -29,10 +29,10 @@ namespace vds {
 
 
 	    async_task<expected<file_manager::file_operations::download_result_t>> download_file(
-          const std::shared_ptr<user_manager> & user_mng,
-          const const_data_buffer & channel_id,
-          const std::string & file_name,
-          const const_data_buffer & file_hash);
+          std::shared_ptr<user_manager> user_mng,
+          const_data_buffer channel_id,
+          std::string file_name,
+          const_data_buffer file_hash);
 
       async_task<expected<file_manager::file_operations::prepare_download_result_t>> prepare_download_file(
         const std::shared_ptr<user_manager> & user_mng,

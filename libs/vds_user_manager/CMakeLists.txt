@@ -31,7 +31,6 @@ target_link_libraries(
   vds_crypto
   vds_database
   vds_db_model
-  vds_dht
   vds_transactions
   ${OPENSSL_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}

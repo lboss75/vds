@@ -52,30 +52,26 @@ static vds::expected<void> proxy_message_check(
     transport12,
     10,
     node3,
-    node1,
-    0,
+    std::vector<vds::const_data_buffer>({ node3 }),
     message).get());
 
   CHECK_EXPECTED(session2->check_message(
     10,
     message,
     node3,
-    node1,
-    0));
+    std::vector<vds::const_data_buffer>({ node1, node2 })));
 
   CHECK_EXPECTED(session1->proxy_message(
     transport12,
     10,
     node2,
-    node3,
-    2,
+    std::vector<vds::const_data_buffer>({ node3, node1 }),
     message).get());
   CHECK_EXPECTED(session2->check_message(
     10,
     message,
     node2,
-    node3,
-    2));
+    std::vector<vds::const_data_buffer>({ node1, node3, node1 })));
 
   return vds::expected<void>();
 }
@@ -106,13 +102,13 @@ TEST(test_vds_dht_network, test_data_exchange) {
   CHECK_EXPECTED_GTEST(registrator.start());
 
   GET_EXPECTED_GTEST(node1_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
-  GET_EXPECTED_GTEST(node1_certificate, vds::_cert_control::create_cert(node1_key));
+  GET_EXPECTED_GTEST(node1_certificate, vds::asymmetric_public_key::create(node1_key));
 
   GET_EXPECTED_GTEST(node2_key, vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096()));
-  GET_EXPECTED_GTEST(node2_certificate, vds::_cert_control::create_cert(node2_key));
+  GET_EXPECTED_GTEST(node2_certificate, vds::asymmetric_public_key::create(node2_key));
 
-  GET_EXPECTED_GTEST(node1, node1_certificate.fingerprint(vds::hash::sha256()));
-  GET_EXPECTED_GTEST(node2, node2_certificate.fingerprint(vds::hash::sha256()));
+  GET_EXPECTED_GTEST(node1, node1_certificate.fingerprint());
+  GET_EXPECTED_GTEST(node2, node2_certificate.fingerprint());
 
   vds::const_data_buffer session_key;
   session_key.resize(32);
@@ -123,6 +119,7 @@ TEST(test_vds_dht_network, test_data_exchange) {
     sp,
     address,
     node1,
+    std::move(node2_certificate),
     node2,
     session_key);
   session1->set_mtu(3 * 1024);
@@ -131,6 +128,7 @@ TEST(test_vds_dht_network, test_data_exchange) {
     sp,
     address,
     node2,
+    std::move(node1_certificate),
     node1,
     session_key);
   session1->set_mtu(20 * 1024);
@@ -160,4 +158,33 @@ vds::async_task<vds::expected<void>> mock_dg_transport::write_async(
   return this->s_.process_datagram(
       this->partner_.lock(),
       vds::const_data_buffer(data.data(), data.data_size()));
+}
+
+vds::async_task<vds::expected<void>> mock_dg_transport::start(
+  const vds::service_provider* sp,
+  const std::shared_ptr<vds::asymmetric_public_key>& node_public_key,
+  const std::shared_ptr<vds::asymmetric_private_key>& node_key,
+  uint16_t port,
+  bool dev_network)
+{
+  throw vds::vds_exceptions::invalid_operation();
+}
+
+void mock_dg_transport::stop()
+{
+}
+
+vds::async_task<vds::expected<void>> mock_dg_transport::try_handshake(const std::string& address)
+{
+  throw vds::vds_exceptions::invalid_operation();
+}
+
+vds::expected<void> mock_dg_transport::broadcast_handshake()
+{
+  throw vds::vds_exceptions::invalid_operation();
+}
+
+vds::async_task<vds::expected<void>> mock_dg_transport::on_timer()
+{
+  throw vds::vds_exceptions::invalid_operation();
 }

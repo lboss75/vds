@@ -83,7 +83,10 @@ public:
     return this->node_id_;
   }
 
- 
+  const std::shared_ptr<vds::asymmetric_public_key> & node_key() const {
+    return this->node_key_;
+  }
+
   const std::shared_ptr<transport_hab> & hab() const {
     return this->hab_;
   }
@@ -92,6 +95,7 @@ private:
   mock_sync_server * owner_;
   std::shared_ptr<transport_hab> hab_;
   vds::const_data_buffer node_id_;
+  std::shared_ptr<vds::asymmetric_public_key> node_key_;
 };
 
 class mock_sync_server : public vds::iservice_factory, protected vds::dht::network::imessage_map {
@@ -114,6 +118,8 @@ public:
     const std::shared_ptr<vds::dht::network::dht_session> & session);
 
   const vds::network_address & address() const;
+
+  const std::shared_ptr<vds::asymmetric_public_key>& node_key() const;
 
   vds::expected<void> add_sync_entry(
     const vds::const_data_buffer& object_data);
@@ -149,6 +155,7 @@ public:
     const vds::const_data_buffer& source_node_id,
     const vds::network_address & source_address);
 
+  const std::shared_ptr<vds::asymmetric_public_key>& node_key() const;
   const vds::const_data_buffer & node_id() const;
   const vds::network_address & address() const;
 

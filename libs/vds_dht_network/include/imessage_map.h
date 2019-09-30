@@ -25,10 +25,11 @@ namespace vds {
             const std::shared_ptr<dht_session>& session,
             message_type_t message_type,
             const const_data_buffer& message_data,
-            const const_data_buffer& source_node,
-            uint16_t hops)
-            : session_(session), message_type_(message_type), message_data_(message_data),
-              source_node_(source_node), hops_(hops) {
+            const std::vector<const_data_buffer> & hops)
+            : session_(session),
+              message_type_(message_type),
+              message_data_(message_data),
+              hops_(hops) {
           }
 
           const std::shared_ptr<dht_session>& session() const {
@@ -44,10 +45,14 @@ namespace vds {
           }
 
           const const_data_buffer& source_node() const {
-            return source_node_;
+            return this->hops_[this->hops_.size() - 1];
           }
 
-          uint16_t hops() const {
+          const const_data_buffer& last_proxy_node() const {
+            return this->hops_[0];
+          }
+
+          const std::vector<const_data_buffer>& hops() const {
             return hops_;
           }
 
@@ -55,8 +60,7 @@ namespace vds {
           std::shared_ptr<dht_session> session_;
           message_type_t message_type_;
           const_data_buffer message_data_;
-          const_data_buffer source_node_;
-          uint16_t hops_;
+          std::vector<const_data_buffer> hops_;
         };
 
         virtual vds::async_task<vds::expected<bool>> process_message(

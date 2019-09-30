@@ -54,7 +54,6 @@ target_link_libraries(vds_transactions
   vds_crypto
   vds_parser
   vds_user_manager
-  vds_dht
   vds_dht_network
   ${OPENSSL_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})

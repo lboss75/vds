@@ -93,10 +93,10 @@ namespace vds {
 
 
 			vds::async_task<vds::expected<download_result_t>> download_file(
-			  const std::shared_ptr<user_manager> & user_mng,
-			  const const_data_buffer & channel_id,
-        const std::string & file_name,
-        const const_data_buffer & file_hash);
+			  std::shared_ptr<user_manager> user_mng,
+			  const_data_buffer channel_id,
+        std::string file_name,
+        const_data_buffer file_hash);
 
       void start(const service_provider * sp);
       void stop();

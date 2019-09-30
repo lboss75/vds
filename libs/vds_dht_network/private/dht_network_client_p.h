@@ -58,7 +58,7 @@ namespace vds {
         void stop();
         void get_neighbors(
           
-          std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>& result);
+          std::list<std::shared_ptr<dht_route::node>>& result);
         
         expected<void> on_new_session(
           database_read_transaction& t,
@@ -88,16 +88,7 @@ namespace vds {
           return this->route_.current_node_id();
         }
 
-        expected<void> neighbors(
-          
-          const const_data_buffer& key,
-          std::map<const_data_buffer /*distance*/, std::list<const_data_buffer/*node_id*/>>& result,
-          uint16_t max_count) const {
-          return this->route_.neighbors(key, result, max_count);
-        }
-
         async_task<expected<bool>> apply_message(
-          
           const messages::dht_find_node& message,
           const imessage_map::message_info_t& message_info);
 
@@ -230,43 +221,23 @@ namespace vds {
         template <typename message_type>
         async_task<expected<void>> redirect(
           const const_data_buffer& node_id,
-          const const_data_buffer& source_node_id,
-          uint16_t hops,
+          const std::vector<const_data_buffer>& hops,
           expected<message_type> && message) {
           CHECK_EXPECTED_ERROR(message);
           return this->redirect(node_id, source_node_id, hops, message_type::message_id, message_serialize(message.value()));
         }
 
-        async_task<expected<void>> redirect(
-          const const_data_buffer& target_node_id,
-          const const_data_buffer& source_node_id,
-          uint16_t hops,
-          message_type_t message_id,
-          expected<const_data_buffer> && message);
-
 
         async_task<expected<void>> find_nodes(
-            
             const const_data_buffer& node_id,
             size_t radius);
-
-        template <typename message_type>
-        async_task<expected<void>> send_near(
-          
-          const const_data_buffer& node_id,
-          size_t radius,
-          expected<message_type> && message) {
-          CHECK_EXPECTED_ERROR(message);
-          GET_EXPECTED(message_data, message_serialize(message.value()));
-          return this->send_near(node_id, radius, message_type::message_id, message_data);
-        }
 
         template <typename message_type>
         async_task<expected<void>> send_near(
           const const_data_buffer& node_id,
           size_t radius,
           expected<message_type> && message,
-          const std::function<expected<bool>(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter) {
+          const std::function<expected<bool>(const dht_route::node& node)>& filter) {
           GET_EXPECTED(message_data, message_serialize(message.value()));
           return this->send_near(node_id, radius, message_type::message_id, message_data, filter);
         }
@@ -302,7 +273,10 @@ namespace vds {
         void get_session_statistics(session_statistic& session_statistic);
 
         void add_route(
-          
+          const std::vector<const_data_buffer>& hops,
+          const std::shared_ptr<dht_session>& session);
+
+        void add_route(
           const const_data_buffer& source_node,
           uint16_t hops,
           const std::shared_ptr<dht_session>& session);
@@ -331,7 +305,7 @@ namespace vds {
 
         const service_provider * sp_;
         std::shared_ptr<iudp_transport> udp_transport_;
-        dht_route<std::shared_ptr<dht_session>> route_;
+        dht_route route_;
         std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> generators_;
         sync_process sync_process_;
 
@@ -345,26 +319,11 @@ namespace vds {
           std::list<std::function<async_task<expected<void>>()>> & final_tasks);
 
 
-        async_task<vds::expected<void>> send_near(
-          const const_data_buffer& node_id,
-          size_t radius,
-          message_type_t message_id,
-          const const_data_buffer& message);
-
-        async_task<vds::expected<void>> send_near(
-          const const_data_buffer& node_id,
-          size_t radius,
-          message_type_t message_id,
-          const const_data_buffer& message,
-          const std::function<expected<bool>(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter);
-
         vds::async_task<vds::expected<void>> proxy_message(
-            
             const const_data_buffer &node_id,
             message_type_t message_id,
             const const_data_buffer &message,
-            const const_data_buffer &source_node,
-            uint16_t hops);
+            const std::vector<const_data_buffer> & hops);
 
         vds::async_task<vds::expected<void>> send_neighbors(
           message_type_t message_id,
@@ -373,6 +332,13 @@ namespace vds {
         static expected<const_data_buffer> replica_id(
           const std::string& key,
           uint16_t replica);
+
+        async_task<expected<void>> send_near(
+          const const_data_buffer& target_node_id,
+          size_t max_count,
+          const message_type_t message_id,
+          expected<const_data_buffer>&& message,
+          const std::function<expected<bool>(const dht_route::node & node)>& filter);
 
         expected<void> update_wellknown_connection(          
           database_transaction& t,

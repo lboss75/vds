@@ -71,7 +71,7 @@ vds::expected<void> vds::transaction_log::sync_process::query_unknown_records(
           "Query log records %s",
           base64::from_bytes(p).c_str());
 
-      std::list<std::shared_ptr<dht::dht_route<std::shared_ptr<dht::network::dht_session>>::node>> neighbors;
+      std::list<std::shared_ptr<dht::dht_route::node>> neighbors;
       (*client)->get_neighbors(neighbors);
 
       for (const auto& neighbor : neighbors) {
@@ -256,11 +256,15 @@ vds::expected<bool> vds::transaction_log::sync_process::apply_message(
   orm::transaction_log_record_dbo t1;
   std::shared_ptr<asymmetric_public_key> write_public_key;
   orm::node_info_dbo t2;
-  GET_EXPECTED(st, t.get_reader(t2.select(t2.public_key).where(t2.node_id == block.write_public_key_id())));
+  GET_EXPECTED(st, t.get_reader(t2.select(t2.public_key, t2.last_activity).where(t2.node_id == block.write_public_key_id())));
   GET_EXPECTED(st_execute, st.execute());
   if (st_execute) {
     GET_EXPECTED(write_public_key_data, asymmetric_public_key::parse_der(t2.public_key.get(st)));
     write_public_key = std::make_shared<asymmetric_public_key>(std::move(write_public_key_data));
+
+    if (t2.last_activity.get(st) < block.time_point()) {
+      CHECK_EXPECTED(t.execute(t2.update(t2.last_activity = block.time_point()).where(t2.node_id == block.write_public_key_id())));
+    }
   }
 
   if (!write_public_key) {

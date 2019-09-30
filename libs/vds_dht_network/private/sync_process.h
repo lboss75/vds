@@ -191,6 +191,10 @@ namespace vds {
           return std::chrono::minutes(15);
         }
 
+        static std::chrono::system_clock::duration LEADER_IN_DANGER_BROADCAST_TIMEOUT() {
+          return std::chrono::seconds(30);
+        }
+
         static std::chrono::system_clock::duration ELECTION_TIMEOUT() {
           return std::chrono::minutes(10);
         }
@@ -420,6 +424,7 @@ namespace vds {
 
             expected<void> try_to_attach(
               const service_provider * sp,
+              database_read_transaction & t,
               std::list<std::function<async_task<expected<void>>()>> & final_tasks,
               const const_data_buffer& object_id) const;
 

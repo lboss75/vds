@@ -210,7 +210,8 @@ vds::expected<void> vds::db_model::migrate(
 
       "CREATE TABLE node_info_dbo(\
 			node_id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			public_key VARCHAR(1853) NOT NULL)",
+			public_key VARCHAR(1853) NOT NULL,\
+      last_activity INTEGER NOT NULL)",
 
       "CREATE TABLE wallet_dbo(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\

@@ -14,12 +14,14 @@ vds::dht::network::dht_session::dht_session(
   const service_provider * sp,
   const network_address& address,
   const const_data_buffer& this_node_id,
+  asymmetric_public_key partner_node_key,
   const const_data_buffer& partner_node_id,
   const const_data_buffer& session_key) noexcept
   : base_class(
       sp,
       address,
       this_node_id,
+      std::move(partner_node_key),
       partner_node_id,
       session_key) {
 }
@@ -53,8 +55,7 @@ vds::async_task<vds::expected<bool>> vds::dht::network::dht_session::process_mes
   const std::shared_ptr<iudp_transport>& transport,
   uint8_t message_type,
   const const_data_buffer & target_node,
-  const const_data_buffer & source_node,
-  uint16_t hops,
+  const std::vector<const_data_buffer> & hops,
   const const_data_buffer& message) {
 
   //if (message_type == (uint8_t)message_type_t::sync_looking_storage_response
@@ -71,39 +72,33 @@ vds::async_task<vds::expected<bool>> vds::dht::network::dht_session::process_mes
     "dht_session",
     "receive %d from %s to %s",
     message_type,
-    base64::from_bytes(source_node).c_str(),
+    base64::from_bytes(hops[0]).c_str(),
     base64::from_bytes(target_node).c_str());
 
-  (*this->sp_->get<client>())->add_route(source_node, hops, this->shared_from_this());
+  (*this->sp_->get<client>())->add_route(hops, std::static_pointer_cast<dht_session>(this->shared_from_this()));
 
   if (target_node != this->this_node_id()) {
-    if (hops == std::numeric_limits<uint16_t>::max()) {
-      co_return false;
-    }
-
     this->sp_->get<logger>()->trace(
       "dht_session",
       "redirect %d from %s to %s",
       message_type,
-      base64::from_bytes(source_node).c_str(),
+      base64::from_bytes(hops[0]).c_str(),
       base64::from_bytes(target_node).c_str());
 
     CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<client>())->proxy_message(
       target_node,
       (message_type_t)message_type,
       message,
-      source_node,
-      hops + 1));
+      hops));
     co_return true;
   }
   else {
     co_return co_await this->sp_->get<imessage_map>()->process_message(
-      imessage_map::message_info_t{
-        this->shared_from_this(),
+      imessage_map::message_info_t(
+        std::static_pointer_cast<dht_session>(this->shared_from_this()),
         static_cast<message_type_t>(message_type),
         message,
-        source_node,
         hops
-    });
+    ));
   }
 }

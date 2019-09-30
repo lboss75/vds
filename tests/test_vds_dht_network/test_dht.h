@@ -7,10 +7,11 @@
 
 #include "udp_socket.h"
 #include "../private/dht_datagram_protocol.h"
+#include "iudp_transport.h"
 
 class mock_unreliable_session;
 
-class mock_unreliable_transport : public std::enable_shared_from_this<mock_unreliable_transport> {
+class mock_unreliable_transport : public vds::dht::network::iudp_transport {
 public:
   mock_unreliable_transport(mock_unreliable_session & s)
     : s_(s) {
@@ -26,35 +27,40 @@ public:
 private:
   mock_unreliable_session & s_;
   std::weak_ptr<mock_unreliable_transport> partner_;
+
+  // Inherited via iudp_transport
+  virtual vds::async_task<vds::expected<void>> start(const vds::service_provider* sp, const std::shared_ptr<vds::asymmetric_public_key>& node_public_key, const std::shared_ptr<vds::asymmetric_private_key>& node_key, uint16_t port, bool dev_network) override;
+  virtual void stop() override;
+  virtual vds::async_task<vds::expected<void>> try_handshake(const std::string& address) override;
+  virtual vds::expected<void> broadcast_handshake() override;
+  virtual vds::async_task<vds::expected<void>> on_timer() override;
 };
 
 
-class mock_unreliable_session : public vds::dht::network::dht_datagram_protocol<mock_unreliable_session, mock_unreliable_transport> {
-  typedef vds::dht::network::dht_datagram_protocol<mock_unreliable_session, mock_unreliable_transport> base_class;
+class mock_unreliable_session : public vds::dht::network::dht_datagram_protocol {
+  typedef vds::dht::network::dht_datagram_protocol base_class;
 public:
   mock_unreliable_session(
     const vds::service_provider * sp,
     const vds::network_address& address,
     const vds::const_data_buffer& this_node_id,
+    vds::asymmetric_public_key partner_node_key,
     const vds::const_data_buffer& partner_node_id,
     const vds::const_data_buffer& session_key)
-    : base_class(sp, address, this_node_id, partner_node_id, session_key) {
+    : base_class(sp, address, this_node_id, std::move(partner_node_key),  partner_node_id, session_key) {
   }
 
   vds::async_task<vds::expected<bool>> process_message(
-
-    const std::shared_ptr<mock_unreliable_transport>& transport,
+    const std::shared_ptr<vds::dht::network::iudp_transport>& transport,
     uint8_t message_type,
     const vds::const_data_buffer & target_node,
-    const vds::const_data_buffer & source_node,
-    uint16_t hops,
-    const vds::const_data_buffer& message) {
+    const std::vector<vds::const_data_buffer>& hops,
+    const vds::const_data_buffer& message) override {
 
     this->messages_.push_back(std::make_tuple(
       message_type,
       message,
       target_node,
-      source_node,
       hops));
 
     co_return true;
@@ -66,11 +72,10 @@ public:
     uint8_t message_type,
     const vds::const_data_buffer & message,
     const vds::const_data_buffer & target_node,
-    const vds::const_data_buffer & source_node,
-    uint16_t hops) {
+    const std::vector<vds::const_data_buffer> & hops) {
     for (int i = 0; i < 10; ++i) {
       if (this->messages_.empty()) {
-        CHECK_EXPECTED(this->send_acknowledgment(s).get());
+        CHECK_EXPECTED(this->send_acknowledgment(std::static_pointer_cast<vds::dht::network::iudp_transport>(s)).get());
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
       }
@@ -92,10 +97,10 @@ public:
     if (target_node != std::get<2>(p)) {
       return vds::make_unexpected<std::runtime_error>("Invalid target_node");
     }
-    if (source_node != std::get<3>(p)) {
-      return vds::make_unexpected<std::runtime_error>("Invalid source_node");
+    if (hops.size() != std::get<3>(p).size()) {
+      return vds::make_unexpected<std::runtime_error>("Invalid hops");
     }
-    if (hops != std::get<4>(p)) {
+    if (!std::equal(hops.begin(), hops.end(), std::get<3>(p).begin())) {
       return vds::make_unexpected<std::runtime_error>("Invalid hops");
     }
 
@@ -109,8 +114,7 @@ private:
     uint8_t /*message_type_*/,
     vds::const_data_buffer /*message_*/,
     vds::const_data_buffer /*target_node_*/,
-    vds::const_data_buffer /*source_node_*/,
-    uint16_t /*hops_*/
+    std::vector<vds::const_data_buffer> /*hops_*/
   > message_type;
 
   std::list<message_type> messages_;
