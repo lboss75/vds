@@ -3,7 +3,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "stdafx.h"
-#include "private/dht_datagram_protocol.h"
+#include "dht_datagram_protocol.h"
 #include "iudp_transport.h"
 
 vds::dht::network::dht_datagram_protocol::dht_datagram_protocol(const service_provider* sp, const network_address& address, const const_data_buffer& this_node_id, asymmetric_public_key partner_node_key, const const_data_buffer& partner_node_id, const const_data_buffer& session_key) noexcept

@@ -1,7 +1,7 @@
 #ifndef __TEST_VDS_DHT_NETWORK_TEST_DATAGRAM_PROTOCOL_H_
 #define __TEST_VDS_DHT_NETWORK_TEST_DATAGRAM_PROTOCOL_H_
 
-#include "../private/dht_datagram_protocol.h"
+#include "dht_datagram_protocol.h"
 #include "iudp_transport.h"
 
 class mock_session;

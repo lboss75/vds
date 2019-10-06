@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "../vds_dht_network/private/dht_session.h"
+#include "dht_session.h"
 #include "db_model.h"
 #include "dht_network_client.h"
 #include "server.h"

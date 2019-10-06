@@ -5,7 +5,7 @@ All rights reserved
 #include "stdafx.h"
 #include "test_vds_dht_network.h"
 #include "test_config.h"
-#include "../../libs/vds_dht_network/private/udp_transport.h"
+#include "udp_transport.h"
 
 int main(int argc, char **argv) {
   

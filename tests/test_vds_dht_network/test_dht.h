@@ -6,7 +6,7 @@
 #define __TEST_VDS_DHT_NETWORK_VDS_TEST_DHT_H_
 
 #include "udp_socket.h"
-#include "../private/dht_datagram_protocol.h"
+#include "dht_datagram_protocol.h"
 #include "iudp_transport.h"
 
 class mock_unreliable_session;

@@ -163,25 +163,24 @@ vds::async_task<vds::expected<void>> mock_unreliable_transport::write_async(cons
 
 vds::async_task<vds::expected<void>> mock_unreliable_transport::start(const vds::service_provider* sp, const std::shared_ptr<vds::asymmetric_public_key>& node_public_key, const std::shared_ptr<vds::asymmetric_private_key>& node_key, uint16_t port, bool dev_network)
 {
-  throw vds::vds_exceptions::invalid_operation();
+  co_return vds::make_unexpected<vds::vds_exceptions::invalid_operation>();
 }
 
 void mock_unreliable_transport::stop()
 {
-  throw vds::vds_exceptions::invalid_operation();
 }
 
 vds::async_task<vds::expected<void>> mock_unreliable_transport::try_handshake(const std::string& address)
 {
-  throw vds::vds_exceptions::invalid_operation();
+  co_return vds::make_unexpected<vds::vds_exceptions::invalid_operation>();
 }
 
 vds::expected<void> mock_unreliable_transport::broadcast_handshake()
 {
-  throw vds::vds_exceptions::invalid_operation();
+  return vds::make_unexpected<vds::vds_exceptions::invalid_operation>();
 }
 
 vds::async_task<vds::expected<void>> mock_unreliable_transport::on_timer()
 {
-  throw vds::vds_exceptions::invalid_operation();
+  co_return vds::make_unexpected<vds::vds_exceptions::invalid_operation>();
 }

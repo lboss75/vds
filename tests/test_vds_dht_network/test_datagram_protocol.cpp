@@ -167,7 +167,7 @@ vds::async_task<vds::expected<void>> mock_dg_transport::start(
   uint16_t port,
   bool dev_network)
 {
-  throw vds::vds_exceptions::invalid_operation();
+  co_return vds::make_unexpected<vds::vds_exceptions::invalid_operation>();
 }
 
 void mock_dg_transport::stop()
@@ -176,15 +176,15 @@ void mock_dg_transport::stop()
 
 vds::async_task<vds::expected<void>> mock_dg_transport::try_handshake(const std::string& address)
 {
-  throw vds::vds_exceptions::invalid_operation();
+  co_return vds::make_unexpected<vds::vds_exceptions::invalid_operation>();
 }
 
 vds::expected<void> mock_dg_transport::broadcast_handshake()
 {
-  throw vds::vds_exceptions::invalid_operation();
+  return vds::make_unexpected<vds::vds_exceptions::invalid_operation>();
 }
 
 vds::async_task<vds::expected<void>> mock_dg_transport::on_timer()
 {
-  throw vds::vds_exceptions::invalid_operation();
+  co_return vds::make_unexpected<vds::vds_exceptions::invalid_operation>();
 }

@@ -5,9 +5,9 @@ All rights reserved
 
 
 #include "stdafx.h"
-#include "private/udp_transport.h"
+#include "udp_transport.h"
 #include "messages/dht_route_messages.h"
-#include "private/dht_session.h"
+#include "dht_session.h"
 #include "logger.h"
 #include "dht_network_client.h"
 #include "dht_network_client_p.h"
