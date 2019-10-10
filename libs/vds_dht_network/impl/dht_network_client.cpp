@@ -905,10 +905,13 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::redirect(
 {
   CHECK_EXPECTED_ERROR(message);
 
-  return this->route_.for_near(node_id, 1, [](const dht_route::node& node)->expected<bool> {
-    return true;
-  },
-  [pthis = this->shared_from_this(), h = std::move(hops), message_id, m = std::move(message)](const std::shared_ptr<dht_route::node> & node) mutable -> vds::async_task<vds::expected<bool>> {
+  return this->route_.for_near(
+    node_id,
+    1,
+    [last_node = hops[0]](const dht_route::node& node)->expected<bool> {
+      return last_node != node.proxy_session_->partner_node_id();
+    },
+    [pthis = this->shared_from_this(), h = std::move(hops), message_id, m = std::move(message)](const std::shared_ptr<dht_route::node> & node) mutable -> vds::async_task<vds::expected<bool>> {
     CHECK_EXPECTED_ASYNC(co_await node->proxy_session_->proxy_message(
       pthis->udp_transport_,
       (uint8_t)message_id,

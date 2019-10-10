@@ -624,20 +624,27 @@ vds::expected<void> vds::dht::network::sync_process::add_sync_entry(
       t2.last_applied = 0,
       t2.delete_index = 0)));
 
-    GET_EXPECTED(nodes, vds::dht::network::service::select_near(t, object_id, service::GENERATE_DISTRIBUTED_PIECES));
-    for (const auto& node : nodes) {
-      final_tasks.push_back([client, node, object_id]() {
-        return (*client)->send(
-          node,
-          message_create<messages::sync_looking_storage_request>(
-            object_id,
-            0,
-            0,
-            0,
-            0,
-            0));
+    final_tasks.push_back([client, object_id]() {
+      return (*client)->for_near(
+        object_id,
+        service::GENERATE_DISTRIBUTED_PIECES,
+        [client, object_id](const dht_route::node& node) -> expected<bool> {
+          return true;
+        },
+        [client, object_id](const std::shared_ptr<dht_route::node>& node) -> async_task<expected<bool>> {
+          CHECK_EXPECTED_ASYNC(co_await (*client)->send(
+            node->node_id_,
+            message_create<messages::sync_looking_storage_request>(
+              object_id,
+              0,
+              0,
+              0,
+              0,
+              0)));
+          co_return false;
         });
-    }
+    });
+
   }
   else {
     leader = t2.voted_for.get(st);
@@ -907,6 +914,22 @@ vds::expected<bool> vds::dht::network::sync_process::apply_message(
   default:
     return vds::make_unexpected<vds_exceptions::invalid_operation>();
   }
+
+  final_tasks.push_back([client, object_id = message.object_id, message, hops = message_info.hops()]() {
+    return (*client)->for_near(
+      object_id,
+      service::GENERATE_DISTRIBUTED_PIECES,
+      [client, object_id](const dht_route::node& node) -> expected<bool> {
+        return dht_object_id::distance(object_id, node.node_id_) < dht_object_id::distance(object_id, client->current_node_id());
+      },
+      [client, object_id, hops, message](const std::shared_ptr<dht_route::node>& node) -> async_task<expected<bool>> {
+        CHECK_EXPECTED_ASYNC(co_await (*client)->redirect(
+          node->node_id_,
+          hops,
+          expected<messages::sync_looking_storage_request>(message)));
+        co_return false;
+      });
+  });
 
   GET_EXPECTED(record, orm::current_config_dbo::get_free_space(t));
   if (record.used_size + message.object_size < record.reserved_size
