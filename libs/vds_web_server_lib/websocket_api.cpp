@@ -228,6 +228,34 @@ vds::websocket_api::process_message(
 
     CHECK_EXPECTED_ASYNC(co_await this->get_channel_messages(sp, r, channel_id, last_id, limit));
   }
+  else if ("allocate_storage" == method_name) {
+    auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
+    if (!args || args->size() < 3) {
+      co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'allocate_storage'");
+    }
+
+    auto public_key_str = std::dynamic_pointer_cast<json_primitive>(args->get(0));
+    if (!public_key_str || public_key_str->value().empty()) {
+      co_return make_unexpected<std::runtime_error>("missing public_key argument at invoke method 'allocate_storage'");
+    }
+
+    GET_EXPECTED_ASYNC(public_key_der, base64::to_bytes(public_key_str->value()));
+    GET_EXPECTED_ASYNC(public_key, asymmetric_public_key::parse_der(public_key_der));
+
+    auto folder = std::dynamic_pointer_cast<json_primitive>(args->get(1));
+    if (!folder || folder->value().empty()) {
+      co_return make_unexpected<std::runtime_error>("missing folder argument at invoke method 'allocate_storage'");
+    }
+
+    auto size_str = std::dynamic_pointer_cast<json_primitive>(args->get(2));
+    if (!size_str || size_str->value().empty()) {
+      co_return make_unexpected<std::runtime_error>("missing size argument at invoke method 'allocate_storage'");
+    }
+
+    auto size = atol(size_str->value().c_str());
+
+    CHECK_EXPECTED_ASYNC(co_await this->allocate_storage(sp, r, std::move(public_key), foldername(folder->value()), size));
+  }
   else if ("subscribe" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
     if (!args || args->size() < 2) {
@@ -459,6 +487,66 @@ vds::async_task<vds::expected<void>> vds::websocket_api::get_channel_messages(
 
   result->add_property("result", items);
   co_return expected<void>();
+}
+
+vds::async_task<vds::expected<void>> vds::websocket_api::allocate_storage(
+  const vds::service_provider* sp,
+  std::shared_ptr<json_object> result,
+  asymmetric_public_key user_public_key,
+  foldername folder,
+  long size)
+{
+  GET_EXPECTED(json, json_parser::parse(".vds_storage.json", file::read_all(filename(folder, ".vds_storage.json"))));
+  auto sign_info = std::dynamic_pointer_cast<json_object>(json);
+  if (!sign_info) {
+    return vds::make_unexpected<std::runtime_error>("Invalid format");
+  }
+
+  std::string version;
+  if (!sign_info->get_property("vds", version) || version != "0.1") {
+    return vds::make_unexpected<std::runtime_error>("Invalid file version");
+  }
+
+  GET_EXPECTED(key_id, user_public_key.fingerprint());
+  const_data_buffer value;
+  if (!sign_info->get_property("name", value) || value != key_id) {
+    return vds::make_unexpected<std::runtime_error>("Invalid user name");
+  }
+
+  if (!sign_info->get_property("sign", value)) {
+    return vds::make_unexpected<std::runtime_error>("The signature is missing");
+  }
+
+  auto sig_body = std::make_shared<json_object>();
+  sig_body->add_property("vds", "0.1");
+  sig_body->add_property("name", key_id);
+
+  GET_EXPECTED(body, sig_body->json_value::str());
+  GET_EXPECTED(sig_ok, asymmetric_sign_verify::verify(
+    hash::sha256(),
+    user_public_key,
+    value,
+    body.c_str(),
+    body.length()));
+
+  if (!sig_ok) {
+    return vds::make_unexpected<std::runtime_error>("Invalid signature");
+  }
+
+  return sp->get<db_model>()->async_transaction([sp, key_id, folder, size, result](database_transaction& t) -> expected<void> {
+    auto client = sp->get<dht::network::client>();
+    auto current_node = client->current_node_id();
+
+    result->add_property("result", "true");
+
+    orm::current_config_dbo t1;
+    return t.execute(
+      t1.update(
+        t1.local_path = folder.full_name(),
+        t1.owner_id = key_id,
+        t1.reserved_size = (int64_t)size * 1024 * 1024)
+      .where(t1.node_id == client->current_node_id()));
+    });
 }
 
 vds::async_task<vds::expected<void>> vds::websocket_api::download(

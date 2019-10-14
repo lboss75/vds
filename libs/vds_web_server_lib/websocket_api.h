@@ -90,6 +90,13 @@ namespace vds {
       int64_t last_id,
       int limit);
 
+    async_task<expected<void>> allocate_storage(
+      const vds::service_provider* sp,
+      std::shared_ptr<json_object> result,
+      asymmetric_public_key user_public_key,
+      foldername folder,
+      long size);
+
     async_task<expected<void>> download(
       const vds::service_provider * sp,
       std::shared_ptr<json_object> result,
