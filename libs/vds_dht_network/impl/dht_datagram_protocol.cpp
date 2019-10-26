@@ -182,7 +182,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::p
   bool is_new = (this->input_messages_.end() == this->input_messages_.find(index));
   if (is_new) {
     this->sp_->template get<logger>()->trace(
-      "DHT",
+      ThisModule,
       "%s->%s[%d] got %d(%d,%d,%d)",
       base64::from_bytes(this->partner_node_id_).c_str(),
       base64::from_bytes(this->this_node_id_).c_str(),
@@ -237,7 +237,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::s
   out_message.add((uint8_t)((this->last_input_index_) & 0xFF));//1
 
   this->sp_->template get<logger>()->trace(
-    "DHT",
+    ThisModule,
     "%s->%s ask %d",
     base64::from_bytes(this->this_node_id_).c_str(),
     base64::from_bytes(this->partner_node_id_).c_str(),
@@ -249,7 +249,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::s
 
     if (this->input_messages_.end() == this->input_messages_.find(this->last_input_index_ + i)) {
       this->sp_->template get<logger>()->trace(
-        "DHT",
+        ThisModule,
         "%s->%s mask %d",
         base64::from_bytes(this->this_node_id_).c_str(),
         base64::from_bytes(this->partner_node_id_).c_str(),
@@ -364,7 +364,7 @@ vds::expected<std::tuple<uint32_t, uint32_t>> vds::dht::network::dht_datagram_pr
 
     this->output_messages_.emplace(this->last_output_index_, datagram);
     this->sp_->template get<logger>()->trace(
-      "DHT",
+      ThisModule,
       "%s->%s[%d] sent %d(%d)",
       base64::from_bytes(this->this_node_id_).c_str(),
       base64::from_bytes(this->partner_node_id_).c_str(),
@@ -444,7 +444,7 @@ vds::expected<std::tuple<uint32_t, uint32_t>> vds::dht::network::dht_datagram_pr
 
     this->output_messages_.emplace(this->last_output_index_, datagram);
     this->sp_->template get<logger>()->trace(
-      "DHT",
+      ThisModule,
       "%s->%s[%d] send %d(%d)",
       base64::from_bytes(this->this_node_id_).c_str(),
       base64::from_bytes(this->partner_node_id_).c_str(),
@@ -481,7 +481,7 @@ vds::expected<std::tuple<uint32_t, uint32_t>> vds::dht::network::dht_datagram_pr
 
       this->output_messages_.emplace(this->last_output_index_, datagram);
       this->sp_->template get<logger>()->trace(
-        "DHT",
+        ThisModule,
         "%s->%s[%d] send %d(%d)",
         base64::from_bytes(this->this_node_id_).c_str(),
         base64::from_bytes(this->partner_node_id_).c_str(),
@@ -747,7 +747,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::p
     | (datagram.data()[1 + 3]);
 
   this->sp_->template get<logger>()->trace(
-    "DHT",
+    ThisModule,
     "%s->%s acknowledgment %d",
     base64::from_bytes(this->this_node_id_).c_str(),
     base64::from_bytes(this->partner_node_id_).c_str(),
@@ -774,7 +774,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::p
     this->output_mutex_.unlock();
 
     this->sp_->template get<logger>()->trace(
-      "DHT",
+      ThisModule,
       "%s->%s resend %d",
       base64::from_bytes(this->this_node_id_).c_str(),
       base64::from_bytes(this->partner_node_id_).c_str(),
@@ -799,7 +799,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::p
         this->output_mutex_.unlock();
 
         this->sp_->template get<logger>()->trace(
-          "DHT",
+          ThisModule,
           "%s->%s resend %d",
           base64::from_bytes(this->this_node_id_).c_str(),
           base64::from_bytes(this->partner_node_id_).c_str(),
