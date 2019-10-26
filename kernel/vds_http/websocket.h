@@ -21,6 +21,8 @@ namespace vds {
 
 		async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> start(uint64_t message_size, bool is_binary);
 
+    async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> start_pong(uint64_t message_size);
+
   private:
     std::shared_ptr<stream_output_async<uint8_t>> target_;
     async_mutex async_mutex_;
@@ -76,6 +78,7 @@ namespace vds {
         HEADER,
         TEXT,
         BINARY,
+        PING,
         CLOSED
       };
 

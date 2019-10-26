@@ -880,11 +880,15 @@ vds::expected<std::list<uint16_t>> vds::dht::network::sync_process::prepare_rest
     });
 
     final_tasks.push_back([client, object_id, exist_replicas]() {
-      return (*client)->send(
+      return (*client)->send_near(
         object_id,
+        1,
         message_create<messages::sync_replica_request>(
           object_id,
-          exist_replicas));
+          exist_replicas),
+        [](const dht_route::node& node) ->expected<bool > {
+          return expected<bool>(true);
+        });
     });
   }
 

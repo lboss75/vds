@@ -277,8 +277,9 @@ const vds::const_data_buffer& vds::dht::dht_route::current_node_id() const
 
 bool vds::dht::dht_route::add_node(const const_data_buffer& id, const session_type& proxy_session, uint8_t hops, bool allow_skip)
 {
-  vds_assert(id != this->current_node_id_);
-  vds_assert(proxy_session->partner_node_id() != this->current_node_id_);
+  if (id == this->current_node_id_ || proxy_session->partner_node_id() == this->current_node_id_) {
+    return false;
+  }
 
   const auto index = dht_object_id::distance_exp(this->current_node_id_, id);
   std::shared_ptr<bucket> b;

@@ -126,8 +126,13 @@ vds::async_task<vds::expected<void>> vds::websocket::websocket_handler::write_as
           //this->read_state_ = read_state_t::CLOSED;
         }
 
-                  //case 0x9://ping
-                  //	break;
+        case 0x9: {//ping
+          this->read_state_ = read_state_t::PING;
+          GET_EXPECTED_VALUE_ASYNC(
+            this->current_stream_,
+            co_await this->target_->start_pong(this->payloadLength_));
+          continue;
+        }
 
                   //case 0xA://pong
                   //	break;
@@ -144,6 +149,7 @@ vds::async_task<vds::expected<void>> vds::websocket::websocket_handler::write_as
         break;
       }
 
+      case read_state_t::PING:
       case read_state_t::TEXT:
       case read_state_t::BINARY: {
         auto size = len;
@@ -151,26 +157,29 @@ vds::async_task<vds::expected<void>> vds::websocket::websocket_handler::write_as
           size = safe_cast<decltype(size)>(this->payloadLength_);
         }
 
-        if (this->has_mask_) {
-          if (size > sizeof(this->buffer_) / sizeof(this->buffer_[0])) {
-            size = sizeof(this->buffer_) / sizeof(this->buffer_[0]);
+        if (0 < size) {
+          if (this->has_mask_) {
+            if (size > sizeof(this->buffer_) / sizeof(this->buffer_[0])) {
+              size = sizeof(this->buffer_) / sizeof(this->buffer_[0]);
+            }
+
+            memcpy(this->buffer_, data, size);
+
+            for (decltype(size) i = 0; i < size;) {
+              this->buffer_[i++] ^= this->mask_[this->mask_index_++ % 4];
+            }
+
+            CHECK_EXPECTED_ASYNC(co_await this->current_stream_->write_async(this->buffer_, size));
+          }
+          else {
+            CHECK_EXPECTED_ASYNC(co_await this->current_stream_->write_async(data, size));
           }
 
-          memcpy(this->buffer_, data, size);
-
-          for (decltype(size) i = 0; i < size;) {
-            this->buffer_[i++] ^= this->mask_[this->mask_index_++ % 4];
-          }
-
-          CHECK_EXPECTED_ASYNC(co_await this->current_stream_->write_async(this->buffer_, size));
-        }
-        else {
-          CHECK_EXPECTED_ASYNC(co_await this->current_stream_->write_async(data, size));
+          data += size;
+          len -= size;
+          this->payloadLength_ -= size;
         }
 
-        data += size;
-        len -= size;
-        this->payloadLength_ -= size;
         this->readed_ = 0;
         if (0 == this->payloadLength_) {
           CHECK_EXPECTED_ASYNC(co_await this->current_stream_->write_async(nullptr, 0));
@@ -212,6 +221,45 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
   uint8_t buffer[10];
 
   buffer[0] = (is_binary ? 0x82 : 0x81);
+
+  uint8_t offset;
+  if (message_size < 126)
+  {
+    buffer[1] = (uint8_t)message_size;
+    offset = 2;
+  }
+  else if (message_size <= 0xFFFF)
+  {
+    buffer[1] = 126;
+    buffer[2] = (uint8_t)((message_size >> 8) & 0xFF);
+    buffer[3] = (uint8_t)(message_size & 0xFF);
+    offset = 4;
+  }
+  else
+  {
+    buffer[1] = 127;
+    buffer[2] = (uint8_t)((message_size >> 56) & 0xFF);
+    buffer[3] = (uint8_t)((message_size >> 48) & 0xFF);
+    buffer[4] = (uint8_t)((message_size >> 40) & 0xFF);
+    buffer[5] = (uint8_t)((message_size >> 32) & 0xFF);
+    buffer[6] = (uint8_t)((message_size >> 24) & 0xFF);
+    buffer[7] = (uint8_t)((message_size >> 16) & 0xFF);
+    buffer[8] = (uint8_t)((message_size >> 8) & 0xFF);
+    buffer[9] = (uint8_t)(message_size & 0xFF);
+    offset = 10;
+  }
+
+  co_await this->async_mutex_.lock();
+
+  CHECK_EXPECTED_ASYNC(co_await this->target_->write_async(buffer, offset));
+  co_return std::make_shared<output_stream>(this->shared_from_this(), message_size);
+}
+
+vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::websocket_output::start_pong(uint64_t message_size)
+{
+  uint8_t buffer[10];
+
+  buffer[0] = 0x8A;
 
   uint8_t offset;
   if (message_size < 126)
