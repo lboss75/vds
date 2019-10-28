@@ -268,7 +268,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::_client::send_near(
       CHECK_EXPECTED_ASYNC(co_await candidate->proxy_session_->send_message(
         pthis->udp_transport_,
         (uint8_t)message_id,
-        target_node_id,
+        candidate->node_id_,
         msg));
       co_return false;
     });

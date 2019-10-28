@@ -1502,10 +1502,18 @@ vds::expected<bool> vds::dht::network::sync_process::apply_message(
   const messages::sync_offer_send_replica_operation_request& message,
   const imessage_map::message_info_t& message_info) {
 
+  this->sp_->get<logger>()->trace(
+    SyncModule,
+    "%s offer send replica %s:%d request to %s",
+    base64::from_bytes(message_info.source_node()).c_str(),
+    base64::from_bytes(message.object_id).c_str(),
+    message.replica,
+    base64::from_bytes(message.target_node).c_str());
+
   //auto client = this->sp_->get<network::client>();
   base_message_type state;
   GET_EXPECTED_VALUE(state, this->apply_base_message(t, final_tasks, message, message_info, message_info.source_node(), message.last_applied));
-  if (base_message_type::successful != state) {
+  if (base_message_type::not_found == state) {
     return false;
   }
 
@@ -2797,6 +2805,12 @@ vds::expected<void> vds::dht::network::sync_process::apply_record(
   }
 
   case orm::sync_message_dbo::message_type_t::remove_member: {
+    this->sp_->get<logger>()->trace(
+      SyncModule,
+      "Apply: Remove member %s of object %s",
+      base64::from_bytes(member_node).c_str(),
+      base64::from_bytes(object_id).c_str());
+
     orm::sync_member_dbo t1;
     if (leader_node_id != client->current_node_id()) {
       CHECK_EXPECTED(t.execute(
@@ -2844,6 +2858,13 @@ vds::expected<void> vds::dht::network::sync_process::apply_record(
   }
 
   case orm::sync_message_dbo::message_type_t::remove_replica: {
+    this->sp_->get<logger>()->trace(
+      SyncModule,
+      "Apply: Remove replica %s:%d member %s",
+      base64::from_bytes(object_id).c_str(),
+      replica,
+      base64::from_bytes(member_node).c_str());
+
     orm::sync_replica_map_dbo t1;
     CHECK_EXPECTED(t.execute(
       t1.delete_if(
