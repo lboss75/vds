@@ -193,7 +193,6 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::p
       this->last_input_index_,
       this->expected_index_);
     this->input_messages_[index] = std::move(datagram);
-    this->dump_input_messages();
   }
   lock.unlock();
 
