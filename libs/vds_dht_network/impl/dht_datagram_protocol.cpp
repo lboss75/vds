@@ -183,15 +183,17 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::p
   if (is_new) {
     this->sp_->template get<logger>()->trace(
       ThisModule,
-      "%s->%s[%d] got %d(%d,%d,%d)",
+      "%s->%s[%d] got %d(%d,%d,%d,%d)",
       base64::from_bytes(this->partner_node_id_).c_str(),
       base64::from_bytes(this->this_node_id_).c_str(),
       index,
-      (int)datagram.data()[0],
+      (int)(datagram.data()[0]),
+      datagram.size(),
       this->input_messages_.size(),
       this->last_input_index_,
       this->expected_index_);
     this->input_messages_[index] = std::move(datagram);
+    this->dump_input_messages();
   }
   lock.unlock();
 
@@ -212,10 +214,15 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::o
   this->last_sent_++;
   if (this->check_mtu_ < CHECK_MTU_TIMEOUT) {
     if (this->mtu_ < 0xFFFF - 256) {
+      std::unique_lock<std::mutex> lock(this->output_mutex_);
+      auto mtu = this->mtu_;
+      lock.unlock();
+
       resizable_data_buffer out_message;
-      out_message.resize_data(this->mtu_ + 256);
+      out_message.resize_data(mtu + 256);
       out_message.add((uint8_t)protocol_message_type_t::MTUTest);
-      out_message.apply_size(this->mtu_ + 255);
+      out_message.apply_size(mtu + 255);
+
       (void)co_await s->write_async(udp_datagram(this->address_, out_message.move_data()));
     }
   }

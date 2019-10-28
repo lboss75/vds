@@ -251,11 +251,29 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
           break;
         }
 
-        if (!session_info.session_key_ || (std::chrono::steady_clock::now() - session_info.update_time_) > std::chrono::minutes(10)) {
-          session_info.update_time_ = std::chrono::steady_clock::now();
-          session_info.session_key_.resize(32);
-          crypto_service::rand_bytes(session_info.session_key_.data(), session_info.session_key_.size());
+        bool is_duplicate = false;
+        this->sessions_mutex_.lock();
+        for (auto p = this->sessions_.begin(); p != this->sessions_.end(); ++p) {
+          if (p->second.session_ && p->second.session_->partner_node_id() == partner_node_id) {
+            if (p->second.blocked_) {
+              this->sessions_.erase(p);
+            }
+            else {
+              is_duplicate = true;
+            }
+            break;
+          }
         }
+        this->sessions_mutex_.unlock();
+
+        if (is_duplicate) {
+          session_info.session_mutex_.unlock();
+          break;
+        }
+
+        session_info.update_time_ = std::chrono::steady_clock::now();
+        session_info.session_key_.resize(32);
+        crypto_service::rand_bytes(session_info.session_key_.data(), session_info.session_key_.size());
 
         GET_EXPECTED_ASYNC(encrypted_key, partner_node_public_key.encrypt(session_info.session_key_));
 
