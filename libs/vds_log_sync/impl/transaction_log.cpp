@@ -25,6 +25,7 @@ All rights reserved
 #include "datacoin_balance_dbo.h"
 #include "node_info_dbo.h"
 #include "wallet_dbo.h"
+#include "transaction_block.h"
 
 vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
 	const service_provider * sp,

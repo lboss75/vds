@@ -18,7 +18,6 @@ All rights reserved
 #include "logger.h"
 #include "encoding.h"
 #include "private/upload_stream_task_p.h"
-#include "member_user.h"
 #include "file_manager_service.h"
 
 vds::file_manager::file_operations::file_operations()

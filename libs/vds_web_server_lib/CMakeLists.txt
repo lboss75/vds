@@ -37,7 +37,6 @@ target_include_directories(vds_web_server_lib
 		${vds_db_model_INCLUDE_DIRS}
 		${vds_server_INCLUDE_DIR}
 		${vds_dht_network_INCLUDE_DIRS}
-		${vds_file_manager_INCLUDE_DIRS}
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -54,7 +53,6 @@ target_link_libraries(
   vds_user_manager
   vds_dht_network
   vds_db_model
-  vds_file_manager
   vds_server
   OpenSSL::Crypto
   ${CMAKE_THREAD_LIBS_INIT})

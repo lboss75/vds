@@ -109,10 +109,10 @@ vds::async_task<vds::expected<void>> vds::user_manager::reset(
         keys_control::get_web_read_private_key(),
         keys_control::get_web_write_public_key())));
 
-    co_return co_await client.broadcast(playback);
-
+    CHECK_EXPECTED_ASYNC(co_await client.broadcast(playback));
+    co_return expected<void>();
 }
-
+/*
 std::shared_ptr<vds::user_channel> vds::user_manager::get_channel(
   const const_data_buffer & channel_id) const
 {
@@ -296,7 +296,7 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
       CHECK_EXPECTED(message.walk_messages(this->sp_, *channel_read_key, transactions::message_environment_t{ tp, "???" },
         [this, channel_id = message.channel_id(), log](
           const transactions::channel_add_reader_transaction & message,
-          const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
+          const transactions::message_environment_t & / *message_environment* /)->expected<bool> {
         GET_EXPECTED(read_id, message.read_public_key->fingerprint());
         GET_EXPECTED(write_id, message.write_public_key->fingerprint());
         auto cp = std::make_shared<user_channel>(
@@ -318,7 +318,7 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
       },
         [this, channel_id = message.channel_id(), log](
           const transactions::channel_add_writer_transaction & message,
-          const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
+          const transactions::message_environment_t & /*message_environment* /)->expected<bool> {
         GET_EXPECTED(read_id, message.read_public_key->fingerprint());
         GET_EXPECTED(write_id, message.write_public_key->fingerprint());
         auto cp = std::make_shared<user_channel>(
@@ -341,7 +341,7 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
       },
         [this, channel_id = message.channel_id(), log, &new_channels](
           const transactions::channel_create_transaction & message,
-          const transactions::message_environment_t & /*message_environment*/)->expected<bool>{
+          const transactions::message_environment_t & /*message_environment* /)->expected<bool>{
         if (new_channels.end() == new_channels.find(channel_id)) {
           new_channels.emplace(message.channel_id);
         }
@@ -364,7 +364,7 @@ vds::expected<bool> vds::_user_manager::process_channel_message(
       },
         [this, channel_id = message.channel_id(), log](
           const transactions::control_message_transaction & message,
-          const transactions::message_environment_t & /*message_environment*/)->expected<bool> {
+          const transactions::message_environment_t & /*message_environment* /)->expected<bool> {
         auto msg = std::dynamic_pointer_cast<json_object>(message.message);
         std::string type;
         if (msg) {
@@ -529,3 +529,4 @@ vds::async_task<vds::expected<vds::user_channel>> vds::_user_manager::create_cha
 const std::string& vds::user_manager::user_name() const {
   return this->impl_->user_name();
 }
+*/

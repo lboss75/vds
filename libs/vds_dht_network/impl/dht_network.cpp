@@ -6,7 +6,6 @@ All rights reserved
 #include "dht_network.h"
 #include "udp_transport.h"
 #include "db_model.h"
-#include "keys_control.h"
 #include "node_info_dbo.h"
 #include "dht_object_id.h"
 #include "device_config_dbo.h"

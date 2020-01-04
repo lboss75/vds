@@ -8,12 +8,6 @@ All rights reserved
 #include "member_user.h"
 #include "json_object.h"
 #include "control_message_transaction.h"
-#include "transaction_state_calculator.h"
-#include "transaction_lack_of_funds.h"
-#include "transaction_source_not_found_error.h"
-#include "transaction_log.h"
-#include "transaction_log_record_dbo.h"
-#include "datacoin_balance_dbo.h"
 
 
 vds::expected<vds::user_wallet> vds::user_wallet::create_wallet(
@@ -68,39 +62,39 @@ vds::expected<void> vds::user_wallet::transfer(
     signature));
 }
 
-vds::expected<uint64_t> vds::user_wallet::transfer(
-  transactions::transaction_block_builder & log,
-  database_read_transaction & t,
-  const const_data_buffer & issuer,
-  const std::string & currency,
-  const const_data_buffer & target_wallet,
-  uint64_t value,
-  const std::string & payment_type,
-  const std::string & notes)
-{
-  GET_EXPECTED(wallet_id, this->public_key().fingerprint());
-
-  uint64_t result = 0;
-
-  orm::datacoin_balance_dbo t1;
-  GET_EXPECTED(st, t.get_reader(t1.select(t1.source_transaction, t1.confirmed_balance).where(t1.owner == wallet_id && t1.issuer == issuer && t1.currency == currency)));
-  WHILE_EXPECTED(st.execute()) {
-    auto v = t1.confirmed_balance.get(st);
-    if (v > value - result) {
-      v = value - result;
-    }
-
-    CHECK_EXPECTED(this->transfer(log, issuer, currency, t1.source_transaction.get(st), target_wallet, v, payment_type, notes));
-    result += v;
-
-    if (result == value) {
-      break;
-    }
-  }
-  WHILE_EXPECTED_END()
-
-  return expected<uint64_t>(result);
-}
+//vds::expected<uint64_t> vds::user_wallet::transfer(
+//  transactions::transaction_block_builder & log,
+//  database_read_transaction & t,
+//  const const_data_buffer & issuer,
+//  const std::string & currency,
+//  const const_data_buffer & target_wallet,
+//  uint64_t value,
+//  const std::string & payment_type,
+//  const std::string & notes)
+//{
+//  GET_EXPECTED(wallet_id, this->public_key().fingerprint());
+//
+//  uint64_t result = 0;
+//
+//  orm::datacoin_balance_dbo t1;
+//  GET_EXPECTED(st, t.get_reader(t1.select(t1.source_transaction, t1.confirmed_balance).where(t1.owner == wallet_id && t1.issuer == issuer && t1.currency == currency)));
+//  WHILE_EXPECTED(st.execute()) {
+//    auto v = t1.confirmed_balance.get(st);
+//    if (v > value - result) {
+//      v = value - result;
+//    }
+//
+//    CHECK_EXPECTED(this->transfer(log, issuer, currency, t1.source_transaction.get(st), target_wallet, v, payment_type, notes));
+//    result += v;
+//
+//    if (result == value) {
+//      break;
+//    }
+//  }
+//  WHILE_EXPECTED_END()
+//
+//  return expected<uint64_t>(result);
+//}
 
 vds::expected<void> vds::user_wallet::asset_issue(
   transactions::transaction_block_builder & log,

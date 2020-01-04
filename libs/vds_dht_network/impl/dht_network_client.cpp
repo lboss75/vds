@@ -23,6 +23,8 @@ All rights reserved
 #include "current_config_dbo.h"
 #include "device_config_dbo.h"
 #include "device_record_dbo.h"
+#include "transaction_log.h"
+#include "transaction_block.h"
 
 vds::dht::network::client::client()
 : is_new_node_(true), port_(0) {
@@ -1058,8 +1060,9 @@ vds::expected<vds::const_data_buffer> vds::dht::network::client::save(
 
     this->is_new_node_ = false;
   }
-
-  return block.save(sp, t, this->node_public_key_, this->node_key_);
+  //Load state
+  GET_EXPECTED(data, transactions::transaction_block::build(t, block.close(), this->node_public_key_, this->node_key_));
+  return transactions::transaction_log::save(sp, t, data);
 }
 
 vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>

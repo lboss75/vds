@@ -17,14 +17,15 @@ add_library(vds_file_manager STATIC
 target_include_directories(vds_file_manager
 	PRIVATE
 		${vds_core_INCLUDE_DIRS}
-		${vds_db_model_INCLUDE_DIRS}
+		${vds_crypto_INCLUDE_DIRS}
         ${vds_transactions_INCLUDE_DIRS}
+		${vds_http_INCLUDE_DIRS}
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(
-		vds_file_manager
-        vds_core
-        vds_db_model
-        vds_transactions
-        ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(vds_file_manager
+	vds_core
+	vds_crypto
+	vds_http
+    vds_transactions
+    ${CMAKE_THREAD_LIBS_INIT})

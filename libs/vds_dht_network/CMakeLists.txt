@@ -1,4 +1,4 @@
-project(vds_dht_network CXX C)
+project(vds_dht_network CXX)
 cmake_minimum_required(VERSION 2.6.2)
 
 FILE(GLOB HEADER_FILES include/*.h)
@@ -30,6 +30,7 @@ target_include_directories(vds_dht_network
 		 ${vds_database_INCLUDE_DIRS}
 		 ${vds_db_model_INCLUDE_DIRS}
 		 ${vds_user_manager_INCLUDE_DIRS}
+		 ${vds_log_sync_INCLUDE_DIRS}
          ${CMAKE_CURRENT_SOURCE_DIR}/private
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -44,5 +45,6 @@ target_link_libraries(
         vds_database
         vds_db_model
         vds_user_manager
+		vds_log_sync
         ${CMAKE_THREAD_LIBS_INIT}
 )

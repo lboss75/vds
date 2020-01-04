@@ -1,1 +1,3 @@
 add_subdirectory(vds_client)
+add_subdirectory(vds_file_manager)
+add_subdirectory(vds_autoupdate)

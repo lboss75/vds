@@ -47,46 +47,13 @@ namespace vds {
        */
       static constexpr uint32_t CURRENT_VERSION = 0x31564453U;//1VDS
 
-      static expected<transaction_block> create(const const_data_buffer &data) {
+      static expected<transaction_block> create(const const_data_buffer& data);
 
-        GET_EXPECTED(id, hash::signature(hash::sha256(), data));
-
-        binary_deserializer s(data);
-        uint32_t version;
-        CHECK_EXPECTED(s >> version);
-
-        if (version != CURRENT_VERSION) {
-          return vds::make_unexpected<std::runtime_error>("Invalid block version");
-        }
-
-        uint64_t time_point;
-        CHECK_EXPECTED(s >> time_point);
-
-        uint64_t order_no;
-        CHECK_EXPECTED(s >> order_no);
-
-        const_data_buffer write_public_key_id;
-        CHECK_EXPECTED(s >> write_public_key_id);
-
-        std::set<const_data_buffer> ancestors;
-        CHECK_EXPECTED(s >> ancestors);
-
-        const_data_buffer block_messages;
-        CHECK_EXPECTED(s >> block_messages);
-
-        const_data_buffer signature;
-        CHECK_EXPECTED(s >> signature);
-
-        return transaction_block(
-          version,
-          std::chrono::system_clock::from_time_t(time_point),
-          std::move(id),
-          order_no,
-          std::move(write_public_key_id),
-          std::move(ancestors),
-          std::move(block_messages),
-          std::move(signature));
-      }
+      static expected<const_data_buffer> build(
+        database_transaction& t,
+        const const_data_buffer& messages,
+        const std::shared_ptr<asymmetric_public_key> & node_public_key,
+        const std::shared_ptr<asymmetric_private_key> & node_key);
 
       const uint32_t & version() const {
         return this->version_;
@@ -134,38 +101,38 @@ namespace vds {
         return walker.process(this->block_messages_);
       }
 
-      static expected<transaction_block_builder> create(
-        const service_provider* sp,
-        class vds::database_read_transaction& t);
+      //static expected<transaction_block_builder> create(
+      //  const service_provider* sp,
+      //  class vds::database_read_transaction& t);
 
-      static expected<transaction_block_builder> create(
-        const service_provider* sp,
-        class vds::database_read_transaction& t,
-        const std::set<const_data_buffer>& ancestors);
+      //static expected<transaction_block_builder> create(
+      //  const service_provider* sp,
+      //  class vds::database_read_transaction& t,
+      //  const std::set<const_data_buffer>& ancestors);
 
-      static expected<transaction_block_builder> create(
-        const service_provider* sp,
-        class vds::database_read_transaction& t,
-        const const_data_buffer& data);
+      //static expected<transaction_block_builder> create(
+      //  const service_provider* sp,
+      //  class vds::database_read_transaction& t,
+      //  const const_data_buffer& data);
 
-      static transaction_block_builder create_root_block(const service_provider* sp) {
-        return transaction_block_builder(sp);
-      }
-      expected<const_data_buffer> sign(
-        const service_provider* sp,
-        const std::shared_ptr<asymmetric_public_key>& write_public_key,
-        const std::shared_ptr<asymmetric_private_key>& write_private_key);
-      const service_provider* sp_;
-      std::chrono::system_clock::time_point time_point_;
-      std::set<const_data_buffer> ancestors_;
-      uint64_t order_no_;
-      transaction_block_builder(const service_provider* sp);
+      //static transaction_block_builder create_root_block(const service_provider* sp) {
+      //  return transaction_block_builder(sp);
+      //}
+      //expected<const_data_buffer> sign(
+      //  const service_provider* sp,
+      //  const std::shared_ptr<asymmetric_public_key>& write_public_key,
+      //  const std::shared_ptr<asymmetric_private_key>& write_private_key);
+      //const service_provider* sp_;
+      //std::chrono::system_clock::time_point time_point_;
+      //std::set<const_data_buffer> ancestors_;
+      //uint64_t order_no_;
+      //transaction_block_builder(const service_provider* sp);
 
-      expected<const_data_buffer> save(
-        const service_provider* sp,
-        class vds::database_transaction& t,
-        const std::shared_ptr<asymmetric_public_key>& write_public_key,
-        const std::shared_ptr<asymmetric_private_key>& write_private_key);
+      //expected<const_data_buffer> save(
+      //  const service_provider* sp,
+      //  class vds::database_transaction& t,
+      //  const std::shared_ptr<asymmetric_public_key>& write_public_key,
+      //  const std::shared_ptr<asymmetric_private_key>& write_private_key);
 
 
     private:

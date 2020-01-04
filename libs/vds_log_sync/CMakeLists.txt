@@ -1,4 +1,4 @@
-project(vds_log_sync CXX C)
+project(vds_log_sync CXX)
 cmake_minimum_required(VERSION 2.6.2)
 
 FILE(GLOB HEADER_FILES include/*.h)

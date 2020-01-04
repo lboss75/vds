@@ -22,7 +22,22 @@ namespace vds {
 
     async_task<expected<std::vector<const_data_buffer>>> upload_data(const const_data_buffer& data);
 
-    async_task<expected<void>> broadcast(transactions::transaction_block_builder & data);
+    async_task<expected<std::shared_ptr<json_value>>> broadcast(transactions::transaction_block_builder & data);
+
+    struct channel_message {
+      int64_t id;
+      const_data_buffer block_id;
+      const_data_buffer channel_id;
+      const_data_buffer read_id;
+      const_data_buffer write_id;
+      const_data_buffer crypted_key;
+      const_data_buffer crypted_data;
+      const_data_buffer signature;
+    };
+    
+    async_task<expected<void>> walk_messages(
+      const const_data_buffer & channel_id,
+      lambda_holder_t<async_task<expected<bool>>, channel_message> callback);
 
   private:
     std::shared_ptr<websocket_client> ws_;
@@ -30,7 +45,7 @@ namespace vds {
     int last_id_;
     std::map<int, async_result<expected<std::shared_ptr<json_value>>>> callbacks_;
 
-    async_task<expected<void>> invoke(const std::string& method, std::shared_ptr<json_array> args);
+    async_task<expected<std::shared_ptr<json_value>>> invoke(const std::string& method, std::shared_ptr<json_array> args);
 
   };
 }

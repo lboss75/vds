@@ -8,10 +8,8 @@ All rights reserved
 
 #include <memory>
 #include <string>
-#include "transaction_block.h"
 #include "transaction_block_builder.h"
 #include "user_channel.h"
-#include "transaction_messages_walker.h"
 #include "encoding.h"
 
 namespace vds {
@@ -43,15 +41,15 @@ namespace vds {
       const std::string & payment_type,
       const std::string & notes);
 
-    expected<uint64_t> transfer(
-      transactions::transaction_block_builder& log,
-      database_read_transaction & t,
-      const const_data_buffer & issuer,
-      const std::string & currency,
-      const const_data_buffer & target_wallet,
-      uint64_t value,
-      const std::string & payment_type,
-      const std::string & notes);
+    //expected<uint64_t> transfer(
+    //  transactions::transaction_block_builder& log,
+    //  database_read_transaction & t,
+    //  const const_data_buffer & issuer,
+    //  const std::string & currency,
+    //  const const_data_buffer & target_wallet,
+    //  uint64_t value,
+    //  const std::string & payment_type,
+    //  const std::string & notes);
 
     expected<void> asset_issue(
       transactions::transaction_block_builder& log,
