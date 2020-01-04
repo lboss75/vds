@@ -11,7 +11,6 @@ All rights reserved
 #include "const_data_buffer.h"
 #include "binary_serialize.h"
 #include "transaction_id.h"
-#include "database_orm.h"
 
 namespace vds {
   namespace transactions {
@@ -22,6 +21,7 @@ namespace vds {
       const_data_buffer owner_id;
       const_data_buffer object_id;
       uint64_t object_size;
+      std::vector<const_data_buffer> replicas;
       const_data_buffer owner_sig;
 
       template <typename  visitor_type>
@@ -30,9 +30,17 @@ namespace vds {
           owner_id,
           object_id,
           object_size,
+          replicas,
           owner_sig
         );
       }
+
+      static expected<store_block_transaction> create(
+        const const_data_buffer& owner_id,
+        const const_data_buffer& object_id,
+        uint64_t object_size,
+        const std::vector<const_data_buffer>& replicas,
+        const asymmetric_private_key & private_key);
     };
   }
 }

@@ -6,6 +6,7 @@ include(CMakeLists.inc)
 
 add_subdirectory(kernel)
 add_subdirectory(libs)
+add_subdirectory(sdk)
 add_subdirectory(app)
 
 if(ANDROID_PLATFORM)

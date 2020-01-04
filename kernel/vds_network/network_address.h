@@ -91,6 +91,7 @@ namespace vds {
 
     std::string to_string() const;
     static expected<network_address> parse(const std::string & address);
+    static expected<network_address> parse_server_address(const std::string& server, bool tcp = true);
     static expected<network_address> parse(sa_family_t family, const std::string & address);
 
     socklen_t * size_ptr() {

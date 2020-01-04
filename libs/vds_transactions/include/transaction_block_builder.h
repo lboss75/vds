@@ -9,12 +9,11 @@ All rights reserved
 #include <map>
 #include "channel_message.h"
 #include "binary_serialize.h"
-#include "database.h"
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
-#include "data_coin_balance.h"
 #include "create_user_transaction.h"
 #include "node_manager_transactions.h"
+#include "store_block_transaction.h"
 
 namespace vds {
   class _user_channel;
@@ -30,38 +29,15 @@ namespace vds {
     public:
       transaction_block_builder() = default;
       transaction_block_builder(transaction_block_builder &&) = default;
-      transaction_block_builder(
-        const service_provider * sp,
-        const std::chrono::system_clock::time_point & time_point,
-        const std::set<const_data_buffer> & ancestors,
-        uint64_t order_no
-      )
-        : sp_(sp), time_point_(time_point), ancestors_(std::move(ancestors)), order_no_(order_no) {
-      }
 
       transaction_block_builder & operator = (transaction_block_builder &&) = default;
       transaction_block_builder & operator = (const transaction_block_builder &) = delete;
-
-      static expected<transaction_block_builder> create(
-        const service_provider * sp,
-        class vds::database_read_transaction &t);
-
-      static expected<transaction_block_builder> create(
-        const service_provider * sp,
-        class vds::database_read_transaction &t,
-        const std::set<const_data_buffer> & ancestors);
-
-      static expected<transaction_block_builder> create(
-        const service_provider * sp,
-        class vds::database_read_transaction &t,
-        const const_data_buffer & data);
-
-      static transaction_block_builder create_root_block(const service_provider * sp) {
-        return transaction_block_builder(sp);
-      }
       
       expected<void> add(expected<create_user_transaction> && item) {
         return add_transaction<create_user_transaction>(std::move(item));
+      }
+      expected<void> add(expected<store_block_transaction>&& item) {
+        return add_transaction<store_block_transaction>(std::move(item));
       }
       expected<void> add(expected<create_wallet_transaction> && item) {
         return add_transaction<create_wallet_transaction>(std::move(item));
@@ -81,28 +57,10 @@ namespace vds {
         return add_transaction<node_add_transaction>(std::move(item));
       }
 
-      expected<const_data_buffer> sign(
-        const service_provider * sp,
-        const std::shared_ptr<asymmetric_public_key> &write_public_key,
-        const std::shared_ptr<asymmetric_private_key> &write_private_key);
+      const_data_buffer close();
 
     private:
-        friend class _user_channel;
-        friend class dht::network::client;
-
-        const service_provider * sp_;
-        std::chrono::system_clock::time_point time_point_;
-        std::set<const_data_buffer> ancestors_;
-        uint64_t order_no_;
         binary_serializer data_;
-
-        transaction_block_builder(const service_provider * sp);
-
-        expected<const_data_buffer> save(
-          const service_provider * sp,
-          class vds::database_transaction &t,
-          const std::shared_ptr<asymmetric_public_key> &write_public_key,
-          const std::shared_ptr<asymmetric_private_key> &write_private_key);
 
         template<typename transaction_type>
         expected<void> add_transaction(expected<transaction_type> && item) {
@@ -120,8 +78,6 @@ namespace vds {
 
           return expected<void>();
         }
-
-
     };
   }
 }

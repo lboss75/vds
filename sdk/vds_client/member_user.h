@@ -13,6 +13,7 @@ namespace vds {
   class asymmetric_private_key;
   class iuser_manager_storage;
   class _member_user;
+  class vds_client;
   
   class member_user
   {
@@ -30,10 +31,13 @@ namespace vds {
     const std::shared_ptr<asymmetric_public_key> & user_public_key() const;
     const std::shared_ptr<asymmetric_private_key> & private_key() const;
 
-    //member_user create_user(
-    //    const vds::asymmetric_private_key &owner_user_private_key,
-    //    const std::string &user_name,
-    //    const vds::asymmetric_private_key &private_key);
+    async_task<expected<member_user>> create_user(
+      vds_client& client,
+      transactions::transaction_block_builder& log,
+      const std::string & user_name,
+      const std::string & user_email,
+      const std::string& user_password,
+      const std::shared_ptr<vds::asymmetric_private_key> &private_key);
 
     expected<user_channel> create_channel(
       transactions::transaction_block_builder &log,

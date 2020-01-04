@@ -3,6 +3,7 @@
 
 #include "const_data_buffer.h"
 #include <cstdlib>
+#include <assert.h>
 
 namespace vds {
   class resizable_data_buffer {
@@ -65,6 +66,11 @@ namespace vds {
       return this->data_;
     }
 
+    uint8_t & operator[](size_t index) {
+      assert(0 <= index && index < this->size_);
+      return this->data_[index];
+    }
+
     uint8_t * data() {
       return this->data_;
     }
@@ -87,6 +93,16 @@ namespace vds {
         this->allocated_size_ = 1024 * ((size + 1023) / 1024);
         this->data_ = static_cast<uint8_t *>(std::realloc(this->data_, this->allocated_size_));
         vds_assert(nullptr != this->data_);
+      }
+    }
+
+    void remove(size_t offset, size_t len) {
+      vds_assert(offset + len <= this->size_);
+      if (0 < len) {
+        if (offset + len < this->size_) {
+          memmove(this->data_ + offset, this->data_ + offset + len, this->size_ - offset - len);
+        }
+        this->size_ -= len;
       }
     }
 

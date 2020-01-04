@@ -134,6 +134,40 @@ namespace vds {
         return walker.process(this->block_messages_);
       }
 
+      static expected<transaction_block_builder> create(
+        const service_provider* sp,
+        class vds::database_read_transaction& t);
+
+      static expected<transaction_block_builder> create(
+        const service_provider* sp,
+        class vds::database_read_transaction& t,
+        const std::set<const_data_buffer>& ancestors);
+
+      static expected<transaction_block_builder> create(
+        const service_provider* sp,
+        class vds::database_read_transaction& t,
+        const const_data_buffer& data);
+
+      static transaction_block_builder create_root_block(const service_provider* sp) {
+        return transaction_block_builder(sp);
+      }
+      expected<const_data_buffer> sign(
+        const service_provider* sp,
+        const std::shared_ptr<asymmetric_public_key>& write_public_key,
+        const std::shared_ptr<asymmetric_private_key>& write_private_key);
+      const service_provider* sp_;
+      std::chrono::system_clock::time_point time_point_;
+      std::set<const_data_buffer> ancestors_;
+      uint64_t order_no_;
+      transaction_block_builder(const service_provider* sp);
+
+      expected<const_data_buffer> save(
+        const service_provider* sp,
+        class vds::database_transaction& t,
+        const std::shared_ptr<asymmetric_public_key>& write_public_key,
+        const std::shared_ptr<asymmetric_private_key>& write_private_key);
+
+
     private:
       uint32_t version_;
       std::chrono::system_clock::time_point time_point_;

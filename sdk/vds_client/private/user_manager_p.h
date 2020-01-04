@@ -92,7 +92,6 @@ namespace vds {
     std::map<const_data_buffer, std::shared_ptr<user_channel>> channels_;
     std::map<const_data_buffer, std::shared_ptr<asymmetric_public_key>> certificate_chain_;
     std::list<std::shared_ptr<user_wallet>> wallets_;
-    std::shared_ptr<mutual_settlements> mutual_settlements_;
 
     expected<bool> process_create_user_transaction(
       const transactions::create_user_transaction & message);

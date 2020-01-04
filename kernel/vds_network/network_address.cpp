@@ -74,7 +74,7 @@ vds::expected<vds::network_address> vds::network_address::parse(const std::strin
       address,
       [&result](const std::string &protocol, const std::string &address) -> expected<bool> {
         if ("udp" == protocol || "udp6" == protocol) {
-          auto na = url_parser::parse_network_address(address);
+          GET_EXPECTED(na, url_parser::parse_network_address(address));
           if (na.protocol != "udp" && na.protocol != "udp6") {
             return vds::make_unexpected<std::invalid_argument>("address");
           }
@@ -87,7 +87,7 @@ vds::expected<vds::network_address> vds::network_address::parse(const std::strin
               na.server,
               (uint16_t) atoi(na.port.c_str())));
         } else if ("tcp" == protocol || "tcp6" == protocol) {
-            auto na = url_parser::parse_network_address(address);
+          GET_EXPECTED(na, url_parser::parse_network_address(address));
             if (na.protocol != "tcp" && na.protocol != "tcp6") {
               return vds::make_unexpected<std::invalid_argument>("address");
             }
@@ -111,13 +111,23 @@ vds::expected<vds::network_address> vds::network_address::parse(const std::strin
   return result;
 }
 
+vds::expected<vds::network_address> vds::network_address::parse_server_address(const std::string& server, bool tcp /*= true*/)
+{
+  auto result = parse((tcp ? "tcp6" : "udp6") + server);
+  if (result.has_value()) {
+    return std::move(result.value());
+  }
+
+  return parse((tcp ? "tcp" : "udp") + server);
+}
+
 vds::expected<vds::network_address> vds::network_address::parse(sa_family_t family, const std::string& address) {
   vds::network_address result;
   CHECK_EXPECTED(url_parser::parse_addresses(
     address,
     [&result, family](const std::string &protocol, const std::string &address) -> expected<bool> {
     if ("udp" == protocol || "udp6" == protocol) {
-      auto na = url_parser::parse_network_address(address);
+      GET_EXPECTED(na, url_parser::parse_network_address(address));
       if (na.protocol != "udp" && na.protocol != "udp6") {
         return vds::make_unexpected<std::invalid_argument>("address");
       }

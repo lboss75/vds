@@ -17,7 +17,7 @@ SOURCE_GROUP(transactions FILES ${TRANSACTIONS_HEADER_FILES})
 SOURCE_GROUP(include FILES ${HEADER_FILES})
 SOURCE_GROUP(impl FILES ${SOURCE_LIB})
 
-ADD_MSVC_PRECOMPILED_HEADER("private/stdafx.h" "impl/stdafx.cpp" SOURCE_LIB)
+ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "private/stdafx.cpp" SOURCE_LIB)
 
 add_library(vds_transactions
 		STATIC
@@ -29,16 +29,9 @@ add_library(vds_transactions
 target_include_directories(vds_transactions
 	PRIVATE
 		${vds_core_INCLUDE_DIRS}
-		${vds_network_INCLUDE_DIRS}
 		${vds_crypto_INCLUDE_DIRS}
 		${vds_data_INCLUDE_DIRS}
-		${vds_http_INCLUDE_DIRS}
 		${vds_parser_INCLUDE_DIRS}
-		${vds_database_INCLUDE_DIRS}
-		${vds_db_model_INCLUDE_DIRS}
-		${vds_user_manager_INCLUDE_DIRS}
-		${vds_dht_INCLUDE_DIRS}
-		${vds_dht_network_INCLUDE_DIRS}
 		${OPENSSL_INCLUDE_DIR}
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -47,13 +40,7 @@ target_include_directories(vds_transactions
 target_link_libraries(vds_transactions
   vds_core
   vds_data
-  vds_database
-  vds_db_model
-  vds_network
-  vds_http
   vds_crypto
   vds_parser
-  vds_user_manager
-  vds_dht_network
   ${OPENSSL_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})

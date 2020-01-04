@@ -29,7 +29,7 @@ namespace vds {
       std::string path;
     };
 
-    static network_address parse_network_address(
+    static expected<network_address> parse_network_address(
       const std::string & address);
   };
 }

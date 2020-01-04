@@ -4,5 +4,3 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "transaction_block_builder.h"
-

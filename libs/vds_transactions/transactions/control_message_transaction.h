@@ -10,7 +10,6 @@ All rights reserved
 #include "channel_message_id.h"
 #include "json_object.h"
 #include "json_parser.h"
-#include "keys_control.h"
 
 namespace vds {
 	namespace transactions {

@@ -18,7 +18,8 @@ namespace vds {
       const std::shared_ptr<asymmetric_public_key> & user_public_key,
       const std::shared_ptr<asymmetric_private_key> &private_key);
 
-    static expected<member_user> create_user(
+    static async_task<expected<member_user>> create_user(
+      vds_client & client,
       transactions::transaction_block_builder & log,
       const std::string & user_name,
       const std::string & user_email,

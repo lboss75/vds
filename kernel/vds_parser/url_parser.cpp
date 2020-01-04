@@ -37,7 +37,7 @@ vds::expected<bool> vds::url_parser::parse_address(
   return handler(address.substr(0, p), address);
 }
 
-vds::url_parser::network_address vds::url_parser::parse_network_address(const std::string & address)
+vds::expected<vds::url_parser::network_address> vds::url_parser::parse_network_address(const std::string & address)
 {
   vds::url_parser::network_address result;
 
@@ -46,7 +46,7 @@ vds::url_parser::network_address vds::url_parser::parse_network_address(const st
     || p + 2 > address.length()
     || '/' != address[p + 1]
     || '/' != address[p + 2]) {
-    return vds::url_parser::network_address();
+    return make_unexpected<vds_exceptions::invalid_operation>("Invalid URL " + address);
   }
 
   result.protocol = address.substr(0, p);

@@ -11,7 +11,6 @@ All rights reserved
 #include "const_data_buffer.h"
 #include "binary_serialize.h"
 #include "transaction_id.h"
-#include "database_orm.h"
 
 namespace vds {
   namespace transactions {
@@ -19,17 +18,17 @@ namespace vds {
     public:
       static const transaction_id message_id = transaction_id::create_user_transaction;
 
-      std::string user_credentials_key;
+      std::string user_email;
       std::shared_ptr<asymmetric_public_key> user_public_key;
-      const_data_buffer user_private_key;
+      const_data_buffer user_profile_id;
       std::string user_name;
 
       template <typename  visitor_type>
       void visit(visitor_type & v) {
         v(
-          user_credentials_key,
+          user_email,
           user_public_key,
-          user_private_key,
+          user_profile_id,
           user_name
         );
       }

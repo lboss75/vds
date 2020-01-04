@@ -18,6 +18,7 @@ namespace vds {
     class invalid_operation : public std::runtime_error {
     public:
       invalid_operation();
+      invalid_operation(const std::string& message);
 
     };
 

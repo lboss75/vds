@@ -10,25 +10,31 @@ All rights reserved
 #endif
 
 #include "member_user.h"
-#include "database_orm.h"
 #include "transaction_block_builder.h"
 #include "private/member_user_p.h"
 #include "private/cert_control_p.h"
 #include "keys_control.h"
-#include "dht_object_id.h"
 #include "private/user_channel_p.h"
 #include "create_user_transaction.h"
+#include "user_profile.h"
+#include "vds_client.h"
+#include "store_block_transaction.h"
 
 vds::member_user::member_user(_member_user * impl)
   : impl_(impl)
 {
 }
 
-//vds::member_user vds::member_user::create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
-//                                               const vds::asymmetric_private_key &private_key)
-//{
-//  return this->impl_->create_user(owner_user_private_key, user_name, private_key);
-//}
+vds::async_task<vds::expected<vds::member_user>> vds::member_user::create_user(
+  vds_client& client,
+  transactions::transaction_block_builder& log,
+  const std::string& user_name,
+  const std::string& user_email,
+  const std::string& user_password,
+  const std::shared_ptr<vds::asymmetric_private_key> & private_key)
+{
+  return this->impl_->create_user(client, log, user_name, user_email, user_password, private_key);
+}
 
 vds::member_user::member_user()
 : impl_(nullptr) {
@@ -85,27 +91,42 @@ vds::_member_user::_member_user(
 {
 }
 
-vds::expected<vds::member_user> vds::_member_user::create_user(
+vds::async_task<vds::expected<vds::member_user>> vds::_member_user::create_user(
+  vds_client& client,
   transactions::transaction_block_builder & log,
   const std::string & user_name,
   const std::string & user_email,
   const std::string & user_password,
   const std::shared_ptr<asymmetric_private_key> &private_key)
 {
-  GET_EXPECTED(c, asymmetric_public_key::create(*private_key));
+  GET_EXPECTED_ASYNC(user_private_key_der, private_key->der(user_password));
+  GET_EXPECTED_ASYNC(user_profile_data, message_create<user_profile>(user_private_key_der));
+  GET_EXPECTED_ASYNC(profile_block, message_serialize<user_profile>(user_profile_data));
+  GET_EXPECTED_ASYNC(profile_id, hash::signature(hash::sha256(), profile_block));
+  GET_EXPECTED_ASYNC(profile_replocas, co_await client.upload_data(profile_block));
 
-  auto user_cert = std::make_shared<asymmetric_public_key>(std::move(c));
+  GET_EXPECTED_ASYNC(user_public_key, asymmetric_public_key::create(*private_key));
 
-  GET_EXPECTED(user_private_key_der, private_key->der(user_password));
-  GET_EXPECTED(user_id, dht::dht_object_id::user_credentials_to_key(user_password));
+  auto user_pkey = std::make_shared<asymmetric_public_key>(std::move(user_public_key));
+  GET_EXPECTED_ASYNC(user_id, user_pkey->fingerprint());
+
+  CHECK_EXPECTED(log.add(
+    transactions::store_block_transaction::create(
+      user_id,
+      profile_id,
+      profile_block.size(),
+      profile_replocas,
+      *private_key)));
+
+
   CHECK_EXPECTED(log.add(
     message_create<transactions::create_user_transaction>(
-      user_id,
-      user_cert,
-      user_private_key_der,
+      user_email,
+      user_pkey,
+      profile_id,
       user_name)));
 
-  return member_user(user_cert, private_key);
+  co_return member_user(user_pkey, private_key);
 }
 
 vds::expected<vds::user_channel> vds::_member_user::create_channel(
