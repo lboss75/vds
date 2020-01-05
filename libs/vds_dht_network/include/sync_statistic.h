@@ -29,7 +29,6 @@ namespace vds {
     std::set<const_data_buffer> unknown_;
 
     std::set<const_data_buffer> chunks_;
-    std::map<const_data_buffer, std::set<uint16_t>> chunk_replicas_;
 
     struct record_info {
       std::string name_;
@@ -38,23 +37,9 @@ namespace vds {
     };
     std::list<std::shared_ptr<record_info>> roots_;
 
-    struct sync_member_state {
-      const_data_buffer voted_for_;
-      std::set<uint16_t> replicas_;
-    };
-
-    struct sync_message {
-      std::string message_type_;
-      const_data_buffer member_node_;
-      int16_t replica_;
-      const_data_buffer source_node_;
-      int64_t source_index_;
-    };
-
     struct sync_state {
       std::string node_state_;
-      std::map<const_data_buffer, sync_member_state> members_;
-      std::map<uint64_t, sync_message> messages_;
+      std::list<const_data_buffer> members_;
 
     };
 
@@ -122,18 +107,6 @@ namespace vds {
         o->add_property("full", "true");
         processed[chunk] = o;
         chunks->add(o);
-      }
-      for (const auto& chunk_replica : this->chunk_replicas_) {
-        auto& o = processed[chunk_replica.first];
-        if (!o) {
-          o = std::make_shared<json_object>();
-          chunks->add(o);
-        }
-        auto replicas = std::make_shared<json_array>();
-        for (auto replica : chunk_replica.second) {
-          replicas->add(std::make_shared<json_primitive>(std::to_string(replica)));
-        }
-        o->add_property("replicas", replicas);
       }
 
       result->add_property("chunks", chunks);

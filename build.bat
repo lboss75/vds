@@ -1,5 +1,4 @@
 set root_folder=%~d0%~p0
-
 call setenv.bat
 
 del %root_folder%\CMakeSettings.json

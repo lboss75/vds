@@ -14,11 +14,13 @@ namespace vds {
   class user_profile
   {
   public:
+    const_data_buffer password_hash;
     const_data_buffer user_private_key;
 
     template <typename  visitor_type>
     void visit(visitor_type& v) {
       v(
+        password_hash,
         user_private_key
       );
     }

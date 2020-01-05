@@ -59,6 +59,10 @@ namespace vds {
 
       const_data_buffer close();
 
+      expected<void> push_data(const const_data_buffer& data) {
+        return this->data_.push_data(data.data(), data.size(), false);
+      }
+
     private:
         binary_serializer data_;
 

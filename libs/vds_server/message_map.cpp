@@ -159,30 +159,30 @@ vds::async_task<vds::expected<bool>> vds::_server::process_message(
     //  break;
     //}
 
-    route_client(sync_new_election_request)
-    route_client(sync_new_election_response)
+    //route_client(sync_new_election_request)
+    //route_client(sync_new_election_response)
 
-    route_client(sync_add_message_request)
+    //route_client(sync_add_message_request)
 
-    route_client(sync_leader_broadcast_request)
-    route_client(sync_leader_broadcast_response)
+    //route_client(sync_leader_broadcast_request)
+    //route_client(sync_leader_broadcast_response)
 
-    route_client(sync_replica_operations_request)
-    route_client(sync_replica_operations_response)
+    //route_client(sync_replica_operations_request)
+    //route_client(sync_replica_operations_response)
 
-    route_client(sync_looking_storage_request)
-    route_client(sync_looking_storage_response)
+    //route_client(sync_looking_storage_request)
+    //route_client(sync_looking_storage_response)
 
-    route_client(sync_snapshot_request)
-    route_client(sync_snapshot_response)
+    //route_client(sync_snapshot_request)
+    //route_client(sync_snapshot_response)
 
-    route_client(sync_offer_send_replica_operation_request)
-    route_client(sync_offer_remove_replica_operation_request)
+    //route_client(sync_offer_send_replica_operation_request)
+    //route_client(sync_offer_remove_replica_operation_request)
 
-    route_client(sync_replica_request)
-    route_client(sync_replica_data)
-    
-    route_client(sync_replica_query_operations_request)
+    //route_client(sync_replica_request)
+    //route_client(sync_replica_data)
+    //
+    //route_client(sync_replica_query_operations_request)
 
     default:{
       co_return vds::make_unexpected<std::runtime_error>("Invalid command");

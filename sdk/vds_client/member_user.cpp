@@ -100,7 +100,13 @@ vds::async_task<vds::expected<vds::member_user>> vds::_member_user::create_user(
   const std::shared_ptr<asymmetric_private_key> &private_key)
 {
   GET_EXPECTED_ASYNC(user_private_key_der, private_key->der(user_password));
-  GET_EXPECTED_ASYNC(user_profile_data, message_create<user_profile>(user_private_key_der));
+  GET_EXPECTED_ASYNC(password_hash,
+    hash::signature(
+      hash::sha256(),
+      const_data_buffer(user_password.c_str(), user_password.length())));
+  GET_EXPECTED_ASYNC(user_profile_data, message_create<user_profile>(
+    password_hash,
+    user_private_key_der));
   GET_EXPECTED_ASYNC(profile_block, message_serialize<user_profile>(user_profile_data));
   GET_EXPECTED_ASYNC(profile_id, hash::signature(hash::sha256(), profile_block));
   GET_EXPECTED_ASYNC(profile_replocas, co_await client.upload_data(profile_block));

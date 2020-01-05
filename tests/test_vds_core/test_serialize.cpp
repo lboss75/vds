@@ -75,6 +75,6 @@ TEST(core_tests, test_message_serialize) {
   vds::binary_deserializer d(data);
   GET_EXPECTED_GTEST(m1, vds::message_deserialize<message>(d));
 
-  GTEST_ASSERT_EQ(m1.field1, 10);
+  GTEST_ASSERT_EQ(m1.field1, 10u);
   GTEST_ASSERT_EQ(m1.field2, "test");
 }

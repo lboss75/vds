@@ -19,13 +19,10 @@ namespace vds {
 
       class service {
       public:
-        static constexpr uint16_t MIN_HORCRUX = 8;
-        static constexpr uint16_t GENERATE_HORCRUX = 16;
+        static constexpr uint16_t MIN_HORCRUX = 32;
+        static constexpr uint16_t GENERATE_HORCRUX = 64;
 
-        static constexpr uint16_t MIN_DISTRIBUTED_PIECES = 8;
-        static constexpr uint16_t GENERATE_DISTRIBUTED_PIECES = 16;
-
-        static constexpr uint64_t BLOCK_SIZE = 32ULL * 1024ULL * MIN_HORCRUX * MIN_DISTRIBUTED_PIECES * 32;//32K 
+        static constexpr uint64_t BLOCK_SIZE = 32ULL * 1024ULL * MIN_HORCRUX;//32K 
 
         expected<void> register_services(service_registrator& registrator);
         expected<void> start(

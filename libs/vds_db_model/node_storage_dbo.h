@@ -16,12 +16,15 @@ namespace vds {
       node_storage_dbo()
       : database_table("node_storage_dbo"),
         storage_id(this, "storage_id"),
-        node_id(this, "node_id"),
+        local_path(this, "local_path"),
+        owner_id(this, "owner_id"),
         reserved_size(this, "reserved_size") {
       }
 
       database_column<const_data_buffer, std::string> storage_id;
-      database_column<const_data_buffer, std::string> node_id;
+
+      database_column<std::string> local_path;
+      database_column<const_data_buffer, std::string> owner_id;
       database_column<int64_t> reserved_size;
     };
   }

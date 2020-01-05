@@ -8,7 +8,6 @@ All rights reserved
 #include "private/server_p.h"
 #include "user_manager.h"
 #include "db_model.h"
-#include "file_manager_service.h"
 #include "dht_network.h"
 #include "transaction_log_hierarchy_dbo.h"
 #include "chunk_dbo.h"
@@ -20,6 +19,7 @@ All rights reserved
 #include "sync_state_dbo.h"
 #include "sync_member_dbo.h"
 #include "sync_replica_map_dbo.h"
+#include "transaction_log_record_dbo.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -37,7 +37,6 @@ vds::expected<void> vds::server::register_services(service_registrator& registra
   registrator.add_service<db_model>(this->impl_->db_model_.get());
 
   CHECK_EXPECTED(this->impl_->dht_network_service_->register_services(registrator));
-  this->impl_->file_manager_->register_services(registrator);
 
   return expected<void>();
 }
@@ -56,7 +55,6 @@ vds::async_task<vds::expected<void>> vds::server::start_network(
   uint16_t port,
   bool dev_network) {
   CHECK_EXPECTED_ASYNC(this->impl_->dht_network_service_->start(this->impl_->sp_, this->impl_->udp_transport_, port, dev_network));
-  this->impl_->file_manager_->start(this->impl_->sp_);
   co_return expected<void>();
 }
 
@@ -72,7 +70,6 @@ vds::async_task<vds::expected<vds::server_statistic>> vds::server::get_statistic
 vds::_server::_server(server * owner)
 : owner_(owner),
   db_model_(new db_model()),
-  file_manager_(new file_manager::file_manager_service()),
   udp_transport_(new dht::network::udp_transport()),
   dht_network_service_(new dht::network::service()),
   update_timer_("Log Sync") {
@@ -108,14 +105,9 @@ vds::expected<void> vds::_server::start(const service_provider* sp)
 
 vds::expected<void> vds::_server::stop()
 {
-  if (*this->file_manager_) {
-    this->file_manager_->stop();
-  }
-
   CHECK_EXPECTED(this->dht_network_service_->stop());
   CHECK_EXPECTED(this->db_model_->stop());
   this->udp_transport_.reset();
-  this->file_manager_.reset();
   this->db_model_.reset();
 
   return expected<void>();
@@ -181,100 +173,92 @@ vds::async_task<vds::expected<vds::server_statistic>> vds::_server::get_statisti
     }
     WHILE_EXPECTED_END()
 
-    orm::chunk_replica_data_dbo t5;
-    GET_EXPECTED_VALUE(st, t.get_reader(t5.select(t5.object_id, t5.replica)));
-
-    WHILE_EXPECTED(st.execute()) {
-      result->sync_statistic_.chunk_replicas_[t5.object_id.get(st)].emplace(t5.replica.get(st));
-    }
-    WHILE_EXPECTED_END()
-
     //Sync statistics
-    const auto client = this->sp_->get<dht::network::client>();
+    //const auto client = this->sp_->get<dht::network::client>();
 
-    std::set<const_data_buffer> leaders;
-    orm::sync_state_dbo t6;
-    orm::sync_member_dbo t7;
-    GET_EXPECTED_VALUE(st, t.get_reader(
-      t6.select(
-        t6.object_id,
-        t6.state,
-        t7.generation,
-        t7.current_term,
-        t7.commit_index,
-        t7.last_applied)
-      .inner_join(t7, t7.object_id == t6.object_id && t7.member_node == client->current_node_id())));
-    WHILE_EXPECTED(st.execute()) {
-      std::string state;
-      switch(t6.state.get(st)) {
-      case orm::sync_state_dbo::state_t::canditate:
-        state = 'c';
-        break;
-      case orm::sync_state_dbo::state_t::follower:
-        state = 'f';
-        break;
-      case orm::sync_state_dbo::state_t::leader:
-        state = 'l';
-        leaders.emplace(t6.object_id.get(st));
-        break;
-      }
-      result->sync_statistic_.sync_states_[t6.object_id.get(st)].node_state_ = state 
-      + std::to_string(t7.generation.get(st))
-      + "," + std::to_string(t7.current_term.get(st))
-      + "," + std::to_string(t7.commit_index.get(st))
-      + "," + std::to_string(t7.last_applied.get(st))
-      ;
-    }
-    WHILE_EXPECTED_END()
+    //std::set<const_data_buffer> leaders;
+    //orm::sync_state_dbo t6;
+    //orm::sync_member_dbo t7;
+    //GET_EXPECTED_VALUE(st, t.get_reader(
+    //  t6.select(
+    //    t6.object_id,
+    //    t6.state,
+    //    t7.generation,
+    //    t7.current_term,
+    //    t7.commit_index,
+    //    t7.last_applied)
+    //  .inner_join(t7, t7.object_id == t6.object_id && t7.member_node == client->current_node_id())));
+    //WHILE_EXPECTED(st.execute()) {
+    //  std::string state;
+    //  switch(t6.state.get(st)) {
+    //  case orm::sync_state_dbo::state_t::canditate:
+    //    state = 'c';
+    //    break;
+    //  case orm::sync_state_dbo::state_t::follower:
+    //    state = 'f';
+    //    break;
+    //  case orm::sync_state_dbo::state_t::leader:
+    //    state = 'l';
+    //    leaders.emplace(t6.object_id.get(st));
+    //    break;
+    //  }
+    //  result->sync_statistic_.sync_states_[t6.object_id.get(st)].node_state_ = state 
+    //  + std::to_string(t7.generation.get(st))
+    //  + "," + std::to_string(t7.current_term.get(st))
+    //  + "," + std::to_string(t7.commit_index.get(st))
+    //  + "," + std::to_string(t7.last_applied.get(st))
+    //  ;
+    //}
+    //WHILE_EXPECTED_END()
 
-    for(const auto & leader : leaders) {
-      orm::sync_message_dbo t9;
-      GET_EXPECTED_VALUE(st, t.get_reader(t9.select(
-        t9.index,
-        t9.message_type,
-        t9.member_node,
-        t9.replica,
-        t9.source_node,
-        t9.source_index)
-        .where(t9.object_id == leader)));
-      WHILE_EXPECTED(st.execute()) {
-        std::string ch;
-        switch(t9.message_type.get(st)) {
-        case orm::sync_message_dbo::message_type_t::add_member:
-          ch = "m+";
-          break;
-        case orm::sync_message_dbo::message_type_t::remove_replica:
-          ch = "r-";
-          break;
-        case orm::sync_message_dbo::message_type_t::add_replica:
-          ch = "r+";
-          break;
-        case orm::sync_message_dbo::message_type_t::remove_member:
-          ch = "m-";
-          break;
+    //for(const auto & leader : leaders) {
+    //  orm::sync_message_dbo t9;
+    //  GET_EXPECTED_VALUE(st, t.get_reader(t9.select(
+    //    t9.index,
+    //    t9.message_type,
+    //    t9.member_node,
+    //    t9.replica,
+    //    t9.source_node,
+    //    t9.source_index)
+    //    .where(t9.object_id == leader)));
+    //  WHILE_EXPECTED(st.execute()) {
+    //    std::string ch;
+    //    switch(t9.message_type.get(st)) {
+    //    case orm::sync_message_dbo::message_type_t::add_member:
+    //      ch = "m+";
+    //      break;
+    //    case orm::sync_message_dbo::message_type_t::remove_replica:
+    //      ch = "r-";
+    //      break;
+    //    case orm::sync_message_dbo::message_type_t::add_replica:
+    //      ch = "r+";
+    //      break;
+    //    case orm::sync_message_dbo::message_type_t::remove_member:
+    //      ch = "m-";
+    //      break;
 
-        }
-        result->sync_statistic_.sync_states_[leader].messages_[t9.index.get(st)] = sync_statistic::sync_message {
-          ch,
-          t9.member_node.get(st),
-          t9.replica.get(st),
-          t9.source_node.get(st),
-          t9.source_index.get(st)
-        };
-      }
-      WHILE_EXPECTED_END()
-    }
+    //    }
+    //    result->sync_statistic_.sync_states_[leader].messages_[t9.index.get(st)] = sync_statistic::sync_message {
+    //      ch,
+    //      t9.member_node.get(st),
+    //      t9.replica.get(st),
+    //      t9.source_node.get(st),
+    //      t9.source_index.get(st)
+    //    };
+    //  }
+    //  WHILE_EXPECTED_END()
+    //}
 
-    GET_EXPECTED_VALUE(st, t.get_reader(t7.select(t7.object_id, t7.member_node, t7.voted_for)));
-    WHILE_EXPECTED(st.execute()) {
-      result->sync_statistic_.sync_states_[t7.object_id.get(st)].members_[t7.member_node.get(st)].voted_for_ = t7.voted_for.get(st);
-    }
-    WHILE_EXPECTED_END()
+    //GET_EXPECTED_VALUE(st, t.get_reader(t7.select(t7.object_id, t7.member_node, t7.voted_for)));
+    //WHILE_EXPECTED(st.execute()) {
+    //  result->sync_statistic_.sync_states_[t7.object_id.get(st)].members_[t7.member_node.get(st)].voted_for_ = t7.voted_for.get(st);
+    //}
+    //WHILE_EXPECTED_END()
 
     orm::sync_replica_map_dbo t8;
-    GET_EXPECTED_VALUE(st, t.get_reader(t8.select(t8.object_id, t8.node, t8.replica)));
+    GET_EXPECTED_VALUE(st, t.get_reader(t8.select(t8.object_id, t8.node)));
     WHILE_EXPECTED(st.execute()) {
-      result->sync_statistic_.sync_states_[t8.object_id.get(st)].members_[t8.node.get(st)].replicas_.emplace(t8.replica.get(st));
+      result->sync_statistic_.sync_states_[t8.object_id.get(st)].members_.push_back(t8.node.get(st));
     }
     WHILE_EXPECTED_END()
 

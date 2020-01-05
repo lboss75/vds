@@ -13,14 +13,12 @@ namespace vds {
 		public:
 			sync_replica_map_dbo()
 				: database_table("chunk_replica_map"),
-				object_id(this, "object_id"),
-				replica(this, "replica"),
+        replica_hash(this, "replica_hash"),
 				node(this, "node"),
         last_access(this, "last_access") {
 			}
 
-			database_column<const_data_buffer, std::string> object_id;
-			database_column<int16_t, int> replica;
+			database_column<const_data_buffer, std::string> replica_hash;
       database_column<const_data_buffer, std::string> node;
       database_column<std::chrono::system_clock::time_point> last_access;
 		};

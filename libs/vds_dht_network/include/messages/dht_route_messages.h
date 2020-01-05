@@ -44,31 +44,31 @@ namespace vds {
         dht_ping,
         dht_pong,
 
-        sync_new_election_request,
-        sync_new_election_response,
+        //sync_new_election_request,
+        //sync_new_election_response,
 
-        sync_add_message_request,
+        //sync_add_message_request,
 
-        sync_leader_broadcast_request,
-        sync_leader_broadcast_response,
+        //sync_leader_broadcast_request,
+        //sync_leader_broadcast_response,
 
-        sync_replica_operations_request,
-        sync_replica_operations_response,
+        //sync_replica_operations_request,
+        //sync_replica_operations_response,
 
-        sync_looking_storage_request,
-        sync_looking_storage_response,
+        //sync_looking_storage_request,
+        //sync_looking_storage_response,
 
-        sync_snapshot_request,
-        sync_snapshot_response,
+        //sync_snapshot_request,
+        //sync_snapshot_response,
 
-        sync_offer_send_replica_operation_request,
-        sync_offer_remove_replica_operation_request,
+        //sync_offer_send_replica_operation_request,
+        //sync_offer_remove_replica_operation_request,
         //sync_offer_replica_operation_response,
 
         sync_replica_request,
         sync_replica_data,
 
-        sync_replica_query_operations_request
+        //sync_replica_query_operations_request
 
       };
     }
@@ -194,22 +194,22 @@ namespace std {
       enum2str(dht_find_node_response);
       enum2str(dht_ping);
       enum2str(dht_pong);
-      enum2str(sync_new_election_request);
-      enum2str(sync_new_election_response);
-      enum2str(sync_add_message_request);
-      enum2str(sync_leader_broadcast_request);
-      enum2str(sync_leader_broadcast_response);
-      enum2str(sync_replica_operations_request);
-      enum2str(sync_replica_operations_response);
-      enum2str(sync_looking_storage_request);
-      enum2str(sync_looking_storage_response);
-      enum2str(sync_snapshot_request);
-      enum2str(sync_snapshot_response);
-      enum2str(sync_offer_send_replica_operation_request);
-      enum2str(sync_offer_remove_replica_operation_request);
-      enum2str(sync_replica_request);
-      enum2str(sync_replica_data);
-      enum2str(sync_replica_query_operations_request);
+      //enum2str(sync_new_election_request);
+      //enum2str(sync_new_election_response);
+      //enum2str(sync_add_message_request);
+      //enum2str(sync_leader_broadcast_request);
+      //enum2str(sync_leader_broadcast_response);
+      //enum2str(sync_replica_operations_request);
+      //enum2str(sync_replica_operations_response);
+      //enum2str(sync_looking_storage_request);
+      //enum2str(sync_looking_storage_response);
+      //enum2str(sync_snapshot_request);
+      //enum2str(sync_snapshot_response);
+      //enum2str(sync_offer_send_replica_operation_request);
+      //enum2str(sync_offer_remove_replica_operation_request);
+      //enum2str(sync_replica_request);
+      //enum2str(sync_replica_data);
+      //enum2str(sync_replica_query_operations_request);
     default:
       return "unknown";
     }

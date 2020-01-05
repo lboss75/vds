@@ -10,9 +10,10 @@ All rights reserved
 #include "websocket.h"
 #include "channel_message_dbo.h"
 #include "dht_network_client.h"
-#include "user_storage.h"
 #include "dht_network.h"
+#include "device_record_dbo.h"
 #include "../private/dht_network_client_p.h"
+#include "transaction_block_builder.h"
 
 vds::websocket_api::websocket_api()
   : subscribe_timer_("WebSocket API Subscribe Timer")
@@ -104,7 +105,7 @@ vds::websocket_api::process_message(
 
   if ("login" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
-    if (!args) {
+    if (!args || args->size() < 2) {
       co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'login'");
     }
 
@@ -113,12 +114,7 @@ vds::websocket_api::process_message(
       co_return make_unexpected<std::runtime_error>("missing login argument at invoke method 'login'");
     }
 
-    auto login_cred = std::dynamic_pointer_cast<json_primitive>(args->get(1));
-    if (!login_cred) {
-      co_return make_unexpected<std::runtime_error>("missing login argument at invoke method 'login'");
-    }
-
-    CHECK_EXPECTED_ASYNC(co_await this->login(sp, r, login->value(), login_cred->value()));
+    CHECK_EXPECTED_ASYNC(co_await this->login(sp, r, login->value()));
   }
   else if ("upload" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
@@ -148,9 +144,9 @@ vds::websocket_api::process_message(
         co_return make_unexpected<std::runtime_error>("missing argument at invoke method 'download'");
       }
 
-      GET_EXPECTED_ASYNC(id, base64::to_bytes(id_str->value()));
+      GET_EXPECTED_ASYNC(obj_id, base64::to_bytes(id_str->value()));
 
-      object_ids.push_back(id);
+      object_ids.push_back(obj_id);
     }
 
     CHECK_EXPECTED_ASYNC(co_await this->download(sp, r, object_ids));
@@ -303,15 +299,13 @@ vds::websocket_api::process_message(
 vds::async_task<vds::expected<void>> vds::websocket_api::login(
   const vds::service_provider * sp,
   std::shared_ptr<json_object> result,
-  std::string login,
-  std::string login_cred)
+  std::string login)
 {
   std::string result_str("User not found");
 
 	CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction(
 		[
       login,
-      login_cred,
 			result,
       &result_str
 		](database_read_transaction & t)->expected<void> {
@@ -326,24 +320,18 @@ vds::async_task<vds::expected<void>> vds::websocket_api::login(
 			GET_EXPECTED(block, transactions::transaction_block::create(data));
 
 			CHECK_EXPECTED(block.walk_messages(
-        [login, login_cred, &result, &result_str](const transactions::create_user_transaction & message)->expected<bool> {
-        if (login == message.user_name) {
-          if (login_cred == message.user_credentials_key) {
-
+        [login, &result, &result_str](const transactions::create_user_transaction & message)->expected<bool> {
+          if (login == message.user_email) {
             auto res = std::make_shared<json_object>();
             CHECK_EXPECTED(res->add_property("public_key", message.user_public_key->str()));
-            res->add_property("private_key", base64::from_bytes(message.user_private_key));
+            res->add_property("user_profile_id", base64::from_bytes(message.user_profile_id));
 
             result->add_property("result", res);
 
             return false;
           }
-          else {
-            result_str = "Invalid password";
-          }
-        }
 
-        return true;
+          return true;
       }));
 
 
@@ -362,16 +350,14 @@ vds::async_task<vds::expected<void>> vds::websocket_api::login(
 vds::async_task<vds::expected<void>>
 vds::websocket_api::upload(const vds::service_provider * sp, std::shared_ptr<json_object> result, const_data_buffer body)
 {
-    std::list<std::function<async_task<expected<void>>()>> final_tasks;
-    CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_transaction(
+    return sp->get<db_model>()->async_transaction(
       [
         sp,
         body,
-        result,
-        &final_tasks
+        result
       ](database_transaction & t)->expected<void> {
       auto network_client = sp->get<dht::network::client>();
-      GET_EXPECTED(info, (*network_client)->save(t, final_tasks, body));
+      GET_EXPECTED(info, (*network_client)->save(t, body));
 
       auto res = std::make_shared<json_object>();
      
@@ -384,13 +370,7 @@ vds::websocket_api::upload(const vds::service_provider * sp, std::shared_ptr<jso
       result->add_property("result", res);
 
       return expected<void>();
-    }));
-     
-    for (auto & p : final_tasks) {
-      CHECK_EXPECTED_ASYNC(co_await p());
-    }
-
-    co_return expected<void>();
+    });
 }
 
 std::shared_ptr<vds::websocket_api::subscribe_handler> vds::websocket_api::subscribe_channel(
@@ -426,11 +406,43 @@ vds::async_task<vds::expected<void>> vds::websocket_api::devices(
   std::shared_ptr<json_object> res,
   const_data_buffer owner_id)
 {
-  auto result = co_await user_storage::device_storage(sp);
-  CHECK_EXPECTED_ASYNC(result);
+  auto result_json = std::make_shared<json_array>();
+  
+  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction([sp, result_json, owner_id](database_read_transaction & t) -> expected<void> {
+    auto client = sp->get<dht::network::client>();
+  
+    orm::current_config_dbo t1;
+    orm::device_record_dbo t2;
+    db_value<int64_t> used_size;
+    GET_EXPECTED(st, t.get_reader(
+      t1.select(
+        t1.node_id,
+        t1.local_path,
+        t1.reserved_size,
+        db_sum(t2.data_size).as(used_size))
+      .left_join(t2, t2.node_id == t1.node_id)
+      .where(t1.owner_id == owner_id && t1.node_id == client->current_node_id())
+      .group_by(t1.node_id, t1.local_path, t1.reserved_size)));
+  
+    WHILE_EXPECTED(st.execute()) {
+      if (!t1.local_path.get(st).empty()) {
+        auto result_item = std::make_shared<json_object>();
+        result_item->add_property("node", base64::from_bytes(t1.node_id.get(st)));
+        result_item->add_property("local_path", t1.local_path.get(st));
+        result_item->add_property("reserved_size", t1.reserved_size.get(st));
+        result_item->add_property("used_size", used_size.get(st));
 
-  auto result_json = result.value().serialize();
- 
+        auto free_size_result = foldername(t1.local_path.get(st)).free_size();
+        if (free_size_result.has_value()) {
+          result_item->add_property("free_size", free_size_result.value());
+        }
+        result_json->add(result_item);
+      }
+    }
+    WHILE_EXPECTED_END()
+    return expected<void>();
+  }));
+
   res->add_property("result", result_json);
   co_return expected<void>();
 }
@@ -440,7 +452,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::get_channel_messages(
   std::shared_ptr<json_object> result,
   const_data_buffer channel_id,
   int64_t last_id,
-  int limit)
+  uint32_t limit)
 {
   auto items = std::make_shared<json_array>();
 
@@ -572,7 +584,9 @@ vds::async_task<vds::expected<void>> vds::websocket_api::broadcast(
       body,
       result
     ](database_transaction & t)->expected<void> {
-    GET_EXPECTED(playback, transactions::transaction_block_builder::create(sp, t, body));
+      transactions::transaction_block_builder playback;
+
+    CHECK_EXPECTED(playback.push_data(body));
 
     auto network_client = sp->get<dht::network::client>();
     GET_EXPECTED(trx_id, network_client->save(sp, playback, t));
@@ -587,7 +601,9 @@ vds::websocket_api::subscribe_handler::subscribe_handler(std::string cb, const_d
 {
 }
 
-vds::async_task<vds::expected<void>> vds::websocket_api::subscribe_handler::process(const vds::service_provider * sp, std::weak_ptr<websocket_output> output_stream)
+vds::async_task<vds::expected<void>> vds::websocket_api::subscribe_handler::process(
+  const vds::service_provider * sp,
+  std::weak_ptr<websocket_output> output_stream)
 {
   auto items = std::make_shared<json_array>();
 

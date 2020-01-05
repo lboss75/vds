@@ -3,34 +3,25 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <dht_network_client.h>
 #include "stdafx.h"
 #include "file_operations.h"
 #include "file.h"
-#include "db_model.h"
 #include "private/file_operations_p.h"
 #include "service_provider.h"
 #include "transaction_block_builder.h"
 #include "user_message_transaction.h"
-#include "user_manager.h"
 #include "vds_exceptions.h"
 #include "chunk.h"
 #include "logger.h"
 #include "encoding.h"
 #include "private/upload_stream_task_p.h"
 #include "file_manager_service.h"
+#include "user_manager.h"
 
 vds::file_manager::file_operations::file_operations()
   : impl_(new file_manager_private::_file_operations()) {
 }
 
-void vds::file_manager::file_operations::start(const service_provider* sp) {
-  this->impl_->start(sp);
-}
-
-void vds::file_manager::file_operations::stop() {
-  this->impl_->stop();
-}
 
 vds::async_task<vds::expected<void>> vds::file_manager::file_operations::prepare_to_stop() {
   return this->impl_->prepare_to_stop();
@@ -91,7 +82,6 @@ vds::file_manager_private::_file_operations::upload_file(
   transactions::user_message_transaction::file_info_t> final_handler) {
 
   auto task = std::make_shared<_upload_stream_task>(
-    this->sp_,
     [name, mime_type, h = std::move(final_handler)](
       const const_data_buffer & result_hash,
       uint64_t total_size,
@@ -110,6 +100,7 @@ vds::file_manager_private::_file_operations::upload_file(
 
 vds::async_task<vds::expected<vds::file_manager::file_operations::download_result_t>>
 vds::file_manager_private::_file_operations::download_file(
+  vds_client& client,
   std::shared_ptr<user_manager> user_mng,
   const_data_buffer channel_id,
   std::string file_name,
@@ -117,11 +108,8 @@ vds::file_manager_private::_file_operations::download_file(
 
   auto result = std::make_shared<file_manager::file_operations::download_result_t>();
   std::list<transactions::user_message_transaction::file_block_t> download_tasks;
-  CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction(
-      [user_mng, channel_id, file_name, file_hash, result, &download_tasks](database_transaction &t) -> expected<void> {
-    return lookup_file(t, user_mng, channel_id, file_name, file_hash, result, download_tasks);
-  }));
-
+  CHECK_EXPECTED_ASYNC(co_await this->lookup_file(client, user_mng, channel_id, file_name, file_hash, result, download_tasks));
+  
   if (!result->mime_type.empty()) {
     GET_EXPECTED_VALUE_ASYNC(result->body, this->download_stream(std::move(download_tasks)));
   }
@@ -130,7 +118,7 @@ vds::file_manager_private::_file_operations::download_file(
 }
 
 vds::expected<void> vds::file_manager_private::_file_operations::lookup_file(
-  database_transaction & t,
+  vds_client& client,
   const std::shared_ptr<user_manager> & user_mng,
   const const_data_buffer & channel_id,
   const std::string & file_name,
@@ -138,12 +126,11 @@ vds::expected<void> vds::file_manager_private::_file_operations::lookup_file(
   std::shared_ptr<file_manager::file_operations::download_result_t> result,
   std::list<transactions::user_message_transaction::file_block_t> & download_tasks)
 {
-  CHECK_EXPECTED(user_mng->update(t));
   auto channel = user_mng->get_channel(channel_id);
 
   CHECK_EXPECTED(user_mng->walk_messages(
+    client,
     channel_id,
-    t,
     [result, file_name, file_hash, &download_tasks](
       const transactions::user_message_transaction &message,
       const transactions::message_environment_t & /*message_environment*/) -> expected<bool> {

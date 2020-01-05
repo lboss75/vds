@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "stream.h"
+#include "async_task.h"
 
 namespace vds {
   class _deflate_handler;

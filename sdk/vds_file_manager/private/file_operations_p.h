@@ -9,6 +9,7 @@ All rights reserved
 #include "user_message_transaction.h"
 #include "async_buffer.h"
 #include "hash.h"
+#include "vds_client.h"
 
 namespace vds {
   class user_manager;
@@ -29,6 +30,7 @@ namespace vds {
 
 
 	    async_task<expected<file_manager::file_operations::download_result_t>> download_file(
+          vds_client& client,
           std::shared_ptr<user_manager> user_mng,
           const_data_buffer channel_id,
           std::string file_name,
@@ -57,13 +59,10 @@ namespace vds {
 //			database_transaction& t,
 //      file_manager::download_file_task::block_info & block_id,
 //			const std::shared_ptr<file_manager::download_file_task> & result);
-      void start(const service_provider * sp);
-      void stop();
       vds::async_task<vds::expected<void>> prepare_to_stop();
 
     private:
       friend class vds::file_manager::file_operations;
-      const service_provider * sp_;
 
       struct pack_file_result {
         const_data_buffer total_hash;
@@ -77,9 +76,8 @@ namespace vds {
 //					file_manager::download_file_task::block_info & block,
 //					const std::shared_ptr<file_manager::download_file_task> & result);
 
-      expected<std::map<vds::const_data_buffer, dht::network::client::block_info_t>> prepare_download_stream(
-        database_read_transaction &t,
-        std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+      expected<std::map<vds::const_data_buffer, file_manager::file_operations::block_info_t>> prepare_download_stream(
+        vds_client & client,
         const std::list<vds::transactions::user_message_transaction::file_block_t> &file_blocks_param);
 
       class download_stream_t : public stream_input_async<uint8_t>
@@ -96,7 +94,6 @@ namespace vds {
           size_t len) override;
 
       private:
-        const service_provider * sp_;
         std::list<transactions::user_message_transaction::file_block_t> file_blocks_;
 
         const_data_buffer buffer_;
@@ -104,7 +101,7 @@ namespace vds {
       };
 
       static expected<void> lookup_file(
-        database_transaction & t,
+        vds_client & client,
         const std::shared_ptr<user_manager> & user_mng,
         const const_data_buffer & channel_id,
         const std::string & file_name,

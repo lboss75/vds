@@ -8,6 +8,16 @@ All rights reserved
 #include "private/member_user_p.h"
 #include "vds_client.h"
 
+std::shared_ptr<vds::user_channel> vds::user_manager::get_channel(const const_data_buffer& channel_id) const
+{
+  auto p = this->channels_.find(channel_id);
+  if (this->channels_.end() != p) {
+    return p->second;
+  }
+
+  return std::shared_ptr<user_channel>();
+}
+
 vds::async_task<vds::expected<void>> vds::user_manager::reset(
     vds_client& client,
     const std::string &root_user_name,

@@ -14,6 +14,7 @@ All rights reserved
 #include "device_config_dbo.h"
 #include "member_user.h"
 #include "current_config_dbo.h"
+#include "transaction_log_record_dbo.h"
 
 vds_mock::vds_mock()
 {
@@ -66,7 +67,7 @@ vds::expected<bool> vds_mock::dump_statistic(std::ostream & logfile, std::vector
   }
 
   //Log records
-  std::map<int, std::list<vds::const_data_buffer>> order_no;
+  std::map<uint64_t, std::list<vds::const_data_buffer>> order_no;
   std::map<vds::const_data_buffer, std::map<std::string, std::string>> states;
   for(std::size_t i = 0; i < statistics.size(); ++i) {
     auto istr = std::to_string(i);

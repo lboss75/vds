@@ -9,16 +9,19 @@ All rights reserved
 
 namespace vds {
 	namespace orm {
+    //Chunk info
 		class chunk_dbo : public database_table {
 		public:
 			chunk_dbo()
 				: database_table("chunk"),
-				object_id(this, "object_id"),
+        object_hash(this, "object_hash"),
+        object_size(this, "object_size"),
         last_sync(this, "last_sync")
 			{
 			}
 
-			database_column<const_data_buffer, std::string> object_id;
+			database_column<const_data_buffer, std::string> object_hash;
+      database_column<uint64_t, long> object_size;
       database_column<std::chrono::system_clock::time_point> last_sync;
     };
 	}

@@ -20,6 +20,7 @@ target_include_directories(vds_file_manager
 		${vds_crypto_INCLUDE_DIRS}
         ${vds_transactions_INCLUDE_DIRS}
 		${vds_http_INCLUDE_DIRS}
+		${vds_client_INCLUDE_DIRS}
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -28,4 +29,5 @@ target_link_libraries(vds_file_manager
 	vds_crypto
 	vds_http
     vds_transactions
+	vds_client
     ${CMAKE_THREAD_LIBS_INIT})

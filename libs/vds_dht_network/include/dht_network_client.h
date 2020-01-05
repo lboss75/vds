@@ -51,28 +51,28 @@ namespace vds {
         };
 
         struct block_info_t {
-          std::map<const_data_buffer, std::list<uint16_t>> replicas;
+          std::map<const_data_buffer, bool> replicas;
         };
 
-        expected<chunk_info> save(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const const_data_buffer& value);
+        //expected<chunk_info> save(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const const_data_buffer& value);
 
         expected<const_data_buffer> save(
           const service_provider * sp,
           transactions::transaction_block_builder & block,
           database_transaction& t);
 
-        expected<std::shared_ptr<stream_output_async<uint8_t>>> start_save(
-          const service_provider * sp) const;
+        //expected<std::shared_ptr<stream_output_async<uint8_t>>> start_save(
+        //  const service_provider * sp) const;
 
-        async_task<expected<chunk_info>> finish_save(
-          const service_provider * sp,
-          std::shared_ptr<stream_output_async<uint8_t>> stream);
+        //async_task<expected<chunk_info>> finish_save(
+        //  const service_provider * sp,
+        //  std::shared_ptr<stream_output_async<uint8_t>> stream);
 
-        async_task<expected<const_data_buffer>> restore(          
-          const chunk_info& block_id);
+        //async_task<expected<const_data_buffer>> restore(          
+        //  const chunk_info& block_id);
 
         async_task<expected<const_data_buffer>> restore(
           std::vector<const_data_buffer> object_ids);

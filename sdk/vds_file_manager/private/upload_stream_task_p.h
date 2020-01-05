@@ -10,19 +10,11 @@ All rights reserved
 
 #include "file_operations.h"
 #include "hash.h"
-#include "dht_network.h"
 
 namespace vds {
-  namespace dht {
-    namespace network {
-      class client;
-    }
-  }
-
   class _upload_stream_task : public stream_output_async<uint8_t> {
   public:
     _upload_stream_task(
-      const service_provider * sp,
       lambda_holder_t<
         async_task<expected<void>>,
         const const_data_buffer & /*result_hash*/,
@@ -46,7 +38,6 @@ namespace vds {
     }
 
   private:
-    const service_provider * sp_;
     uint64_t total_size_;
     hash total_hash_;
     size_t readed_;

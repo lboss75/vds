@@ -19,11 +19,11 @@ class mock_server;
 namespace vds {
   namespace dht {
     namespace messages {
-      class sync_replica_operations_response;
-      class sync_replica_operations_request;
-      class sync_leader_broadcast_response;
-      class sync_leader_broadcast_request;
-      class sync_add_message_request;
+      //class sync_replica_operations_response;
+      //class sync_replica_operations_request;
+      //class sync_leader_broadcast_response;
+      //class sync_leader_broadcast_request;
+      //class sync_add_message_request;
       class sync_replica_data;
       class sync_replica_request;
       class dht_pong;
@@ -69,7 +69,10 @@ namespace vds {
           const service_provider * sp,
           database_transaction& t,
           const const_data_buffer& data_hash,
-          const const_data_buffer& data);
+          const const_data_buffer& data,
+          const const_data_buffer& owner,
+          const const_data_buffer& value_id,
+          uint16_t replica);
 
         static expected<filename> save_data(
           const service_provider * sp,
@@ -77,12 +80,12 @@ namespace vds {
           const const_data_buffer& data_hash,
           const filename & original_file);
 
-        expected<std::vector<vds::const_data_buffer>> save(
+        expected<std::vector<vds::const_data_buffer>> save_temp(
           database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+          const const_data_buffer& value_id,
           const const_data_buffer& value);
 
-        expected<std::shared_ptr<client_save_stream>> create_save_stream();
+        //expected<std::shared_ptr<client_save_stream>> create_save_stream();
 
         const const_data_buffer& current_node_id() const {
           return this->route_.current_node_id();
@@ -108,83 +111,83 @@ namespace vds {
           const imessage_map::message_info_t& message_info);
 
         //Sync messages
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_new_election_request& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_new_election_request& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_new_election_response& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_new_election_response& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_add_message_request& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_add_message_request& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_leader_broadcast_request& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_leader_broadcast_request& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_leader_broadcast_response& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_leader_broadcast_response& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_replica_operations_request& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_replica_operations_request& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_replica_operations_response& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_replica_operations_response& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_looking_storage_request& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_looking_storage_request& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_looking_storage_response& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_looking_storage_response& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_snapshot_request& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_snapshot_request& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_snapshot_response& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_snapshot_response& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_offer_send_replica_operation_request& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_offer_send_replica_operation_request& message,
+        //  const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_offer_remove_replica_operation_request& message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_offer_remove_replica_operation_request& message,
+        //  const imessage_map::message_info_t& message_info);
 
         expected<bool> apply_message(
           database_transaction& t,
@@ -198,11 +201,11 @@ namespace vds {
           const messages::sync_replica_data& message,
           const imessage_map::message_info_t& message_info);
 
-        expected<bool> apply_message(
-          database_transaction& t,
-          std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const messages::sync_replica_query_operations_request & message,
-          const imessage_map::message_info_t& message_info);
+        //expected<bool> apply_message(
+        //  database_transaction& t,
+        //  std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //  const messages::sync_replica_query_operations_request & message,
+        //  const imessage_map::message_info_t& message_info);
 
         //
         template <typename message_type>
@@ -303,13 +306,13 @@ namespace vds {
           
           const std::shared_ptr<dht_session>& session);
 
-        expected<void> add_sync_entry(
-            database_transaction& t,
-            std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-            const const_data_buffer& object_id,
-            uint32_t object_size) {
-          return this->sync_process_.add_sync_entry(t, final_tasks, object_id, object_size);
-        }
+        //expected<void> add_sync_entry(
+        //    database_transaction& t,
+        //    std::list<std::function<async_task<expected<void>>()>> & final_tasks,
+        //    const const_data_buffer& object_id,
+        //    uint32_t object_size) {
+        //  return this->sync_process_.add_sync_entry(t, final_tasks, object_id, object_size);
+        //}
 
         void update_wellknown_connection_enabled(bool value) {
           this->update_wellknown_connection_enabled_ = value;

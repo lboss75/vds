@@ -13,16 +13,17 @@ namespace vds {
 		public:
 			chunk_replica_data_dbo()
 				: database_table("chunk_replica_data"),
-				object_id(this, "object_id"),
+        object_hash(this, "object_hash"),
 				replica(this, "replica"),
-        replica_hash(this, "replica_hash")
-			{
+        replica_hash(this, "replica_hash"),
+        replica_size(this, "replica_size") {
 			}
 
-			database_column<const_data_buffer, std::string> object_id;
+			database_column<const_data_buffer, std::string> object_hash;
 			database_column<int16_t, int> replica;
       database_column<const_data_buffer, std::string> replica_hash;
-		};
+      database_column<uint64_t, int> replica_size;
+    };
 	}
 }
 

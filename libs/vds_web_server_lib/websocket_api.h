@@ -60,8 +60,7 @@ namespace vds {
 		async_task<expected<void>> login(
       const vds::service_provider * sp,
       std::shared_ptr<json_object> result,
-      std::string login,
-      std::string login_cred);
+      std::string login);
 
     async_task<expected<void>> upload(
       const vds::service_provider * sp,
@@ -88,7 +87,7 @@ namespace vds {
       std::shared_ptr<json_object> result,
       const_data_buffer channel_id,
       int64_t last_id,
-      int limit);
+      uint32_t limit);
 
     async_task<expected<void>> allocate_storage(
       const vds::service_provider* sp,

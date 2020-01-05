@@ -24,6 +24,8 @@ target_include_directories(test_vds_servers
           ${vds_dht_network_INCLUDE_DIRS}
           ${vds_user_manager_INCLUDE_DIRS}
           ${vds_transactions_INCLUDE_DIRS}
+          ${vds_client_INCLUDE_DIRS}
+          ${vds_file_manager_INCLUDE_DIRS}
           ${test_libs_INCLUDE_DIRS}
           ${OPENSSL_INCLUDE_DIR}
         PUBLIC
@@ -44,6 +46,8 @@ target_link_libraries(
   vds_user_manager
   vds_dht_network
   vds_transactions
+  vds_client
+  vds_file_manager
   test_libs
   ${OPENSSL_LIBRARIES}
   ${GTEST_LIBRARIES}

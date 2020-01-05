@@ -10,7 +10,6 @@ All rights reserved
 #include "const_data_buffer.h"
 #include "json_object.h"
 #include "async_buffer.h"
-#include "dht_network_client.h"
 
 namespace vds {
   class user_manager;
@@ -31,6 +30,11 @@ namespace vds {
         std::shared_ptr<stream_input_async<uint8_t>> body;
       };
 
+      struct block_info_t {
+        std::map<const_data_buffer, std::list<uint16_t>> replicas;
+      };
+
+
       struct prepare_download_result_t {
         const_data_buffer file_hash;
         std::string name;
@@ -38,7 +42,7 @@ namespace vds {
         uint64_t size;
         int progress;
 
-        std::map<const_data_buffer, dht::network::client::block_info_t> blocks;
+        std::map<const_data_buffer, block_info_t> blocks;
 
         std::shared_ptr<json_value> to_json() const {
           auto result = std::make_shared<json_object>();
@@ -98,9 +102,7 @@ namespace vds {
         std::string file_name,
         const_data_buffer file_hash);
 
-      void start(const service_provider * sp);
-      void stop();
-      
+     
       async_task<expected<void>> prepare_to_stop();
 
       async_task<expected<prepare_download_result_t>> prepare_download_file(

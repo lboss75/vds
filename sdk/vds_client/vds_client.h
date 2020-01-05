@@ -39,6 +39,7 @@ namespace vds {
       const const_data_buffer & channel_id,
       lambda_holder_t<async_task<expected<bool>>, channel_message> callback);
 
+    async_task<expected<const_data_buffer>> get_user_profile(const std::string & user_email);
   private:
     std::shared_ptr<websocket_client> ws_;
 

@@ -43,33 +43,33 @@ vds::http_route_handler::http_route_handler(const std::string & url, const filen
 }) {
 }
 
-vds::http_route_handler::http_route_handler(
-  const std::string & url,
-  const std::string & method,
-  const std::function<
-    async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>
-    (
-      const service_provider*,
-      const std::shared_ptr<http_async_serializer>&,
-      const std::shared_ptr<user_manager>&,
-      const http_message&)>& callback)
-  : url_(url), method_(method),
-  handler_(
-    [callback](
-      const service_provider * sp,
-      const std::shared_ptr<http_async_serializer> & output_stream,
-      const http_router* router,
-      const http_message& request) -> vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> {
-  
-  auto user_mng = router->auth_callback()(request);
-  if (!user_mng) {
-    CHECK_EXPECTED_ASYNC(co_await http_response::status_response(output_stream, http_response::HTTP_Unauthorized, "Unauthorized"));
-    co_return std::shared_ptr<vds::stream_output_async<uint8_t>>();
-  }
-
-  co_return co_await callback(sp, output_stream, user_mng, request);
-}) {
-}
+//vds::http_route_handler::http_route_handler(
+//  const std::string & url,
+//  const std::string & method,
+//  const std::function<
+//    async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>
+//    (
+//      const service_provider*,
+//      const std::shared_ptr<http_async_serializer>&,
+//      const std::shared_ptr<user_manager>&,
+//      const http_message&)>& callback)
+//  : url_(url), method_(method),
+//  handler_(
+//    [callback](
+//      const service_provider * sp,
+//      const std::shared_ptr<http_async_serializer> & output_stream,
+//      const http_router* router,
+//      const http_message& request) -> vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> {
+//  
+//  auto user_mng = router->auth_callback()(request);
+//  if (!user_mng) {
+//    CHECK_EXPECTED_ASYNC(co_await http_response::status_response(output_stream, http_response::HTTP_Unauthorized, "Unauthorized"));
+//    co_return std::shared_ptr<vds::stream_output_async<uint8_t>>();
+//  }
+//
+//  co_return co_await callback(sp, output_stream, user_mng, request);
+//}) {
+//}
 
 vds::http_route_handler::http_route_handler(
   const std::string & url,
@@ -139,75 +139,75 @@ vds::http_route_handler::http_route_handler(
 }) {
 }
 
-vds::http_route_handler::http_route_handler(
-  const std::string & url,
-  const std::string & method,
-  const std::function<
-    async_task<expected<void>>(
-      const service_provider*,
-      const std::shared_ptr<http_async_serializer>&,
-      const std::shared_ptr<user_manager>&,
-      const http_message&)>& callback)
-  : url_(url), method_(method),
-  handler_(
-    [callback](
-      const service_provider * sp,
-      const std::shared_ptr<http_async_serializer> & output_stream,
-      const http_router* router,
-      const http_message& request) -> vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> {
-  auto user_mng = router->auth_callback()(request);
-  if (!user_mng) {
-    CHECK_EXPECTED_ASYNC(co_await http_response::status_response(
-      output_stream,
-      http_response::HTTP_Unauthorized,
-      "Unauthorized"));
-  }
-  else {
-    CHECK_EXPECTED_ASYNC(co_await callback(
-      sp,
-      output_stream,
-      user_mng,
-      request));
-  }
-
-  co_return std::shared_ptr<vds::stream_output_async<uint8_t>>();
-}) {
-}
-
-vds::http_route_handler::http_route_handler(
-  const std::string & url,
-  const std::string & method,
-  const std::function<
-    async_task<expected<std::shared_ptr<json_value>>>(
-      const service_provider*,
-      const std::shared_ptr<user_manager>&,
-      const http_message&)>& callback)
-  : url_(url), method_(method),
-  handler_(
-    [callback](
-      const service_provider * sp,
-      const std::shared_ptr<http_async_serializer> & output_stream,
-      const http_router* router,
-      const http_message& request) -> vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> {
-  auto user_mng = router->auth_callback()(request);
-  if (!user_mng) {
-    CHECK_EXPECTED_ASYNC(co_await http_response::status_response(
-      output_stream,
-      http_response::HTTP_Unauthorized,
-      "Unauthorized"));
-  }
-  else {
-    GET_EXPECTED_ASYNC(result, co_await callback(sp, user_mng, request));
-    GET_EXPECTED_ASYNC(result_str, result->str());
-    CHECK_EXPECTED_ASYNC(co_await http_response::simple_text_response(
-      output_stream,
-      result_str,
-      "application/json; charset=utf-8"));
-  }
-  co_return std::shared_ptr<vds::stream_output_async<uint8_t>>();
-
-}) {
-}
+//vds::http_route_handler::http_route_handler(
+//  const std::string & url,
+//  const std::string & method,
+//  const std::function<
+//    async_task<expected<void>>(
+//      const service_provider*,
+//      const std::shared_ptr<http_async_serializer>&,
+//      const std::shared_ptr<user_manager>&,
+//      const http_message&)>& callback)
+//  : url_(url), method_(method),
+//  handler_(
+//    [callback](
+//      const service_provider * sp,
+//      const std::shared_ptr<http_async_serializer> & output_stream,
+//      const http_router* router,
+//      const http_message& request) -> vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> {
+//  auto user_mng = router->auth_callback()(request);
+//  if (!user_mng) {
+//    CHECK_EXPECTED_ASYNC(co_await http_response::status_response(
+//      output_stream,
+//      http_response::HTTP_Unauthorized,
+//      "Unauthorized"));
+//  }
+//  else {
+//    CHECK_EXPECTED_ASYNC(co_await callback(
+//      sp,
+//      output_stream,
+//      user_mng,
+//      request));
+//  }
+//
+//  co_return std::shared_ptr<vds::stream_output_async<uint8_t>>();
+//}) {
+//}
+//
+//vds::http_route_handler::http_route_handler(
+//  const std::string & url,
+//  const std::string & method,
+//  const std::function<
+//    async_task<expected<std::shared_ptr<json_value>>>(
+//      const service_provider*,
+//      const std::shared_ptr<user_manager>&,
+//      const http_message&)>& callback)
+//  : url_(url), method_(method),
+//  handler_(
+//    [callback](
+//      const service_provider * sp,
+//      const std::shared_ptr<http_async_serializer> & output_stream,
+//      const http_router* router,
+//      const http_message& request) -> vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> {
+//  auto user_mng = router->auth_callback()(request);
+//  if (!user_mng) {
+//    CHECK_EXPECTED_ASYNC(co_await http_response::status_response(
+//      output_stream,
+//      http_response::HTTP_Unauthorized,
+//      "Unauthorized"));
+//  }
+//  else {
+//    GET_EXPECTED_ASYNC(result, co_await callback(sp, user_mng, request));
+//    GET_EXPECTED_ASYNC(result_str, result->str());
+//    CHECK_EXPECTED_ASYNC(co_await http_response::simple_text_response(
+//      output_stream,
+//      result_str,
+//      "application/json; charset=utf-8"));
+//  }
+//  co_return std::shared_ptr<vds::stream_output_async<uint8_t>>();
+//
+//}) {
+//}
 
 
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>> vds::http_router::route(
