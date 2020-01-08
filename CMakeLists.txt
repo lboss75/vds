@@ -5,8 +5,11 @@ project(vds)
 include(CMakeLists.inc)
 
 add_subdirectory(kernel)
-add_subdirectory(libs)
-add_subdirectory(sdk)
+
+add_subdirectory(libs_common)
+add_subdirectory(libs_client)
+add_subdirectory(libs_server)
+
 add_subdirectory(app)
 
 if(ANDROID_PLATFORM)

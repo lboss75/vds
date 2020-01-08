@@ -7,6 +7,8 @@ All rights reserved
 #include "background_app.h"
 #include "http_router.h"
 #include "user_manager.h"
+#include "keys_control.h"
+#include "server_api.h"
 
 vds::vds_cmd_app::vds_cmd_app()
 : server_start_command_set_("Server start", "Start server", "start", "server"),
@@ -101,11 +103,11 @@ vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
         asymmetric_private_key::parse_der(web_admin_private_key, this->user_password_.value()));
       private_info.web_admin_private_key_ = std::make_shared<asymmetric_private_key>(std::move(web_admin_private_key_key));
 
-      auto user_mng = std::make_shared<user_manager>(sp);
-      CHECK_EXPECTED(user_mng->reset(
+      CHECK_EXPECTED(user_manager::reset(
+        server_api(sp),
         this->user_login_.value(),
         this->user_password_.value(),
-        private_info));
+        private_info).get());
     }
     else {
       for (;;) {

@@ -1,0 +1,2 @@
+add_subdirectory(vds_transactions)
+add_subdirectory(vds_user_manager)
