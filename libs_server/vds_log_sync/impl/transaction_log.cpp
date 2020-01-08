@@ -67,7 +67,7 @@ vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
       t,
       block.id(),
       block_data, orm::transaction_log_record_dbo::state_t::validated,
-      false));
+      block.ancestors().empty()));
 
   return block.id();
 }
@@ -334,21 +334,34 @@ vds::expected<bool> vds::transactions::transaction_log::update_consensus(
     GET_EXPECTED(current_block, transaction_block::create(std::get<0>(data)));
     processed.emplace(current_block.id());
 
+    bool is_new;
     orm::transaction_log_vote_request_dbo t2;
     GET_EXPECTED(st, t.get_reader(t2.select(t2.approved, t2.new_member).where(t2.id == current_block.id() && t2.owner == block.write_public_key_id())));
     GET_EXPECTED(st_execute, st.execute());
     if (!st_execute) {
-      return vds::make_unexpected<std::runtime_error>("Invalid data");
+      if (std::get<2>(data)) {
+        CHECK_EXPECTED(t.execute(
+          t2.insert(
+            t2.approved = true,
+            t2.id = current_block.id(),
+            t2.owner = block.write_public_key_id(),
+            t2.new_member = true)));
+        is_new = true;
+      }
+      else {
+        return vds::make_unexpected<std::runtime_error>("Invalid data");
+      }
     }
-    if (t2.approved.get(st)) {
-      continue;
+    else {
+      if (t2.approved.get(st)) {
+        continue;
+      }
+      bool is_new = t2.new_member.get(st);
+
+      CHECK_EXPECTED(t.execute(
+        t2.update(t2.approved = true)
+        .where(t2.id == current_block.id() && t2.owner == block.write_public_key_id())));
     }
-    bool is_new = t2.new_member.get(st);
-
-    CHECK_EXPECTED(t.execute(
-      t2.update(t2.approved = true)
-      .where(t2.id == current_block.id() && t2.owner == block.write_public_key_id())));
-
     GET_EXPECTED(check_consensus_result, check_consensus(t, current_block.id()));
     if (check_consensus_result && !std::get<2>(data)) {
       if (consensus_candidate.empty() || min_order > current_block.order_no()) {
