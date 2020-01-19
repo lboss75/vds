@@ -21,7 +21,6 @@ namespace vds {
 			struct file_block_t {
 				const_data_buffer block_id;
 				const_data_buffer block_key;
-        std::vector<const_data_buffer> replica_hashes;
         uint64_t block_size;
 			};
 
@@ -51,7 +50,6 @@ namespace vds {
             const vds::transactions::user_message_transaction::file_block_t & data) {
         CHECK_EXPECTED(s << data.block_id);
         CHECK_EXPECTED(s << data.block_key);
-        CHECK_EXPECTED(s << data.replica_hashes);
         CHECK_EXPECTED(s << data.block_size);
         return expected<void>();
     }
@@ -61,7 +59,6 @@ namespace vds {
             vds::transactions::user_message_transaction::file_block_t & data) {
         CHECK_EXPECTED(s >> data.block_id);
         CHECK_EXPECTED(s >> data.block_key);
-        CHECK_EXPECTED(s >> data.replica_hashes);
         CHECK_EXPECTED(s >> data.block_size);
         return expected<void>();
     }

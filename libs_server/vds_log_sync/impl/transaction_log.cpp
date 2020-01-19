@@ -356,7 +356,7 @@ vds::expected<bool> vds::transactions::transaction_log::update_consensus(
       if (t2.approved.get(st)) {
         continue;
       }
-      bool is_new = t2.new_member.get(st);
+      is_new = t2.new_member.get(st);
 
       CHECK_EXPECTED(t.execute(
         t2.update(t2.approved = true)
@@ -1306,7 +1306,7 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
     ));
   }
 
-  return expected<bool>();
+  return true;
 }
 
 vds::expected<void> vds::transactions::transaction_log::consensus_record(const service_provider* sp, database_transaction& t, const store_block_transaction& message, const transaction_block& block)

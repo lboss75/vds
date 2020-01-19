@@ -108,7 +108,7 @@ vds::websocket_api::process_message(
 
   if ("login" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
-    if (!args || args->size() < 2) {
+    if (!args || args->size() < 1) {
       co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'login'");
     }
 
@@ -118,6 +118,9 @@ vds::websocket_api::process_message(
     }
 
     CHECK_EXPECTED_ASYNC(co_await this->login(sp, r, login->value()));
+  }
+  else if ("log_head" == method_name) {
+    CHECK_EXPECTED_ASYNC(co_await this->log_head(sp, r));
   }
   else if ("upload" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
@@ -133,6 +136,21 @@ vds::websocket_api::process_message(
     GET_EXPECTED_ASYNC(body, base64::to_bytes(body_str->value()));
 
     CHECK_EXPECTED_ASYNC(co_await this->upload(sp, r, body));
+  }
+  else if ("looking_block" == method_name) {
+    auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
+    if (!args || args->size() != 1) {
+      co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'looking_block'");
+    }
+
+    auto id_str = std::dynamic_pointer_cast<json_primitive>(args->get(0));
+    if (!id_str) {
+      co_return make_unexpected<std::runtime_error>("missing argument at invoke method 'looking_block'");
+    }
+
+    GET_EXPECTED_ASYNC(obj_id, base64::to_bytes(id_str->value()));
+
+    CHECK_EXPECTED_ASYNC(co_await this->looking_block(sp, r, obj_id));
   }
   else if ("download" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
@@ -304,13 +322,10 @@ vds::async_task<vds::expected<void>> vds::websocket_api::login(
   std::shared_ptr<json_object> result,
   std::string login)
 {
-  std::string result_str("User not found");
-
 	CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction(
 		[
       login,
-			result,
-      &result_str
+			result
 		](database_read_transaction & t)->expected<void> {
 
 		orm::transaction_log_record_dbo t1;
@@ -323,7 +338,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::login(
 			GET_EXPECTED(block, transactions::transaction_block::create(data));
 
 			CHECK_EXPECTED(block.walk_messages(
-        [login, &result, &result_str](const transactions::create_user_transaction & message)->expected<bool> {
+        [login, &result](const transactions::create_user_transaction & message)->expected<bool> {
           if (login == message.user_email) {
             auto res = std::make_shared<json_object>();
             CHECK_EXPECTED(res->add_property("public_key", message.user_public_key->str()));
@@ -344,26 +359,56 @@ vds::async_task<vds::expected<void>> vds::websocket_api::login(
 	}));
 
   if (!result->get_property("result")) {
-    result->add_property("error", result_str);
+    result->add_property("error", "User not found");
   }
 
 	co_return expected<void>();
 }
 
+vds::async_task<vds::expected<void>> vds::websocket_api::log_head(
+  const vds::service_provider* sp,
+  std::shared_ptr<json_object> result)
+{
+  auto res = std::make_shared<json_array>();
+  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction(
+    [
+      res
+    ](database_read_transaction& t)->expected<void> {
+
+      orm::transaction_log_record_dbo t1;
+      GET_EXPECTED(st, t.get_reader(
+        t1.select(t1.id)
+        .where(t1.state == orm::transaction_log_record_dbo::state_t::leaf)));
+
+      std::list<const_data_buffer> leafs;
+      WHILE_EXPECTED(st.execute()) {
+        res->add(std::make_shared<json_primitive>(base64::from_bytes(t1.id.get(st))));
+      }
+      WHILE_EXPECTED_END()
+
+      return expected<void>();
+    }));
+
+  result->add_property("result", res);
+
+  co_return expected<void>();
+}
+
+
 vds::async_task<vds::expected<void>>
 vds::websocket_api::upload(const vds::service_provider * sp, std::shared_ptr<json_object> result, const_data_buffer body)
 {
-  GET_EXPECTED_ASYNC(body_hash, hash::signature(hash::sha256(), body));
   GET_EXPECTED_ASYNC(info, co_await server_api(sp).upload_data(body));
 
   auto res = std::make_shared<json_object>();
      
   auto replicas = std::make_shared<json_array>();
-  for (const auto & p : info) {
+  for (const auto & p : info.replicas) {
     replicas->add(std::make_shared<json_primitive>(base64::from_bytes(p)));
   }
   res->add_property("replicas", replicas);
-  res->add_property("hash", base64::from_bytes(body_hash));
+  res->add_property("hash", base64::from_bytes(info.data_hash));
+  res->add_property("replica_size", info.replica_size);
 
   result->add_property("result", res);
 
@@ -406,8 +451,6 @@ vds::async_task<vds::expected<void>> vds::websocket_api::devices(
   auto result_json = std::make_shared<json_array>();
   
   CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction([sp, result_json, owner_id](database_read_transaction & t) -> expected<void> {
-    auto client = sp->get<dht::network::client>();
-  
     orm::node_storage_dbo t1;
     orm::local_data_dbo t2;
     db_value<int64_t> used_size;
@@ -563,6 +606,61 @@ vds::async_task<vds::expected<void>> vds::websocket_api::allocate_storage(
         t1.owner_id = key_id,
         t1.reserved_size = (int64_t)size * 1024 * 1024));
     });
+}
+
+vds::async_task<vds::expected<void>> vds::websocket_api::looking_block(
+  const vds::service_provider* sp, 
+  std::shared_ptr<json_object> result,
+  const_data_buffer data_hash)
+{
+  CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction(
+    [
+      data_hash,
+      result
+    ](database_read_transaction& t)->expected<void> {
+
+      orm::transaction_log_record_dbo t1;
+      GET_EXPECTED(st, t.get_reader(
+        t1.select(t1.id, t1.data)
+        .order_by(db_desc_order(t1.order_no))));
+
+      WHILE_EXPECTED(st.execute())
+        const auto data = t1.data.get(st);
+      GET_EXPECTED(block, transactions::transaction_block::create(data));
+
+      CHECK_EXPECTED(block.walk_messages(
+        [data_hash, &result](const transactions::store_block_transaction & message)->expected<bool> {
+          if (data_hash == message.object_id) {
+            auto res = std::make_shared<json_object>();
+
+            auto replicas = std::make_shared<json_array>();
+            for (const auto& p : message.replicas) {
+              const auto id = base64::from_bytes(p);
+              replicas->add(std::make_shared<json_primitive>(id));
+            }
+
+            res->add_property("replicas", replicas);
+            result->add_property("result", res);
+
+            return false;
+          }
+
+          return true;
+        }));
+
+
+      WHILE_EXPECTED_END()
+
+        return expected<void>();
+    }));
+
+  if (!result->get_property("result")) {
+    const auto data_hash_str = base64::from_bytes(data_hash);
+
+    result->add_property("error", "Data " + data_hash_str + " not found");
+  }
+
+  co_return expected<void>();
 }
 
 vds::async_task<vds::expected<void>> vds::websocket_api::download(

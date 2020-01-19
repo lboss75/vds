@@ -439,7 +439,7 @@ vds::expected<vds::filename> vds::dht::network::_client::save_data(
     t1
     .select(t1.storage_path, t2.local_path)
     .inner_join(t2, t2.storage_id == t1.storage_id)
-    .where(t4.replica_hash == data_hash)));
+    .where(t1.replica_hash == data_hash)));
   GET_EXPECTED_VALUE(st_execute, st.execute());
   if (st_execute) {
     return filename(foldername(t1.storage_path.get(st)), t2.local_path.get(st));

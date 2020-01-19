@@ -62,6 +62,10 @@ namespace vds {
       std::shared_ptr<json_object> result,
       std::string login);
 
+    async_task<expected<void>> log_head(
+      const vds::service_provider* sp,
+      std::shared_ptr<json_object> result);
+
     async_task<expected<void>> upload(
       const vds::service_provider * sp,
       std::shared_ptr<json_object> result,
@@ -95,6 +99,11 @@ namespace vds {
       asymmetric_public_key user_public_key,
       foldername folder,
       long size);
+
+    async_task<expected<void>> looking_block(
+      const vds::service_provider* sp,
+      std::shared_ptr<json_object> result,
+      const_data_buffer data_hash);
 
     async_task<expected<void>> download(
       const vds::service_provider * sp,

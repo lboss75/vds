@@ -179,8 +179,8 @@ vds::async_task<vds::expected<bool>> vds::_server::process_message(
     //route_client(sync_offer_send_replica_operation_request)
     //route_client(sync_offer_remove_replica_operation_request)
 
-    //route_client(sync_replica_request)
-    //route_client(sync_replica_data)
+    route_client(sync_replica_request)
+    route_client(sync_replica_data)
     //
     //route_client(sync_replica_query_operations_request)
 
