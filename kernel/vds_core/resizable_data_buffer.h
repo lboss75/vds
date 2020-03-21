@@ -90,7 +90,7 @@ namespace vds {
 
     void resize_data(size_t size) {
       if (this->allocated_size_ < size) {
-        this->allocated_size_ = 1024 * ((size + 1023) / 1024);
+        this->allocated_size_ = DELTA_SIZE * ((size + DELTA_SIZE - 1) / DELTA_SIZE);
         this->data_ = static_cast<uint8_t *>(std::realloc(this->data_, this->allocated_size_));
         vds_assert(nullptr != this->data_);
       }
@@ -108,6 +108,7 @@ namespace vds {
 
   private:
     friend class const_data_buffer;
+    static constexpr size_t DELTA_SIZE = 8 * 1024;
 
     uint8_t * data_;
     size_t size_;

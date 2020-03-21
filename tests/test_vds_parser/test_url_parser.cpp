@@ -5,65 +5,65 @@ All rights reserved
 
 #include "stdafx.h"
 #include "test_url_parser.h"
+#include "test_config.h"
 
 TEST(test_url_parser, test_parser)
 {
-  auto result = vds::url_parser::parse_network_address("https://server:port");
+  GET_EXPECTED_GTEST(result, vds::url_parser::parse_network_address("https://server:port"));
   ASSERT_EQ(result.protocol, "https");
   ASSERT_EQ(result.server, "server");
   ASSERT_EQ(result.port, "port");
   ASSERT_EQ(result.path, "");
 
-  result = vds::url_parser::parse_network_address("https://server:port/");
+  GET_EXPECTED_VALUE_GTEST(result, vds::url_parser::parse_network_address("https://server:port/"));
   ASSERT_EQ(result.protocol, "https");
   ASSERT_EQ(result.server, "server");
   ASSERT_EQ(result.port, "port");
   ASSERT_EQ(result.path, "/");
 
-  result = vds::url_parser::parse_network_address("https://server");
+  GET_EXPECTED_VALUE_GTEST(result, vds::url_parser::parse_network_address("https://server"));
   ASSERT_EQ(result.protocol, "https");
   ASSERT_EQ(result.server, "server");
   ASSERT_EQ(result.port, "");
   ASSERT_EQ(result.path, "");
 
-  result = vds::url_parser::parse_network_address("https://:port");
+  GET_EXPECTED_VALUE_GTEST(result, vds::url_parser::parse_network_address("https://:port"));
   ASSERT_EQ(result.protocol, "https");
   ASSERT_EQ(result.server, "");
   ASSERT_EQ(result.port, "port");
   ASSERT_EQ(result.path, "");
 
-  result = vds::url_parser::parse_network_address("https://server/");
+  GET_EXPECTED_VALUE_GTEST(result, vds::url_parser::parse_network_address("https://server/"));
   ASSERT_EQ(result.protocol, "https");
   ASSERT_EQ(result.server, "server");
   ASSERT_EQ(result.port, "");
   ASSERT_EQ(result.path, "/");
 
-  result = vds::url_parser::parse_network_address("https://:port/");
+  GET_EXPECTED_VALUE_GTEST(result, vds::url_parser::parse_network_address("https://:port/"));
   ASSERT_EQ(result.protocol, "https");
   ASSERT_EQ(result.server, "");
   ASSERT_EQ(result.port, "port");
   ASSERT_EQ(result.path, "/");
-
-
-  result = vds::url_parser::parse_network_address("https://server/path");
+  
+  GET_EXPECTED_VALUE_GTEST(result, vds::url_parser::parse_network_address("https://server/path"));
   ASSERT_EQ(result.protocol, "https");
   ASSERT_EQ(result.server, "server");
   ASSERT_EQ(result.port, "");
   ASSERT_EQ(result.path, "/path");
 
-  result = vds::url_parser::parse_network_address("https://:port/path");
+  GET_EXPECTED_VALUE_GTEST(result, vds::url_parser::parse_network_address("https://:port/path"));
   ASSERT_EQ(result.protocol, "https");
   ASSERT_EQ(result.server, "");
   ASSERT_EQ(result.port, "port");
   ASSERT_EQ(result.path, "/path");
 
-  result = vds::url_parser::parse_network_address("https://server:port/path");
+  GET_EXPECTED_VALUE_GTEST(result, vds::url_parser::parse_network_address("https://server:port/path"));
   ASSERT_EQ(result.protocol, "https");
   ASSERT_EQ(result.server, "server");
   ASSERT_EQ(result.port, "port");
   ASSERT_EQ(result.path, "/path");
 
-  result = vds::url_parser::parse_network_address("https://server/path:test");
+  GET_EXPECTED_VALUE_GTEST(result, vds::url_parser::parse_network_address("https://server/path:test"));
   ASSERT_EQ(result.protocol, "https");
   ASSERT_EQ(result.server, "server");
   ASSERT_EQ(result.port, "");

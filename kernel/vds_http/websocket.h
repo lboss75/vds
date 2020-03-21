@@ -84,7 +84,7 @@ namespace vds {
 
       read_state_t read_state_ = read_state_t::HEADER;
 
-      uint8_t buffer_[1024];
+      uint8_t buffer_[1024 * 1024];
       uint8_t readed_ = 0;
 
       bool fin_;

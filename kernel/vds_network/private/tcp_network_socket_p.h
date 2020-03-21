@@ -273,7 +273,7 @@ namespace vds {
   class _read_socket_task : public _socket_task, public std::enable_shared_from_this<_read_socket_task>
   {
   public:
-	  constexpr static size_t BUFFER_SIZE = 1024;
+	  constexpr static size_t BUFFER_SIZE = 1024 * 1024;
 
 	  _read_socket_task(
 		  const service_provider * sp,
