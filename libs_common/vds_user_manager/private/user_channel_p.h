@@ -15,7 +15,6 @@ namespace vds {
   {
   public:
       _user_channel(
-        const const_data_buffer &id,
         const std::string & channel_type,
 		    const std::string & name,
         const const_data_buffer & read_id,
@@ -23,11 +22,13 @@ namespace vds {
         const std::shared_ptr<asymmetric_private_key> & read_private_key,
         const const_data_buffer & write_id, 
         const std::shared_ptr<asymmetric_public_key> & write_cert,
-        const std::shared_ptr<asymmetric_private_key> & write_private_key);
+        const std::shared_ptr<asymmetric_private_key> & write_private_key,
+        const const_data_buffer& admin_id,
+        const std::shared_ptr<asymmetric_public_key>& admin_cert,
+        const std::shared_ptr<asymmetric_private_key>& admin_private_key);
 
-    const const_data_buffer &id() const { return this->id_;}
     const std::string & channel_type() const { return this->channel_type_; }
-    const std::string &name() const { return this->name_; }
+    const std::string & name() const { return this->name_; }
 
     expected<std::shared_ptr<vds::asymmetric_public_key>> read_cert() const {
       if (!this->current_read_certificate_) {
@@ -52,6 +53,13 @@ namespace vds {
       return this->write_certificates_.find(this->current_write_certificate_)->second;
     }
 
+    expected<std::shared_ptr<asymmetric_public_key>> admin_cert() const {
+      if (!this->current_admin_certificate_) {
+        return vds::make_unexpected<std::invalid_argument>("vds::user_channel::admin_cert");
+      }
+      return this->admin_certificates_.find(this->current_admin_certificate_)->second;
+    }
+
     expected<std::shared_ptr<asymmetric_private_key>> read_private_key() const {
       if (!this->current_read_certificate_) {
         return vds::make_unexpected<std::invalid_argument>("vds::_user_channel::read_private_key");
@@ -64,6 +72,13 @@ namespace vds {
         return vds::make_unexpected<std::invalid_argument>("vds::_user_channel::write_private_key");
       }
       return this->write_private_keys_.find(this->current_write_certificate_)->second;
+    }
+
+    expected<std::shared_ptr<asymmetric_private_key>> admin_private_key() const {
+      if (!this->current_admin_certificate_) {
+        return vds::make_unexpected<std::invalid_argument>("vds::user_channel::admin_private_key");
+      }
+      return this->admin_private_keys_.find(this->current_admin_certificate_)->second;
     }
 
     expected<void> add_reader(
@@ -124,7 +139,7 @@ namespace vds {
 
       return log.add(
           transactions::channel_message::create(
-            this->id_,
+            this->current_admin_certificate_,
             read_id,
             write_id,
             key_crypted,
@@ -150,18 +165,20 @@ namespace vds {
   private:
     friend class user_channel;
 
-		const_data_buffer id_;
     std::string channel_type_;
 	  std::string name_;
 
     std::map<const_data_buffer, std::shared_ptr<asymmetric_public_key>> read_certificates_;
     std::map<const_data_buffer, std::shared_ptr<asymmetric_public_key>> write_certificates_;
+    std::map<const_data_buffer, std::shared_ptr<asymmetric_public_key>> admin_certificates_;
 
     std::map<const_data_buffer, std::shared_ptr<asymmetric_private_key>> read_private_keys_;
     std::map<const_data_buffer, std::shared_ptr<asymmetric_private_key>> write_private_keys_;
+    std::map<const_data_buffer, std::shared_ptr<asymmetric_private_key>> admin_private_keys_;
 
     const_data_buffer current_read_certificate_;
     const_data_buffer current_write_certificate_;
+    const_data_buffer current_admin_certificate_;
 
     expected<void> add_to_log(
         transactions::transaction_block_builder & log,

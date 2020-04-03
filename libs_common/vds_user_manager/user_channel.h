@@ -44,7 +44,6 @@ namespace vds {
     user_channel(user_channel &&);
 
     user_channel(
-      const const_data_buffer & id,
       const std::string & channel_type,
       const std::string & name,
       const const_data_buffer & read_id,
@@ -52,15 +51,18 @@ namespace vds {
       const std::shared_ptr<asymmetric_private_key> & read_private_key,
       const const_data_buffer & write_id,
       const std::shared_ptr<asymmetric_public_key> & write_public_key,
-      const std::shared_ptr<asymmetric_private_key> & write_private_key);
+      const std::shared_ptr<asymmetric_private_key> & write_private_key,
+      const const_data_buffer& admin_id,
+      const std::shared_ptr<asymmetric_public_key>& admin_public_key,
+      const std::shared_ptr<asymmetric_private_key>& admin_private_key);
 
     ~user_channel();
 
-    const const_data_buffer &id() const;
     const std::string & channel_type() const;
     const std::string & name() const;
     expected<std::shared_ptr<asymmetric_public_key>> read_public_key() const;
     expected<std::shared_ptr<asymmetric_public_key>> write_public_key() const;
+    expected<std::shared_ptr<asymmetric_public_key>> admin_public_key() const;
 
     expected<void> add_reader(
       transactions::transaction_block_builder& playback,

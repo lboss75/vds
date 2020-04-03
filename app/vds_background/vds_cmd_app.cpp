@@ -73,38 +73,9 @@ vds::expected<void> vds::vds_cmd_app::main(const service_provider * sp)
 
       private_info.root_private_key_ = std::make_shared<asymmetric_private_key>(std::move(root_private_key_key));
 
-      //Common news
-      GET_EXPECTED(common_news_write_private_key_key, 
-        asymmetric_private_key::parse_der(common_news_write_private_key, this->user_password_.value()));
-
-      private_info.common_news_write_private_key_ = std::make_shared<asymmetric_private_key>(std::move(common_news_write_private_key_key));
-
-      GET_EXPECTED(common_news_admin_private_key_key,
-        asymmetric_private_key::parse_der(common_news_admin_private_key, this->user_password_.value()));
-      private_info.common_news_admin_private_key_ = std::make_shared<asymmetric_private_key>(std::move(common_news_admin_private_key_key));
-
-      //autoupdate
-      GET_EXPECTED(autoupdate_write_private_key_key,
-        asymmetric_private_key::parse_der(autoupdate_write_private_key, this->user_password_.value()));
-
-      private_info.autoupdate_write_private_key_ = std::make_shared<asymmetric_private_key>(std::move(autoupdate_write_private_key_key));
-
-      GET_EXPECTED(autoupdate_admin_private_key_key,
-        asymmetric_private_key::parse_der(autoupdate_admin_private_key, this->user_password_.value()));
-      private_info.autoupdate_admin_private_key_ = std::make_shared<asymmetric_private_key>(std::move(autoupdate_admin_private_key_key));
-
-      //web
-      GET_EXPECTED(web_write_private_key_key,
-        asymmetric_private_key::parse_der(web_write_private_key, this->user_password_.value()));
-
-      private_info.web_write_private_key_ = std::make_shared<asymmetric_private_key>(std::move(web_write_private_key_key));
-
-      GET_EXPECTED(web_admin_private_key_key,
-        asymmetric_private_key::parse_der(web_admin_private_key, this->user_password_.value()));
-      private_info.web_admin_private_key_ = std::make_shared<asymmetric_private_key>(std::move(web_admin_private_key_key));
-
-      CHECK_EXPECTED(user_manager::reset(
-        server_api(sp),
+        server_api api(sp);
+        CHECK_EXPECTED(user_manager::reset(
+        api,
         this->user_login_.value(),
         this->user_password_.value(),
         private_info).get());

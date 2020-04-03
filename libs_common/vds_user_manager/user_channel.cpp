@@ -20,7 +20,6 @@ vds::user_channel::user_channel(user_channel&& other)
 }
 
 vds::user_channel::user_channel(
-  const const_data_buffer & id,
   const std::string & channel_type,
   const std::string & name,
   const const_data_buffer & read_id,
@@ -28,17 +27,16 @@ vds::user_channel::user_channel(
   const std::shared_ptr<asymmetric_private_key> & read_private_key,
   const const_data_buffer & write_id,
   const std::shared_ptr<asymmetric_public_key> & write_cert,
-  const std::shared_ptr<asymmetric_private_key> & write_private_key)
-: impl_(new _user_channel(id, channel_type, name, read_id, read_cert, read_private_key, write_id, write_cert, write_private_key))
+  const std::shared_ptr<asymmetric_private_key> & write_private_key,
+  const const_data_buffer& admin_id,
+  const std::shared_ptr<asymmetric_public_key>& admin_cert,
+  const std::shared_ptr<asymmetric_private_key>& admin_private_key)
+: impl_(new _user_channel(channel_type, name, read_id, read_cert, read_private_key, write_id, write_cert, write_private_key, admin_id, admin_cert, admin_private_key))
 {
 }
 
 vds::user_channel::~user_channel() {
   delete this->impl_;
-}
-
-const vds::const_data_buffer &vds::user_channel::id() const {
-  return this->impl_->id();
 }
 
 const std::string& vds::user_channel::channel_type() const {
@@ -55,6 +53,10 @@ vds::expected<std::shared_ptr<vds::asymmetric_public_key>> vds::user_channel::re
 
 vds::expected<std::shared_ptr<vds::asymmetric_public_key>> vds::user_channel::write_public_key() const {
   return this->impl_->write_cert();
+}
+
+vds::expected<std::shared_ptr<vds::asymmetric_public_key>> vds::user_channel::admin_public_key() const {
+  return this->impl_->admin_cert();
 }
 
 vds::expected<void> vds::user_channel::add_reader(
@@ -79,7 +81,7 @@ std::shared_ptr<vds::asymmetric_private_key> vds::user_channel::read_cert_privat
   return this->impl_->read_cert_private_key(cert_subject);
 }
 
-vds::user_channel& vds::user_channel::operator=(user_channel&& other) {
+vds::user_channel& vds::user_channel::operator = (user_channel&& other) {
   delete this->impl_;
   this->impl_ = other.impl_;
   other.impl_ = nullptr;
@@ -94,7 +96,6 @@ vds::expected<void> vds::user_channel::add_to_log(
 
 /////////////////////////////////////////////////
 vds::_user_channel::_user_channel(
-  const const_data_buffer &id,
   const std::string & channel_type,
 	const std::string & name,
   const const_data_buffer & read_id,
@@ -102,8 +103,11 @@ vds::_user_channel::_user_channel(
   const std::shared_ptr<asymmetric_private_key> & read_private_key,
   const const_data_buffer & write_id,
   const std::shared_ptr<asymmetric_public_key> & write_cert,
-  const std::shared_ptr<asymmetric_private_key> & write_private_key)
-: id_(id), channel_type_(channel_type),  name_(name)
+  const std::shared_ptr<asymmetric_private_key> & write_private_key,
+  const const_data_buffer& admin_id,
+  const std::shared_ptr<asymmetric_public_key>& admin_cert,
+  const std::shared_ptr<asymmetric_private_key>& admin_private_key)
+: channel_type_(channel_type),  name_(name)
 {
   this->read_certificates_[read_id] = read_cert;
   this->read_private_keys_[read_id] = read_private_key;
@@ -112,6 +116,10 @@ vds::_user_channel::_user_channel(
   this->write_certificates_[write_id] = write_cert;
   this->write_private_keys_[write_id] = write_private_key;
   this->current_write_certificate_ = write_id;
+
+  this->admin_certificates_[admin_id] = admin_cert;
+  this->admin_private_keys_[write_id] = admin_private_key;
+  this->current_admin_certificate_ = admin_id;
 }
 
 vds::expected<void> vds::_user_channel::add_reader(
@@ -129,7 +137,7 @@ vds::expected<void> vds::_user_channel::add_reader(
     playback,
     owner_user,
     message_create<transactions::channel_add_reader_transaction>(
-      this->id_,
+      this->current_admin_certificate_,
       this->channel_type_,
       this->name_,
       this->read_certificates_.find(this->current_read_certificate_)->second,
@@ -151,7 +159,7 @@ vds::expected<void> vds::_user_channel::add_writer(
     playback,
     owner_user,
     message_create<transactions::channel_add_writer_transaction>(
-      this->id_,
+      this->current_admin_certificate_,
       this->channel_type_,
       this->name_,
       this->read_certificates_.find(this->current_read_certificate_)->second,
@@ -176,7 +184,7 @@ vds::expected<void> vds::_user_channel::add_writer(
     playback,
     owner_user,
     message_create<transactions::channel_add_writer_transaction>(
-      this->id_,
+      this->current_admin_certificate_,
       this->channel_type_,
       name,
       this->read_certificates_.find(this->current_read_certificate_)->second,
@@ -192,9 +200,11 @@ vds::expected<std::shared_ptr<vds::user_channel>> vds::_user_channel::import_per
   GET_EXPECTED(fp, user_cert->fingerprint());
 
   return std::make_shared<user_channel>(
-    fp,
     user_channel::channel_type_t::personal_channel,
     "!Private",
+    fp,
+    user_cert,
+    user_private_key,
     fp,
     user_cert,
     user_private_key,
@@ -219,7 +229,7 @@ vds::expected<void> vds::_user_channel::add_to_log(
   GET_EXPECTED(key_crypted, symmetric_encrypt::encrypt(key, data, size));
 
   return log.add(transactions::channel_message::create(
-    this->id_,
+    this->current_admin_certificate_,
     read_id,
     write_id,
     read_cert_public_key_data,

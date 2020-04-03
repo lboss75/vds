@@ -24,7 +24,7 @@ vds::async_task<vds::expected<void>> vds::user_manager::reset(
     const std::string &root_password,
     const keys_control::private_info_t& private_info) {
 
-  transactions::transaction_block_builder playback;
+    transactions::transaction_block_builder playback;
 
     //Create root user
     GET_EXPECTED_ASYNC(root_user, co_await _member_user::create_user(
@@ -34,90 +34,6 @@ vds::async_task<vds::expected<void>> vds::user_manager::reset(
       root_user_name,
       root_password,
       private_info.root_private_key_));
-
-    //common news
-    GET_EXPECTED_ASYNC(pc, root_user->personal_channel());
-    CHECK_EXPECTED_ASYNC(pc.add_log(
-      playback,
-      message_create<transactions::channel_create_transaction>(
-        keys_control::get_common_news_channel_id(),
-        user_channel::channel_type_t::news_channel,
-        "Common news",
-        keys_control::get_common_news_read_public_key(),
-        keys_control::get_common_news_read_private_key(),
-        keys_control::get_common_news_write_public_key(),
-        private_info.common_news_write_private_key_)));
-
-    //Auto update
-    CHECK_EXPECTED_ASYNC(pc.add_log(
-      playback,
-      message_create<transactions::channel_create_transaction>(
-        keys_control::get_autoupdate_channel_id(),
-        user_channel::channel_type_t::file_channel,
-        "Auto update",
-        keys_control::get_autoupdate_read_public_key(),
-        keys_control::get_autoupdate_read_private_key(),
-        keys_control::get_autoupdate_write_public_key(),
-        private_info.autoupdate_write_private_key_)));
-
-    //Create auto update user
-    GET_EXPECTED_ASYNC(autoupdate_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-
-    GET_EXPECTED_ASYNC(
-      auto_update_user,
-      co_await root_user->create_user(
-        client,
-        playback,
-        "Auto Update",
-        keys_control::auto_update_login(),
-        keys_control::auto_update_password(),
-        std::make_shared<asymmetric_private_key>(std::move(autoupdate_private_key))));
-
-    GET_EXPECTED_ASYNC(auto_update_user_personal_channel, auto_update_user->personal_channel());
-    CHECK_EXPECTED_ASYNC(auto_update_user_personal_channel.add_log(
-      playback,
-      message_create<transactions::channel_add_reader_transaction>(
-        keys_control::get_autoupdate_channel_id(),
-        user_channel::channel_type_t::file_channel,
-        "Auto update",
-        keys_control::get_autoupdate_read_public_key(),
-        keys_control::get_autoupdate_read_private_key(),
-        keys_control::get_autoupdate_write_public_key())));
-
-    //Web
-    CHECK_EXPECTED_ASYNC(pc.add_log(
-      playback,
-      message_create<transactions::channel_create_transaction>(
-        keys_control::get_web_channel_id(),
-        user_channel::channel_type_t::file_channel,
-        "Web",
-        keys_control::get_web_read_public_key(),
-        keys_control::get_web_read_private_key(),
-        keys_control::get_web_write_public_key(),
-        private_info.web_write_private_key_)));
-
-    //Create web user
-    GET_EXPECTED_ASYNC(web_private_key, asymmetric_private_key::generate(asymmetric_crypto::rsa4096()));
-    GET_EXPECTED_ASYNC(
-      web_user,
-      co_await root_user->create_user(
-        client,
-        playback,
-        "Web",
-        keys_control::web_login(),
-        keys_control::web_password(),
-        std::make_shared<asymmetric_private_key>(std::move(web_private_key))));
-
-    GET_EXPECTED_ASYNC(web_user_personal_channel, web_user->personal_channel());
-    CHECK_EXPECTED_ASYNC(web_user_personal_channel.add_log(
-      playback,
-      message_create<transactions::channel_add_reader_transaction>(
-        keys_control::get_web_channel_id(),
-        user_channel::channel_type_t::file_channel,
-        "Web",
-        keys_control::get_web_read_public_key(),
-        keys_control::get_web_read_private_key(),
-        keys_control::get_web_write_public_key())));
 
     CHECK_EXPECTED_ASYNC(co_await client.broadcast(playback.close()));
     co_return expected<void>();
