@@ -460,7 +460,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::devices(
         t1.local_path,
         t1.reserved_size,
         db_sum(t2.replica_size).as(used_size))
-      .inner_join(t2, t2.storage_id == t1.storage_id)
+      .left_join(t2, t2.storage_id == t1.storage_id)
       .where(t1.owner_id == owner_id)
       .group_by(t1.local_path, t1.reserved_size)));
   
