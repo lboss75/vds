@@ -7,6 +7,11 @@ All rights reserved
 #include "member_user.h"
 #include "private/member_user_p.h"
 #include "iserver_api.h"
+#include "user_wallet.h"
+
+#ifdef max
+#undef max
+#endif
 
 std::shared_ptr<vds::user_channel> vds::user_manager::get_channel(const const_data_buffer& channel_id) const
 {
@@ -34,6 +39,10 @@ vds::async_task<vds::expected<void>> vds::user_manager::reset(
       root_user_name,
       root_password,
       private_info.root_private_key_));
+
+    //Create wallet
+    GET_EXPECTED_ASYNC(wallet, user_wallet::create_wallet(playback, root_user, "Default"));
+    CHECK_EXPECTED_ASYNC(wallet.asset_issue(playback, "DataCoin", std::numeric_limits<int64_t>::max(), root_user));
 
     CHECK_EXPECTED_ASYNC(co_await client.broadcast(playback.close()));
     co_return expected<void>();

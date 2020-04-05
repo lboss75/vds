@@ -19,6 +19,7 @@ vds::expected<vds::user_wallet> vds::user_wallet::create_wallet(
   GET_EXPECTED(public_key, asymmetric_public_key::create(private_key));
   GET_EXPECTED(key_id, public_key.fingerprint());
   GET_EXPECTED(key_der, public_key.der());
+  GET_EXPECTED(private_key_der, private_key.der(std::string()));
 
   CHECK_EXPECTED(log.add(message_create<transactions::create_wallet_transaction>(key_id, key_der)));
 
@@ -27,10 +28,10 @@ vds::expected<vds::user_wallet> vds::user_wallet::create_wallet(
   GET_EXPECTED(pc, target_user.personal_channel());
   CHECK_EXPECTED(pc.add_log(
     log, 
-    transactions::control_message_transaction::create_wallet_message(
+    message_create<transactions::create_wallet_message>(
       name,
-      public_key,
-      private_key)));
+      key_der,
+      private_key_der)));
 
   return user_wallet(name, std::move(public_key), std::move(private_key));
 }

@@ -67,7 +67,7 @@ vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
       t,
       block.id(),
       block_data, orm::transaction_log_record_dbo::state_t::validated,
-      block.ancestors().empty()));
+      false));
 
   return block.id();
 }

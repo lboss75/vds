@@ -226,7 +226,7 @@ bool vds::foldername::exist() const
 vds::expected<void> vds::foldername::create() const
 {
   auto contains_folder = this->contains_folder();
-  if (contains_folder != *this && !contains_folder.exist()) {
+  if (!contains_folder.empty() && contains_folder != *this && !contains_folder.exist()) {
     CHECK_EXPECTED(contains_folder.create());
   }
 

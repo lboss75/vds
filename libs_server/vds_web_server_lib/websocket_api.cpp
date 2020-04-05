@@ -17,6 +17,7 @@ All rights reserved
 #include "node_storage_dbo.h"
 #include "local_data_dbo.h"
 #include "server_api.h"
+#include "datacoin_balance_dbo.h"
 
 vds::websocket_api::websocket_api()
   : subscribe_timer_("WebSocket API Subscribe Timer")
@@ -309,6 +310,20 @@ vds::websocket_api::process_message(
     if (!this->subscribe_timer_.is_started()) {
       CHECK_EXPECTED_ASYNC(this->start_timer(sp, output_stream));
     }
+  }
+  else if ("balance" == method_name) {
+      auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
+      if (!args || args->size() < 1) {
+          co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'balance'");
+      }
+
+      auto wallet_id_str = std::dynamic_pointer_cast<json_primitive>(args->get(0));
+      if (!wallet_id_str) {
+          co_return make_unexpected<std::runtime_error>("missing cb argument at invoke method 'balance'");
+      }
+      GET_EXPECTED_ASYNC(wallet_id, base64::to_bytes(wallet_id_str->value()));
+
+      CHECK_EXPECTED_ASYNC(co_await this->get_balance(sp, r, std::move(wallet_id)));
   }
   else {
     co_return make_unexpected<std::runtime_error>("invalid method '" + method_name + "'");
@@ -684,6 +699,43 @@ vds::async_task<vds::expected<void>> vds::websocket_api::broadcast(
   result->add_property("result", trx_id);
 
   co_return expected<void>();
+}
+
+vds::async_task<vds::expected<void>> vds::websocket_api::get_balance(
+    const vds::service_provider* sp,
+    std::shared_ptr<json_object> res,
+    const_data_buffer wallet_id)
+{
+    auto result_json = std::make_shared<json_array>();
+
+    CHECK_EXPECTED_ASYNC(co_await sp->get<db_model>()->async_read_transaction(
+        [sp, result_json, wallet_id](database_read_transaction& t) -> expected<void> {
+            orm::datacoin_balance_dbo t1;
+            db_value<int64_t> confirmed_balance;
+            db_value<int64_t> proposed_balance;
+            GET_EXPECTED(st, t.get_reader(
+                t1.select(
+                    t1.issuer,
+                    t1.currency,
+                    db_sum(t1.confirmed_balance).as(confirmed_balance),
+                    db_sum(t1.proposed_balance).as(proposed_balance))
+                .where(t1.owner == wallet_id)
+                .group_by(t1.issuer, t1.currency)));
+
+            WHILE_EXPECTED(st.execute()) {
+                auto result_item = std::make_shared<json_object>();
+                result_item->add_property("issuer", base64::from_bytes(t1.issuer.get(st)));
+                result_item->add_property("currency", t1.currency.get(st));
+                result_item->add_property("confirmed_balance", confirmed_balance.get(st));
+                result_item->add_property("proposed_balance", proposed_balance.get(st));
+                result_json->add(result_item);
+            }
+            WHILE_EXPECTED_END()
+            return expected<void>();
+        }));
+
+    res->add_property("result", result_json);
+    co_return expected<void>();
 }
 
 vds::websocket_api::subscribe_handler::subscribe_handler(std::string cb, const_data_buffer channel_id)

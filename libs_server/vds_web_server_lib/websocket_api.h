@@ -115,6 +115,11 @@ namespace vds {
       const vds::service_provider * sp,
       std::shared_ptr<json_object> result,
       const_data_buffer body);
+
+    async_task<expected<void>> get_balance(
+        const vds::service_provider* sp,
+        std::shared_ptr<json_object> result,
+        const_data_buffer wallet_id);
   };
 
 }//vds

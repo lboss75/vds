@@ -21,6 +21,7 @@ namespace vds {
       split_block_transaction = 's',
 
       control_message_transaction = 'c',
+      create_wallet_message = 'l',
     };
   }
 }

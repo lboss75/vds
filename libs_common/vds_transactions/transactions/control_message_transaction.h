@@ -14,6 +14,23 @@ All rights reserved
 namespace vds {
 	namespace transactions {
 
+        class create_wallet_message {
+        public:
+            static const channel_message_id message_id = channel_message_id::create_wallet_message;
+            
+            std::string name;
+            const_data_buffer public_key;
+            const_data_buffer private_key;
+
+            template <typename visitor_t>
+            void visit(visitor_t& v) {
+                v(
+                    name,
+                    public_key,
+                    private_key);
+            }
+        };
+
 		class control_message_transaction {
 		public:
       static const channel_message_id message_id = channel_message_id::control_message_transaction;
