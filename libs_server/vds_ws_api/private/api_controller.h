@@ -10,7 +10,7 @@ All rights reserved
 
 #include "http_message.h"
 #include "service_provider.h"
-#include "web_server_p.h"
+#include "ws_http_server_p.h"
 
 namespace vds {
   class api_controller {

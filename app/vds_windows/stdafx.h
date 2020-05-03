@@ -34,13 +34,12 @@ namespace std {
 #include "network_service.h"
 #include "crypto_service.h"
 #include "server.h"
-#include "web_server.h"
+#include "ws_http_server.h"
 #include "user_manager.h"
 #include "db_model.h"
 #include "current_config_dbo.h"
 #include "dht_network_client.h"
 #include "persistence.h"
-#include "user_storage.h"
 #include "filename.h"
 
 template<typename result_type>

@@ -1,4 +1,4 @@
-project(vds_web_server_lib CXX C)
+project(vds_ws_api CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
 FILE(GLOB HEADER_FILES *.h)
@@ -16,14 +16,14 @@ find_package(OpenSSL REQUIRED)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
-add_library(vds_web_server_lib
+add_library(vds_ws_api
 	STATIC
 	 ${PRIVATE_HEADER_FILES}
 	 ${SOURCE_LIB}
 	 ${HEADER_FILES}
 	 ${GLOBAL_RES})
 
-target_include_directories(vds_web_server_lib
+target_include_directories(vds_ws_api
 	PRIVATE
 		${vds_core_INCLUDE_DIRS}
 		${vds_network_INCLUDE_DIRS}
@@ -41,7 +41,7 @@ target_include_directories(vds_web_server_lib
 		${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(
-  vds_web_server_lib
+  vds_ws_api
   vds_core
   vds_data
   vds_database

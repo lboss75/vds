@@ -11,11 +11,11 @@ All rights reserved
 */
 
 namespace vds {
-  class _web_server : public std::enable_shared_from_this<_web_server>
+  class _ws_http_server : public std::enable_shared_from_this<_ws_http_server>
   {
   public:
-    _web_server(const service_provider * sp);
-    ~_web_server();
+    _ws_http_server(const service_provider * sp);
+    ~_ws_http_server();
 
     vds::async_task<vds::expected<void>> start(uint16_t port);
     vds::async_task<vds::expected<void>> prepare_to_stop();

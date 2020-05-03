@@ -5,16 +5,16 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include "web_server.h"
+#include "ws_http_server.h"
 #include "network_service.h"
 #include "server.h"
 
 namespace vds {
-  class web_server_app : public console_app
+  class ws_server_app : public console_app
   {
     using base_class = console_app;
   public:
-    web_server_app();
+    ws_server_app();
 
     expected<void> main(const service_provider * sp) override;
     
@@ -41,7 +41,7 @@ namespace vds {
     network_service network_service_;
     crypto_service crypto_service_;
     server server_;
-    web_server web_server_;
+    ws_http_server web_server_;
   };
 }
 

@@ -4,10 +4,10 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "web_server_app.h"
+#include "ws_server_app.h"
 #include "http_router.h"
 
-vds::web_server_app::web_server_app()
+vds::ws_server_app::ws_server_app()
 : server_start_command_set_("Server start", "Start server", "start", "server"),
   server_service_command_set_("Service start", "Start service", "service", "server"),
   port_(
@@ -23,7 +23,7 @@ vds::web_server_app::web_server_app()
 {
 }
 
-vds::expected<void> vds::web_server_app::main(const service_provider * sp)
+vds::expected<void> vds::ws_server_app::main(const service_provider * sp)
 {
   if (this->current_command_set_ == &this->server_start_command_set_
     || this->current_command_set_ == &this->server_service_command_set_) {
@@ -47,7 +47,7 @@ vds::expected<void> vds::web_server_app::main(const service_provider * sp)
   return expected<void>();
 }
 
-void vds::web_server_app::register_services(vds::service_registrator& registrator)
+void vds::ws_server_app::register_services(vds::service_registrator& registrator)
 {
   base_class::register_services(registrator);
   registrator.add(this->mt_service_);
@@ -65,7 +65,7 @@ void vds::web_server_app::register_services(vds::service_registrator& registrato
   }
 }
 
-void vds::web_server_app::register_command_line(command_line & cmd_line)
+void vds::ws_server_app::register_command_line(command_line & cmd_line)
 {
   base_class::register_command_line(cmd_line);
 
@@ -78,7 +78,7 @@ void vds::web_server_app::register_command_line(command_line & cmd_line)
   this->server_service_command_set_.optional(this->dev_network_);
 }
 
-bool vds::web_server_app::need_demonize()
+bool vds::ws_server_app::need_demonize()
 {
   return (this->current_command_set_ == &this->server_service_command_set_);
 }

@@ -1,5 +1,5 @@
-#ifndef __VDS_WEB_SERVER_LIB_WEB_SERVER_H_
-#define __VDS_WEB_SERVER_LIB_WEB_SERVER_H_
+#ifndef __VDS_WEB_SERVER_LIB_HTTP_SERVER_H_
+#define __VDS_WEB_SERVER_LIB_HTTP_SERVER_H_
 #include "service_provider.h"
 
 /*
@@ -9,11 +9,11 @@ All rights reserved
 
 
 namespace vds {
-  class web_server : public iservice_factory
+  class ws_http_server : public iservice_factory
   {
   public:
-    web_server();
-    ~web_server();
+    ws_http_server();
+    ~ws_http_server();
 
     expected<void> register_services(service_registrator &) override;
     expected<void> start(const service_provider *) override;
@@ -24,7 +24,7 @@ namespace vds {
       return nullptr != this->impl_;
     }
 
-    class _web_server * operator -> () const;
+    class _ws_http_server * operator -> () const;
 
     uint16_t port() const {
       return this->port_;
@@ -36,8 +36,8 @@ namespace vds {
 
   private:
     uint16_t port_;
-    std::shared_ptr<class _web_server> impl_;
+    std::shared_ptr<class _ws_http_server> impl_;
   };
 }
 
-#endif // __VDS_WEB_SERVER_LIB_WEB_SERVER_H_
+#endif // __VDS_WEB_SERVER_LIB_HTTP_SERVER_H_

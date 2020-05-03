@@ -4,11 +4,11 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "web_server_app.h"
+#include "ws_server_app.h"
 
 int main(int argc, const char **argv)
 {
-  vds::web_server_app app;
+  vds::ws_server_app app;
   return app.run(argc, argv);
 }
 
