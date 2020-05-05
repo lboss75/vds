@@ -220,6 +220,15 @@ vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>
       co_return co_await handler.process(sp, output_stream, this, request);
     }
   }
+  if (!this->not_found_handler_) {
+      CHECK_EXPECTED_ASYNC(co_await http_response::simple_text_response(
+          output_stream,
+          std::string(),
+          std::string(),
+          http_response::HTTP_Not_Found,
+          "Not Found"));
+      co_return std::shared_ptr<vds::stream_output_async<uint8_t>>();
+  }
 
   GET_EXPECTED_ASYNC(result, co_await this->not_found_handler_(output_stream, request));
   if (!std::get<0>(result)) {

@@ -5,7 +5,6 @@
 #define IDC_MYICON                      2
 #define IDD_VDSWINDOWS_DIALOG           102
 #define IDM_ABOUT                       104
-#define IDI_VDSWINDOWS                  107
 #define IDI_SMALL                       108
 #define IDR_MAINFRAME                   128
 #define IDR_TRAYMENU                    131
@@ -13,11 +12,9 @@
 #define IDS_INIT_TIP                    133
 #define IDS_INIT_TIP_TITLE              134
 #define IDS_LOGING_IN                   135
-#define IDI_SMALL_GREEN                 135
 #define IDS_LOGGED_IN                   136
 #define IDS_LOGIN_FAILED                137
 #define IDS_SIZE_POSTFIXES              138
-#define IDI_SMALL_RED                   139
 #define IDS_SIZE_FORMAT                 139
 #define IDC_EDIT1                       1000
 #define IDC_EDIT2                       1001

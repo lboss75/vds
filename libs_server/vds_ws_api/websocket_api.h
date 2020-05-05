@@ -97,8 +97,7 @@ namespace vds {
       const vds::service_provider* sp,
       std::shared_ptr<json_object> result,
       asymmetric_public_key user_public_key,
-      foldername folder,
-      long size);
+      foldername folder);
 
     async_task<expected<void>> looking_block(
       const vds::service_provider* sp,

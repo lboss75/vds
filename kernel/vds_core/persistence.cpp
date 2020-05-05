@@ -54,7 +54,7 @@ vds::expected<vds::foldername> vds::persistence::current_user(const service_prov
   CHAR result[MAX_PATH + 1];
   auto error = SHGetFolderPathA(
     NULL,
-    CSIDL_PERSONAL,
+    CSIDL_PROFILE,
     NULL,
     SHGFP_TYPE_CURRENT,
     result);

@@ -22,7 +22,7 @@ namespace vds {
     };
 
     virtual async_task<expected<data_info_t>> upload_data(const const_data_buffer& data) = 0;
-    virtual async_task<expected<const_data_buffer>> broadcast(const const_data_buffer& data) = 0;
+    virtual async_task<expected<const_data_buffer>> broadcast(const const_data_buffer& data, bool allow_root) = 0;
   };
 }
 

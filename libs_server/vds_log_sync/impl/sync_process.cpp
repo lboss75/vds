@@ -301,10 +301,17 @@ vds::expected<bool> vds::transaction_log::sync_process::apply_message(
     return false;
   }
 
+  GET_EXPECTED_VALUE(st, t.get_reader(
+      t1.select(t1.id)
+      .where(t1.state == orm::transaction_log_record_dbo::state_t::processed
+          || t1.state == orm::transaction_log_record_dbo::state_t::leaf)));
+  GET_EXPECTED(exists, st.execute());
+
   CHECK_EXPECTED(transactions::transaction_log::save(
     this->sp_,
     t,
-    message.data));
+    message.data,
+    !exists));
 
   return true;
 }

@@ -29,7 +29,8 @@ namespace vds {
       static expected<const_data_buffer> save(
         const service_provider * sp,
         class database_transaction &t,
-        const const_data_buffer & block_data);
+        const const_data_buffer & block_data,
+        bool allow_root);
 
       static expected<bool> check_consensus(
         database_read_transaction& t,

@@ -77,7 +77,6 @@ namespace vds {
 
     expected<void> shutdown() {
       CHECK_EXPECTED(this->shutdown_event_.set());
-      std::this_thread::sleep_for(std::chrono::seconds(5));
 
       for (auto& p : this->factories_) {
         CHECK_EXPECTED(p->prepare_to_stop().get());

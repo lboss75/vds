@@ -63,7 +63,8 @@ namespace vds {
         expected<const_data_buffer> save(
           const service_provider * sp,
           transactions::transaction_block_builder & block,
-          database_transaction& t);
+          database_transaction& t,
+          bool allow_root);
 
         //expected<std::shared_ptr<stream_output_async<uint8_t>>> start_save(
         //  const service_provider * sp) const;

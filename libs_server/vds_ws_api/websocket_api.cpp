@@ -248,7 +248,7 @@ vds::websocket_api::process_message(
   }
   else if ("allocate_storage" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
-    if (!args || args->size() < 3) {
+    if (!args || args->size() < 2) {
       co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'allocate_storage'");
     }
 
@@ -265,14 +265,7 @@ vds::websocket_api::process_message(
       co_return make_unexpected<std::runtime_error>("missing folder argument at invoke method 'allocate_storage'");
     }
 
-    auto size_str = std::dynamic_pointer_cast<json_primitive>(args->get(2));
-    if (!size_str || size_str->value().empty()) {
-      co_return make_unexpected<std::runtime_error>("missing size argument at invoke method 'allocate_storage'");
-    }
-
-    auto size = atol(size_str->value().c_str());
-
-    CHECK_EXPECTED_ASYNC(co_await this->allocate_storage(sp, r, std::move(public_key), foldername(folder->value()), size));
+    CHECK_EXPECTED_ASYNC(co_await this->allocate_storage(sp, r, std::move(public_key), foldername(folder->value())));
   }
   else if ("subscribe" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
@@ -557,69 +550,95 @@ vds::async_task<vds::expected<void>> vds::websocket_api::get_channel_messages(
 }
 
 vds::async_task<vds::expected<void>> vds::websocket_api::allocate_storage(
-  const vds::service_provider* sp,
-  std::shared_ptr<json_object> result,
-  asymmetric_public_key user_public_key,
-  foldername folder,
-  long size)
+    const vds::service_provider* sp,
+    std::shared_ptr<json_object> result,
+    asymmetric_public_key user_public_key,
+    foldername folder)
 {
-  GET_EXPECTED(json, json_parser::parse(".vds_storage.json", file::read_all(filename(folder, ".vds_storage.json"))));
-  auto sign_info = std::dynamic_pointer_cast<json_object>(json);
-  if (!sign_info) {
-    return vds::make_unexpected<std::runtime_error>("Invalid format");
-  }
+    GET_EXPECTED(json, json_parser::parse(".vds_storage.json", file::read_all(filename(folder, ".vds_storage.json"))));
+    auto sign_info = std::dynamic_pointer_cast<json_object>(json);
+    if (!sign_info) {
+        return vds::make_unexpected<std::runtime_error>("Invalid format");
+    }
 
-  std::string version;
-  if (!sign_info->get_property("vds", version) || version != "0.1") {
-    return vds::make_unexpected<std::runtime_error>("Invalid file version");
-  }
+    std::string version;
+    if (!sign_info->get_property("vds", version) || version != "0.1") {
+        return vds::make_unexpected<std::runtime_error>("Invalid file version");
+    }
 
-  GET_EXPECTED(key_id, user_public_key.fingerprint());
-  const_data_buffer value;
-  if (!sign_info->get_property("name", value) || value != key_id) {
-    return vds::make_unexpected<std::runtime_error>("Invalid user name");
-  }
+    std::string size_str;
+    if (!sign_info->get_property("size", size_str)) {
+        return vds::make_unexpected<std::runtime_error>("Missing size parameter");
+    }
 
-  if (!sign_info->get_property("sign", value)) {
-    return vds::make_unexpected<std::runtime_error>("The signature is missing");
-  }
+    char* end;
+    const auto size = std::strtoull(size_str.c_str(), &end, 10);
+    if (size_str != std::to_string(size) || nullptr != end && '\0' != *end) {
+        return vds::make_unexpected<std::runtime_error>("Invalid size parameter value " + size_str);
+    }
 
-  auto sig_body = std::make_shared<json_object>();
-  sig_body->add_property("vds", "0.1");
-  sig_body->add_property("name", key_id);
+    GET_EXPECTED(key_id, user_public_key.fingerprint());
+    const_data_buffer value;
+    if (!sign_info->get_property("name", value) || value != key_id) {
+        return vds::make_unexpected<std::runtime_error>("Invalid user name");
+    }
 
-  GET_EXPECTED(body, sig_body->json_value::str());
-  GET_EXPECTED(sig_ok, asymmetric_sign_verify::verify(
-    hash::sha256(),
-    user_public_key,
-    value,
-    body.c_str(),
-    body.length()));
+    if (!sign_info->get_property("sign", value)) {
+        return vds::make_unexpected<std::runtime_error>("The signature is missing");
+    }
 
-  if (!sig_ok) {
-    return vds::make_unexpected<std::runtime_error>("Invalid signature");
-  }
+    auto sig_body = std::make_shared<json_object>();
+    sig_body->add_property("vds", "0.1");
+    sig_body->add_property("name", key_id);
+    sig_body->add_property("size", size_str);
 
+    GET_EXPECTED(body, sig_body->json_value::str());
+    GET_EXPECTED(sig_ok, asymmetric_sign_verify::verify(
+        hash::sha256(),
+        user_public_key,
+        value,
+        body.c_str(),
+        body.length()));
 
-  return sp->get<db_model>()->async_transaction([sp, key_id, folder, size, result](database_transaction& t) -> expected<void> {
-    auto client = sp->get<dht::network::client>();
+    if (!sig_ok) {
+        return vds::make_unexpected<std::runtime_error>("Invalid signature");
+    }
 
-    binary_serializer s;
-    CHECK_EXPECTED(s << client->current_node_id());
-    CHECK_EXPECTED(s << key_id);
-    CHECK_EXPECTED(s << folder.full_name());
-    
-    GET_EXPECTED(storage_id, hash::signature(hash::sha256(), s.move_data()));
+    return sp->get<db_model>()->async_transaction([sp, key_id, folder, size, result](database_transaction& t) -> expected<void> {
+        orm::node_storage_dbo t1;
+        GET_EXPECTED(st, t.get_reader(t1.select(t1.storage_id, t1.reserved_size).where(t1.local_path == folder.full_name() && t1.owner_id == key_id)));
+        GET_EXPECTED(exists, st.execute());
+        if (exists) {
+            result->add_property("result", base64::from_bytes(t1.storage_id.get(st)));
+            const auto current_size = t1.reserved_size.get(st);
+            if (current_size != (int64_t)size) {
+                return t.execute(
+                    t1
+                    .update(t1.reserved_size = (int64_t)size)
+                    .where(t1.local_path == folder.full_name() && t1.owner_id == key_id));
+            } else {
+                return expected<void>();
+            }
+        }
+        else {
+            auto client = sp->get<dht::network::client>();
 
-    result->add_property("result", base64::from_bytes(storage_id));
+            binary_serializer s;
+            CHECK_EXPECTED(s << client->current_node_id());
+            CHECK_EXPECTED(s << key_id);
+            CHECK_EXPECTED(s << folder.full_name());
 
-    orm::node_storage_dbo t1;
-    return t.execute(
-      t1.insert(
-        t1.storage_id = storage_id,
-        t1.local_path = folder.full_name(),
-        t1.owner_id = key_id,
-        t1.reserved_size = (int64_t)size * 1024 * 1024));
+            GET_EXPECTED(storage_id, hash::signature(hash::sha256(), s.move_data()));
+
+            result->add_property("result", base64::from_bytes(storage_id));
+
+            return t.execute(
+                t1.insert(
+                    t1.storage_id = storage_id,
+                    t1.local_path = folder.full_name(),
+                    t1.owner_id = key_id,
+                    t1.reserved_size = (int64_t)size));
+        }
     });
 }
 
@@ -695,7 +714,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::broadcast(
   std::shared_ptr<json_object> result,
   const_data_buffer body)
 {
-  GET_EXPECTED_ASYNC(trx_id, co_await server_api(sp).broadcast(body));
+  GET_EXPECTED_ASYNC(trx_id, co_await server_api(sp).broadcast(body, false));
   result->add_property("result", trx_id);
 
   co_return expected<void>();

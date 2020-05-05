@@ -208,13 +208,58 @@ vds::expected<void> vds::_network_service::stop()
 
 vds::async_task<vds::expected<void>> vds::_network_service::prepare_to_stop()
 {
-  co_return expected<void>();
+
+#ifndef _WIN32
+    for (;;) {
+        std::list<std::shared_ptr<socket_base>> tasks;
+        std::unique_lock<std::mutex> lock(this->tasks_mutex_);
+        for (auto& task : this->tasks_) {
+            tasks.push_back(task.second);
+        }
+        lock.unlock();
+        if (tasks.empty()) {
+            break;
+        }
+        for (auto& task : tasks) {
+            task->stop();
+        }
+    }
+
+    this->tasks_cond_.notify_one();
+    if (this->epoll_thread_.joinable()) {
+        this->epoll_thread_.join();
+    }
+#else
+    for (auto p : this->work_threads_) {
+        PostQueuedCompletionStatus(this->handle_, 0, NETWORK_EXIT, NULL);
+    }
+    for (auto p : this->work_threads_) {
+        p->join();
+        delete p;
+    }
+    this->work_threads_.clear();
+#endif
+
+#ifdef _WIN32
+    if (NULL != this->handle_) {
+        CloseHandle(this->handle_);
+        this->handle_ = NULL;
+    }
+
+    WSACleanup();
+#endif
+    co_return expected<void>();
 }
 
 #ifdef _WIN32
 
 vds::expected<void> vds::_network_service::associate(SOCKET_HANDLE s)
 {
+    if (this->sp_->get_shutdown_event().is_shuting_down()) {
+        return vds::make_unexpected<vds_exceptions::shooting_down_exception>();
+    }
+
+
   if (NULL == CreateIoCompletionPort((HANDLE)s, this->handle_, NULL, 0)) {
     auto error = GetLastError();
     return vds::make_unexpected<std::system_error>(error, std::system_category(), "Associate with input/output completion port");
@@ -266,6 +311,10 @@ vds::expected<void> vds::_network_service::associate(
   const std::shared_ptr<socket_base> & handler,
   uint32_t event_mask)
 {
+  if (this->sp_->get_shutdown_event().is_shuting_down()) {
+    return vds::make_unexpected<vds_exceptions::shooting_down_exception>();
+  }
+
   struct epoll_event event_data;
   memset(&event_data, 0, sizeof(event_data));
   event_data.events = event_mask;

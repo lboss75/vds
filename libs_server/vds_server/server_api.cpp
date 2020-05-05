@@ -29,13 +29,14 @@ vds::async_task<vds::expected<vds::server_api::data_info_t>> vds::server_api::up
   co_return result;
 }
 
-vds::async_task<vds::expected<vds::const_data_buffer>> vds::server_api::broadcast(const const_data_buffer& body)
+vds::async_task<vds::expected<vds::const_data_buffer>> vds::server_api::broadcast(const const_data_buffer& body, bool allow_root)
 {
   const_data_buffer trx_id;
   CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction(
     [
       sp = this->sp_,
       body,
+      allow_root,
       &trx_id
     ](database_transaction& t)->expected<void> {
       transactions::transaction_block_builder playback;
@@ -43,7 +44,7 @@ vds::async_task<vds::expected<vds::const_data_buffer>> vds::server_api::broadcas
       CHECK_EXPECTED(playback.push_data(body));
 
       auto network_client = sp->get<dht::network::client>();
-      GET_EXPECTED_VALUE(trx_id, network_client->save(sp, playback, t));
+      GET_EXPECTED_VALUE(trx_id, network_client->save(sp, playback, t, allow_root));
 
       return expected<void>();
     }));

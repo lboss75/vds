@@ -35,9 +35,13 @@ All rights reserved
 vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
 	const service_provider * sp,
 	database_transaction & t,
-	const const_data_buffer & block_data)
+	const const_data_buffer & block_data,
+    bool allow_root)
 {
   GET_EXPECTED(block, transaction_block::create(block_data));
+  if (block.ancestors().empty() && !allow_root) {
+      return make_unexpected<std::runtime_error>("Root block is not allowed");
+  }
 
   GET_EXPECTED(block_exists, block.exists(t));
   vds_assert(!block_exists);

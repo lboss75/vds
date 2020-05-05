@@ -21,7 +21,7 @@ namespace vds {
     {}
 
     async_task<expected<data_info_t>> upload_data(const const_data_buffer& data) override;
-    async_task<expected<const_data_buffer>> broadcast(const const_data_buffer& data) override;
+    async_task<expected<const_data_buffer>> broadcast(const const_data_buffer& data, bool allow_root) override;
 
   private:
     const service_provider* sp_;

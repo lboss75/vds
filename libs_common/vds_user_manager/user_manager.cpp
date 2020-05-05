@@ -44,7 +44,7 @@ vds::async_task<vds::expected<void>> vds::user_manager::reset(
     GET_EXPECTED_ASYNC(wallet, user_wallet::create_wallet(playback, root_user, "Default"));
     CHECK_EXPECTED_ASYNC(wallet.asset_issue(playback, "DataCoin", std::numeric_limits<int64_t>::max(), root_user));
 
-    CHECK_EXPECTED_ASYNC(co_await client.broadcast(playback.close()));
+    CHECK_EXPECTED_ASYNC(co_await client.broadcast(playback.close(), true));
     co_return expected<void>();
 }
 /*

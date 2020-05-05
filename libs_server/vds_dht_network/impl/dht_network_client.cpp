@@ -1098,7 +1098,8 @@ vds::expected<void> vds::dht::network::client::stop() {
 vds::expected<vds::const_data_buffer> vds::dht::network::client::save(
   const service_provider * sp,
   transactions::transaction_block_builder & block,
-  database_transaction & t)
+  database_transaction & t,
+  bool allow_root)
 {
   if (!this->node_public_key_) {
     CHECK_EXPECTED(this->load_keys(sp, t));
@@ -1118,7 +1119,7 @@ vds::expected<vds::const_data_buffer> vds::dht::network::client::save(
   }
   //Load state
   GET_EXPECTED(data, transactions::transaction_block::build(t, block.close(), this->node_public_key_, this->node_key_));
-  return transactions::transaction_log::save(sp, t, data);
+  return transactions::transaction_log::save(sp, t, data, allow_root);
 }
 
 //vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>

@@ -337,7 +337,7 @@ namespace vds {
 		  auto pthis = std::move(this->pthis_);
 
 		  this->target_->write_async(this->buffer_, dwBytesTransfered)
-			  .then([pthis, dwBytesTransfered](expected<void> && result) {
+			  .then([pthis, dwBytesTransfered](expected<void> result) {
         if (result.has_error() || 0 == dwBytesTransfered) {
           (void)pthis->owner_->close();
         }
