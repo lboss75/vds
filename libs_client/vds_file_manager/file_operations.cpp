@@ -29,11 +29,17 @@ vds::async_task<vds::expected<void>> vds::file_manager::file_operations::prepare
 
 vds::async_task<vds::expected<vds::file_manager::file_operations::download_result_t>>
 vds::file_manager::file_operations::download_file(
+  vds_client& client,
   std::shared_ptr<vds::user_manager> user_mng,
   const_data_buffer channel_id,
   std::string file_name,
   const_data_buffer file_hash) {
-  return this->impl_->download_file(std::move(user_mng), std::move(channel_id), std::move(file_name), std::move(file_hash));
+  return this->impl_->download_file(
+      client,
+      std::move(user_mng),
+      std::move(channel_id),
+      std::move(file_name),
+      std::move(file_hash));
 }
 
 vds::async_task<vds::expected<vds::file_manager::file_operations::prepare_download_result_t>>
@@ -134,7 +140,7 @@ vds::expected<void> vds::file_manager_private::_file_operations::lookup_file(
     [result, file_name, file_hash, &download_tasks](
       const transactions::user_message_transaction &message,
       const transactions::message_environment_t & /*message_environment*/) -> expected<bool> {
-    for (const auto & file : message.files) {
+    for (auto & file : message.files) {
       if (file.name == file_name && (!file_hash || file_hash == file.file_id)) {
         result->file_hash = file.file_id;
         result->name = file.name;

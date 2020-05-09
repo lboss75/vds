@@ -97,6 +97,7 @@ namespace vds {
 
 
 			vds::async_task<vds::expected<download_result_t>> download_file(
+               vds_client& client,
 			  std::shared_ptr<user_manager> user_mng,
 			  const_data_buffer channel_id,
         std::string file_name,

@@ -13,7 +13,7 @@ export LDFLAGS="-stdlib=libc++ -lc++ -lc++abi -lm -ldl"
 
 cd build
 cmake -DZLIB_INCLUDE_DIR=$DIR/externals/zlib_out/include -DZLIB_LIBRARY=$DIR/externals/zlib_out/libz.a -DOPENSSL_ROOT_DIR=$DIR/externals/openssl-out/ -DGTEST_LIBRARY=$DIR/externals/gtest_out/lib/libgtest.a -DGTEST_INCLUDE_DIR=$DIR/externals/googletest/googletest/include -DGTEST_MAIN_LIBRARY=$DIR/externals/gtest_out/lib/libgtest_main.a .. 
-make --quiet
+make --quiet vds_ws_server
 
 
 #cd app/vds_web_server
