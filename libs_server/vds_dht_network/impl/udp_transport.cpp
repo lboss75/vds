@@ -113,17 +113,17 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::try_hands
   }
 
   resizable_data_buffer out_message;
-  out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
-  out_message.add((uint8_t)(MAGIC_LABEL >> 24));
-  out_message.add((uint8_t)(MAGIC_LABEL >> 16));
-  out_message.add((uint8_t)(MAGIC_LABEL >> 8));
-  out_message.add((uint8_t)(MAGIC_LABEL));
-  out_message.add(PROTOCOL_VERSION);
+  CHECK_EXPECTED_ASYNC(out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast));
+  CHECK_EXPECTED_ASYNC(out_message.add((uint8_t)(MAGIC_LABEL >> 24)));
+  CHECK_EXPECTED_ASYNC(out_message.add((uint8_t)(MAGIC_LABEL >> 16)));
+  CHECK_EXPECTED_ASYNC(out_message.add((uint8_t)(MAGIC_LABEL >> 8)));
+  CHECK_EXPECTED_ASYNC(out_message.add((uint8_t)(MAGIC_LABEL)));
+  CHECK_EXPECTED_ASYNC(out_message.add(PROTOCOL_VERSION));
 
   binary_serializer bs;
   CHECK_EXPECTED_ASYNC(bs << this->node_public_key_->der());
 
-  out_message += bs.move_data();
+  CHECK_EXPECTED_ASYNC(out_message.add(bs.move_data()));
 
   co_return co_await this->write_async(udp_datagram(
     address,
@@ -133,17 +133,17 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::try_hands
 vds::expected<void> vds::dht::network::udp_transport::broadcast_handshake()
 {
   resizable_data_buffer out_message;
-  out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
-  out_message.add((uint8_t)(MAGIC_LABEL >> 24));
-  out_message.add((uint8_t)(MAGIC_LABEL >> 16));
-  out_message.add((uint8_t)(MAGIC_LABEL >> 8));
-  out_message.add((uint8_t)(MAGIC_LABEL));
-  out_message.add(PROTOCOL_VERSION);
+  CHECK_EXPECTED(out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast));
+  CHECK_EXPECTED(out_message.add((uint8_t)(MAGIC_LABEL >> 24)));
+  CHECK_EXPECTED(out_message.add((uint8_t)(MAGIC_LABEL >> 16)));
+  CHECK_EXPECTED(out_message.add((uint8_t)(MAGIC_LABEL >> 8)));
+  CHECK_EXPECTED(out_message.add((uint8_t)(MAGIC_LABEL)));
+  CHECK_EXPECTED(out_message.add(PROTOCOL_VERSION));
 
   binary_serializer bs;
   CHECK_EXPECTED(bs << this->node_public_key_->der());
 
-  out_message += bs.move_data();
+  CHECK_EXPECTED(out_message.add(bs.move_data()));
   
   auto message = out_message.move_data();
   (void)this->server_.socket()->broadcast(this->server_.socket()->family(), "ff12::1", 8050, message);
@@ -286,11 +286,11 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
           session_info.session_key_);
 
         resizable_data_buffer out_message;
-        out_message.add(static_cast<uint8_t>(protocol_message_type_t::Welcome));
-        out_message.add((uint8_t)(MAGIC_LABEL >> 24));
-        out_message.add((uint8_t)(MAGIC_LABEL >> 16));
-        out_message.add((uint8_t)(MAGIC_LABEL >> 8));
-        out_message.add((uint8_t)(MAGIC_LABEL));
+        CHECK_EXPECTED_ASYNC(out_message.add(static_cast<uint8_t>(protocol_message_type_t::Welcome)));
+        CHECK_EXPECTED_ASYNC(out_message.add((uint8_t)(MAGIC_LABEL >> 24)));
+        CHECK_EXPECTED_ASYNC(out_message.add((uint8_t)(MAGIC_LABEL >> 16)));
+        CHECK_EXPECTED_ASYNC(out_message.add((uint8_t)(MAGIC_LABEL >> 8)));
+        CHECK_EXPECTED_ASYNC(out_message.add((uint8_t)(MAGIC_LABEL)));
 
         binary_serializer bs;
         CHECK_EXPECTED_ASYNC(bs << this->node_public_key_->der());
@@ -301,7 +301,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::continue_
         this->sp_->get<logger>()->debug(ThisModule, "Add session %s", datagram.address().to_string().c_str());
         CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<client>())->add_session(session_info.session_, 0));
 
-        out_message += bs.move_data();
+        CHECK_EXPECTED_ASYNC(out_message.add(bs.move_data()));
         CHECK_EXPECTED_ASYNC(co_await this->write_async(udp_datagram(datagram.address(), out_message.move_data())));
         CHECK_EXPECTED_ASYNC(co_await this->sp_->get<imessage_map>()->on_new_session(partner_node_id));
       }

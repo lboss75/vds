@@ -186,7 +186,7 @@ vds::expected<void> vds::_network_service::stop()
     this->epoll_thread_.join();
   }
 #else
-  for (auto p : this->work_threads_) {
+  for (size_t i = 0; i < this->work_threads_.size(); ++i) {
     PostQueuedCompletionStatus(this->handle_, 0, NETWORK_EXIT, NULL);
   }
   for (auto p : this->work_threads_) {
@@ -230,7 +230,7 @@ vds::async_task<vds::expected<void>> vds::_network_service::prepare_to_stop()
         this->epoll_thread_.join();
     }
 #else
-    for (auto p : this->work_threads_) {
+    for (size_t i = 0; i < this->work_threads_.size(); ++i) {
         PostQueuedCompletionStatus(this->handle_, 0, NETWORK_EXIT, NULL);
     }
     for (auto p : this->work_threads_) {

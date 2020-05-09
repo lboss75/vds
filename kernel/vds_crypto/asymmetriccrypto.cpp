@@ -657,8 +657,8 @@ vds::expected<void> vds::_asymmetric_public_key::create(const asymmetric_private
 vds::expected<vds::const_data_buffer> vds::_asymmetric_public_key::fingerprint() const
 {
   resizable_data_buffer data;
-  data.add_uint32(7);
-  data.add("ssh-rsa", 7);
+  CHECK_EXPECTED(data.add_uint32(7));
+  CHECK_EXPECTED(data.add("ssh-rsa", 7));
 
   const BIGNUM *n,*e;
   RSA_get0_key(EVP_PKEY_get0_RSA(this->key_), &n, &e, NULL);
@@ -667,15 +667,15 @@ vds::expected<vds::const_data_buffer> vds::_asymmetric_public_key::fingerprint()
   GET_EXPECTED(buffer, (fe[0] > '8') ? hex::to_bytes(std::string("00") + fe) : hex::to_bytes(fe));
   OPENSSL_free(fe);
 
-  data.add_uint32(buffer.size());
-  data += buffer;
+  CHECK_EXPECTED(data.add_uint32(buffer.size()));
+  CHECK_EXPECTED(data.add(buffer));
 
   auto fn = BN_bn2hex(n);
   GET_EXPECTED_VALUE(buffer, (fn[0] > '8') ? hex::to_bytes(std::string("00") + fn) : hex::to_bytes(fn));
   OPENSSL_free(fn);
 
-  data.add_uint32(buffer.size());
-  data += buffer;
+  CHECK_EXPECTED(data.add_uint32(buffer.size()));
+  CHECK_EXPECTED(data.add(buffer));
 
   return hash::signature(hash::sha256(), data.move_data());
 }

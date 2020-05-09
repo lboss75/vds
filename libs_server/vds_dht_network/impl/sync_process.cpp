@@ -34,8 +34,8 @@ vds::dht::network::sync_process::sync_process(const service_provider * sp)
 }
 
 vds::expected<void> vds::dht::network::sync_process::do_sync(  
-  database_transaction& t,
-  std::list<std::function<async_task<expected<void>>()>> & final_tasks) {
+  database_transaction& /*t*/,
+  std::list<std::function<async_task<expected<void>>()>> & /*final_tasks*/) {
 
   //CHECK_EXPECTED(this->sync_entries(t, final_tasks));
   //CHECK_EXPECTED(this->sync_local_queues(t, final_tasks));

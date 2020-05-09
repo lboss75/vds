@@ -309,7 +309,7 @@ namespace vds {
     }
     
     _db_simple_column(
-      _db_simple_column && column)
+      _db_simple_column && column) noexcept
       : column_(column.column_)
     {
     }
@@ -1315,7 +1315,7 @@ namespace vds {
       base_builder && b,
       const database_table * table,
       condition_type && cond,
-      join_t join_type)
+      join_t join_type) noexcept
       : _database_source_impl<base_builder>(std::move(b)),
         table_(table),
         cond_(std::move(cond)),

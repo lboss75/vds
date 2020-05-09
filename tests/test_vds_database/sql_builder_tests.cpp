@@ -47,7 +47,7 @@ vds::mock_sql_statement::~mock_sql_statement()
 {
 }
 
-vds::mock_sql_statement & vds::mock_sql_statement::operator=(vds::mock_sql_statement && original) {
+vds::mock_sql_statement & vds::mock_sql_statement::operator=(vds::mock_sql_statement && /*original*/) {
   return *this;
 }
 

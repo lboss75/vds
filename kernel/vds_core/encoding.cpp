@@ -443,7 +443,7 @@ vds::expected<vds::const_data_buffer> vds::hex::to_bytes(const std::string & dat
       is_first = false;
     }
     else {
-      result.add((value << 4) | v);
+      CHECK_EXPECTED(result.add((value << 4) | v));
       is_first = true;
     }
   }

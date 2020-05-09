@@ -7,7 +7,7 @@ include(CMakeLists.inc)
 add_subdirectory(kernel)
 
 add_subdirectory(libs_common)
-add_subdirectory(libs_client)
+#add_subdirectory(libs_client)
 add_subdirectory(libs_server)
 
 add_subdirectory(app)

@@ -21,22 +21,22 @@ TEST(chunk_tests, test_chunks) {
         data[i] = uint8_t(0xFF & std::rand());
     }
 
-    int r1 = std::rand();
+    uint8_t r1 = (uint8_t)std::rand();
     while (r1 < 0 || r1 > 255)
     {
-        r1 = std::rand();
+        r1 = (uint8_t)std::rand();
     }
 
-    int r2 = std::rand();
+    uint8_t r2 = (uint8_t)std::rand();
     while (r1 == r2 || 0 > r2 || r2 > 255)
     {
-        r2 = std::rand();
+        r2 = (uint8_t)std::rand();
     }
 
-    int r3 = std::rand();
+    uint8_t r3 = (uint8_t)std::rand();
     while (r3 == r1 || r3 == r2 || 0 > r3 || r3 > 255)
     {
-        r3 = std::rand();
+        r3 = (uint8_t)std::rand();
     }
 
     vds::chunk_generator<uint8_t> g1(3, r1);

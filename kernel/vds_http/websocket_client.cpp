@@ -59,29 +59,29 @@ vds::async_task<vds::expected<void>> vds::websocket_client::send_message(const s
 vds::async_task<vds::expected<void>> vds::websocket_client::send_message(const uint8_t* message, uint64_t message_size, bool is_binary)
 {
   this->send_buffer_.clear();
-  this->send_buffer_.add(is_binary ? 0x82 : 0x81);
+  CHECK_EXPECTED(this->send_buffer_.add(is_binary ? 0x82 : 0x81));
 
   if (message_size < 126)
   {
-    this->send_buffer_.add(0x80 | (uint8_t)message_size);
+    CHECK_EXPECTED(this->send_buffer_.add(0x80 | (uint8_t)message_size));
   }
   else if (message_size <= 0xFFFF)
   {
-    this->send_buffer_.add(0x80 | 126);
-    this->send_buffer_.add((uint8_t)((message_size >> 8) & 0xFF));
-    this->send_buffer_.add((uint8_t)(message_size & 0xFF));
+    CHECK_EXPECTED(this->send_buffer_.add(0x80 | 126));
+    CHECK_EXPECTED(this->send_buffer_.add((uint8_t)((message_size >> 8) & 0xFF)));
+    CHECK_EXPECTED(this->send_buffer_.add((uint8_t)(message_size & 0xFF)));
   }
   else
   {
-    this->send_buffer_.add(0x80 | 127);
-    this->send_buffer_.add((uint8_t)((message_size >> 56) & 0xFF));
-    this->send_buffer_.add((uint8_t)((message_size >> 48) & 0xFF));
-    this->send_buffer_.add((uint8_t)((message_size >> 40) & 0xFF));
-    this->send_buffer_.add((uint8_t)((message_size >> 32) & 0xFF));
-    this->send_buffer_.add((uint8_t)((message_size >> 24) & 0xFF));
-    this->send_buffer_.add((uint8_t)((message_size >> 16) & 0xFF));
-    this->send_buffer_.add((uint8_t)((message_size >> 8) & 0xFF));
-    this->send_buffer_.add((uint8_t)(message_size & 0xFF));
+    CHECK_EXPECTED(this->send_buffer_.add(0x80 | 127));
+    CHECK_EXPECTED(this->send_buffer_.add((uint8_t)((message_size >> 56) & 0xFF)));
+    CHECK_EXPECTED(this->send_buffer_.add((uint8_t)((message_size >> 48) & 0xFF)));
+    CHECK_EXPECTED(this->send_buffer_.add((uint8_t)((message_size >> 40) & 0xFF)));
+    CHECK_EXPECTED(this->send_buffer_.add((uint8_t)((message_size >> 32) & 0xFF)));
+    CHECK_EXPECTED(this->send_buffer_.add((uint8_t)((message_size >> 24) & 0xFF)));
+    CHECK_EXPECTED(this->send_buffer_.add((uint8_t)((message_size >> 16) & 0xFF)));
+    CHECK_EXPECTED(this->send_buffer_.add((uint8_t)((message_size >> 8) & 0xFF)));
+    CHECK_EXPECTED(this->send_buffer_.add((uint8_t)(message_size & 0xFF)));
   }
 
   uint8_t mask[4] = {
@@ -92,12 +92,12 @@ vds::async_task<vds::expected<void>> vds::websocket_client::send_message(const u
   };
 
   for (int i = 0; i < sizeof(mask); ++i) {
-    this->send_buffer_.add(mask[i]);
+    CHECK_EXPECTED(this->send_buffer_.add(mask[i]));
   }
 
   uint8_t index = 0;
   while (0 < message_size--) {
-    this->send_buffer_.add(mask[3 & index++] ^ *message++);
+    CHECK_EXPECTED(this->send_buffer_.add(mask[3 & index++] ^ *message++));
   }
 
   return this->body_stream_->write_async(this->send_buffer_.data(), this->send_buffer_.size());
@@ -118,7 +118,7 @@ vds::async_task<vds::expected<void>> vds::websocket_client::input_stream::write_
     co_return expected<void>();
   }
 
-  this->buffer_.add(data, len);
+  CHECK_EXPECTED(this->buffer_.add(data, len));
   if (2 > this->buffer_.size()) {
     co_return expected<void>();
   }

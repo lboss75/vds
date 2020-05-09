@@ -194,7 +194,7 @@ namespace vds {
 			}
 		}
 		else {
-			this->data_.add(data, len);
+            CHECK_EXPECTED(this->data_.add(data, len));
 		}
 
 		return expected<void>();

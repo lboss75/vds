@@ -235,7 +235,7 @@ namespace vds {
 	  lambda_holder_t() {
 	  }
 
-    lambda_holder_t(lambda_holder_t && origin)
+    lambda_holder_t(lambda_holder_t && origin) noexcept
     : holder_(std::move(origin.holder_)){
     }
 

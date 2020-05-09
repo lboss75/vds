@@ -117,12 +117,9 @@ namespace vds {
           std::string address_;
           uint8_t hops_;
 
-          target_node() {
-          }
-
+          target_node() = default;
           target_node(const target_node &) = default;
-
-          target_node(target_node && other)
+          target_node(target_node && other) noexcept
           : target_id_(std::move(other.target_id_)),
             address_(std::move(other.address_)),
             hops_(other.hops_) {

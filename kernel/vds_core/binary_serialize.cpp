@@ -7,43 +7,38 @@ All rights reserved
 
 vds::expected<void> vds::binary_serializer::put(bool value)
 {
-  this->data_.add(value ? (uint8_t)0xFF : (uint8_t)0);
-  return expected<void>();
+  return this->data_.add(value ? (uint8_t)0xFF : (uint8_t)0);
 }
 
 vds::expected<void> vds::binary_serializer::put(uint8_t value)
 {
-  this->data_.add(value);
-  return expected<void>();
+  return this->data_.add(value);
 }
 
 vds::expected<void> vds::binary_serializer::put(uint16_t value)
 {
-  this->data_.add((value >> 8) & 0xFF);
-  this->data_.add(value & 0xFF);
-  return expected<void>();
+  CHECK_EXPECTED(this->data_.add((value >> 8) & 0xFF));
+  return this->data_.add(value & 0xFF);
 }
 
 vds::expected<void> vds::binary_serializer::put(uint32_t value)
 {
-  this->data_.add((value >> 24) & 0xFF);
-  this->data_.add((value >> 16) & 0xFF);
-  this->data_.add((value >> 8) & 0xFF);
-  this->data_.add(value & 0xFF);
-  return expected<void>();
+  CHECK_EXPECTED(this->data_.add((value >> 24) & 0xFF));
+  CHECK_EXPECTED(this->data_.add((value >> 16) & 0xFF));
+  CHECK_EXPECTED(this->data_.add((value >> 8) & 0xFF));
+  return this->data_.add(value & 0xFF);
 }
 
 vds::expected<void> vds::binary_serializer::put(uint64_t value)
 {
-  this->data_.add((value >> 56) & 0xFF);
-  this->data_.add((value >> 48) & 0xFF);
-  this->data_.add((value >> 40) & 0xFF);
-  this->data_.add((value >> 32) & 0xFF);
-  this->data_.add((value >> 24) & 0xFF);
-  this->data_.add((value >> 16) & 0xFF);
-  this->data_.add((value >> 8) & 0xFF);
-  this->data_.add(value & 0xFF);
-  return expected<void>();
+  CHECK_EXPECTED(this->data_.add((value >> 56) & 0xFF));
+  CHECK_EXPECTED(this->data_.add((value >> 48) & 0xFF));
+  CHECK_EXPECTED(this->data_.add((value >> 40) & 0xFF));
+  CHECK_EXPECTED(this->data_.add((value >> 32) & 0xFF));
+  CHECK_EXPECTED(this->data_.add((value >> 24) & 0xFF));
+  CHECK_EXPECTED(this->data_.add((value >> 16) & 0xFF));
+  CHECK_EXPECTED(this->data_.add((value >> 8) & 0xFF));
+  return this->data_.add(value & 0xFF);
 }
 
 vds::expected<void> vds::binary_serializer::write_number(uint64_t value)
@@ -62,9 +57,9 @@ vds::expected<void> vds::binary_serializer::write_number(uint64_t value)
     value >>= 8;
   } while (0 != value);
   
-  this->data_.add((uint8_t)(0x80 | index));
+  CHECK_EXPECTED(this->data_.add((uint8_t)(0x80 | index)));
   while(index > 0){
-    this->data_.add(data[--index]);
+      CHECK_EXPECTED(this->data_.add(data[--index]));
   }
   
   return expected<void>();
@@ -73,9 +68,7 @@ vds::expected<void> vds::binary_serializer::write_number(uint64_t value)
 vds::expected<void> vds::binary_serializer::put(const std::string & value)
 {
   CHECK_EXPECTED(this->write_number(value.length()));
-  this->data_.add(value.c_str(), value.length());
-  
-  return expected<void>();
+  return this->data_.add(value.c_str(), value.length());
 }
 
 vds::expected<void> vds::binary_serializer::push_data(const void * data, size_t size, bool serialize_size)
@@ -84,8 +77,7 @@ vds::expected<void> vds::binary_serializer::push_data(const void * data, size_t 
     CHECK_EXPECTED(this->write_number(size));
   }
   
-  this->data_.add(data, size);
-  return expected<void>();
+  return this->data_.add(data, size);
 }
 
 vds::expected<void> vds::binary_serializer::put(const const_data_buffer& data)
