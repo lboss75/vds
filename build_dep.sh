@@ -8,8 +8,8 @@ export CC=clang-6.0
 export CXX=clang++-6.0
 export LD=clang++-6.0
 
-export CFLAGS="-fPIC -fno-exceptions -I/usr/include/arm-linux-gnueabihf/"
-export CXXFLAGS="-fcoroutines-ts -std=c++17 -fno-exceptions -fPIC"
+export CFLAGS="-fPIC -fexceptions -I/usr/include/arm-linux-gnueabihf/"
+export CXXFLAGS="-fcoroutines-ts -std=c++17 -fexceptions -fPIC"
 export LDFLAGS="-lstdc++ -Wl"
 cd externals
 
