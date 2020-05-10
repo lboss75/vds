@@ -67,10 +67,9 @@ namespace vds {
     vds::async_task<vds::expected<const_data_buffer>> read_all() {
       auto result = std::make_shared<resizable_data_buffer>();
       for(;;) {
-        result->resize_data(result->size() + 1024);
+        CHECK_EXPECTED_ASYNC(result->resize_data(result->size() + 1024));
 
-        size_t readed;
-        GET_EXPECTED_VALUE_ASYNC(readed, co_await this->read_async(const_cast<uint8_t *>(result->data() + result->size()), 1024));
+        GET_EXPECTED_ASYNC(readed, co_await this->read_async(const_cast<uint8_t *>(result->data() + result->size()), 1024));
         if(readed == 0) {
           co_return result->move_data();
         }
