@@ -140,6 +140,9 @@ namespace vds {
 #else
       if (0 <= this->s_) {
         shutdown(this->s_, 2);
+        if (0 != this->event_masks_) {
+          (void)(*this->sp_->get<network_service>())->remove_association(this->s_);
+        }
         this->s_ = -1;
       }
 #endif

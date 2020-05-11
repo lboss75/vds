@@ -79,8 +79,9 @@ namespace vds{
 
     virtual bool need_demonize();
 
+    static app* the_app_;
+
 #ifdef _WIN32
-      static app * the_app_;
 
     virtual TCHAR* service_name() const;
 
@@ -104,7 +105,7 @@ namespace vds{
     static VOID WINAPI SvcCtrlHandler(DWORD dwCtrl);
 #else//_WIN32
 
-static barrier stop_barrier;
+    barrier stop_barrier_;
 static expected<void> kill_prev(const foldername & root_folder, const std::string & process_name);
 static expected<void> demonize(const foldername & root_folder, const std::string & process_name);
 

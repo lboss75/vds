@@ -74,3 +74,5 @@ externals/zlib_out/
 externals/build_openssl/
 storage/
 package-lock.json
+cmake-build-debug/
+out/

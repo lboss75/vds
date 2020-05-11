@@ -6,9 +6,9 @@ All rights reserved
 #include "stdafx.h"
 #include "app.h"
 
+vds::app* vds::app::the_app_ = nullptr;
 
 #ifndef _WIN32
-vds::barrier vds::app::stop_barrier;
 
 vds::expected<void> vds::app::kill_prev(const vds::foldername &root_folder, const std::string & process_name) {
     chdir("/");
@@ -165,16 +165,19 @@ vds::expected<void> vds::app::demonize(const vds::foldername &root_folder, const
 
 
       void vds::app::signalHandler(int /*signum*/) {
-          stop_barrier.set();
+        the_app_->stop_barrier_.set();
       }
 
       void vds::app::waiting_stop_signal(bool) {
-          signal(SIGINT, signalHandler);
-          stop_barrier.wait();
+          //signal(SIGINT, signalHandler);
+          
+          struct sigaction act;
+          act.sa_handler = signalHandler;
+          sigaction(SIGINT, &act, NULL);
+
+          this->stop_barrier_.wait();
       }
 #else
-
-vds::app * vds::app::the_app_ = nullptr;
 
 TCHAR* vds::app::service_name() const {
 #ifdef __cpp_exceptions
@@ -414,10 +417,7 @@ vds::app::app(): logger_(log_level::ll_info, std::unordered_set<std::string>()),
                  current_command_set_(nullptr),
                  help_cmd_set_("Show help", "Show application help", "help"),
                  help_cmd_switch_("h", "help", "Help", "Show help") {
-#ifdef _WIN32
   the_app_ = this;
-#endif
-
 }
 
 int vds::app::run(int argc, const char** argv) {
