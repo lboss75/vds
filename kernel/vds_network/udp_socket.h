@@ -89,8 +89,11 @@ namespace vds {
         std::shared_ptr<udp_datagram_writer>>
           start(const service_provider * sp);
 
+#ifndef _WIN32
+    void stop() override;
+#else
     void stop();
-
+#endif//_WIN32
     _udp_socket * operator -> () const { return this->impl_; }
 
     static expected<std::shared_ptr<udp_socket>> create(const service_provider * sp, sa_family_t af);

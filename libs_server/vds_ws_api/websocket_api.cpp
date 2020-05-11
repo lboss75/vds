@@ -573,7 +573,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::allocate_storage(
 
     char* end;
     const auto size = std::strtoull(size_str.c_str(), &end, 10);
-    if (size_str != std::to_string(size) || nullptr != end && '\0' != *end) {
+    if (size_str != std::to_string(size) || (nullptr != end && '\0' != *end)) {
         return vds::make_unexpected<std::runtime_error>("Invalid size parameter value " + size_str);
     }
 
