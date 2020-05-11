@@ -12,7 +12,7 @@ build-ubuntu:
         - mkdir build
         - ./build.sh
         - mkdir dist
-        - cp build/app/vds_web_server/vds_web_server dist
+        - cp build/app/vds_ws_server/vds_ws_server dist
         - cp /usr/lib/libc++.so.1 dist
         - cp /usr/lib/libc++.so dist
         - cp /usr/lib/libc++abi.so.1 dist
