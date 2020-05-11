@@ -218,8 +218,8 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::o
       lock.unlock();
 
       resizable_data_buffer out_message;
-      CHECK_EXPECTED(out_message.resize_data(mtu + 256));
-      CHECK_EXPECTED(out_message.add((uint8_t)protocol_message_type_t::MTUTest));
+      CHECK_EXPECTED_ASYNC(out_message.resize_data(mtu + 256));
+      CHECK_EXPECTED_ASYNC(out_message.add((uint8_t)protocol_message_type_t::MTUTest));
       out_message.apply_size(mtu + 255);
 
       (void)co_await s->write_async(udp_datagram(this->address_, out_message.move_data()));
@@ -641,7 +641,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::c
         size -= p->second.size() - (1 + 4 + SIZE_SIZE + 32);
 
         target_node = this->this_node_id_;
-        CHECK_EXPECTED(message.add(p->second.data() + 1 + 4 + SIZE_SIZE, p->second.size() - (1 + 4 + SIZE_SIZE + 32)));
+        CHECK_EXPECTED_ASYNC(message.add(p->second.data() + 1 + 4 + SIZE_SIZE, p->second.size() - (1 + 4 + SIZE_SIZE + 32)));
         break;
       }
 
@@ -653,7 +653,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::c
         size -= p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 32);
 
         target_node = const_data_buffer(p->second.data() + 1 + 4 + SIZE_SIZE, 32);
-        CHECK_EXPECTED(message.add(p->second.data() + (1 + 4 + SIZE_SIZE + 32), p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 32)));
+        CHECK_EXPECTED_ASYNC(message.add(p->second.data() + (1 + 4 + SIZE_SIZE + 32), p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 32)));
         break;
       }
 
@@ -673,7 +673,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::c
         vds_assert(p->second.size() > (1 + 4 + SIZE_SIZE + 32 + 1 + 32 * hops_count + 32));
         size -= p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 1 + 32 * hops_count + 32);
 
-        CHECK_EXPECTED(message.add(p->second.data() + (1 + 4 + SIZE_SIZE + 32 + 1 + hops_count * 32), p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 1 + hops_count * 32  + 32)));
+        CHECK_EXPECTED_ASYNC(message.add(p->second.data() + (1 + 4 + SIZE_SIZE + 32 + 1 + hops_count * 32), p->second.size() - (1 + 4 + SIZE_SIZE + 32 + 1 + hops_count * 32  + 32)));
         break;
       }
       default:
@@ -695,7 +695,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::c
           co_return vds::make_unexpected<std::runtime_error>("Invalid data");
         }
 
-        CHECK_EXPECTED(message.add(p1->second.data() + (1 + 4), p1->second.size() - (1 + 4 + 32)));
+        CHECK_EXPECTED_ASYNC(message.add(p1->second.data() + (1 + 4), p1->second.size() - (1 + 4 + 32)));
         vds_assert(p1->second.size() >(1 + 4 + 32));
         size -= p1->second.size() - (1 + 4 + 32);
 
