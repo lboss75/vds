@@ -115,7 +115,7 @@ vds::async_task<vds::expected<vds::member_user>> vds::_member_user::create_user(
   auto user_pkey = std::make_shared<asymmetric_public_key>(std::move(user_public_key));
   GET_EXPECTED_ASYNC(user_id, user_pkey->fingerprint());
 
-  CHECK_EXPECTED(log.add(
+  CHECK_EXPECTED_ASYNC(log.add(
     transactions::store_block_transaction::create(
       user_id,
       profile_info.data_hash,
@@ -124,7 +124,7 @@ vds::async_task<vds::expected<vds::member_user>> vds::_member_user::create_user(
       profile_info.replicas,
       *private_key)));
 
-  CHECK_EXPECTED(log.add(
+  CHECK_EXPECTED_ASYNC(log.add(
     message_create<transactions::create_user_transaction>(
       user_email,
       user_pkey,

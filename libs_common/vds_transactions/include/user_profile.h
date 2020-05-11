@@ -1,5 +1,5 @@
-#ifndef __VDS_transactions_USER_PROFILE_H_
-#define __VDS_USER_MANAGER_USER_PROFILE_H_
+#ifndef __VDS_TRANSACTIONS_USER_PROFILE_H_
+#define __VDS_TRANSACTIONS_USER_PROFILE_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -27,4 +27,4 @@ namespace vds {
   };
 }
 
-#endif // __VDS_USER_MANAGER_USER_PROFILE_H_
+#endif // __VDS_TRANSACTIONS_USER_PROFILE_H_
