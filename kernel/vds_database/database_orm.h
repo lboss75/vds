@@ -8,6 +8,7 @@ All rights reserved
 
 #include "database.h"
 #include "encoding.h"
+#include "vds_debug.h"
 
 namespace vds {
   //forwards
@@ -71,7 +72,7 @@ namespace vds {
   public:
     static const_data_buffer from_db_value(const std::string & value) {
       auto result = base64::to_bytes(value);
-      assert(!result.has_error());
+      vds_assert(!result.has_error());
 #if __cpp_exceptions
       if(result.has_error()) {
         throw std::runtime_error(result.error()->what());
