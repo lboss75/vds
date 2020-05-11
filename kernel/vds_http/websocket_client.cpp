@@ -43,7 +43,7 @@ vds::async_task<vds::expected<void>> vds::websocket_client::open_connection(
         return vds::make_unexpected<std::runtime_error>("Connection error " + response.comment());
       }
 
-      return std::make_shared<input_stream>(pthis);
+      return async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>>(std::make_shared<input_stream>(pthis));
     },
     [pthis = this->shared_from_this()](std::shared_ptr<stream_output_async<uint8_t>> body_stream)->async_task<expected<void>> {
       pthis->body_stream_ = body_stream;
@@ -118,7 +118,7 @@ vds::async_task<vds::expected<void>> vds::websocket_client::input_stream::write_
     co_return expected<void>();
   }
 
-  CHECK_EXPECTED(this->buffer_.add(data, len));
+  CHECK_EXPECTED_ASYNC(this->buffer_.add(data, len));
   if (2 > this->buffer_.size()) {
     co_return expected<void>();
   }
