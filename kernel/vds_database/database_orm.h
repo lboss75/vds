@@ -58,11 +58,11 @@ namespace vds {
   class _database_value_convertor {
   public:
     static value_type from_db_value(db_value_type value) {
-      return static_cast<value_type>(value);
+      return safe_cast<value_type>(value);
     }
     
     static db_value_type to_db_value(value_type value) {
-      return static_cast<db_value_type>(value);
+      return safe_cast<db_value_type>(value);
     }
   };
 
@@ -71,6 +71,7 @@ namespace vds {
   public:
     static const_data_buffer from_db_value(const std::string & value) {
       auto result = base64::to_bytes(value);
+      assert(!result.has_error());
 #if __cpp_exceptions
       if(result.has_error()) {
         throw std::runtime_error(result.error()->what());

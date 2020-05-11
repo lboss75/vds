@@ -25,7 +25,7 @@ namespace vds {
 
       database_column<const_data_buffer, std::string> storage_id;
       database_column<const_data_buffer, std::string> replica_hash;
-      database_column<uint64_t, long> replica_size;
+      database_column<size_t, long> replica_size;
       database_column<const_data_buffer, std::string> owner;
       database_column<std::string> storage_path;
       database_column<std::chrono::system_clock::time_point> last_access;

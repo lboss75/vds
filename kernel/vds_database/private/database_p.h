@@ -20,7 +20,7 @@ namespace vds {
   {
   public:
     _sql_statement()
-      : db_(nullptr), stmt_(nullptr), state_(bof_state) {
+      : db_(nullptr), stmt_(nullptr), state_(state_enum::bof_state) {
     }
 
     ~_sql_statement()
@@ -34,7 +34,7 @@ namespace vds {
     {
       this->db_ = db;
       vds_assert(this->stmt_ == nullptr);
-      vds_assert(this->state_ == bof_state);
+      vds_assert(this->state_ == state_enum::bof_state);
 
       auto result = sqlite3_prepare_v2(db, sql, -1, &this->stmt_, nullptr);
       switch (result) {
@@ -88,11 +88,11 @@ namespace vds {
       auto result = sqlite3_step(this->stmt_);
       switch (result) {
       case SQLITE_ROW:
-        this->state_ = read_state;
+        this->state_ = state_enum::read_state;
         return true;
 
       case SQLITE_DONE:
-        this->state_ = eof_state;
+        this->state_ = state_enum::eof_state;
         return false;
 
       default:
@@ -103,7 +103,7 @@ namespace vds {
 
     bool get_value(int index, int & value)
     {
-      vds_assert(read_state == this->state_);
+      vds_assert(state_enum::read_state == this->state_);
       vds_assert(0 <= index && index < sqlite3_column_count(this->stmt_));
 
       value = sqlite3_column_int(this->stmt_, index);
@@ -112,7 +112,7 @@ namespace vds {
 
     bool get_value(int index, int64_t & value)
     {
-      vds_assert(read_state == this->state_);
+      vds_assert(state_enum::read_state == this->state_);
       vds_assert(0 <= index && index < sqlite3_column_count(this->stmt_));
 
       value = sqlite3_column_int64(this->stmt_, index);
@@ -121,7 +121,7 @@ namespace vds {
 
     bool get_value(int index, std::string & value)
     {
-      vds_assert(read_state == this->state_);
+      vds_assert(state_enum::read_state == this->state_);
       vds_assert(0 <= index && index < sqlite3_column_count(this->stmt_));
 
       auto v = (const char *)sqlite3_column_text(this->stmt_, index);
@@ -135,7 +135,7 @@ namespace vds {
 
     bool get_value(int index, const_data_buffer & value)
     {
-      vds_assert(read_state == this->state_);
+      vds_assert(state_enum::read_state == this->state_);
       vds_assert(0 <= index && index < sqlite3_column_count(this->stmt_));
 
       const auto size = sqlite3_column_bytes(this->stmt_, index);
@@ -152,7 +152,7 @@ namespace vds {
 
     bool get_value(int index, double & value)
     {
-      vds_assert(read_state == this->state_);
+      vds_assert(state_enum::read_state == this->state_);
       vds_assert(0 <= index && index < sqlite3_column_count(this->stmt_));
 
       value = sqlite3_column_double(this->stmt_, index);
@@ -161,7 +161,7 @@ namespace vds {
 
     bool get_value(int index, std::chrono::system_clock::time_point & value)
     {
-      vds_assert(read_state == this->state_);
+      vds_assert(state_enum::read_state == this->state_);
       vds_assert(0 <= index && index < sqlite3_column_count(this->stmt_));
 
       value = std::chrono::system_clock::from_time_t(
@@ -178,7 +178,7 @@ namespace vds {
     sqlite3 * db_;
     sqlite3_stmt * stmt_;
     
-    enum state_enum
+    enum class state_enum
     {
       bof_state,
       read_state,
@@ -189,9 +189,9 @@ namespace vds {
     
     void reset()
     {
-      if(bof_state != this->state_){
+      if(state_enum::bof_state != this->state_){
         sqlite3_reset(this->stmt_);
-        this->state_ = bof_state;
+        this->state_ = state_enum::bof_state;
       }
     }
   };
