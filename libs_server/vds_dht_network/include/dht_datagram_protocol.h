@@ -89,6 +89,10 @@ namespace vds {
       protected:
         const service_provider * sp_;
 
+        std::mutex metrics_mutex_;
+        time_t last_metric_;
+        std::list<session_statistic::time_metric> metrics_;
+
         std::mutex traffic_mutex_;
         std::map<std::string /*from*/, std::map<std::string /*to*/, std::map<uint8_t /*message_type*/, session_statistic::traffic_info /*size*/>>> traffic_;
 
@@ -139,6 +143,10 @@ namespace vds {
         uint32_t expected_index_;
         std::chrono::steady_clock::time_point last_processed_;
         std::map<uint32_t, const_data_buffer> input_messages_;
+
+        size_t idle_ = 0;
+        size_t delay_ = 0;
+        size_t service_traffic_ = 0;
 
         vds::async_task<vds::expected<void>> send_message_async(
           std::shared_ptr<iudp_transport> s,

@@ -18,6 +18,7 @@ All rights reserved
 #include "local_data_dbo.h"
 #include "server_api.h"
 #include "datacoin_balance_dbo.h"
+#include "server.h"
 
 vds::websocket_api::websocket_api()
   : subscribe_timer_("WebSocket API Subscribe Timer")
@@ -317,6 +318,9 @@ vds::websocket_api::process_message(
       GET_EXPECTED_ASYNC(wallet_id, base64::to_bytes(wallet_id_str->value()));
 
       CHECK_EXPECTED_ASYNC(co_await this->get_balance(sp, r, std::move(wallet_id)));
+  }
+  else if ("statistics" == method_name) {
+    CHECK_EXPECTED_ASYNC(co_await this->statistics(sp, r));
   }
   else {
     co_return make_unexpected<std::runtime_error>("invalid method '" + method_name + "'");
@@ -755,6 +759,17 @@ vds::async_task<vds::expected<void>> vds::websocket_api::get_balance(
 
     res->add_property("result", result_json);
     co_return expected<void>();
+}
+
+vds::async_task<vds::expected<void>> vds::websocket_api::statistics(
+  const vds::service_provider* sp,
+  std::shared_ptr<json_object> result)
+{
+  const auto server = sp->get<vds::server>();
+  GET_EXPECTED_ASYNC(stat, co_await server->get_statistic());
+  result->add_property("result", stat.serialize());
+
+  co_return expected<void>();
 }
 
 vds::websocket_api::subscribe_handler::subscribe_handler(std::string cb, const_data_buffer channel_id)

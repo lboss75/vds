@@ -41,13 +41,14 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_session::ping_node(
 }
 
 vds::session_statistic::session_info vds::dht::network::dht_session::get_statistic() const {
-  std::unique_lock<std::mutex> send_lock(const_cast<dht_session *>(this)->traffic_mutex_);
+  std::unique_lock<std::mutex> send_lock(const_cast<dht_session *>(this)->metrics_mutex_);
 
   return session_statistic::session_info{
+    base64::from_bytes(this->partner_node_id()),
     this->address().to_string(),
     false,
     false,
-    this->traffic_
+    this->metrics_
   };
 }
 

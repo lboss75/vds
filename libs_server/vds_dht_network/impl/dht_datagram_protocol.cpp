@@ -22,6 +22,7 @@ vds::dht::network::dht_datagram_protocol::dht_datagram_protocol(const service_pr
   last_input_index_(0),
   expected_index_(0),
   last_processed_(std::chrono::steady_clock::now()) {
+  std::time(&this->last_metric_);
 }
 
 vds::dht::network::dht_datagram_protocol::~dht_datagram_protocol()
@@ -57,7 +58,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::s
     base64::from_bytes(this->this_node_id_).c_str(),
     base64::from_bytes(target_node).c_str());
 
-  std::unique_lock<std::mutex> lock(this->traffic_mutex_);
+  std::unique_lock<std::mutex> lock(this->metrics_mutex_);
   this->traffic_[base64::from_bytes(this->this_node_id_)][base64::from_bytes(target_node)][message_type].sent_count_++;
   this->traffic_[base64::from_bytes(this->this_node_id_)][base64::from_bytes(target_node)][message_type].sent_ += message.size();
 
@@ -227,6 +228,33 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::o
   }
 
   CHECK_EXPECTED_ASYNC(co_await this->send_acknowledgment(s));
+
+  time_t this_time;
+  std::time(&this_time);
+  if (this_time - this->last_metric_ > 10) {
+    std::unique_lock<std::mutex> metrics_lock(this->metrics_mutex_);
+    while (this->metrics_.size() >= 10 * 6) {//10 minutes
+      this->metrics_.pop_front();
+    }
+
+    std::unique_lock<std::mutex> traffic_lock(this->traffic_mutex_);
+
+    this->metrics_.push_back(
+      session_statistic::time_metric{
+        this->last_metric_,
+        this_time,
+        this->mtu_,
+        this->output_messages_.size(),
+        this->input_messages_.size(),
+        this->idle_,
+        this->delay_,
+        this->service_traffic_,
+        std::move(this->traffic_)
+      });
+    this->service_traffic_ = 0;
+    this->last_metric_ = this_time;
+  }
+
 
   co_return expected<void>();
 }

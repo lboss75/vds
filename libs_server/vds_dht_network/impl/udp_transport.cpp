@@ -170,7 +170,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::udp_transport::on_timer(
 }
 
 void vds::dht::network::udp_transport::get_session_statistics(session_statistic& session_statistic) {
-  session_statistic.output_size_ = this->send_thread_->size();
+  session_statistic.send_queue_size_ = this->send_thread_->size();
 
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
   for (const auto& p : this->sessions_) {
