@@ -1,0 +1,49 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "-DZLIB_INCLUDE_DIR=${workspaceRoot}\\externals\\zlib_out\\include -DZLIB_LIBRARY=${workspaceRoot}\\externals\\zlib_out\\lib\\zlibstaticd.lib -DOPENSSL_ROOT_DIR=${workspaceRoot}\\externals\\build_openssl\\ -DGTEST_LIBRARY=${workspaceRoot}\\externals\\build_gtest\\lib\\Debug\\gtestd.lib -DGTEST_INCLUDE_DIR=${workspaceRoot}\\externals\\googletest\\googletest\\include -DGTEST_MAIN_LIBRARY=${workspaceRoot}\\externals\\build_gtest\\lib\\Debug\\gtest_maind.lib",
+      "buildCommandArgs": "-v",
+      "ctestCommandArgs": "",
+      "variables": []
+    },
+    {
+      "name": "Linux-GCC-Debug",
+      "generator": "Unix Makefiles",
+      "configurationType": "Debug",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "remoteCopySourcesExclusionList": [ ".vs", ".git", "out" ],
+      "cmakeCommandArgs": "-DCMAKE_C_COMPILER=/usr/bin/clang-6.0 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-6.0 -DZLIB_INCLUDE_DIR=/home/vadim/projects/vds/externals/zlib_out/include -DZLIB_LIBRARY=/home/vadim/projects/vds/externals/zlib_out/libz.a -DOPENSSL_ROOT_DIR=/home/vadim/projects/vds/externals/openssl-out/ -DGTEST_LIBRARY=/home/vadim/projects/vds/externals/gtest_out/lib/libgtest.a -DGTEST_INCLUDE_DIR=/home/vadim/projects/vds/externals/googletest/googletest/include -DGTEST_MAIN_LIBRARY=/home/vadim/projects/vds/externals/gtest_out/lib/libgtest_main.a",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x86" ],
+      "remoteMachineName": "992518426;192.168.0.178 (username=vadim, port=22, authentication=Password)",
+      "remoteCMakeListsRoot": "$HOME/.vs/${projectDirName}/${workspaceHash}/src",
+      "remoteBuildRoot": "$HOME/.vs/${projectDirName}/${workspaceHash}/out/build/${name}",
+      "remoteInstallRoot": "$HOME/.vs/${projectDirName}/${workspaceHash}/out/install/${name}",
+      "remoteCopySources": true,
+      "rsyncCommandArgs": "-t --delete --delete-excluded --exclude=externals --exclude=build",
+      "remoteCopyBuildOutput": false,
+      "remoteCopySourcesMethod": "rsync",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "variables": []
+    },
+    {
+      "name": "x86-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "-DZLIB_INCLUDE_DIR=${workspaceRoot}\\externals\\zlib_out\\include -DZLIB_LIBRARY=${workspaceRoot}\\externals\\zlib_out\\lib\\zlibstaticd.lib -DOPENSSL_ROOT_DIR=${workspaceRoot}\\externals\\build_openssl\\ -DGTEST_LIBRARY=${workspaceRoot}\\externals\\build_gtest\\lib\\Debug\\gtestd.lib -DGTEST_INCLUDE_DIR=${workspaceRoot}\\externals\\googletest\\googletest\\include -DGTEST_MAIN_LIBRARY=${workspaceRoot}\\externals\\build_gtest\\lib\\Debug\\gtest_maind.lib",
+      "buildCommandArgs": "-v",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x86" ],
+      "variables": []
+    }
+  ]
+}
