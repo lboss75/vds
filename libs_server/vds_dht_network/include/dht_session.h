@@ -41,6 +41,9 @@ namespace vds {
           const const_data_buffer& message);
 
         session_statistic::session_info get_statistic() const;
+
+      private:
+        uint64_t time_shift_ = 0;
       };
     }
   }

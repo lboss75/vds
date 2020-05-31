@@ -170,11 +170,13 @@ vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(
   const imessage_map::message_info_t& message_info) {
 
   this->sp_->get<logger>()->trace(ThisModule, "Send dht_pong");
+  const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+  GET_EXPECTED_ASYNC(response, message_create<messages::dht_pong>(message.ping_time_, now));
   CHECK_EXPECTED_ASYNC(co_await message_info.session()->send_message(
     this->udp_transport_,
     (uint8_t)messages::dht_pong::message_id,
     message_info.source_node(),
-    message_serialize(messages::dht_pong())));
+    message_serialize(response)));
 
   co_return true;
 }
@@ -182,6 +184,8 @@ vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(
 vds::async_task<vds::expected<bool>> vds::dht::network::_client::apply_message(
   const messages::dht_pong& message,
   const imessage_map::message_info_t& message_info) {
+  const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+  message_info.session()->process_pong(message_info.source_node(), now - message.ping_time_);
   this->route_.mark_pinged(
     message_info.source_node(),
     message_info.session()->address());

@@ -85,6 +85,9 @@ namespace vds {
         vds::async_task<vds::expected<void>> on_timer(
           const std::shared_ptr<iudp_transport>& s);
 
+        void process_pong(
+          const const_data_buffer& source_node,
+          uint64_t timeout);
 
       protected:
         const service_provider * sp_;
@@ -94,7 +97,7 @@ namespace vds {
         std::list<session_statistic::time_metric> metrics_;
 
         std::mutex traffic_mutex_;
-        std::map<std::string /*from*/, std::map<std::string /*to*/, std::map<uint8_t /*message_type*/, session_statistic::traffic_info /*size*/>>> traffic_;
+        std::map<const_data_buffer /*from*/, std::map<const_data_buffer /*to*/, std::map<uint8_t /*message_type*/, session_statistic::traffic_info /*size*/>>> traffic_;
 
         async_task<vds::expected<void>> send_acknowledgment(
           const std::shared_ptr<iudp_transport>& s);
@@ -136,7 +139,11 @@ namespace vds {
 
         std::mutex output_mutex_;
         uint32_t last_output_index_;
-        std::map<uint32_t, const_data_buffer> output_messages_;
+        struct output_message {
+          std::chrono::high_resolution_clock::time_point queue_time_;
+          const_data_buffer data_;
+        };
+        std::map<uint32_t, output_message> output_messages_;
 
         std::mutex input_mutex_;
         uint32_t last_input_index_;
@@ -144,9 +151,11 @@ namespace vds {
         std::chrono::steady_clock::time_point last_processed_;
         std::map<uint32_t, const_data_buffer> input_messages_;
 
-        size_t idle_ = 0;
-        size_t delay_ = 0;
-        size_t service_traffic_ = 0;
+        std::atomic<uint64_t> idle_time_ = 0;
+        std::atomic<size_t> idle_count_ = 0;
+
+        std::atomic<size_t> delay_ = 0;
+        std::atomic<size_t> service_traffic_ = 0;
 
         vds::async_task<vds::expected<void>> send_message_async(
           std::shared_ptr<iudp_transport> s,

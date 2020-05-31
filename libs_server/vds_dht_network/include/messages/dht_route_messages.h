@@ -79,9 +79,11 @@ namespace vds {
       public:
         static const network::message_type_t message_id = network::message_type_t::dht_ping;
 
+        uint64_t ping_time_;
+
         template <typename visitor_type>
         void visit(visitor_type & v) {
-          v();
+          v(this->ping_time_);
         }
       };
 
@@ -89,9 +91,13 @@ namespace vds {
       public:
         static const network::message_type_t message_id = network::message_type_t::dht_pong;
 
+        uint64_t ping_time_;
+        uint64_t pong_time_;
+
         template <typename visitor_type>
         void visit(visitor_type & v) {
-          v();
+          v(this->ping_time_);
+          v(this->pong_time_);
         }
       };
 

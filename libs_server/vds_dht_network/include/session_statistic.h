@@ -48,7 +48,7 @@ namespace vds {
       size_t idle_;
       size_t delay_;
       size_t service_traffic_;
-      std::map<std::string /*from*/, std::map<std::string /*to*/, std::map<uint8_t /*message_type*/, traffic_info /*size*/>>> traffic_;
+      std::map<const_data_buffer /*from*/, std::map<const_data_buffer /*to*/, std::map<uint8_t /*message_type*/, traffic_info /*size*/>>> traffic_;
 
       void serialize(std::shared_ptr<json_array>& items) const {
         auto result = std::make_shared<json_object>();
@@ -79,7 +79,7 @@ namespace vds {
             for (const auto& message_item : to_item.second)
             {
               auto message_result = std::make_shared<json_object>();
-              message_result->add_property("msg", message_item.first);
+              message_result->add_property("msg", std::to_string(message_item.first));
               message_item.second.serialize(message_result);
               to_result_items->add(message_result);
             }

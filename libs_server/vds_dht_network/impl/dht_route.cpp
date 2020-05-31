@@ -236,7 +236,9 @@ void vds::dht::dht_route::get_neighbors(std::list<std::shared_ptr<node>>& result
   }
 }
 
-void vds::dht::dht_route::mark_pinged(const const_data_buffer& target_node, const network_address& address)
+void vds::dht::dht_route::mark_pinged(
+  const const_data_buffer& target_node,
+  const network_address& address)
 {
   auto index = dht_object_id::distance_exp(this->current_node_id_, target_node);
 

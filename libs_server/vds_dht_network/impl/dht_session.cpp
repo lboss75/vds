@@ -27,12 +27,12 @@ vds::dht::network::dht_session::dht_session(
 }
 
 vds::async_task<vds::expected<void>> vds::dht::network::dht_session::ping_node(
-  
   const const_data_buffer& node_id,
   const std::shared_ptr<iudp_transport>& transport) {
 
-  //vds_assert(node_id != transport->this_node_id());
-  GET_EXPECTED(message, message_create<messages::dht_ping>());
+  GET_EXPECTED(message,
+    message_create<messages::dht_ping>(
+      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count()));
   return this->send_message(
     transport,
     (uint8_t)messages::dht_ping::message_id,
