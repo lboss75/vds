@@ -579,7 +579,6 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::c
       auto message_type = (uint8_t)(p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand);
 
       const_data_buffer target_node;
-      const_data_buffer source_node;
       std::vector<const_data_buffer> hops;
       hops.push_back(this->partner_node_id_);
       const_data_buffer message;
@@ -628,7 +627,7 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::c
         message_type,
         target_node,
         hops,
-        message).then([pthis = this->shared_from_this(), message_type, target_node, source_node, message_size](expected<bool> is_good) {
+        message).then([pthis = this->shared_from_this(), message_type, target_node, source_node = hops.back(), message_size](expected<bool> is_good) {
         std::unique_lock<std::mutex> traffic_lock(pthis->traffic_mutex_);
         if (is_good.has_value() && is_good.value()) {
           pthis->traffic_[source_node][target_node][message_type].good_count_++;

@@ -45,7 +45,7 @@ namespace vds {
           }
 
           const const_data_buffer& source_node() const {
-            return this->hops_[this->hops_.size() - 1];
+            return this->hops_.back();
           }
 
           const const_data_buffer& last_proxy_node() const {

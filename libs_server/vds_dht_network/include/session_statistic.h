@@ -9,6 +9,7 @@ All rights reserved
 
 #include <list>
 #include "encoding.h"
+#include "messages/dht_route_messages.h"
 
 namespace vds {
   struct session_statistic {
@@ -79,7 +80,7 @@ namespace vds {
             for (const auto& message_item : to_item.second)
             {
               auto message_result = std::make_shared<json_object>();
-              message_result->add_property("msg", std::to_string(message_item.first));
+              message_result->add_property("msg", std::to_string((dht::network::message_type_t)message_item.first));
               message_item.second.serialize(message_result);
               to_result_items->add(message_result);
             }

@@ -369,7 +369,7 @@ vds::expected<vds::const_data_buffer> vds::dht::network::_client::replica_id(con
 
 
 vds::expected<void> vds::dht::network::_client::start() {
-  return this->update_timer_.start(this->sp_, std::chrono::seconds(60), [pthis = this->shared_from_this()]() -> async_task<expected<bool>>{
+  return this->update_timer_.start(this->sp_, std::chrono::seconds(10), [pthis = this->shared_from_this()]() -> async_task<expected<bool>>{
 
     CHECK_EXPECTED_ASYNC(co_await pthis->udp_transport_->on_timer());
     CHECK_EXPECTED_ASYNC(co_await pthis->route_.on_timer(pthis->udp_transport_));

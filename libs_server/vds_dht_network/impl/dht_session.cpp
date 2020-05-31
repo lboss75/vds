@@ -73,7 +73,7 @@ vds::async_task<vds::expected<bool>> vds::dht::network::dht_session::process_mes
     "dht_session",
     "receive %d from %s to %s",
     message_type,
-    base64::from_bytes(hops[0]).c_str(),
+    base64::from_bytes(hops.back()).c_str(),
     base64::from_bytes(target_node).c_str());
 
   (*this->sp_->get<client>())->add_route(hops, std::static_pointer_cast<dht_session>(this->shared_from_this()));
@@ -83,7 +83,7 @@ vds::async_task<vds::expected<bool>> vds::dht::network::dht_session::process_mes
       "dht_session",
       "redirect %d from %s to %s",
       message_type,
-      base64::from_bytes(hops[0]).c_str(),
+      base64::from_bytes(hops.back()).c_str(),
       base64::from_bytes(target_node).c_str());
 
     CHECK_EXPECTED_ASYNC(co_await (*this->sp_->get<client>())->proxy_message(
