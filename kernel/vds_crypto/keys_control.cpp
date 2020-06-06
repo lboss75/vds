@@ -3,7 +3,7 @@
 #include "keys_control.h"
 
 char vds::keys_control::root_id_[65] =
-"oc9RuWeOndq1U64uID1IiJSTX7dc9oE3DmT3wH7Gv0E=";
+"9L4hUK/qkThWrhyWsl1NC/8MLYZtOqdJFZ2Y1uIDsr0=";
 
 vds::expected<vds::certificate> vds::_cert_control::create_cert(
   const vds::asymmetric_private_key & private_key) {
