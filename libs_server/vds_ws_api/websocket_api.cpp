@@ -618,7 +618,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::allocate_storage(
         return vds::make_unexpected<std::runtime_error>("Invalid signature");
     }
 
-    return sp->get<db_model>()->async_transaction([sp, key_id, folder, size, result](database_transaction& t) -> expected<void> {
+    return sp->get<db_model>()->async_transaction([sp, key_id, folder, size, usage_type, result](database_transaction& t) -> expected<void> {
         orm::node_storage_dbo t1;
         GET_EXPECTED(st, t.get_reader(t1.select(t1.storage_id, t1.reserved_size).where(t1.local_path == folder.full_name() && t1.owner_id == key_id)));
         GET_EXPECTED(exists, st.execute());
@@ -651,7 +651,8 @@ vds::async_task<vds::expected<void>> vds::websocket_api::allocate_storage(
                     t1.storage_id = storage_id,
                     t1.local_path = folder.full_name(),
                     t1.owner_id = key_id,
-                    t1.reserved_size = (int64_t)size));
+                    t1.reserved_size = (int64_t)size,
+                    t1.usage_type = usage_type));
         }
     });
 }
