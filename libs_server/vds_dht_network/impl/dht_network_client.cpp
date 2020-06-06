@@ -457,6 +457,8 @@ vds::expected<vds::filename> vds::dht::network::_client::save_data(
   GET_EXPECTED_VALUE(st, t.get_reader(
     t2.select(t2.storage_id, t2.local_path, t2.reserved_size, db_sum(t1.replica_size).as(data_size))
       .left_join(t1, t1.storage_id == t2.storage_id)
+      .where((t2.usage_type == orm::node_storage_dbo::usage_type_t::share)
+        || (t2.usage_type == orm::node_storage_dbo::usage_type_t::exclusive && t2.owner_id == owner))
       .group_by(t2.storage_id, t2.local_path, t2.reserved_size)));
   WHILE_EXPECTED (st.execute()) {
     const int64_t size = data_size.is_null(st) ? 0 : data_size.get(st);
@@ -527,6 +529,8 @@ vds::expected<vds::filename> vds::dht::network::_client::save_data(
   GET_EXPECTED_VALUE(st, t.get_reader(
     t2.select(t2.storage_id, t2.local_path, t2.reserved_size, db_sum(t1.replica_size).as(data_size))
     .left_join(t1, t1.storage_id == t2.storage_id)
+    .where((t2.usage_type == orm::node_storage_dbo::usage_type_t::share)
+      || (t2.usage_type == orm::node_storage_dbo::usage_type_t::exclusive && t2.owner_id == owner))
     .group_by(t2.storage_id, t2.local_path, t2.reserved_size)));
   WHILE_EXPECTED(st.execute()) {
     const int64_t size = data_size.is_null(st) ? 0 : data_size.get(st);
@@ -1040,7 +1044,8 @@ vds::expected<void> vds::dht::network::client::load_keys(
         t1.storage_id = storage_id,
         t1.local_path = folder.full_name(),
         t1.owner_id = keys_control::root_id(),
-        t1.reserved_size = (int64_t)10 * 1024 * 1024));
+        t1.reserved_size = 1024ul * 1024ul * 1024ul,
+        t1.usage_type = orm::node_storage_dbo::usage_type_t::share));
   }
 
   return expected<void>();

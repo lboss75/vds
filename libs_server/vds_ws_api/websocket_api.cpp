@@ -471,10 +471,11 @@ vds::async_task<vds::expected<void>> vds::websocket_api::devices(
         t1.storage_id,
         t1.local_path,
         t1.reserved_size,
+        t1.usage_type,
         db_sum(t2.replica_size).as(used_size))
       .left_join(t2, t2.storage_id == t1.storage_id)
       .where(t1.owner_id == owner_id)
-      .group_by(t1.local_path, t1.reserved_size)));
+      .group_by(t1.storage_id, t1.local_path, t1.reserved_size, t1.usage_type)));
   
     WHILE_EXPECTED(st.execute()) {
       if (!t1.local_path.get(st).empty()) {
@@ -483,6 +484,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::devices(
         result_item->add_property("local_path", t1.local_path.get(st));
         result_item->add_property("reserved_size", t1.reserved_size.get(st));
         result_item->add_property("used_size", used_size.get(st));
+        result_item->add_property("used_size", std::to_string(t1.usage_type.get(st)));
 
         auto free_size_result = foldername(t1.local_path.get(st)).free_size();
         if (free_size_result.has_value()) {
@@ -587,6 +589,13 @@ vds::async_task<vds::expected<void>> vds::websocket_api::allocate_storage(
         return vds::make_unexpected<std::runtime_error>("Invalid user name");
     }
 
+    std::string usage_type_str;
+    if (!sign_info->get_property("usage", usage_type_str)) {
+      return vds::make_unexpected<std::runtime_error>("Invalid folder usage");
+    }
+
+    GET_EXPECTED(usage_type, orm::node_storage_dbo::parse_usage_type(usage_type_str));
+
     if (!sign_info->get_property("sign", value)) {
         return vds::make_unexpected<std::runtime_error>("The signature is missing");
     }
@@ -595,6 +604,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::allocate_storage(
     sig_body->add_property("vds", "0.1");
     sig_body->add_property("name", key_id);
     sig_body->add_property("size", size_str);
+    sig_body->add_property("usage", std::to_string(usage_type));
 
     GET_EXPECTED(body, sig_body->json_value::str());
     GET_EXPECTED(sig_ok, asymmetric_sign_verify::verify(

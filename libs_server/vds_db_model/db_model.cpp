@@ -86,7 +86,8 @@ vds::expected<void> vds::db_model::migrate(
 			storage_id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			local_path VARCHAR(512) NOT NULL,\
       owner_id VARCHAR(64) NOT NULL,\
-      reserved_size INTEGER NOT NULL)",
+      reserved_size INTEGER NOT NULL,\
+      usage_type INTEGER NOT NULL)",
 
       "CREATE TABLE chunk_tmp_data (\
 			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\
