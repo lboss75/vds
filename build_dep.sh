@@ -61,7 +61,7 @@ make --quiet install
 cd ..
 
 set +e
-git clone --depth=1 --quiet https://github.com/google/googletest.git
+git clone --depth=1 --quiet --branch release-1.10.0 https://github.com/google/googletest.git
 rm -rf gtest_out
 set -e
 
