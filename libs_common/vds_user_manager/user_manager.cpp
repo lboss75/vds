@@ -29,11 +29,11 @@ vds::async_task<vds::expected<void>> vds::user_manager::reset(
     const std::string &root_password,
     const keys_control::private_info_t& private_info) {
 
-    GET_EXPECTED(user_public_key, asymmetric_public_key::create(*private_info.root_private_key_));
-    GET_EXPECTED(user_id, user_public_key.fingerprint());
+    GET_EXPECTED_ASYNC(user_public_key, asymmetric_public_key::create(*private_info.root_private_key_));
+    GET_EXPECTED_ASYNC(user_id, user_public_key.fingerprint());
     
     if (keys_control::root_id() != user_id) {
-      return make_unexpected<std::runtime_error>("Invalid keys file");
+      co_return make_unexpected<std::runtime_error>("Invalid keys file");
     }
 
     transactions::transaction_block_builder playback;
