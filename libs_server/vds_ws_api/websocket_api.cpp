@@ -484,7 +484,7 @@ vds::async_task<vds::expected<void>> vds::websocket_api::devices(
         result_item->add_property("local_path", t1.local_path.get(st));
         result_item->add_property("reserved_size", t1.reserved_size.get(st));
         result_item->add_property("used_size", used_size.get(st));
-        result_item->add_property("used_size", std::to_string(t1.usage_type.get(st)));
+        result_item->add_property("usage_type", std::to_string(t1.usage_type.get(st)));
 
         auto free_size_result = foldername(t1.local_path.get(st)).free_size();
         if (free_size_result.has_value()) {
