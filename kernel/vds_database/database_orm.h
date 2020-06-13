@@ -1565,6 +1565,22 @@ namespace vds {
       return _database_reader_builder_with_where<this_class, where_condition_type>(std::move(*this), std::move(cond));
     }
 
+    template <typename... group_by_columns_types>
+    _database_group_by_builder<this_class, group_by_columns_types...> group_by(group_by_columns_types&& ... group_by_columns)
+    {
+      return _database_group_by_builder<this_class, group_by_columns_types...>(
+        std::move(*this),
+        std::forward<group_by_columns_types>(group_by_columns)...);
+    }
+
+    template <typename... order_columns_types>
+    _database_order_builder<this_class, order_columns_types...> order_by(order_columns_types&& ... order_columns)
+    {
+      return _database_order_builder<this_class, order_columns_types...>(
+        std::move(*this),
+        std::forward<order_columns_types>(order_columns)...);
+    }
+
   private:
     typename _database_column_holder<column_type>::holder column_;
   };

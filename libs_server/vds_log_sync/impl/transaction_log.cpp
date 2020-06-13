@@ -1398,7 +1398,8 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
     t3.insert(
       t3.owner_id = message.owner_id,
       t3.replica_hash = message.replica_hash,
-      t3.node = block.write_public_key_id()
+      t3.node = block.write_public_key_id(),
+      t3.last_payment = block.time_point()
     )
   ));
 
