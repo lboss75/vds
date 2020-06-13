@@ -18,11 +18,13 @@ namespace vds {
     public:
       static const transaction_id message_id = transaction_id::host_block_transaction;
 
+      const_data_buffer owner_id;
       const_data_buffer replica_hash;
 
       template <typename  visitor_type>
       void visit(visitor_type & v) {
         v(
+          owner_id,
           replica_hash
         );
       }

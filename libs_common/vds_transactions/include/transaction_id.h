@@ -16,7 +16,7 @@ namespace vds {
       node_add_transaction = 'm',
       create_wallet_transaction = 'w',
       store_block_transaction = 's',
-      host_block_transaction = 's'
+      host_block_transaction = 'h'
     };
   }
 }
