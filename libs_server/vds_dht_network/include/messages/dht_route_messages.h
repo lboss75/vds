@@ -210,8 +210,8 @@ namespace std {
       //enum2str(sync_snapshot_response);
       //enum2str(sync_offer_send_replica_operation_request);
       //enum2str(sync_offer_remove_replica_operation_request);
-      //enum2str(sync_replica_request);
-      //enum2str(sync_replica_data);
+      enum2str(sync_replica_request);
+      enum2str(sync_replica_data);
       //enum2str(sync_replica_query_operations_request);
     default:
       return "unknown";

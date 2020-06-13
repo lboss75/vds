@@ -14,6 +14,7 @@ All rights reserved
 #include "create_user_transaction.h"
 #include "node_manager_transactions.h"
 #include "store_block_transaction.h"
+#include "host_block_transaction.h"
 
 namespace vds {
   class _user_channel;
@@ -38,6 +39,9 @@ namespace vds {
       }
       expected<void> add(expected<store_block_transaction>&& item) {
         return add_transaction<store_block_transaction>(std::move(item));
+      }
+      expected<void> add(expected<host_block_transaction>&& item) {
+        return add_transaction<host_block_transaction>(std::move(item));
       }
       expected<void> add(expected<create_wallet_transaction> && item) {
         return add_transaction<create_wallet_transaction>(std::move(item));

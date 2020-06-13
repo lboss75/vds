@@ -19,6 +19,8 @@ All rights reserved
 #include "server_api.h"
 #include "datacoin_balance_dbo.h"
 #include "server.h"
+#include "sync_replica_map_dbo.h"
+#include "chunk_replica_data_dbo.h"
 
 vds::websocket_api::websocket_api()
   : subscribe_timer_("WebSocket API Subscribe Timer")
@@ -321,6 +323,29 @@ vds::websocket_api::process_message(
   }
   else if ("statistics" == method_name) {
     CHECK_EXPECTED_ASYNC(co_await this->statistics(sp, r));
+  }
+  else if ("distribution_map" == method_name) {
+    auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
+    if (!args || args->size() < 1) {
+      co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'distribution_map'");
+    }
+
+    auto replica_array = std::dynamic_pointer_cast<json_array>(args->get(0));
+    if (!replica_array) {
+      co_return make_unexpected<std::runtime_error>("missing replica_array argument at invoke method 'distribution_map'");
+    }
+    std::list<const_data_buffer> replicas;
+    for (size_t i = 0; i < replica_array->size(); ++i) {
+      auto replica_str = std::dynamic_pointer_cast<json_primitive>(replica_array->get(i));
+      if (!replica_str) {
+        co_return make_unexpected<std::runtime_error>("invalid item replica_array[" + std::to_string(i) + "] at invoke method 'distribution_map'");
+      }
+
+      GET_EXPECTED_ASYNC(replica, base64::to_bytes(replica_str->value()));
+      replicas.push_back(replica);
+    }
+
+    CHECK_EXPECTED_ASYNC(co_await this->get_distribution_map(sp, r, std::move(replicas)));
   }
   else {
     co_return make_unexpected<std::runtime_error>("invalid method '" + method_name + "'");
@@ -667,40 +692,28 @@ vds::async_task<vds::expected<void>> vds::websocket_api::looking_block(
       data_hash,
       result
     ](database_read_transaction& t)->expected<void> {
-
-      orm::transaction_log_record_dbo t1;
+      orm::chunk_replica_data_dbo t1;
       GET_EXPECTED(st, t.get_reader(
-        t1.select(t1.id, t1.data)
-        .order_by(db_desc_order(t1.order_no))));
+        t1.select(t1.replica, t1.replica_hash)
+        .where(t1.object_hash == data_hash)
+        .order_by(t1.replica)));
 
+      auto res = std::make_shared<json_object>();
+      auto replicas = std::make_shared<json_array>();
+      size_t replica = 0;
       WHILE_EXPECTED(st.execute())
-        const auto data = t1.data.get(st);
-      GET_EXPECTED(block, transactions::transaction_block::create(data));
-
-      CHECK_EXPECTED(block.walk_messages(
-        [data_hash, &result](const transactions::store_block_transaction & message)->expected<bool> {
-          if (data_hash == message.object_id) {
-            auto res = std::make_shared<json_object>();
-
-            auto replicas = std::make_shared<json_array>();
-            for (const auto& p : message.replicas) {
-              const auto id = base64::from_bytes(p);
-              replicas->add(std::make_shared<json_primitive>(id));
-            }
-
-            res->add_property("replicas", replicas);
-            result->add_property("result", res);
-
-            return false;
-          }
-
-          return true;
-        }));
-
-
+        if (replica != t1.replica.get(st)) {
+          return expected<void>();
+        }
+      const auto id = base64::from_bytes(t1.replica_hash.get(st));
+      replicas->add(std::make_shared<json_primitive>(id));
+      ++replica;
       WHILE_EXPECTED_END()
 
-        return expected<void>();
+      res->add_property("replicas", replicas);
+      result->add_property("result", res);
+
+      return expected<void>();
     }));
 
   if (!result->get_property("result")) {
@@ -781,6 +794,60 @@ vds::async_task<vds::expected<void>> vds::websocket_api::statistics(
   result->add_property("result", stat.serialize());
 
   co_return expected<void>();
+}
+
+vds::async_task<vds::expected<void>> vds::websocket_api::get_distribution_map(const vds::service_provider* sp, std::shared_ptr<json_object> result, std::list<const_data_buffer> replicas)
+{
+  return sp->get<db_model>()->async_read_transaction(
+    [this, r = std::move(result), obj_ids = std::move(replicas)](database_read_transaction& t) -> expected<void> {
+      std::map<const_data_buffer, std::vector<const_data_buffer>> replicas;
+      for (const auto& data_hash : obj_ids) {
+        orm::chunk_replica_data_dbo t1;
+        GET_EXPECTED(st, t.get_reader(
+          t1.select(t1.replica, t1.replica_hash)
+          .where(t1.object_hash == data_hash)
+          .order_by(t1.replica)));
+
+        std::vector<const_data_buffer> replica;
+        WHILE_EXPECTED(st.execute())
+          if (replica.size() != t1.replica.get(st)) {
+            return expected<void>();
+          }
+        replica.push_back(t1.replica_hash.get(st));
+        WHILE_EXPECTED_END()
+
+          replicas[data_hash] = std::move(replica);
+      }
+
+      orm::sync_replica_map_dbo t8;
+      auto result = std::make_shared<json_array>();
+      for (const auto& object_id : obj_ids) {
+        auto item = std::make_shared<json_object>();
+        item->add_property("block", object_id);
+
+        auto replica = std::make_shared<json_array>();
+
+        for (const auto& rep : replicas[object_id]) {
+          auto rep_item = std::make_shared<json_object>();
+          rep_item->add_property("replica", rep);
+
+          auto nodes = std::make_shared<json_array>();
+          GET_EXPECTED(st, t.get_reader(t8.select(t8.node).where(t8.replica_hash == rep)));
+          WHILE_EXPECTED(st.execute()) {
+            nodes->add(std::make_shared<json_primitive>(base64::from_bytes(t8.node.get(st))));
+          }
+          WHILE_EXPECTED_END()
+          rep_item->add_property("nodes", nodes);
+          replica->add(rep_item);
+        }
+        item->add_property("replicas", replica);
+        result->add(item);
+      }
+
+      r->add_property("result", result);
+
+      return expected<void>();
+    });
 }
 
 vds::websocket_api::subscribe_handler::subscribe_handler(std::string cb, const_data_buffer channel_id)

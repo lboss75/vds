@@ -31,6 +31,7 @@ All rights reserved
 #include <chunk_tmp_data_dbo.h>
 #include <chunk_replica_data_dbo.h>
 #include <sync_replica_map_dbo.h>
+#include <sync_replica_payment_dbo.h>
 
 vds::expected<vds::const_data_buffer> vds::transactions::transaction_log::save(
 	const service_provider * sp,
@@ -1293,10 +1294,12 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
     orm::chunk_replica_data_dbo t1;
     CHECK_EXPECTED(t.execute(
       t1.insert(
+        t1.owner_id = message.owner_id,
         t1.object_hash = message.object_id,
         t1.replica = index,
         t1.replica_hash = message.replicas[index],
-        t1.replica_size = message.replica_size
+        t1.replica_size = message.replica_size,
+        t1.distance = dht::dht_object_id::distance_exp(client->current_node_id(), message.replicas[index])
       )
     ));
 
@@ -1306,6 +1309,16 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
         t2.replica_hash = message.replicas[index],
         t2.node = block.write_public_key_id(),
         t2.last_access = std::chrono::system_clock::now()        
+      )
+    ));
+
+    orm::sync_replica_payment_dbo t3;
+    CHECK_EXPECTED(t.execute(
+      t3.insert(
+        t3.owner_id = message.owner_id,
+        t3.replica_hash = message.replicas[index],
+        t3.node = block.write_public_key_id(),
+        t3.last_payment = block.time_point()
       )
     ));
   }
@@ -1335,6 +1348,15 @@ vds::expected<void> vds::transactions::transaction_log::undo_record(const servic
       t1.delete_if(
         t2.replica_hash == message.replicas[index]
         && t2.node == block.write_public_key_id()
+      )
+    ));
+
+    orm::sync_replica_payment_dbo t3;
+    CHECK_EXPECTED(t.execute(
+      t3.delete_if(
+        t3.owner_id == message.owner_id
+        && t3.replica_hash == message.replicas[index]
+        && t3.node == block.write_public_key_id()
       )
     ));
   }

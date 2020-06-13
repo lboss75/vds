@@ -123,6 +123,11 @@ namespace vds {
     async_task<expected<void>> statistics(
       const vds::service_provider* sp,
       std::shared_ptr<json_object> result);
+
+    async_task<expected<void>> get_distribution_map(
+      const vds::service_provider* sp,
+      std::shared_ptr<json_object> result,
+      std::list<const_data_buffer> replicas);
   };
 
 }//vds

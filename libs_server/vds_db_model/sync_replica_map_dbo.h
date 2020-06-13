@@ -21,6 +21,13 @@ namespace vds {
 			database_column<const_data_buffer, std::string> replica_hash;
       database_column<const_data_buffer, std::string> node;
       database_column<std::chrono::system_clock::time_point> last_access;
+
+			static constexpr const char* create_table =
+				"CREATE TABLE chunk_replica_map(\
+				replica_hash VARCHAR(64) NOT NULL,\
+				node VARCHAR(64) NOT NULL,\
+				last_access INTEGER NOT NULL,\
+				CONSTRAINT pk_chunk_replica_map PRIMARY KEY(replica_hash,node))";
 		};
 	}
 }

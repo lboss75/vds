@@ -1,5 +1,8 @@
 #include "stdafx.h"
 #include "db_model.h"
+#include "sync_replica_payment_dbo.h"
+#include "sync_replica_map_dbo.h"
+#include "chunk_replica_data_dbo.h"
 
 vds::async_task<vds::expected<void>> vds::db_model::async_transaction(lambda_holder_t<expected<void>, class database_transaction &> handler) {
   return this->db_.async_transaction([h = std::move(handler)](database_transaction & t)->expected<bool> {
@@ -139,13 +142,7 @@ vds::expected<void> vds::db_model::migrate(
 			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			last_sync INTEGER NOT NULL)",
 
-      "CREATE TABLE chunk_replica_data(\
-			object_hash VARCHAR(64) NOT NULL,\
-      replica INTEGER NOT NULL,\
-			replica_hash VARCHAR(64) NOT NULL,\
-      replica_size INTEGER NOT NULL,\
-      CONSTRAINT pk_chunk_replica_data PRIMARY KEY(object_hash,replica),\
-      CONSTRAINT idx_chunk_replica_data_replica_hash UNIQUE(replica_hash))",
+      orm::chunk_replica_data_dbo::create_table,
 
       "CREATE TABLE local_data_dbo(\
 			storage_id VARCHAR(64) NOT NULL,\
@@ -209,11 +206,8 @@ vds::expected<void> vds::db_model::migrate(
 
       "CREATE UNIQUE INDEX fk_sync_message ON sync_message(object_id,generation,current_term,source_node,source_index)",
 
-      "CREATE TABLE chunk_replica_map(\
-			replica_hash VARCHAR(64) NOT NULL,\
-			node VARCHAR(64) NOT NULL,\
-			last_access INTEGER NOT NULL,\
-      CONSTRAINT pk_chunk_replica_map PRIMARY KEY(replica_hash,node))",
+      orm::sync_replica_map_dbo::create_table,
+      orm::sync_replica_payment_dbo::create_table,
 
       "CREATE TABLE sync_state(\
 			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\

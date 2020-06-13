@@ -74,6 +74,12 @@ namespace vds {
           const const_data_buffer& value_id,
           uint16_t replica);
 
+        expected<void> save_data(
+          const service_provider* sp,
+          database_transaction & t,
+          const const_data_buffer& data,
+          const const_data_buffer& owner);
+
         static expected<filename> save_data(
           const service_provider * sp,
           database_transaction& t,
@@ -279,17 +285,17 @@ namespace vds {
           uint8_t hops);
 
         async_task<expected<const_data_buffer>> restore(
-          std::vector<const_data_buffer> object_ids,
+          std::vector<const_data_buffer> replicas_hashes,
           std::chrono::steady_clock::time_point start);
 
         expected<client::block_info_t> prepare_restore(
           database_read_transaction & t,
           std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-          const std::vector<const_data_buffer>& object_ids);
+          const std::vector<const_data_buffer>& replicas_hashes);
 
         async_task<vds::expected<uint8_t>> restore_async(
           
-          const std::vector<const_data_buffer>& object_ids,
+          const std::vector<const_data_buffer>& replicas_hashes,
           const std::shared_ptr<const_data_buffer>& result);
 
         void get_route_statistics(route_statistic& result);

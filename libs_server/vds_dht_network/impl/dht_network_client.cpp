@@ -573,6 +573,85 @@ vds::expected<vds::filename> vds::dht::network::_client::save_data(
   return fn;
 }
 
+vds::expected<void> vds::dht::network::_client::save_data(
+  const service_provider* sp,
+  database_transaction& t,
+  const const_data_buffer& data,
+  const const_data_buffer& owner) {
+
+  std::vector<const_data_buffer> result(service::GENERATE_HORCRUX);
+  for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
+    binary_serializer s;
+    CHECK_EXPECTED(this->generators_.find(replica)->second->write(s, data.data(), data.size()));
+    const auto replica_data = s.move_data();
+    GET_EXPECTED(replica_hash, hash::signature(hash::sha256(), replica_data));
+
+    orm::local_data_dbo t1;
+    orm::node_storage_dbo t2;
+    GET_EXPECTED(st, t.get_reader(
+      t1
+      .select(t1.storage_path, t2.local_path)
+      .inner_join(t2, t2.storage_id == t1.storage_id)
+      .where(t1.replica_hash == replica_hash)));
+    GET_EXPECTED(st_execute, st.execute());
+    if (st_execute) {
+      continue;//exist already
+    }
+
+    uint64_t allowed_size = 0;
+    std::string local_path;
+    const_data_buffer storage_id;
+
+    db_value<int64_t> data_size;
+    GET_EXPECTED_VALUE(st, t.get_reader(
+      t2.select(t2.storage_id, t2.local_path, t2.reserved_size, db_sum(t1.replica_size).as(data_size))
+      .left_join(t1, t1.storage_id == t2.storage_id)
+      .where((t2.usage_type == orm::node_storage_dbo::usage_type_t::share)
+        || (t2.usage_type == orm::node_storage_dbo::usage_type_t::exclusive && t2.owner_id == owner))
+      .group_by(t2.storage_id, t2.local_path, t2.reserved_size)));
+    WHILE_EXPECTED(st.execute()) {
+      const int64_t size = data_size.is_null(st) ? 0 : data_size.get(st);
+      if (t2.reserved_size.get(st) > size && allowed_size < (t2.reserved_size.get(st) - size)) {
+        allowed_size = (t2.reserved_size.get(st) - size);
+        local_path = t2.local_path.get(st);
+        storage_id = t2.storage_id.get(st);
+      }
+    }
+    WHILE_EXPECTED_END()
+
+    if (local_path.empty() || allowed_size < replica_data.size()) {
+      return vds::make_unexpected<std::runtime_error>("No disk space");
+    }
+
+    auto append_path = base64::from_bytes(replica_hash);
+    str_replace(append_path, '+', '#');
+    str_replace(append_path, '/', '_');
+
+    foldername fl(local_path);
+    CHECK_EXPECTED(fl.create());
+
+    fl = foldername(fl, append_path.substr(0, 10));
+    CHECK_EXPECTED(fl.create());
+
+    fl = foldername(fl, append_path.substr(10, 10));
+    CHECK_EXPECTED(fl.create());
+
+    filename fn(fl, append_path.substr(20));
+    CHECK_EXPECTED(file::write_all(fn, replica_data));
+
+    CHECK_EXPECTED(t.execute(t1.insert(
+      t1.storage_id = storage_id,
+      t1.replica_hash = replica_hash,
+      t1.replica_size = replica_data.size(),
+      t1.owner = owner,
+      t1.storage_path = append_path.substr(0, 10) + "/" + append_path.substr(10, 10) + "/" + append_path.substr(20),
+      t1.last_access = std::chrono::system_clock::now())));
+  }
+
+  return expected<void>();
+}
+
+
 vds::async_task<vds::expected<void>> vds::dht::network::_client::update_route_table() {
   if (0 == this->update_route_table_counter_) {
     for (size_t i = 0; i < 8 * this->route_.current_node_id().size(); ++i) {
@@ -722,13 +801,13 @@ vds::expected<bool> vds::dht::network::_client::apply_message(
 //}
 
 vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::_client::restore(
-  std::vector<const_data_buffer> object_ids,
+  std::vector<const_data_buffer> replicas_hashes,
   std::chrono::steady_clock::time_point start) {
   auto result = std::make_shared<const_data_buffer>();
     for (;;) {
     uint8_t progress;
     GET_EXPECTED_VALUE_ASYNC(progress, co_await this->restore_async(
-      object_ids,
+      replicas_hashes,
       result));
 
     if (result->size() > 0) {
@@ -761,7 +840,7 @@ vds::expected<vds::dht::network::client::block_info_t> vds::dht::network::_clien
 vds::expected<void> vds::dht::network::_client::restore_async(
   database_transaction& t,
   std::list<std::function<async_task<expected<void>>()>> & final_tasks,
-  const std::vector<const_data_buffer>& object_ids,
+  const std::vector<const_data_buffer>& replicas_hashes,
   const std::shared_ptr<const_data_buffer>& result,
   const std::shared_ptr<uint8_t> & result_progress) {
   
@@ -776,7 +855,7 @@ vds::expected<void> vds::dht::network::_client::restore_async(
       t1
       .select(t1.local_path, t4.storage_path)
       .inner_join(t4, t4.storage_id == t1.storage_id)
-      .where(t4.replica_hash == object_ids[replica])));
+      .where(t4.replica_hash == replicas_hashes[replica])));
     GET_EXPECTED(st_execute, st.execute());
     if (st_execute) {
       replicas.push_back(replica);
@@ -788,62 +867,9 @@ vds::expected<void> vds::dht::network::_client::restore_async(
       }
     }
     else {
-      unknonw_replicas[replica] = object_ids[replica];
+      unknonw_replicas[replica] = replicas_hashes[replica];
     }
   }
-
-  //if (replicas.size() < service::MIN_HORCRUX) {
-  //  for (auto p = unknonw_replicas.begin(); unknonw_replicas.end() != p; ) {
-  //    std::vector<uint16_t> piece_replicas;
-  //    std::vector<const_data_buffer> piece_datas;
-
-  //    orm::chunk_replica_data_dbo t2;
-  //    GET_EXPECTED(st, t.get_reader(
-  //      t2.select(
-  //        t2.replica, t2.replica_hash, t4.storage_path)
-  //      .inner_join(t4, t4.data_hash == t2.replica_hash)
-  //      .where(t2.object_id == p->second)));
-  //    WHILE_EXPECTED(st.execute()) {
-  //      piece_replicas.push_back(t2.replica.get(st));
-  //      GET_EXPECTED(data,
-  //        _client::read_data(
-  //          t2.replica_hash.get(st),
-  //          filename(t4.storage_path.get(st))));
-  //      piece_datas.push_back(data);
-
-  //      if (piece_replicas.size() >= service::MIN_DISTRIBUTED_PIECES) {
-  //        break;
-  //      }
-  //    }
-  //    WHILE_EXPECTED_END()
-
-  //      if (piece_replicas.size() >= service::MIN_DISTRIBUTED_PIECES) {
-  //        chunk_restore<uint16_t> restore(service::MIN_DISTRIBUTED_PIECES, piece_replicas.data());
-  //        GET_EXPECTED(data, restore.restore(piece_datas));
-  //        GET_EXPECTED(sig, hash::signature(hash::sha256(), data));
-  //        if (p->second != sig) {
-  //          return vds::make_unexpected<std::runtime_error>("Invalid error");
-  //        }
-  //        CHECK_EXPECTED(_client::save_data(this->sp_, t, p->second, data));
-
-  //        this->sp_->get<logger>()->trace(SyncModule, "Restored object %s", base64::from_bytes(p->second).c_str());
-
-  //        CHECK_EXPECTED(
-  //          t.execute(
-  //            t1.insert(
-  //              t1.object_id = p->second,
-  //              t1.last_sync = std::chrono::system_clock::now())));
-
-  //        replicas.push_back(p->first);
-  //        datas.push_back(data);
-
-  //        p = unknonw_replicas.erase(p);
-  //      }
-  //      else {
-  //        ++p;
-  //      }
-  //  }
-  //}
 
   if (replicas.size() >= service::MIN_HORCRUX) {
     chunk_restore<uint16_t> restore(service::MIN_HORCRUX, replicas.data());
@@ -862,15 +888,15 @@ vds::expected<void> vds::dht::network::_client::restore_async(
 }
 
 vds::async_task<vds::expected<uint8_t>> vds::dht::network::_client::restore_async(
-  const std::vector<const_data_buffer>& object_ids,
+  const std::vector<const_data_buffer>& replicas_hashes,
   const std::shared_ptr<const_data_buffer>& result) {
 
   auto result_progress = std::make_shared<uint8_t>();
   std::list<std::function<async_task<expected<void>>()>> final_tasks;
   CHECK_EXPECTED_ASYNC(co_await this->sp_->get<db_model>()->async_transaction(
-    [pthis = this->shared_from_this(), object_ids, result, result_progress, &final_tasks](
+    [pthis = this->shared_from_this(), replicas_hashes, result, result_progress, &final_tasks](
       database_transaction& t) -> expected<void> {
-    return pthis->restore_async(t, final_tasks, object_ids, result, result_progress);
+    return pthis->restore_async(t, final_tasks, replicas_hashes, result, result_progress);
   }));
 
   while(!final_tasks.empty()) {
