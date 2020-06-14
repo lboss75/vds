@@ -1283,28 +1283,7 @@ vds::expected<bool> vds::transactions::transaction_log::apply_record(
   const store_block_transaction& message,
   const transaction_block& block)
 {
-  GET_EXPECTED(root_folder, persistence::current_user(sp));
-  foldername tmp_folder(root_folder, "tmp");
-
   auto client = sp->get<dht::network::client>();
-  if (block.write_public_key_id() == client->current_node_id()) {
-    for (const auto& p : message.replicas) {
-      auto append_path = base64::from_bytes(p);
-      str_replace(append_path, '+', '#');
-      str_replace(append_path, '/', '_');
-
-      CHECK_EXPECTED((*client)->save_data(
-        sp,
-        t,
-        p,
-        filename(tmp_folder, append_path),
-        message.owner_id));
-
-      orm::chunk_tmp_data_dbo t1;
-      CHECK_EXPECTED(t.execute(t1.delete_if(t1.object_id == p)));
-    }
-  }
-
   for (uint16_t index = 0; index < message.replicas.size(); ++index) {
     orm::chunk_replica_data_dbo t1;
     CHECK_EXPECTED(t.execute(

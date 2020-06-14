@@ -1152,8 +1152,40 @@ vds::expected<vds::const_data_buffer> vds::dht::network::client::save(
 
     this->is_new_node_ = false;
   }
+
   //Load state
   GET_EXPECTED(data, transactions::transaction_block::build(t, block.close(), this->node_public_key_, this->node_key_));
+
+
+  GET_EXPECTED(log_block, transactions::transaction_block::create(data));
+  CHECK_EXPECTED(log_block.walk_messages(
+    [&t, sp](const transactions::store_block_transaction& message)->expected<bool> {
+      auto client = sp->get<dht::network::client>();
+      GET_EXPECTED(root_folder, persistence::current_user(sp));
+      foldername tmp_folder(root_folder, "tmp");
+
+      for (const auto& p : message.replicas) {
+        orm::chunk_tmp_data_dbo t1;
+        GET_EXPECTED(st, t.get_reader(t1.select(t1.object_id).where(t1.object_id == p)));
+        GET_EXPECTED(st_execute, st.execute());
+        if (st_execute) {
+          auto append_path = base64::from_bytes(p);
+          str_replace(append_path, '+', '#');
+          str_replace(append_path, '/', '_');
+
+          CHECK_EXPECTED((*client)->save_data(
+            sp,
+            t,
+            p,
+            filename(tmp_folder, append_path),
+            message.owner_id));
+
+          CHECK_EXPECTED(t.execute(t1.delete_if(t1.object_id == p)));
+        }
+      }
+      return true;
+    }));
+
   return transactions::transaction_log::save(sp, t, data, allow_root);
 }
 
