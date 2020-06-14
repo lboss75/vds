@@ -1175,13 +1175,15 @@ vds::expected<vds::const_data_buffer> vds::dht::network::client::save(
             str_replace(append_path, '+', '#');
             str_replace(append_path, '/', '_');
 
-            CHECK_EXPECTED((*client)->save_data(
-              sp,
-              t,
-              p,
-              filename(tmp_folder, append_path),
-              message.owner_id));
-
+            filename fn(tmp_folder, append_path);
+            if (file::exists(fn)) {
+              CHECK_EXPECTED((*client)->save_data(
+                sp,
+                t,
+                p,
+                fn,
+                message.owner_id));
+            }
             CHECK_EXPECTED(t.execute(t1.delete_if(t1.object_id == p)));
           }
         }

@@ -186,7 +186,7 @@ vds::expected<size_t> vds::file::length(const filename & fn)
   struct stat buffer;
   if (0 != stat(fn.local_name().c_str(), &buffer)) {
     auto error = errno;
-    return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Unable to get file size of " + fn.name());
+    return vds::make_unexpected<std::system_error>(error, std::generic_category(), "Unable to get file size of " + fn.full_name());
   }
 
   return buffer.st_size;
