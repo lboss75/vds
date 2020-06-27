@@ -76,6 +76,9 @@ namespace vds {
         //async_task<expected<const_data_buffer>> restore(          
         //  const chunk_info& block_id);
 
+        async_task<expected<uint8_t>> prepare_restore(
+          std::vector<const_data_buffer> object_ids);
+
         async_task<expected<const_data_buffer>> restore(
           std::vector<const_data_buffer> object_ids);
 

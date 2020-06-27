@@ -800,6 +800,11 @@ vds::expected<bool> vds::dht::network::_client::apply_message(
 //  return this->sync_process_.apply_message(t, final_tasks, message, message_info);
 //}
 
+vds::async_task<vds::expected<uint8_t>> vds::dht::network::_client::prepare_restore(
+  std::vector<const_data_buffer> replicas_hashes) {
+  return this->restore_async(replicas_hashes);
+}
+
 vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::_client::restore(
   std::vector<const_data_buffer> replicas_hashes,
   std::chrono::steady_clock::time_point start) {
@@ -814,11 +819,11 @@ vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::_clien
       co_return *result;
     }
 
-    if (std::chrono::minutes(30) < (std::chrono::steady_clock::now() - start)) {
+    if (std::chrono::seconds(60) < (std::chrono::steady_clock::now() - start)) {
       co_return vds::make_unexpected<vds_exceptions::not_found>();
     }
 
-    std::this_thread::sleep_for(std::chrono::seconds(60));
+    std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 }
 
@@ -872,9 +877,11 @@ vds::expected<void> vds::dht::network::_client::restore_async(
   }
 
   if (replicas.size() >= service::MIN_HORCRUX) {
-    chunk_restore<uint16_t> restore(service::MIN_HORCRUX, replicas.data());
-    GET_EXPECTED(data, restore.restore(datas));
-    *result = data;
+    if (result) {
+      chunk_restore<uint16_t> restore(service::MIN_HORCRUX, replicas.data());
+      GET_EXPECTED(data, restore.restore(datas));
+      *result = data;
+    }
     *result_progress = 100;
     return expected<void>();
   }
@@ -889,7 +896,7 @@ vds::expected<void> vds::dht::network::_client::restore_async(
 
 vds::async_task<vds::expected<uint8_t>> vds::dht::network::_client::restore_async(
   const std::vector<const_data_buffer>& replicas_hashes,
-  const std::shared_ptr<const_data_buffer>& result) {
+  std::shared_ptr<const_data_buffer> result) {
 
   auto result_progress = std::make_shared<uint8_t>();
   std::list<std::function<async_task<expected<void>>()>> final_tasks;
@@ -1302,10 +1309,16 @@ vds::expected<vds::const_data_buffer> vds::dht::network::client::save(
 //  co_return original_data;
 //}
 //
+vds::async_task<vds::expected<uint8_t>> vds::dht::network::client::prepare_restore(
+  std::vector<const_data_buffer> object_ids)
+{
+  return this->impl_->prepare_restore(std::move(object_ids));
+}
+
 vds::async_task<vds::expected<vds::const_data_buffer>> vds::dht::network::client::restore(
   std::vector<const_data_buffer> object_ids)
 {
-  return this->impl_->restore(object_ids, std::chrono::steady_clock::now());
+  return this->impl_->restore(std::move(object_ids), std::chrono::steady_clock::now());
 }
 
 vds::expected<vds::dht::network::client::block_info_t> vds::dht::network::client::prepare_restore(

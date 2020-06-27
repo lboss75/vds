@@ -346,7 +346,7 @@ vds::expected<void> vds::_network_service::set_events(
   
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_MOD, s, &event_data);
   if(0 > result) {
-    auto error = errno;
+    const auto error = errno;
     return vds::make_unexpected<std::system_error>(error, std::system_category(), "epoll_ctl(EPOLL_CTL_MOD)");
   }
 
@@ -362,7 +362,7 @@ vds::expected<void> vds::_network_service::remove_association(
   
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_DEL, s, &event_data);
   if(0 > result) {
-    auto error = errno;
+    const auto error = errno;
     return vds::make_unexpected<std::system_error>(error, std::system_category(), "epoll_ctl(EPOLL_CTL_DEL)");
   }
   

@@ -45,6 +45,7 @@ vds::websocket::websocket_handler::websocket_handler(
 vds::async_task<vds::expected<void>> vds::websocket::websocket_handler::write_async(const uint8_t * data, size_t len)
 {
   if (0 == len) {
+    this->read_state_ = read_state_t::CLOSED;
     //TODO
   }
   else {

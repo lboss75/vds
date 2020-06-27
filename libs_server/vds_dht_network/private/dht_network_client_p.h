@@ -284,6 +284,9 @@ namespace vds {
           const std::shared_ptr<dht_session>& session,
           uint8_t hops);
 
+        async_task<expected<uint8_t>> prepare_restore(
+          std::vector<const_data_buffer> replicas_hashes);
+
         async_task<expected<const_data_buffer>> restore(
           std::vector<const_data_buffer> replicas_hashes,
           std::chrono::steady_clock::time_point start);
@@ -294,9 +297,8 @@ namespace vds {
           const std::vector<const_data_buffer>& replicas_hashes);
 
         async_task<vds::expected<uint8_t>> restore_async(
-          
           const std::vector<const_data_buffer>& replicas_hashes,
-          const std::shared_ptr<const_data_buffer>& result);
+          std::shared_ptr<const_data_buffer> result = std::shared_ptr<const_data_buffer>());
 
         void get_route_statistics(route_statistic& result);
         void get_session_statistics(session_statistic& session_statistic);

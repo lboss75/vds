@@ -156,6 +156,26 @@ vds::websocket_api::process_message(
 
     CHECK_EXPECTED_ASYNC(co_await this->looking_block(sp, r, obj_id));
   }
+  else if ("prepare_download" == method_name) {
+    auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
+    if (!args || args->size() != dht::network::service::GENERATE_HORCRUX) {
+      co_return make_unexpected<std::runtime_error>("invalid arguments at invoke method 'download'");
+    }
+
+    std::vector<const_data_buffer> object_ids;
+    for (decltype(args->size()) i = 0; i < args->size(); ++i) {
+      auto id_str = std::dynamic_pointer_cast<json_primitive>(args->get(i));
+      if (!id_str) {
+        co_return make_unexpected<std::runtime_error>("missing argument at invoke method 'download'");
+      }
+
+      GET_EXPECTED_ASYNC(obj_id, base64::to_bytes(id_str->value()));
+
+      object_ids.push_back(obj_id);
+    }
+
+    CHECK_EXPECTED_ASYNC(co_await this->download(sp, r, object_ids));
+  }
   else if ("download" == method_name) {
     auto args = std::dynamic_pointer_cast<json_array>(request->get_property("params"));
     if (!args || args->size() != dht::network::service::GENERATE_HORCRUX) {
@@ -722,6 +742,18 @@ vds::async_task<vds::expected<void>> vds::websocket_api::looking_block(
     result->add_property("error", "Data " + data_hash_str + " not found");
   }
 
+  co_return expected<void>();
+}
+
+vds::async_task<vds::expected<void>> vds::websocket_api::prepare_download(
+  const vds::service_provider* sp,
+  std::shared_ptr<json_object> result,
+  std::vector<const_data_buffer> object_ids)
+{
+  auto network_client = sp->get<dht::network::client>();
+  GET_EXPECTED_ASYNC(progress, co_await network_client->prepare_restore(object_ids));
+
+  result->add_property("result", progress);
   co_return expected<void>();
 }
 

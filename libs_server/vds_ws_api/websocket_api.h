@@ -104,6 +104,11 @@ namespace vds {
       std::shared_ptr<json_object> result,
       const_data_buffer data_hash);
 
+    async_task<expected<void>> prepare_download(
+      const vds::service_provider* sp,
+      std::shared_ptr<json_object> result,
+      std::vector<const_data_buffer> object_ids);
+
     async_task<expected<void>> download(
       const vds::service_provider * sp,
       std::shared_ptr<json_object> result,
