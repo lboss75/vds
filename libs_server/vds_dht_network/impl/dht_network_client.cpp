@@ -370,22 +370,28 @@ vds::expected<vds::const_data_buffer> vds::dht::network::_client::replica_id(con
 
 vds::expected<void> vds::dht::network::_client::start() {
   return this->update_timer_.start(this->sp_, std::chrono::seconds(10), [pthis = this->shared_from_this()]() -> async_task<expected<bool>>{
-
+    pthis->sp_->get<logger>()->trace(ThisModule, "Start Udp Transport Timer");
     CHECK_EXPECTED_ASYNC(co_await pthis->udp_transport_->on_timer());
+
+    pthis->sp_->get<logger>()->trace(ThisModule, "Start Route Timer");
     CHECK_EXPECTED_ASYNC(co_await pthis->route_.on_timer(pthis->udp_transport_));
+
+    pthis->sp_->get<logger>()->trace(ThisModule, "Start Route Table Timer");
     CHECK_EXPECTED_ASYNC(co_await pthis->update_route_table());
 
     std::list<std::function<async_task<expected<void>>()>> final_tasks;
     CHECK_EXPECTED_ASYNC(co_await pthis->sp_->get<db_model>()->async_transaction([pthis, &final_tasks](database_transaction& t) -> expected<void> {
-        return pthis->process_update(t, final_tasks);
+      pthis->sp_->get<logger>()->trace(ThisModule, "Start Process Update Timer");
+      return pthis->process_update(t, final_tasks);
       }));
 
+    pthis->sp_->get<logger>()->trace(ThisModule, "Start Final tasks");
     while(!final_tasks.empty()) {
       CHECK_EXPECTED_ASYNC(co_await final_tasks.front()());
       final_tasks.pop_front();
     }
 
-      co_return !pthis->sp_->get_shutdown_event().is_shuting_down();
+     co_return !pthis->sp_->get_shutdown_event().is_shuting_down();
   });
 }
 

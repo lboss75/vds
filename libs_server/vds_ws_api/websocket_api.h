@@ -18,7 +18,7 @@ namespace vds {
 
 		static vds::async_task<vds::expected<std::shared_ptr<stream_output_async<uint8_t>>>> open_connection(
 			const vds::service_provider * sp,
-      const std::shared_ptr<http_async_serializer> & output_stream,
+      std::shared_ptr<http_async_serializer> output_stream,
 			const http_message & /*message*/);
 
 	private:
@@ -49,6 +49,13 @@ namespace vds {
       std::shared_ptr<websocket_output> output_stream,
       const std::shared_ptr<json_value> & message,
       std::list<lambda_holder_t<async_task<expected<void>>>> & post_tasks);
+
+    static async_task<expected<void>> process_api_message(
+      const vds::service_provider* sp,
+      std::shared_ptr<websocket_output> output_stream,
+      std::shared_ptr<websocket_api> api,
+      const_data_buffer data);
+
 
     async_task<expected<std::shared_ptr<json_value>>> process_message(
       const vds::service_provider * sp,

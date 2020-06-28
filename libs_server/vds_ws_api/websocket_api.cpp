@@ -27,10 +27,31 @@ vds::websocket_api::websocket_api()
 {
 }
 
+vds::async_task<vds::expected<void>> vds::websocket_api::process_api_message(
+  const vds::service_provider* sp,
+  std::shared_ptr<vds::websocket_output> output_stream,
+  std::shared_ptr<vds::websocket_api> api,
+  vds::const_data_buffer data) {
+  GET_EXPECTED_ASYNC(message, vds::json_parser::parse("Web Socket API", data));
+
+  std::list<vds::lambda_holder_t<vds::async_task<vds::expected<void>>>> post_tasks;
+  GET_EXPECTED_ASYNC(result, co_await api->process_message(sp, output_stream, message, post_tasks));
+
+  GET_EXPECTED_ASYNC(result_str, result->str());
+  GET_EXPECTED_ASYNC(stream, co_await output_stream->start(result_str.length(), false));
+  CHECK_EXPECTED_ASYNC(co_await stream->write_async((const uint8_t*)result_str.c_str(), result_str.length()));
+
+  for (auto& task : post_tasks) {
+    CHECK_EXPECTED_ASYNC(co_await task());
+  }
+
+  co_return vds::expected<void>();
+}
+
 vds::async_task<vds::expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>>
 vds::websocket_api::open_connection(
   const vds::service_provider * sp,
-  const std::shared_ptr<http_async_serializer> & output_stream,
+  std::shared_ptr<http_async_serializer> output_stream,
   const http_message & request)
 {
   auto api = std::make_shared<websocket_api>();
@@ -45,18 +66,9 @@ vds::websocket_api::open_connection(
       ) -> async_task<expected<std::shared_ptr<stream_output_async<uint8_t>>>> {
 
     return expected<std::shared_ptr<vds::stream_output_async<uint8_t>>>(std::make_shared<collect_data>([sp, output_stream, api](const_data_buffer data)->async_task<expected<void>> {
-      GET_EXPECTED_ASYNC(message, json_parser::parse("Web Socket API", data));
-
-      std::list<lambda_holder_t<async_task<expected<void>>>> post_tasks;
-      GET_EXPECTED_ASYNC(result, co_await api->process_message(sp, output_stream, message, post_tasks));
-
-      GET_EXPECTED_ASYNC(result_str, result->str());
-      GET_EXPECTED_ASYNC(stream, co_await output_stream->start(result_str.length(), false));
-      CHECK_EXPECTED_ASYNC(co_await stream->write_async((const uint8_t *)result_str.c_str(), result_str.length()));
-
-      for (auto & task : post_tasks) {
-        CHECK_EXPECTED_ASYNC(co_await task());
-      }
+      mt_service::async(sp, [sp, output_stream, api, data]() {
+        process_api_message(sp, output_stream, api, data).then([](){});
+      });
 
       co_return expected<void>();
     }));

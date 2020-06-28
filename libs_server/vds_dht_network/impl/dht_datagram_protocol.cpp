@@ -188,12 +188,6 @@ vds::async_task<vds::expected<void>> vds::dht::network::dht_datagram_protocol::p
 
   if (is_new) {
     CHECK_EXPECTED_ASYNC(co_await this->continue_process_messages(s));
-
-    if (index > this->expected_index_ + 32) {
-      mt_service::async(this->sp_, [pthis = this->shared_from_this(), s](){
-        pthis->send_acknowledgment(s).then([](expected<void>) {});
-      });
-    }
   }
   co_return expected<void>();
 }
